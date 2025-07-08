@@ -1,27 +1,26 @@
+import Head from "next/head";
+
 export default function Home() {
   return (
-    <div style={{
-      display: "flex",
-      minHeight: "100vh",
-      flexDirection: "column",
-      alignItems: "center",
-      justifyContent: "center",
-      background: "#0a0f1a",
-      color: "#fff"
-    }}>
-      <img
-        src="https://raw.githubusercontent.com/Drodo44/RapidRoutes/main/public/rapidroutes_logo.png"
-        alt="RapidRoutes Logo"
-        style={{ maxWidth: 300, marginBottom: 40 }}
-        onError={(e) => { e.target.style.display = 'none'; }}
-      />
-      <h1 style={{ fontSize: "2.8rem", fontWeight: 700, marginBottom: 20 }}>Welcome to RapidRoutes</h1>
-      <p style={{ fontSize: "1.2rem", maxWidth: 600, textAlign: "center" }}>
-        The next-generation, AI-powered platform for intelligent freight management.
-        <br />
-        <br />
-        Please <b>log in</b> or <b>sign up</b> to get started.
-      </p>
-    </div>
+    <>
+      <Head>
+        <title>RapidRoutes | AI Freight Lane Genius</title>
+        <meta name="description" content="The gold standard for intelligent freight brokers. DAT posting, AI-powered recap, lane management, and more." />
+        <link rel="icon" href="/logo.png" />
+      </Head>
+      <main style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#111" }}>
+        <img src="/logo.png" alt="RapidRoutes Logo" style={{ width: 150, marginBottom: 24 }} />
+        <h1 style={{ color: "#00e1ff", fontSize: 36, textShadow: "0 0 8px #00e1ff" }}>RapidRoutes</h1>
+        <p style={{ color: "#fff", fontSize: 20, maxWidth: 400, textAlign: "center", marginTop: 16 }}>
+          Welcome to the next-gen, AI-powered freight lane platform. <br />
+          <span style={{ color: "#15ff6b", fontWeight: 700 }}>
+            Redefine the game. Outsmart the lane.
+          </span>
+        </p>
+        <a href="/login" style={{ marginTop: 32, padding: "12px 28px", fontSize: 18, background: "#15ff6b", color: "#111", borderRadius: 8, textDecoration: "none", fontWeight: 700, boxShadow: "0 0 16px #15ff6b" }}>
+          Login
+        </a>
+      </main>
+    </>
   );
 }
