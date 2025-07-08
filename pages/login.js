@@ -1,60 +1,75 @@
-import { useState } from "react";
+// pages/login.js
+import { useState } from 'react';
+import { useRouter } from 'next/router';
+import supabase from '../utils/supabaseClient';
 
 export default function Login() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const router = useRouter();
 
-  const handleSubmit = async (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setMessage("");
-    // Placeholder: Replace with Supabase login logic
-    if (email && password) {
-      setTimeout(() => {
-        setLoading(false);
-        setMessage("Logged in! (Demo placeholder)");
-      }, 1200);
+    setError('');
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      setError(error.message);
     } else {
-      setLoading(false);
-      setMessage("All fields are required.");
+      router.push('/dashboard');
     }
   };
 
   return (
-    <main style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#0b0b0e" }}>
-      <img src="/logo.png" alt="RapidRoutes Logo" style={{ width: 120, marginBottom: 18 }} />
-      <h2 style={{ color: "#00e1ff", marginBottom: 8 }}>RapidRoutes Login</h2>
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", width: 320, background: "#181826", padding: 28, borderRadius: 12, boxShadow: "0 0 16px #15ff6b22" }}>
-        <label style={{ color: "#fff", marginBottom: 4 }}>Email</label>
+    <div style={{
+      minHeight: '100vh',
+      background: '#10151b',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center'
+    }}>
+      <img src="/logo.png" alt="RapidRoutes Logo" style={{ width: 180, marginBottom: 18 }} />
+      <form onSubmit={handleLogin} style={{
+        background: '#18202b',
+        padding: 36,
+        borderRadius: 14,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 18,
+        boxShadow: '0 2px 18px #2ec4f125'
+      }}>
+        <h2 style={{ color: '#fff', fontSize: 28 }}>Login</h2>
         <input
           type="email"
+          placeholder="Email"
           value={email}
-          required
           onChange={e => setEmail(e.target.value)}
-          style={{ marginBottom: 12, padding: 8, borderRadius: 4, border: "none" }}
+          required
+          style={{ padding: 12, borderRadius: 6, fontSize: 16, border: 'none' }}
         />
-        <label style={{ color: "#fff", marginBottom: 4 }}>Password</label>
         <input
           type="password"
+          placeholder="Password"
           value={password}
-          required
           onChange={e => setPassword(e.target.value)}
-          style={{ marginBottom: 18, padding: 8, borderRadius: 4, border: "none" }}
+          required
+          style={{ padding: 12, borderRadius: 6, fontSize: 16, border: 'none' }}
         />
-        <button type="submit" disabled={loading} style={{ padding: 10, background: "#00e1ff", color: "#111", border: "none", borderRadius: 6, fontWeight: 700, fontSize: 17 }}>
-          {loading ? "Logging in..." : "Login"}
-        </button>
-        {message && (
-          <div style={{ color: message.includes("Logged") ? "#15ff6b" : "#ff4569", marginTop: 10 }}>
-            {message}
-          </div>
-        )}
+        {error && <div style={{ color: '#ff6161', fontWeight: 600 }}>{error}</div>}
+        <button type="submit" style={{
+          background: '#2ec4f1',
+          color: '#10151b',
+          fontWeight: 700,
+          padding: '12px 0',
+          borderRadius: 10,
+          fontSize: 18,
+          border: 'none'
+        }}>Login</button>
+        <a href="/signup" style={{ color: '#82e0ff', textAlign: 'center', marginTop: 4, textDecoration: 'underline' }}>
+          New user? Sign up
+        </a>
       </form>
-      <a href="/register" style={{ color: "#00e1ff", marginTop: 22, fontWeight: 600, fontSize: 16 }}>
-        Need an account? Register
-      </a>
-    </main>
+    </div>
   );
 }
