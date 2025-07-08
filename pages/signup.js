@@ -1,120 +1,97 @@
-import { useState } from "react";
-import { useRouter } from "next/router";
-import supabase from "../utils/supabaseClient";
-import Image from "next/image";
+// pages/signup.js
+import { useState } from 'react';
+import { useRouter } from 'next/router';
+import supabase from '../utils/supabaseClient';
 
 export default function Signup() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [role, setRole] = useState('Broker');
+  const [error, setError] = useState('');
   const router = useRouter();
-  const [form, setForm] = useState({
-    email: "",
-    password: "",
-    name: "",
-    role: "Broker"
-  });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
-  const handleChange = e => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
-
-  const handleSubmit = async e => {
+  const handleSignup = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setError("");
-    try {
-      const { user, error: signupError } = await supabase.auth.signUp({
-        email: form.email,
-        password: form.password,
-        options: { data: { name: form.name, role: form.role } }
-      });
-      if (signupError) throw signupError;
-      // Create user record in database as well:
-      await supabase
-        .from("users")
-        .insert([{ email: form.email, name: form.name, role: form.role }]);
-      router.push("/login");
-    } catch (err) {
-      setError(err.message || "Signup failed.");
-    } finally {
-      setLoading(false);
+    setError('');
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { name, role }
+      }
+    });
+    if (error) {
+      setError(error.message);
+    } else {
+      router.push('/login');
     }
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-[#090918] via-[#12244d] to-[#080e1e] px-4">
-      <div className="max-w-md w-full bg-black/80 rounded-2xl shadow-xl p-8 flex flex-col items-center">
-        <Image
-          src="/rr-logo.png"
-          alt="RapidRoutes Logo"
-          width={90}
-          height={90}
-          className="mb-3"
+    <div style={{
+      minHeight: '100vh',
+      background: '#10151b',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center'
+    }}>
+      <img src="/logo.png" alt="RapidRoutes Logo" style={{ width: 180, marginBottom: 18 }} />
+      <form onSubmit={handleSignup} style={{
+        background: '#18202b',
+        padding: 36,
+        borderRadius: 14,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 16,
+        boxShadow: '0 2px 18px #2ec4f125'
+      }}>
+        <h2 style={{ color: '#fff', fontSize: 28 }}>Sign Up</h2>
+        <input
+          type="text"
+          placeholder="Full Name"
+          value={name}
+          onChange={e => setName(e.target.value)}
+          required
+          style={{ padding: 12, borderRadius: 6, fontSize: 16, border: 'none' }}
         />
-        <h2 className="text-2xl font-bold text-white mb-2">Sign up for RapidRoutes</h2>
-        <p className="text-gray-300 text-center mb-6 text-sm">
-          The gold standard platform for brokers.
-        </p>
-        <form className="w-full space-y-4" onSubmit={handleSubmit}>
-          <input
-            type="text"
-            name="name"
-            placeholder="Name"
-            value={form.name}
-            onChange={handleChange}
-            required
-            className="w-full px-4 py-2 rounded-xl bg-[#1c2342] text-white"
-          />
-          <input
-            type="email"
-            name="email"
-            placeholder="Email"
-            value={form.email}
-            onChange={handleChange}
-            required
-            className="w-full px-4 py-2 rounded-xl bg-[#1c2342] text-white"
-          />
-          <input
-            type="password"
-            name="password"
-            placeholder="Password"
-            value={form.password}
-            onChange={handleChange}
-            required
-            className="w-full px-4 py-2 rounded-xl bg-[#1c2342] text-white"
-          />
-          <select
-            name="role"
-            value={form.role}
-            onChange={handleChange}
-            className="w-full px-4 py-2 rounded-xl bg-[#1c2342] text-white"
-          >
-            <option value="Broker">Broker</option>
-            <option value="Admin">Admin</option>
-            <option value="Support">Support</option>
-            <option value="Apprentice">Apprentice</option>
-          </select>
-          {error && (
-            <div className="text-red-400 font-bold text-sm">{error}</div>
-          )}
-          <button
-            type="submit"
-            className="w-full py-2 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-bold shadow-xl transition"
-            disabled={loading}
-          >
-            {loading ? "Signing up..." : "Sign Up"}
-          </button>
-        </form>
-        <p className="text-gray-400 text-xs mt-5">
-          Already have an account?{" "}
-          <a
-            href="/login"
-            className="text-blue-400 underline font-medium hover:text-cyan-400"
-          >
-            Log in
-          </a>
-        </p>
-      </div>
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          required
+          style={{ padding: 12, borderRadius: 6, fontSize: 16, border: 'none' }}
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={e => setPassword(e.target.value)}
+          required
+          style={{ padding: 12, borderRadius: 6, fontSize: 16, border: 'none' }}
+        />
+        <select value={role} onChange={e => setRole(e.target.value)} style={{ padding: 10, borderRadius: 6 }}>
+          <option>Admin</option>
+          <option>Broker</option>
+          <option>Support</option>
+          <option>Apprentice</option>
+        </select>
+        {error && <div style={{ color: '#ff6161', fontWeight: 600 }}>{error}</div>}
+        <button type="submit" style={{
+          background: '#2ec4f1',
+          color: '#10151b',
+          fontWeight: 700,
+          padding: '12px 0',
+          borderRadius: 10,
+          fontSize: 18,
+          border: 'none'
+        }}>Sign Up</button>
+        <a href="/login" style={{ color: '#82e0ff', textAlign: 'center', marginTop: 4, textDecoration: 'underline' }}>
+          Already have an account? Login
+        </a>
+      </form>
     </div>
   );
 }
