@@ -10,7 +10,7 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     setMessage("");
-    // Placeholder: Replace with Supabase auth logic
+    // Placeholder: Replace with Supabase login logic
     if (email && password) {
       setTimeout(() => {
         setLoading(false);
@@ -18,7 +18,7 @@ export default function Login() {
       }, 1200);
     } else {
       setLoading(false);
-      setMessage("Please enter both email and password.");
+      setMessage("All fields are required.");
     }
   };
 
@@ -43,7 +43,7 @@ export default function Login() {
           onChange={e => setPassword(e.target.value)}
           style={{ marginBottom: 18, padding: 8, borderRadius: 4, border: "none" }}
         />
-        <button type="submit" disabled={loading} style={{ padding: 10, background: "#15ff6b", color: "#111", border: "none", borderRadius: 6, fontWeight: 700, fontSize: 17 }}>
+        <button type="submit" disabled={loading} style={{ padding: 10, background: "#00e1ff", color: "#111", border: "none", borderRadius: 6, fontWeight: 700, fontSize: 17 }}>
           {loading ? "Logging in..." : "Login"}
         </button>
         {message && (
