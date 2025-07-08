@@ -1,26 +1,40 @@
-import Head from "next/head";
+// pages/index.js
+import Head from 'next/head';
 
 export default function Home() {
   return (
     <>
       <Head>
-        <title>RapidRoutes | AI Freight Lane Genius</title>
-        <meta name="description" content="The gold standard for intelligent freight brokers. DAT posting, AI-powered recap, lane management, and more." />
-        <link rel="icon" href="/logo.png" />
+        <title>RapidRoutes - Freight Intelligence</title>
       </Head>
-      <main style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#111" }}>
-        <img src="/logo.png" alt="RapidRoutes Logo" style={{ width: 150, marginBottom: 24 }} />
-        <h1 style={{ color: "#00e1ff", fontSize: 36, textShadow: "0 0 8px #00e1ff" }}>RapidRoutes</h1>
-        <p style={{ color: "#fff", fontSize: 20, maxWidth: 400, textAlign: "center", marginTop: 16 }}>
-          Welcome to the next-gen, AI-powered freight lane platform. <br />
-          <span style={{ color: "#15ff6b", fontWeight: 700 }}>
-            Redefine the game. Outsmart the lane.
-          </span>
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100vh',
+        background: '#10151b',
+        color: '#fff'
+      }}>
+        <img src="/logo.png" alt="RapidRoutes Logo" style={{ width: 220, marginBottom: 20 }} />
+        <h1 style={{ fontSize: 36, fontWeight: 700 }}>RapidRoutes</h1>
+        <p style={{ fontSize: 20, marginBottom: 40, opacity: 0.85 }}>
+          Redefine the game. Outsmart the lane.
         </p>
-        <a href="/login" style={{ marginTop: 32, padding: "12px 28px", fontSize: 18, background: "#15ff6b", color: "#111", borderRadius: 8, textDecoration: "none", fontWeight: 700, boxShadow: "0 0 16px #15ff6b" }}>
+        <a href="/login" style={{
+          background: '#2ec4f1',
+          color: '#10151b',
+          fontWeight: 700,
+          padding: '14px 40px',
+          borderRadius: 12,
+          textDecoration: 'none',
+          fontSize: 20,
+          boxShadow: '0 2px 18px #2ec4f175',
+        }}>
           Login
         </a>
-      </main>
+      </div>
     </>
   );
 }
+
