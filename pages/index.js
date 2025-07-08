@@ -1,43 +1,27 @@
-import Head from "next/head";
-
 export default function Home() {
   return (
-    <>
-      <Head>
-        <title>RapidRoutes – Outsmart The Lane</title>
-        <meta name="description" content="RapidRoutes: The Gold Standard for Brokers" />
-        <link rel="icon" href="/logo.png" />
-      </Head>
-      <div style={{
-        minHeight: "100vh",
-        background: "#0a0f1c",
-        color: "#fff",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        fontFamily: "Inter, sans-serif"
-      }}>
-        <img src="/logo.png" alt="RapidRoutes Logo" style={{ width: 160, marginBottom: 32 }} />
-        <h1 style={{ fontSize: "2.4rem", fontWeight: 800, marginBottom: 12 }}>RapidRoutes</h1>
-        <p style={{ fontSize: "1.2rem", marginBottom: 32, textAlign: "center" }}>
-          Redefine the game.<br />Outsmart the lane.<br />The Gold Standard for Brokers.
-        </p>
-        <a
-          href="/login"
-          style={{
-            background: "#30A3FF",
-            color: "#fff",
-            padding: "0.75em 2em",
-            borderRadius: 8,
-            fontWeight: 600,
-            textDecoration: "none",
-            fontSize: "1rem"
-          }}
-        >
-          Login / Sign Up
-        </a>
-      </div>
-    </>
+    <div style={{
+      display: "flex",
+      minHeight: "100vh",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      background: "#0a0f1a",
+      color: "#fff"
+    }}>
+      <img
+        src="https://raw.githubusercontent.com/Drodo44/RapidRoutes/main/public/rapidroutes_logo.png"
+        alt="RapidRoutes Logo"
+        style={{ maxWidth: 300, marginBottom: 40 }}
+        onError={(e) => { e.target.style.display = 'none'; }}
+      />
+      <h1 style={{ fontSize: "2.8rem", fontWeight: 700, marginBottom: 20 }}>Welcome to RapidRoutes</h1>
+      <p style={{ fontSize: "1.2rem", maxWidth: 600, textAlign: "center" }}>
+        The next-generation, AI-powered platform for intelligent freight management.
+        <br />
+        <br />
+        Please <b>log in</b> or <b>sign up</b> to get started.
+      </p>
+    </div>
   );
 }
