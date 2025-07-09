@@ -1,75 +1,69 @@
-// pages/login.js
-import { useState } from 'react';
-import { useRouter } from 'next/router';
-import supabase from '../utils/supabaseClient';
+import { useState } from "react";
+import { supabase } from "../utils/supabaseClient";
+import Image from "next/image";
+import { useRouter } from "next/router";
 
 export default function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [email, setEmail] = useState("");
+  const [isSent, setIsSent] = useState(false);
+  const [error, setError] = useState("");
   const router = useRouter();
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    setError('');
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      setError(error.message);
-    } else {
-      router.push('/dashboard');
+    setError("");
+    try {
+      const { error } = await supabase.auth.signInWithOtp({ email });
+      if (error) {
+        setError(error.message);
+      } else {
+        setIsSent(true);
+      }
+    } catch (err) {
+      setError("Something went wrong.");
     }
   };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: '#10151b',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center'
-    }}>
-      <img src="/logo.png" alt="RapidRoutes Logo" style={{ width: 180, marginBottom: 18 }} />
-      <form onSubmit={handleLogin} style={{
-        background: '#18202b',
-        padding: 36,
-        borderRadius: 14,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 18,
-        boxShadow: '0 2px 18px #2ec4f125'
-      }}>
-        <h2 style={{ color: '#fff', fontSize: 28 }}>Login</h2>
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          required
-          style={{ padding: 12, borderRadius: 6, fontSize: 16, border: 'none' }}
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-          required
-          style={{ padding: 12, borderRadius: 6, fontSize: 16, border: 'none' }}
-        />
-        {error && <div style={{ color: '#ff6161', fontWeight: 600 }}>{error}</div>}
-        <button type="submit" style={{
-          background: '#2ec4f1',
-          color: '#10151b',
-          fontWeight: 700,
-          padding: '12px 0',
-          borderRadius: 10,
-          fontSize: 18,
-          border: 'none'
-        }}>Login</button>
-        <a href="/signup" style={{ color: '#82e0ff', textAlign: 'center', marginTop: 4, textDecoration: 'underline' }}>
-          New user? Sign up
-        </a>
-      </form>
-    </div>
+    <main className="flex flex-col min-h-screen items-center justify-center bg-gray-950">
+      <div className="bg-gray-900 shadow-2xl rounded-2xl p-10 flex flex-col items-center w-full max-w-md">
+        <Image src="/logo.png" alt="RapidRoutes Logo" width={80} height={80} priority />
+        <h2 className="text-2xl font-semibold mt-4 text-white">Sign In to RapidRoutes</h2>
+        <form onSubmit={handleLogin} className="w-full mt-6 flex flex-col gap-5">
+          <input
+            className="p-3 rounded-xl bg-gray-800 text-white border border-blue-400 focus:outline-none"
+            type="email"
+            placeholder="Your email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            disabled={isSent}
+          />
+          <button
+            type="submit"
+            className="bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold text-lg transition"
+            disabled={isSent}
+          >
+            {isSent ? "Link Sent" : "Send Login Link"}
+          </button>
+        </form>
+        {isSent && (
+          <p className="text-green-400 text-center mt-4">
+            Check your email for the login link!
+          </p>
+        )}
+        {error && (
+          <p className="text-red-400 text-center mt-4">{error}</p>
+        )}
+        <div className="mt-4">
+          <button
+            className="text-blue-300 hover:underline"
+            onClick={() => router.push("/")}
+          >
+            Back to Home
+          </button>
+        </div>
+      </div>
+    </main>
   );
 }
