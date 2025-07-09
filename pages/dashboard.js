@@ -60,4 +60,32 @@ export default function Dashboard() {
                   <th className="p-3">Destination</th>
                   <th className="p-3">Equipment</th>
                   <th className="p-3">Weight</th>
-                  <th className="p-3">Status</th
+                  <th className="p-3">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lanes.length === 0 ? (
+                  <tr>
+                    <td className="p-4" colSpan={5}>
+                      No lanes found.
+                    </td>
+                  </tr>
+                ) : (
+                  lanes.map((lane) => (
+                    <tr key={lane.id} className="border-b border-gray-800">
+                      <td className="p-3">{lane.origin_city}, {lane.origin_state}</td>
+                      <td className="p-3">{lane.dest_city}, {lane.dest_state}</td>
+                      <td className="p-3">{lane.equipment}</td>
+                      <td className="p-3">{lane.weight}</td>
+                      <td className="p-3">{lane.status || "Active"}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </main>
+  );
+}
