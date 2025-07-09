@@ -1,40 +1,26 @@
-// pages/index.js
-import Head from 'next/head';
+import { useState } from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
 
 export default function Home() {
   return (
-    <>
-      <Head>
-        <title>RapidRoutes - Freight Intelligence</title>
-      </Head>
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '100vh',
-        background: '#10151b',
-        color: '#fff'
-      }}>
-        <img src="/logo.png" alt="RapidRoutes Logo" style={{ width: 220, marginBottom: 20 }} />
-        <h1 style={{ fontSize: 36, fontWeight: 700 }}>RapidRoutes</h1>
-        <p style={{ fontSize: 20, marginBottom: 40, opacity: 0.85 }}>
-          Redefine the game. Outsmart the lane.
-        </p>
-        <a href="/login" style={{
-          background: '#2ec4f1',
-          color: '#10151b',
-          fontWeight: 700,
-          padding: '14px 40px',
-          borderRadius: 12,
-          textDecoration: 'none',
-          fontSize: 20,
-          boxShadow: '0 2px 18px #2ec4f175',
-        }}>
-          Login
-        </a>
+    <main className="flex flex-col min-h-screen items-center justify-center bg-gray-950">
+      <div className="flex flex-col items-center">
+        <Image src="/logo.png" alt="RapidRoutes Logo" width={120} height={120} priority />
+        <h1 className="text-4xl font-bold mt-4 text-white drop-shadow-lg">RapidRoutes</h1>
+        <p className="mt-2 text-xl text-blue-200 font-medium">The Gold Standard in Freight Brokerage Intelligence</p>
+        <div className="mt-8">
+          <Link href="/login" className="bg-blue-600 hover:bg-blue-700 text-white py-3 px-8 rounded-2xl text-lg font-semibold shadow-lg transition">
+            Sign In
+          </Link>
+        </div>
+        <div className="mt-8 text-blue-400">
+          <a href="https://totalqualitylogistics.com/" target="_blank" rel="noopener noreferrer" className="underline text-sm opacity-70">
+            Created by Andrew Connellan – Logistics Account Executive at Total Quality Logistics HQ: Cincinnati, OH
+          </a>
+        </div>
       </div>
-    </>
+    </main>
   );
 }
 
