@@ -1,9 +1,28 @@
 // pages/profile.js
 
-import { useUser } from '@supabase/auth-helpers-react';
+import { useEffect, useState } from "react";
+import { useRouter } from "next/router";
+import { getUserWithRole } from "../utils/authHelpers";
 
 export default function Profile() {
-  const user = useUser();
+  const router = useRouter();
+  const [user, setUser] = useState(null);
+  const [allowed, setAllowed] = useState(false);
+
+  useEffect(() => {
+    const check = async () => {
+      const { user } = await getUserWithRole();
+      if (user) {
+        setUser(user);
+        setAllowed(true);
+      } else {
+        router.push("/login");
+      }
+    };
+    check();
+  }, []);
+
+  if (!allowed) return null;
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-[#111827] text-white">
@@ -19,7 +38,6 @@ export default function Profile() {
               <span className="font-semibold text-gray-300">User ID:</span>
               <span className="ml-2">{user.id}</span>
             </div>
-            {/* Add any other user info you want displayed here */}
           </div>
         ) : (
           <div className="text-red-400">You must be logged in to see your profile.</div>
