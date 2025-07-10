@@ -1,8 +1,9 @@
 // pages/index.js
 import Image from "next/image";
-import Link from "next/link";
+import { useRouter } from "next/router";
 
 export default function Home() {
+  const router = useRouter();
   return (
     <main
       style={{
@@ -59,16 +60,36 @@ export default function Home() {
             gap: "1rem",
           }}
         >
-          <Link href="/login">
-            <button
-              style={{
-                backgroundColor: "#1E40AF",
-                color: "#fff",
-                padding: "0.75rem 1.5rem",
-                borderRadius: "0.75rem",
-                fontWeight: 600,
-                border: "none",
-                cursor: "pointer",
-              }}
-            >
-              Login
+          <button
+            onClick={() => router.push("/login")}
+            style={{
+              backgroundColor: "#1E40AF",
+              color: "#fff",
+              padding: "0.75rem 1.5rem",
+              borderRadius: "0.75rem",
+              fontWeight: 600,
+              border: "none",
+              cursor: "pointer",
+            }}
+          >
+            Login
+          </button>
+          <button
+            onClick={() => router.push("/signup")}
+            style={{
+              backgroundColor: "#047857",
+              color: "#fff",
+              padding: "0.75rem 1.5rem",
+              borderRadius: "0.75rem",
+              fontWeight: 600,
+              border: "none",
+              cursor: "pointer",
+            }}
+          >
+            Sign Up
+          </button>
+        </div>
+      </div>
+    </main>
+  );
+}
