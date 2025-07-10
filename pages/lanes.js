@@ -1,8 +1,12 @@
 // pages/lanes.js
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/router";
+import { getUserWithRole } from "../utils/authHelpers";
 
 export default function Lanes() {
+  const router = useRouter();
+  const [allowed, setAllowed] = useState(false);
   const [form, setForm] = useState({
     origin: "",
     destination: "",
@@ -13,13 +17,24 @@ export default function Lanes() {
     comment: "",
   });
 
+  useEffect(() => {
+    const check = async () => {
+      const { role } = await getUserWithRole();
+      if (role === "Broker" || role === "Admin") {
+        setAllowed(true);
+      } else {
+        router.push("/dashboard");
+      }
+    };
+    check();
+  }, []);
+
   function handleChange(e) {
     setForm({ ...form, [e.target.name]: e.target.value });
   }
 
   function handleSubmit(e) {
     e.preventDefault();
-    // TODO: Add Supabase/DB integration to actually save the lane
     alert("Lane created!\n" + JSON.stringify(form, null, 2));
     setForm({
       origin: "",
@@ -31,6 +46,8 @@ export default function Lanes() {
       comment: "",
     });
   }
+
+  if (!allowed) return null;
 
   return (
     <div className="min-h-screen bg-[#111827] flex items-center justify-center py-12">
@@ -71,6 +88,4 @@ export default function Lanes() {
           Create Lane
         </button>
       </form>
-    </div>
-  );
-}
+    </di
