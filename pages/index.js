@@ -9,8 +9,8 @@ export default function Home() {
         <Image
           src="/logo.png"
           alt="RapidRoutes Logo"
-          width={200}
-          height={200}
+          width={300}        // ← increased from 200
+          height={300}       // ← increased from 200
           priority
           className="mx-auto"
         />
