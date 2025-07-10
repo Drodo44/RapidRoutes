@@ -1,17 +1,34 @@
-import { useState } from "react";
+// pages/register.js
+
+import { useState, useEffect } from "react";
+import { useRouter } from "next/router";
+import { getUserWithRole } from "../utils/authHelpers";
 
 export default function Register() {
+  const router = useRouter();
+  const [allowed, setAllowed] = useState(false);
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    const check = async () => {
+      const { role } = await getUserWithRole();
+      if (role === "Admin") {
+        setAllowed(true);
+      } else {
+        router.push("/dashboard");
+      }
+    };
+    check();
+  }, []);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setMessage("");
-    // Placeholder: Replace with Supabase signup logic
     if (email && password && name) {
       setTimeout(() => {
         setLoading(false);
@@ -22,6 +39,8 @@ export default function Register() {
       setMessage("All fields are required.");
     }
   };
+
+  if (!allowed) return null;
 
   return (
     <main style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#0b0b0e" }}>
