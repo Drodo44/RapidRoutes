@@ -1,6 +1,8 @@
 // pages/dashboard.js
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
+import { getUserWithRole } from "../utils/authHelpers";
 import supabase from "../utils/supabaseClient";
 import Image from "next/image";
 
@@ -12,11 +14,11 @@ export default function Dashboard() {
 
   useEffect(() => {
     const fetchUser = async () => {
-      const { data, error } = await supabase.auth.getUser();
-      if (!data?.user || error) {
+      const { user } = await getUserWithRole();
+      if (!user) {
         router.push("/login");
       } else {
-        setUser(data.user);
+        setUser(user);
         fetchLanes();
       }
     };
@@ -29,7 +31,6 @@ export default function Dashboard() {
     };
 
     fetchUser();
-    // eslint-disable-next-line
   }, []);
 
   const handleLogout = async () => {
@@ -103,5 +104,5 @@ export default function Dashboard() {
         )}
       </section>
     </main>
-);
+  );
 }
