@@ -1,6 +1,8 @@
 // pages/recap.js
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/router";
+import { getUserWithRole } from "../utils/authHelpers";
 
 const sampleLanes = [
   {
@@ -30,7 +32,23 @@ const sampleLanes = [
 ];
 
 export default function Recap() {
+  const [allowed, setAllowed] = useState(false);
   const [lanes] = useState(sampleLanes);
+  const router = useRouter();
+
+  useEffect(() => {
+    const check = async () => {
+      const { role } = await getUserWithRole();
+      if (role === "Broker" || role === "Admin") {
+        setAllowed(true);
+      } else {
+        router.push("/dashboard");
+      }
+    };
+    check();
+  }, []);
+
+  if (!allowed) return null;
 
   return (
     <div className="min-h-screen bg-[#0b1623] py-10 px-4">
@@ -72,4 +90,3 @@ export default function Recap() {
     </div>
   );
 }
-
