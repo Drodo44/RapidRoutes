@@ -1,6 +1,7 @@
+// pages/dashboard.js
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
-import { supabase } from "../utils/supabaseClient";
+import supabase from "../utils/supabaseClient";
 import Image from "next/image";
 
 export default function Dashboard() {
@@ -40,10 +41,21 @@ export default function Dashboard() {
     <main className="min-h-screen bg-gray-950 text-white flex flex-col">
       <header className="flex items-center justify-between px-8 py-4 bg-gray-900 shadow-lg">
         <div className="flex items-center gap-3">
-          <Image src="/logo.png" alt="RapidRoutes Logo" width={40} height={40} priority />
-          <span className="text-2xl font-bold tracking-tight">RapidRoutes</span>
+          <Image
+            src="/logo.png"
+            alt="RapidRoutes Logo"
+            width={40}
+            height={40}
+            priority
+          />
+          <span className="text-2xl font-bold tracking-tight">
+            RapidRoutes
+          </span>
         </div>
-        <button onClick={handleLogout} className="bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded-xl text-white font-semibold">
+        <button
+          onClick={handleLogout}
+          className="bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded-xl text-white font-semibold"
+        >
           Logout
         </button>
       </header>
@@ -73,8 +85,12 @@ export default function Dashboard() {
                 ) : (
                   lanes.map((lane) => (
                     <tr key={lane.id} className="border-b border-gray-800">
-                      <td className="p-3">{lane.origin_city}, {lane.origin_state}</td>
-                      <td className="p-3">{lane.dest_city}, {lane.dest_state}</td>
+                      <td className="p-3">
+                        {lane.origin_city}, {lane.origin_state}
+                      </td>
+                      <td className="p-3">
+                        {lane.dest_city}, {lane.dest_state}
+                      </td>
                       <td className="p-3">{lane.equipment}</td>
                       <td className="p-3">{lane.weight}</td>
                       <td className="p-3">{lane.status || "Active"}</td>
@@ -87,5 +103,5 @@ export default function Dashboard() {
         )}
       </section>
     </main>
-  );
+);
 }
