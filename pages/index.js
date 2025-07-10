@@ -4,33 +4,91 @@ import Link from "next/link";
 
 export default function Home() {
   return (
-    <main className="flex items-center justify-center min-h-screen bg-gray-950 text-white">
-      <div className="bg-gray-900 p-8 rounded-2xl shadow-2xl text-center max-w-md">
+    <main
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        minHeight: "100vh",
+        backgroundColor: "#0f172a",
+        color: "#fff",
+      }}
+    >
+      <div
+        style={{
+          backgroundColor: "#111827",
+          padding: "2rem",
+          borderRadius: "1rem",
+          boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)",
+          textAlign: "center",
+          maxWidth: "28rem",
+        }}
+      >
         <Image
           src="/logo.png"
           alt="RapidRoutes Logo"
           width={200}
           height={200}
           priority
-          className="mx-auto"
         />
-        <h1 className="mt-6 text-4xl font-bold text-cyan-400">
+        <h1
+          style={{
+            marginTop: "1.5rem",
+            fontSize: "2.25rem",
+            fontWeight: 700,
+            color: "#22d3ee",
+          }}
+        >
           Welcome to RapidRoutes
         </h1>
-        <p className="mt-4 text-lg text-gray-300">
-          Redefine the game. Outsmart the lane.<br/>
+        <p
+          style={{
+            marginTop: "1rem",
+            fontSize: "1.125rem",
+            color: "#d1d5db",
+          }}
+        >
+          Redefine the game. Outsmart the lane.
+          <br />
           Your all-in-one, AI-powered freight brokerage platform.
         </p>
-        <div className="mt-6 flex justify-center gap-4">
+        <div
+          style={{
+            marginTop: "1.5rem",
+            display: "flex",
+            justifyContent: "center",
+            gap: "1rem",
+          }}
+        >
           <Link href="/login">
-            <a className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-xl font-semibold">
+            <button
+              style={{
+                backgroundColor: "#1E40AF",
+                color: "#fff",
+                padding: "0.75rem 1.5rem",
+                borderRadius: "0.75rem",
+                fontWeight: 600,
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
               Login
-            </a>
+            </button>
           </Link>
           <Link href="/signup">
-            <a className="px-6 py-3 bg-green-600 hover:bg-green-700 rounded-xl font-semibold">
+            <button
+              style={{
+                backgroundColor: "#047857",
+                color: "#fff",
+                padding: "0.75rem 1.5rem",
+                borderRadius: "0.75rem",
+                fontWeight: 600,
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
               Sign Up
-            </a>
+            </button>
           </Link>
         </div>
       </div>
