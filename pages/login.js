@@ -1,5 +1,6 @@
+// pages/login.js
 import { useState } from "react";
-import { supabase } from "../utils/supabaseClient";
+import supabase from "../utils/supabaseClient";
 import Image from "next/image";
 import { useRouter } from "next/router";
 
@@ -19,7 +20,7 @@ export default function Login() {
       } else {
         setIsSent(true);
       }
-    } catch (err) {
+    } catch {
       setError("Something went wrong.");
     }
   };
@@ -27,8 +28,16 @@ export default function Login() {
   return (
     <main className="flex flex-col min-h-screen items-center justify-center bg-gray-950">
       <div className="bg-gray-900 shadow-2xl rounded-2xl p-10 flex flex-col items-center w-full max-w-md">
-        <Image src="/logo.png" alt="RapidRoutes Logo" width={80} height={80} priority />
-        <h2 className="text-2xl font-semibold mt-4 text-white">Sign In to RapidRoutes</h2>
+        <Image
+          src="/logo.png"
+          alt="RapidRoutes Logo"
+          width={80}
+          height={80}
+          priority
+        />
+        <h2 className="text-2xl font-semibold mt-4 text-white">
+          Sign In to RapidRoutes
+        </h2>
         <form onSubmit={handleLogin} className="w-full mt-6 flex flex-col gap-5">
           <input
             className="p-3 rounded-xl bg-gray-800 text-white border border-blue-400 focus:outline-none"
@@ -65,5 +74,5 @@ export default function Login() {
         </div>
       </div>
     </main>
-  );
+);
 }
