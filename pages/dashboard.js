@@ -1,10 +1,9 @@
 // pages/dashboard.js
-
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
-import { getUserWithRole } from "../utils/authHelpers";
 import supabase from "../utils/supabaseClient";
 import Image from "next/image";
+import { generateDatCsv } from "../lib/generateDatCsv";
 
 export default function Dashboard() {
   const [user, setUser] = useState(null);
@@ -14,11 +13,11 @@ export default function Dashboard() {
 
   useEffect(() => {
     const fetchUser = async () => {
-      const { user } = await getUserWithRole();
-      if (!user) {
+      const { data, error } = await supabase.auth.getUser();
+      if (!data?.user || error) {
         router.push("/login");
       } else {
-        setUser(user);
+        setUser(data.user);
         fetchLanes();
       }
     };
@@ -60,6 +59,7 @@ export default function Dashboard() {
           Logout
         </button>
       </header>
+
       <section className="flex-1 p-8">
         <h2 className="text-3xl font-bold mb-6">Your Lanes</h2>
         {loading ? (
@@ -102,6 +102,15 @@ export default function Dashboard() {
             </table>
           </div>
         )}
+
+        <div className="mt-6">
+          <button
+            onClick={() => generateDatCsv(lanes)}
+            className="bg-green-600 hover:bg-green-700 px-6 py-2 rounded-xl font-semibold text-white"
+          >
+            Export DAT CSV
+          </button>
+        </div>
       </section>
     </main>
   );
