@@ -120,7 +120,7 @@ export default function Home() {
             opacity: 0.85
           }}
         >
-          Created by Andrew Connellan – Logistics Account Executive at TQL, Cincinnati, OH
+          Created by Andrew Connellan – Logistics Account Executive at TQL HQ: Cincinnati, OH
         </div>
       </div>
     </main>
