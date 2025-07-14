@@ -1,29 +1,26 @@
 // pages/api/export/dat.js
 
-import { generateDATCSV } from "../../../lib/datGenerator";
+import { generateDatCsv } from "../../../lib/generateDatCsv";
 
 export default async function handler(req, res) {
-  if (req.method !== "GET") {
-    return res.status(405).json({ error: "Method not allowed" });
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method Not Allowed" });
   }
 
-  // TEMP: Replace with DB fetch later
-  const sampleLane = {
-    origin_city: "Chicago",
-    origin_state: "IL",
-    origin_zip: "60601",
-    dest_city: "Dallas",
-    dest_state: "TX",
-    dest_zip: "75201",
-    equipment: "FD",
-    weight: 48000,
-    length: 48,
-    date: "2025-07-10"
-  };
+  try {
+    const lanes = req.body.lanes;
 
-  const csv = generateDATCSV(sampleLane);
+    if (!Array.isArray(lanes) || lanes.length === 0) {
+      return res.status(400).json({ error: "No lanes provided." });
+    }
 
-  res.setHeader("Content-Type", "text/csv");
-  res.setHeader("Content-Disposition", "attachment; filename=DAT_Upload.csv");
-  res.status(200).send(csv);
+    const csv = await generateDatCsv(lanes);
+
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", "attachment; filename=dat_upload.csv");
+    res.status(200).send(csv);
+  } catch (error) {
+    console.error("DAT export error:", error);
+    res.status(500).json({ error: "Failed to generate DAT CSV." });
+  }
 }
