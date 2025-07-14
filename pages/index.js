@@ -17,35 +17,39 @@ export default function Home() {
       <div
         style={{
           backgroundColor: "#111827",
-          padding: "2rem",
-          borderRadius: "1rem",
-          boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)",
+          padding: "2.5rem 2rem",
+          borderRadius: "1.2rem",
+          boxShadow: "0 0 64px #22d3ee14",
           textAlign: "center",
-          maxWidth: "28rem",
+          maxWidth: 420,
         }}
       >
         <Image
           src="/logo.png"
           alt="RapidRoutes Logo"
-          width={300}
-          height={300}
+          width={230}
+          height={230}
           priority
         />
         <h1
           style={{
-            marginTop: "1.5rem",
+            marginTop: "1.8rem",
             fontSize: "2.25rem",
-            fontWeight: 700,
+            fontWeight: 800,
             color: "#22d3ee",
+            letterSpacing: "0.02em",
+            textShadow: "0 4px 24px #22d3ee25",
           }}
         >
           Welcome to RapidRoutes
         </h1>
         <p
           style={{
-            marginTop: "1rem",
-            fontSize: "1.125rem",
-            color: "#d1d5db",
+            marginTop: "1.1rem",
+            fontSize: "1.2rem",
+            color: "#e0eefd",
+            fontWeight: 500,
+            marginBottom: "2.2rem"
           }}
         >
           Redefine the game. Outsmart the lane.
@@ -54,21 +58,21 @@ export default function Home() {
         </p>
         <div
           style={{
-            marginTop: "1.5rem",
             display: "flex",
             justifyContent: "center",
-            gap: "1rem",
+            gap: "1.1rem",
           }}
         >
           <button
             onClick={() => router.push("/login")}
             style={{
-              backgroundColor: "#1E40AF",
+              background: "#1E40AF",
               color: "#fff",
-              padding: "0.75rem 1.5rem",
-              borderRadius: "0.75rem",
-              fontWeight: 600,
+              padding: "0.82rem 2rem",
+              borderRadius: "0.85rem",
+              fontWeight: 700,
               border: "none",
+              fontSize: "1.14rem",
               cursor: "pointer",
             }}
           >
@@ -77,12 +81,13 @@ export default function Home() {
           <button
             onClick={() => router.push("/signup")}
             style={{
-              backgroundColor: "#047857",
-              color: "#fff",
-              padding: "0.75rem 1.5rem",
-              borderRadius: "0.75rem",
-              fontWeight: 600,
+              background: "#22d3ee",
+              color: "#10151b",
+              padding: "0.82rem 2rem",
+              borderRadius: "0.85rem",
+              fontWeight: 700,
               border: "none",
+              fontSize: "1.14rem",
               cursor: "pointer",
             }}
           >
