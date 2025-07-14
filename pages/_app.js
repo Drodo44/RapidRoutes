@@ -1,4 +1,3 @@
-// pages/_app.js
 import { useEffect } from "react";
 import { useRouter } from "next/router";
 import { supabase } from "../utils/supabaseClient";
@@ -8,11 +7,17 @@ export default function App({ Component, pageProps }) {
   const router = useRouter();
 
   useEffect(() => {
-    // Listen for Supabase auth changes
     const { data: listener } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        // Only redirect to dashboard after login, or login after logout
         if (event === "SIGNED_IN" && session) {
-          router.push("/dashboard");
+          if (
+            router.pathname === "/login" ||
+            router.pathname === "/signup" ||
+            router.pathname === "/"
+          ) {
+            router.push("/dashboard");
+          }
         }
         if (event === "SIGNED_OUT") {
           router.push("/login");
