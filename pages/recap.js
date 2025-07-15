@@ -29,14 +29,43 @@ export default function Recap() {
     // eslint-disable-next-line
   }, []);
 
+  // --- EXPORT FUNCTIONS ---
   const handleExportDAT = async () => {
-    alert("DAT CSV export coming soon! (integrate /api/export/dat)");
-    // TODO: call /api/export/dat and trigger download
+    try {
+      if (!user?.id) return;
+      const res = await fetch(`/api/export/dat?user_id=${user.id}`);
+      if (!res.ok) throw new Error("Export failed.");
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "RapidRoutes_DAT.csv";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      alert("DAT export failed. Please try again.");
+    }
   };
 
   const handleExportRecap = async () => {
-    alert("Recap Workbook export coming soon! (integrate /api/export/recap)");
-    // TODO: call /api/export/recap and trigger download
+    try {
+      if (!user?.id) return;
+      const res = await fetch(`/api/export/recap?user_id=${user.id}`);
+      if (!res.ok) throw new Error("Export failed.");
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "RapidRoutes_Recap.xlsx";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      alert("Recap export failed. Please try again.");
+    }
   };
 
   return (
