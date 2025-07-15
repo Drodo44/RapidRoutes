@@ -1,8 +1,7 @@
 {
   "name": "rapidroutes",
   "version": "1.0.0",
-  "description": "RapidRoutes - Intelligent Freight Brokerage Platform",
-  "main": "index.js",
+  "description": "RapidRoutes - Redefine the game. Outsmart the lane. Your all-in-one, AI-powered freight brokerage platform.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -10,11 +9,10 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@supabase/auth-helpers-nextjs": "^0.5.7",
-    "@supabase/auth-helpers-react": "^0.4.0",
-    "@supabase/supabase-js": "^2.43.5",
+    "@supabase/supabase-js": "^2.39.5",
+    "exceljs": "^4.4.0",
     "next": "14.2.3",
-    "papaparse": "^5.5.3",
+    "papaparse": "^5.4.1",
     "react": "18.2.0",
     "react-dom": "18.2.0"
   },
