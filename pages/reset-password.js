@@ -9,17 +9,20 @@ export default function ResetPassword() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
-  const [tokenChecked, setTokenChecked] = useState(false);
+  const [sessionLoaded, setSessionLoaded] = useState(false);
 
+  // Step 1: Catch the recovery token from URL and sign in
   useEffect(() => {
-    // If no access_token in URL, redirect to login
-    if (!router.isReady) return;
-    const { access_token, type } = router.query;
-    if (!access_token || type !== "recovery") {
-      router.replace("/login");
-    } else {
-      setTokenChecked(true);
-    }
+    const tryRecovery = async () => {
+      if (!router.isReady) return;
+      const { access_token, type } = router.query;
+      if (type === "recovery" && access_token) {
+        // Sets Supabase session with the recovery token from URL
+        await supabase.auth.setSession({ access_token, refresh_token: access_token });
+      }
+      setSessionLoaded(true);
+    };
+    tryRecovery();
   }, [router.isReady, router.query]);
 
   const handleReset = async (e) => {
@@ -44,9 +47,7 @@ export default function ResetPassword() {
     }
   };
 
-  if (!tokenChecked) {
-    return null;
-  }
+  if (!sessionLoaded) return null;
 
   return (
     <main
