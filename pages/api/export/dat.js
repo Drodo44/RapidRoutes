@@ -1,26 +1,29 @@
-// pages/api/export/dat.js
+import { supabase } from "../../../utils/supabaseClient";
+import { generateDatCsv } from "../../../lib/dat";
+import { NextApiRequest, NextApiResponse } from "next";
 
-import { generateDatCsv } from "../../../lib/generateDatCsv";
-
+// API: Exports all user's lanes as perfect DAT CSV
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method Not Allowed" });
+  // Auth: Accepts GET or POST with user ID (session must be handled securely)
+  const { user_id } = req.query;
+  if (!user_id) {
+    return res.status(400).json({ error: "Missing user_id" });
   }
 
-  try {
-    const lanes = req.body.lanes;
+  // Fetch lanes for user
+  const { data: lanes, error } = await supabase
+    .from("lanes")
+    .select("*")
+    .eq("user_id", user_id);
 
-    if (!Array.isArray(lanes) || lanes.length === 0) {
-      return res.status(400).json({ error: "No lanes provided." });
-    }
-
-    const csv = await generateDatCsv(lanes);
-
-    res.setHeader("Content-Type", "text/csv");
-    res.setHeader("Content-Disposition", "attachment; filename=dat_upload.csv");
-    res.status(200).send(csv);
-  } catch (error) {
-    console.error("DAT export error:", error);
-    res.status(500).json({ error: "Failed to generate DAT CSV." });
+  if (error) {
+    return res.status(500).json({ error: "Failed to fetch lanes" });
   }
+
+  // Generate CSV with strict DAT logic
+  const csv = generateDatCsv(lanes);
+
+  res.setHeader("Content-Type", "text/csv");
+  res.setHeader("Content-Disposition", "attachment; filename=RapidRoutes_DAT.csv");
+  res.status(200).send(csv);
 }
