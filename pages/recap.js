@@ -3,6 +3,87 @@ import { useRouter } from "next/router";
 import Image from "next/image";
 import supabase from "../utils/supabaseClient";
 
+// Custom neon styles
+const recapStyles = {
+  tableWrap: {
+    overflowX: "auto",
+    background: "linear-gradient(110deg, #192031 50%, #132f43 100%)",
+    borderRadius: 24,
+    boxShadow: "0 0 40px #22d3ee25",
+    padding: "2.4rem 2.1rem",
+    marginTop: 18,
+    marginBottom: 20,
+  },
+  table: {
+    width: "100%",
+    color: "#e0eefd",
+    fontSize: 18,
+    borderCollapse: "separate",
+    borderSpacing: 0,
+    minWidth: 950,
+    background: "none"
+  },
+  th: {
+    background: "linear-gradient(90deg,#22d3ee 50%,#15ffea 100%)",
+    color: "#101826",
+    fontWeight: 900,
+    fontSize: 19,
+    padding: "20px 9px",
+    borderTopLeftRadius: 14,
+    borderTopRightRadius: 14,
+    borderBottom: "3.5px solid #101624",
+    letterSpacing: ".01em",
+    textShadow: "0 4px 24px #22d3ee33",
+  },
+  td: {
+    background: "rgba(31, 45, 75, 0.93)",
+    color: "#fff",
+    padding: "16px 8px",
+    fontWeight: 600,
+    fontSize: 17,
+    borderBottom: "1.7px solid #22d3ee28",
+    letterSpacing: ".01em",
+    boxShadow: "0 1.5px 7px #15ffea12"
+  },
+  highlight: {
+    background: "linear-gradient(90deg,#1E40AF 55%,#22d3ee 100%)",
+    color: "#15ffea",
+    borderRadius: 9,
+    padding: "5px 8px",
+    fontWeight: 900,
+    letterSpacing: ".02em",
+    fontSize: 17,
+    textShadow: "0 2px 12px #15ffea45",
+    margin: "0 2px"
+  },
+  equipment: {
+    color: "#19ffe6",
+    background: "#12273b",
+    padding: "6px 11px",
+    borderRadius: 8,
+    fontWeight: 800,
+    fontSize: 16,
+    letterSpacing: ".01em",
+    boxShadow: "0 2px 8px #22d3ee10"
+  },
+  statusActive: {
+    background: "linear-gradient(90deg,#00FFAC 40%,#18c2fc 100%)",
+    color: "#13333a",
+    fontWeight: 900,
+    padding: "6px 13px",
+    borderRadius: 10,
+    fontSize: 15
+  },
+  notes: {
+    background: "#1d2d44",
+    color: "#15ffea",
+    borderRadius: 8,
+    padding: "7px 13px",
+    fontWeight: 600,
+    fontSize: 16
+  }
+};
+
 export default function Recap() {
   const [user, setUser] = useState(null);
   const [lanes, setLanes] = useState([]);
@@ -126,20 +207,20 @@ export default function Recap() {
       </header>
       <section style={{ flex: 1, padding: "2.2rem 5vw", maxWidth: 1200, margin: "0 auto", width: "100%" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-          <h2 style={{ fontSize: 32, fontWeight: 800, color: "#22d3ee" }}>Recap & Export</h2>
+          <h2 style={{ fontSize: 36, fontWeight: 900, color: "#22d3ee", textShadow: "0 6px 32px #22d3ee29" }}>Recap & Export</h2>
           <div>
             <button
               style={{
                 background: "linear-gradient(90deg,#15ffea 0%,#22d3ee 100%)",
                 color: "#10151b",
-                padding: "0.8rem 2.2rem",
-                borderRadius: 11,
-                fontWeight: 700,
+                padding: "0.98rem 2.5rem",
+                borderRadius: 14,
+                fontWeight: 900,
                 border: "none",
-                fontSize: "1.08rem",
+                fontSize: "1.19rem",
                 cursor: "pointer",
-                marginRight: 10,
-                boxShadow: "0 2px 12px #15ffea18",
+                marginRight: 16,
+                boxShadow: "0 2px 14px #15ffea18",
               }}
               onClick={handleExportDAT}
             >
@@ -149,13 +230,13 @@ export default function Recap() {
               style={{
                 background: "linear-gradient(90deg,#1E40AF 0%,#22d3ee 100%)",
                 color: "#fff",
-                padding: "0.8rem 2.2rem",
-                borderRadius: 11,
-                fontWeight: 700,
+                padding: "0.98rem 2.5rem",
+                borderRadius: 14,
+                fontWeight: 900,
                 border: "none",
-                fontSize: "1.08rem",
+                fontSize: "1.19rem",
                 cursor: "pointer",
-                boxShadow: "0 2px 12px #1E40AF18",
+                boxShadow: "0 2px 14px #1E40AF18",
               }}
               onClick={handleExportRecap}
             >
@@ -163,63 +244,55 @@ export default function Recap() {
             </button>
           </div>
         </div>
-        {loading ? (
-          <div style={{ color: "#15ffea", fontWeight: 600 }}>Loading lanes...</div>
-        ) : (
-          <div style={{
-            overflowX: "auto",
-            background: "#151d2b",
-            borderRadius: 19,
-            boxShadow: "0 0 28px #22d3ee08",
-            padding: "2.1rem",
-            marginTop: 12
-          }}>
-            <table style={{ width: "100%", color: "#fff", fontSize: 17, borderCollapse: "collapse" }}>
-              <thead>
-                <tr style={{ background: "#233056", color: "#22d3ee" }}>
-                  <th style={thStyle}>Origin</th>
-                  <th style={thStyle}>Origin State</th>
-                  <th style={thStyle}>Destination</th>
-                  <th style={thStyle}>Dest State</th>
-                  <th style={thStyle}>Equipment</th>
-                  <th style={thStyle}>Weight</th>
-                  <th style={thStyle}>Pickup</th>
-                  <th style={thStyle}>Delivery</th>
-                  <th style={thStyle}>Notes</th>
+        {/* Stunning Neon Recap Table */}
+        <div style={recapStyles.tableWrap}>
+          <table style={recapStyles.table}>
+            <thead>
+              <tr>
+                <th style={recapStyles.th}>Origin</th>
+                <th style={recapStyles.th}>Origin State</th>
+                <th style={recapStyles.th}>Destination</th>
+                <th style={recapStyles.th}>Dest State</th>
+                <th style={recapStyles.th}>Equipment</th>
+                <th style={recapStyles.th}>Weight</th>
+                <th style={recapStyles.th}>Pickup</th>
+                <th style={recapStyles.th}>Delivery</th>
+                <th style={recapStyles.th}>Status</th>
+                <th style={recapStyles.th}>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {lanes.length === 0 ? (
+                <tr>
+                  <td style={{ ...recapStyles.td, textAlign: "center" }} colSpan={10}>
+                    No lanes found.
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {lanes.length === 0 ? (
-                  <tr>
-                    <td style={{ padding: 18, color: "#aaa", fontWeight: 600, textAlign: "center" }} colSpan={9}>
-                      No lanes found.
-                    </td>
+              ) : (
+                lanes.map((lane, idx) => (
+                  <tr key={lane.id || idx}>
+                    <td style={recapStyles.td}><span style={recapStyles.highlight}>{lane.origin}</span></td>
+                    <td style={recapStyles.td}>{lane.origin_state}</td>
+                    <td style={recapStyles.td}><span style={recapStyles.highlight}>{lane.destination}</span></td>
+                    <td style={recapStyles.td}>{lane.dest_state}</td>
+                    <td style={recapStyles.td}><span style={recapStyles.equipment}>{lane.equipment}</span></td>
+                    <td style={recapStyles.td}>{lane.weight}</td>
+                    <td style={recapStyles.td}>{lane.pickup_date || ""}</td>
+                    <td style={recapStyles.td}>{lane.delivery_date || ""}</td>
+                    <td style={recapStyles.td}><span style={recapStyles.statusActive}>Active</span></td>
+                    <td style={recapStyles.td}><span style={recapStyles.notes}>{lane.notes}</span></td>
                   </tr>
-                ) : (
-                  lanes.map((lane) => (
-                    <tr key={lane.id} style={{ borderBottom: "1px solid #232b3a" }}>
-                      <td style={tdStyle}>{lane.origin}</td>
-                      <td style={tdStyle}>{lane.origin_state}</td>
-                      <td style={tdStyle}>{lane.destination}</td>
-                      <td style={tdStyle}>{lane.dest_state}</td>
-                      <td style={tdStyle}>{lane.equipment}</td>
-                      <td style={tdStyle}>{lane.weight}</td>
-                      <td style={tdStyle}>{lane.pickup_date ? lane.pickup_date : ""}</td>
-                      <td style={tdStyle}>{lane.delivery_date ? lane.delivery_date : ""}</td>
-                      <td style={tdStyle}>{lane.notes}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-        <div style={{ color: "#aaa", marginTop: 36, fontSize: 15, textAlign: "center" }}>
-          <hr style={{ border: "0", borderTop: "1.3px solid #22d3ee30", margin: "32px auto 18px auto", width: "55%" }} />
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+        <div style={{ color: "#aaa", marginTop: 38, fontSize: 16, textAlign: "center" }}>
+          <hr style={{ border: "0", borderTop: "1.3px solid #22d3ee30", margin: "36px auto 18px auto", width: "52%" }} />
           <div>
-            <Image src="/logo.png" alt="Logo" width={40} height={40} style={{ verticalAlign: "middle", borderRadius: 8, marginBottom: -10 }} />
+            <Image src="/logo.png" alt="Logo" width={42} height={42} style={{ verticalAlign: "middle", borderRadius: 9, marginBottom: -10 }} />
           </div>
-          <div style={{ margin: "16px 0 0 0", color: "#19ffe6", fontWeight: 600 }}>
+          <div style={{ margin: "18px 0 0 0", color: "#19ffe6", fontWeight: 700, fontSize: 17 }}>
             Created by Andrew Connellan – Logistics Account Executive at TQL HQ: Cincinnati, OH
           </div>
         </div>
@@ -227,19 +300,3 @@ export default function Recap() {
     </main>
   );
 }
-
-const thStyle = {
-  padding: "16px 7px",
-  fontWeight: 800,
-  fontSize: 17,
-  textAlign: "left",
-  borderBottom: "2px solid #101624",
-  letterSpacing: "0.01em"
-};
-
-const tdStyle = {
-  padding: "11px 7px",
-  fontWeight: 500,
-  fontSize: 16,
-  letterSpacing: "0.01em"
-};
