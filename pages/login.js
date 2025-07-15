@@ -9,6 +9,7 @@ export default function Login() {
   const [method, setMethod] = useState("magic"); // "magic" or "password"
   const [isSent, setIsSent] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const router = useRouter();
@@ -30,6 +31,7 @@ export default function Login() {
   const handleMagicLogin = async () => {
     setLoading(true);
     setError("");
+    setSuccess("");
     const { error } = await supabase.auth.signInWithOtp({ email });
     setLoading(false);
     if (error) {
@@ -37,6 +39,7 @@ export default function Login() {
     } else {
       setIsSent(true);
       startCooldown();
+      setSuccess("Magic login link sent! Check your email.");
     }
   };
 
@@ -44,11 +47,26 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setSuccess("");
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) {
       setError(error.message);
     }
+  };
+
+  const handlePasswordReset = async () => {
+    if (!email) {
+      setError("Enter your email above first!");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    setSuccess("");
+    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    setLoading(false);
+    if (error) setError(error.message);
+    else setSuccess("Reset email sent! Check your inbox.");
   };
 
   return (
@@ -106,7 +124,7 @@ export default function Login() {
           }}
         >
           <button
-            onClick={() => setMethod("magic")}
+            onClick={() => { setMethod("magic"); setError(""); setSuccess(""); }}
             style={{
               flex: 1,
               padding: "0.65rem",
@@ -131,7 +149,7 @@ export default function Login() {
             Magic Link
           </button>
           <button
-            onClick={() => setMethod("password")}
+            onClick={() => { setMethod("password"); setError(""); setSuccess(""); }}
             style={{
               flex: 1,
               padding: "0.65rem",
@@ -188,11 +206,7 @@ export default function Login() {
               </div>
             )}
             {error && <p style={errorStyle}>{error}</p>}
-            {isSent && (
-              <p style={successStyle}>
-                Magic login link sent! Check your email.
-              </p>
-            )}
+            {success && <p style={successStyle}>{success}</p>}
           </>
         ) : (
           <form onSubmit={handlePasswordLogin} style={{ width: "100%" }}>
@@ -226,7 +240,26 @@ export default function Login() {
             >
               {loading ? "Signing in..." : "Sign In"}
             </button>
+            <div style={{ marginTop: 8 }}>
+              <button
+                type="button"
+                style={{
+                  background: "none",
+                  color: "#22d3ee",
+                  border: "none",
+                  cursor: "pointer",
+                  textDecoration: "underline",
+                  fontWeight: 700,
+                  fontSize: "1rem",
+                  margin: "0 auto"
+                }}
+                onClick={handlePasswordReset}
+              >
+                Forgot password?
+              </button>
+            </div>
             {error && <p style={errorStyle}>{error}</p>}
+            {success && <p style={successStyle}>{success}</p>}
           </form>
         )}
 
