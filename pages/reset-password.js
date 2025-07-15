@@ -11,18 +11,26 @@ export default function ResetPassword() {
   const [loading, setLoading] = useState(false);
   const [sessionLoaded, setSessionLoaded] = useState(false);
 
-  // Step 1: Catch the recovery token from URL and sign in
   useEffect(() => {
-    const tryRecovery = async () => {
+    const finishSession = async () => {
       if (!router.isReady) return;
-      const { access_token, type } = router.query;
-      if (type === "recovery" && access_token) {
-        // Sets Supabase session with the recovery token from URL
-        await supabase.auth.setSession({ access_token, refresh_token: access_token });
+      const { access_token, type, code } = router.query;
+      // Handle OAuth code for new Supabase SDK
+      if (code) {
+        await supabase.auth.exchangeCodeForSession(code);
+        setSessionLoaded(true);
+        return;
       }
+      // Handle legacy recovery token
+      if (type === "recovery" && access_token) {
+        await supabase.auth.setSession({ access_token, refresh_token: access_token });
+        setSessionLoaded(true);
+        return;
+      }
+      // If no token or code, fail gracefully
       setSessionLoaded(true);
     };
-    tryRecovery();
+    finishSession();
   }, [router.isReady, router.query]);
 
   const handleReset = async (e) => {
