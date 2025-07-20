@@ -1,0 +1,82 @@
+import { allCities } from '../../lib/allCities.js';
+
+function generateDatRows(lane) {
+  const { origin_state, destination_state, equipment, weight, date, length, origin_city, destination_city } = lane;
+  const postings = [];
+  const originCities = allCities[origin_state].slice(0, 10);
+  const destCities = allCities[destination_state].slice(0, 10);
+
+  for (let i = 0; i < 11; i++) {
+    const orig = i === 0
+      ? { city: origin_city, state: origin_state }
+      : originCities[i - 1];
+    const dest = i === 0
+      ? { city: destination_city, state: destination_state }
+      : destCities[i - 1];
+
+    postings.push({
+      pickup_earliest: date,
+      pickup_latest: date,
+      length_ft: length,
+      weight_lbs: weight,
+      full_partial: "Full",
+      equipment,
+      use_private_network: "No",
+      private_network_rate: "",
+      allow_private_network_booking: "",
+      allow_private_network_bidding: "",
+      use_dat_loadboard: "Yes",
+      dat_loadboard_rate: "",
+      allow_dat_loadboard_booking: "",
+      use_extended_network: "",
+      contact_method: "Email",
+      origin_city: orig.city,
+      origin_state: orig.state,
+      origin_postal_code: orig.zip || "",
+      destination_city: dest.city,
+      destination_state: dest.state,
+      destination_postal_code: dest.zip || "",
+      comment: "",
+      commodity: "",
+      reference_id: ""
+    });
+    postings.push({
+      ...postings[postings.length - 1],
+      contact_method: "Primary Phone"
+    });
+  }
+  return postings;
+}
+
+export default function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+  const { lane } = req.body;
+  if (!lane) {
+    return res.status(400).json({ error: 'Missing lane data' });
+  }
+  const rows = generateDatRows(lane);
+
+  const header = [
+    "Pickup Earliest*", "Pickup Latest", "Length (ft)*", "Weight (lbs)*", "Full/Partial*", "Equipment*", "Use Private Network*",
+    "Private Network Rate", "Allow Private Network Booking", "Allow Private Network Bidding", "Use DAT Loadboard*", "DAT Loadboard Rate",
+    "Allow DAT Loadboard Booking", "Use Extended Network", "Contact Method*", "Origin City*", "Origin State*", "Origin Postal Code",
+    "Destination City*", "Destination State*", "Destination Postal Code", "Comment", "Commodity", "Reference ID"
+  ];
+  const csv = [
+    header.join(","),
+    ...rows.map(row =>
+      [
+        row.pickup_earliest, row.pickup_latest, row.length_ft, row.weight_lbs, row.full_partial, row.equipment, row.use_private_network,
+        row.private_network_rate, row.allow_private_network_booking, row.allow_private_network_bidding, row.use_dat_loadboard, row.dat_loadboard_rate,
+        row.allow_dat_loadboard_booking, row.use_extended_network, row.contact_method, row.origin_city, row.origin_state, row.origin_postal_code,
+        row.destination_city, row.destination_state, row.destination_postal_code, row.comment, row.commodity, row.reference_id
+      ].map(x => `"${x || ""}"`).join(",")
+    )
+  ].join("\n");
+
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename=dat_postings.csv');
+  res.status(200).send(csv);
+}
