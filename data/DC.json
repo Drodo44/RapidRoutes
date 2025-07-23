@@ -1,0 +1,15 @@
+[
+  {
+    "city": "Washington",
+    "state": "DC",
+    "zip": "20250",
+    "lat": 38.9047,
+    "lon": -77.0163,
+    "kma": "Washington DC Market",
+    "kma_name": "Washington DC Market",
+    "region": "DC",
+    "freight_score": 100,
+    "population": 5146120,
+    "zip_zone": "Z2"
+  }
+]
