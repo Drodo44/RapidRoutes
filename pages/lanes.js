@@ -1,14 +1,20 @@
 import { useEffect, useState } from 'react';
 import supabase from '../utils/supabaseClient';
-import cities from '../data/allCitiesCleaned.js';
 
 export default function Lanes() {
   const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState('my');
   const [lanes, setLanes] = useState([]);
+  const [cities, setCities] = useState([]);
   const [formData, setFormData] = useState({
-    origin: '',
-    dest: '',
+    origin_city: '',
+    origin_state: '',
+    origin_zip: '',
+    origin_kma: '',
+    dest_city: '',
+    dest_state: '',
+    dest_zip: '',
+    dest_kma: '',
     equipment: '',
     weight: '',
     length: '',
@@ -28,9 +34,20 @@ export default function Lanes() {
     if (user) fetchLanes();
   }, [user, activeTab]);
 
+  useEffect(() => {
+    const loadCities = async () => {
+      const { data, error } = await supabase
+        .from('cities')
+        .select('*')
+        .order('state', { ascending: true })
+        .order('city', { ascending: true });
+      if (!error && data) setCities(data);
+    };
+    loadCities();
+  }, []);
+
   const fetchLanes = async () => {
     if (!user) return;
-
     let query = supabase.from('lanes').select('*');
 
     if (activeTab === 'my') {
@@ -50,7 +67,9 @@ export default function Lanes() {
   };
 
   const handleCitySelect = (field, value) => {
-    const selectedCity = cities.find(c => `${c.city}, ${c.state} ${c.zip}` === value);
+    const selectedCity = cities.find(
+      (c) => `${c.city}, ${c.state} ${c.zip}` === value
+    );
     if (selectedCity) {
       setFormData({
         ...formData,
@@ -65,28 +84,36 @@ export default function Lanes() {
   const addLane = async () => {
     if (!user || !formData.origin_city || !formData.dest_city) return;
 
-    const { error } = await supabase.from('lanes').insert([{
-      user_id: user.id,
-      origin_city: formData.origin_city,
-      origin_state: formData.origin_state,
-      origin_zip: formData.origin_zip,
-      origin_kma: formData.origin_kma,
-      dest_city: formData.dest_city,
-      dest_state: formData.dest_state,
-      dest_zip: formData.dest_zip,
-      dest_kma: formData.dest_kma,
-      equipment: formData.equipment,
-      weight: formData.weight,
-      length: formData.length,
-      date: formData.date,
-      comment: formData.comment,
-      status: 'Active'
-    }]);
+    const { error } = await supabase.from('lanes').insert([
+      {
+        user_id: user.id,
+        origin_city: formData.origin_city,
+        origin_state: formData.origin_state,
+        origin_zip: formData.origin_zip,
+        origin_kma: formData.origin_kma,
+        dest_city: formData.dest_city,
+        dest_state: formData.dest_state,
+        dest_zip: formData.dest_zip,
+        dest_kma: formData.dest_kma,
+        equipment: formData.equipment,
+        weight: formData.weight,
+        length: formData.length,
+        date: formData.date,
+        comment: formData.comment,
+        status: 'Active'
+      }
+    ]);
 
     if (!error) {
       setFormData({
-        origin: '',
-        dest: '',
+        origin_city: '',
+        origin_state: '',
+        origin_zip: '',
+        origin_kma: '',
+        dest_city: '',
+        dest_state: '',
+        dest_zip: '',
+        dest_kma: '',
         equipment: '',
         weight: '',
         length: '',
@@ -106,7 +133,6 @@ export default function Lanes() {
     <main className="min-h-screen bg-gray-950 text-white p-6">
       <h1 className="text-2xl font-bold mb-4">Lanes</h1>
 
-      {/* Tabs */}
       <div className="flex space-x-4 mb-6">
         <button
           className={`px-4 py-2 rounded ${activeTab === 'my' ? 'bg-cyan-600' : 'bg-gray-700'}`}
@@ -128,12 +154,15 @@ export default function Lanes() {
         </button>
       </div>
 
-      {/* Lane Form */}
       <div className="bg-gray-800 p-4 rounded-lg mb-6">
         <h2 className="text-xl mb-4">Add a Lane</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <select
-            value={formData.origin}
+            value={
+              formData.origin_city
+                ? `${formData.origin_city}, ${formData.origin_state} ${formData.origin_zip}`
+                : ''
+            }
             onChange={(e) => handleCitySelect('origin', e.target.value)}
             className="bg-gray-900 text-white p-2 rounded"
           >
@@ -145,7 +174,11 @@ export default function Lanes() {
             ))}
           </select>
           <select
-            value={formData.dest}
+            value={
+              formData.dest_city
+                ? `${formData.dest_city}, ${formData.dest_state} ${formData.dest_zip}`
+                : ''
+            }
             onChange={(e) => handleCitySelect('dest', e.target.value)}
             className="bg-gray-900 text-white p-2 rounded"
           >
@@ -198,7 +231,6 @@ export default function Lanes() {
         </button>
       </div>
 
-      {/* Lane Table */}
       <div className="bg-gray-800 p-4 rounded-lg">
         <h2 className="text-xl mb-4">
           {activeTab === 'my' && 'My Lanes'}
