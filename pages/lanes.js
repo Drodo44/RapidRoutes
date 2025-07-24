@@ -1,420 +1,253 @@
-import { useState, useEffect } from "react";
-import { useRouter } from "next/router";
-import Image from "next/image";
-import supabase from "../utils/supabaseClient";
+import { useEffect, useState } from 'react';
+import supabase from '../utils/supabaseClient';
+import cities from '../data/allCitiesCleaned.js';
 
 export default function Lanes() {
   const [user, setUser] = useState(null);
+  const [activeTab, setActiveTab] = useState('my');
   const [lanes, setLanes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({
-    origin: "",
-    origin_state: "",
-    destination: "",
-    dest_state: "",
-    equipment: "",
-    weight: "",
-    pickup_date: "",
-    delivery_date: "",
-    notes: "",
+  const [formData, setFormData] = useState({
+    origin: '',
+    dest: '',
+    equipment: '',
+    weight: '',
+    length: '',
+    date: '',
+    comment: ''
   });
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-  const router = useRouter();
 
   useEffect(() => {
-    const fetchUser = async () => {
-      const { data, error } = await supabase.auth.getUser();
-      if (!data?.user || error) {
-        router.push("/login");
-      } else {
-        setUser(data.user);
-        fetchLanes(data.user.id);
-      }
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
     };
-
-    const fetchLanes = async (userId) => {
-      setLoading(true);
-      const { data, error } = await supabase.from("lanes").select("*").eq("user_id", userId).order("created_at", { ascending: false });
-      setLanes(error ? [] : data || []);
-      setLoading(false);
-    };
-
-    fetchUser();
-    // eslint-disable-next-line
+    getUser();
   }, []);
 
-  // Open modal to add or edit lane
-  const openModal = (lane = null) => {
-    setEditing(lane);
-    setForm(
-      lane
-        ? { ...lane }
-        : {
-            origin: "",
-            origin_state: "",
-            destination: "",
-            dest_state: "",
-            equipment: "",
-            weight: "",
-            pickup_date: "",
-            delivery_date: "",
-            notes: "",
-          }
-    );
-    setError("");
-    setSuccess("");
-    setModalOpen(true);
-  };
+  useEffect(() => {
+    if (user) fetchLanes();
+  }, [user, activeTab]);
 
-  const closeModal = () => {
-    setModalOpen(false);
-    setEditing(null);
-    setForm({
-      origin: "",
-      origin_state: "",
-      destination: "",
-      dest_state: "",
-      equipment: "",
-      weight: "",
-      pickup_date: "",
-      delivery_date: "",
-      notes: "",
-    });
-  };
+  const fetchLanes = async () => {
+    if (!user) return;
 
-  const handleFormChange = (e) => {
-    const { name, value } = e.target;
-    setForm((f) => ({ ...f, [name]: value }));
-  };
+    let query = supabase.from('lanes').select('*');
 
-  const handleSave = async (e) => {
-    e.preventDefault();
-    setError("");
-    setSuccess("");
-    // Basic validation
-    if (!form.origin || !form.destination || !form.equipment) {
-      setError("Origin, Destination, and Equipment are required.");
-      return;
+    if (activeTab === 'my') {
+      query = query.eq('user_id', user.id).eq('status', 'Active');
+    } else if (activeTab === 'all') {
+      query = query.eq('status', 'Active');
+    } else if (activeTab === 'archived') {
+      query = query.eq('status', 'Archived');
     }
-    setLoading(true);
-    let res, err;
-    if (editing) {
-      // Edit lane
-      const { error } = await supabase
-        .from("lanes")
-        .update({ ...form })
-        .eq("id", editing.id);
-      err = error;
-    } else {
-      // Create lane
-      const { error } = await supabase.from("lanes").insert([
-        {
-          ...form,
-          user_id: user.id,
-        },
-      ]);
-      err = error;
-    }
-    setLoading(false);
-    if (err) {
-      setError(err.message || "Could not save lane.");
-    } else {
-      setSuccess("Lane saved!");
-      fetchLanes(user.id);
-      closeModal();
+
+    const { data, error } = await query.order('created_at', { ascending: false });
+    if (!error) setLanes(data);
+  };
+
+  const handleInputChange = (field, value) => {
+    setFormData({ ...formData, [field]: value });
+  };
+
+  const handleCitySelect = (field, value) => {
+    const selectedCity = cities.find(c => `${c.city}, ${c.state} ${c.zip}` === value);
+    if (selectedCity) {
+      setFormData({
+        ...formData,
+        [`${field}_city`]: selectedCity.city,
+        [`${field}_state`]: selectedCity.state,
+        [`${field}_zip`]: selectedCity.zip,
+        [`${field}_kma`]: selectedCity.kma
+      });
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Delete this lane?")) return;
-    setLoading(true);
-    const { error } = await supabase.from("lanes").delete().eq("id", id);
-    setLoading(false);
+  const addLane = async () => {
+    if (!user || !formData.origin_city || !formData.dest_city) return;
+
+    const { error } = await supabase.from('lanes').insert([{
+      user_id: user.id,
+      origin_city: formData.origin_city,
+      origin_state: formData.origin_state,
+      origin_zip: formData.origin_zip,
+      origin_kma: formData.origin_kma,
+      dest_city: formData.dest_city,
+      dest_state: formData.dest_state,
+      dest_zip: formData.dest_zip,
+      dest_kma: formData.dest_kma,
+      equipment: formData.equipment,
+      weight: formData.weight,
+      length: formData.length,
+      date: formData.date,
+      comment: formData.comment,
+      status: 'Active'
+    }]);
+
     if (!error) {
-      setLanes((curr) => curr.filter((l) => l.id !== id));
+      setFormData({
+        origin: '',
+        dest: '',
+        equipment: '',
+        weight: '',
+        length: '',
+        date: '',
+        comment: ''
+      });
+      fetchLanes();
     }
+  };
+
+  const updateLaneStatus = async (id, newStatus) => {
+    await supabase.from('lanes').update({ status: newStatus }).eq('id', id);
+    fetchLanes();
   };
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: "linear-gradient(120deg,#101624 60%,#172042 100%)",
-        color: "#fff",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      <header
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "1.1rem 2.2rem",
-          background: "#131c31",
-          boxShadow: "0 3px 18px #00e7ff28",
-          borderBottom: "1.5px solid #15ffea28",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <Image
-            src="/logo.png"
-            alt="RapidRoutes Logo"
-            width={44}
-            height={44}
-            priority
-            style={{
-              borderRadius: "11px",
-              background: "#101826",
-              boxShadow: "0 2px 12px #22d3ee12",
-            }}
+    <main className="min-h-screen bg-gray-950 text-white p-6">
+      <h1 className="text-2xl font-bold mb-4">Lanes</h1>
+
+      {/* Tabs */}
+      <div className="flex space-x-4 mb-6">
+        <button
+          className={`px-4 py-2 rounded ${activeTab === 'my' ? 'bg-cyan-600' : 'bg-gray-700'}`}
+          onClick={() => setActiveTab('my')}
+        >
+          My Lanes
+        </button>
+        <button
+          className={`px-4 py-2 rounded ${activeTab === 'all' ? 'bg-cyan-600' : 'bg-gray-700'}`}
+          onClick={() => setActiveTab('all')}
+        >
+          All Lanes
+        </button>
+        <button
+          className={`px-4 py-2 rounded ${activeTab === 'archived' ? 'bg-cyan-600' : 'bg-gray-700'}`}
+          onClick={() => setActiveTab('archived')}
+        >
+          Archived Lanes
+        </button>
+      </div>
+
+      {/* Lane Form */}
+      <div className="bg-gray-800 p-4 rounded-lg mb-6">
+        <h2 className="text-xl mb-4">Add a Lane</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <select
+            value={formData.origin}
+            onChange={(e) => handleCitySelect('origin', e.target.value)}
+            className="bg-gray-900 text-white p-2 rounded"
+          >
+            <option value="">Select Origin</option>
+            {cities.map((c, idx) => (
+              <option key={idx} value={`${c.city}, ${c.state} ${c.zip}`}>
+                {c.city}, {c.state} {c.zip}
+              </option>
+            ))}
+          </select>
+          <select
+            value={formData.dest}
+            onChange={(e) => handleCitySelect('dest', e.target.value)}
+            className="bg-gray-900 text-white p-2 rounded"
+          >
+            <option value="">Select Destination</option>
+            {cities.map((c, idx) => (
+              <option key={idx} value={`${c.city}, ${c.state} ${c.zip}`}>
+                {c.city}, {c.state} {c.zip}
+              </option>
+            ))}
+          </select>
+          <input
+            type="text"
+            placeholder="Equipment"
+            value={formData.equipment}
+            onChange={(e) => handleInputChange('equipment', e.target.value)}
+            className="bg-gray-900 text-white p-2 rounded"
           />
-          <span style={{ fontSize: 25, fontWeight: 800, letterSpacing: ".02em", color: "#15ffea", marginLeft: 10 }}>
-            RapidRoutes
-          </span>
+          <input
+            type="number"
+            placeholder="Weight (lbs)"
+            value={formData.weight}
+            onChange={(e) => handleInputChange('weight', e.target.value)}
+            className="bg-gray-900 text-white p-2 rounded"
+          />
+          <input
+            type="number"
+            placeholder="Length (ft)"
+            value={formData.length}
+            onChange={(e) => handleInputChange('length', e.target.value)}
+            className="bg-gray-900 text-white p-2 rounded"
+          />
+          <input
+            type="date"
+            value={formData.date}
+            onChange={(e) => handleInputChange('date', e.target.value)}
+            className="bg-gray-900 text-white p-2 rounded"
+          />
+          <textarea
+            placeholder="Comments"
+            value={formData.comment}
+            onChange={(e) => handleInputChange('comment', e.target.value)}
+            className="bg-gray-900 text-white p-2 rounded col-span-2"
+          />
         </div>
         <button
-          onClick={() => router.push("/dashboard")}
-          style={{
-            background: "#192031",
-            color: "#22d3ee",
-            padding: "0.54rem 1.7rem",
-            border: "none",
-            borderRadius: 11,
-            cursor: "pointer",
-            fontWeight: 600,
-            fontSize: "1.04rem",
-            letterSpacing: ".01em",
-            boxShadow: "0 2px 8px #22d3ee08",
-          }}
+          onClick={addLane}
+          className="mt-4 bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded"
         >
-          Back to Dashboard
+          Add Lane
         </button>
-      </header>
-      <section style={{ flex: 1, padding: "2.2rem 5vw", maxWidth: 1200, margin: "0 auto", width: "100%" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <h2 style={{ fontSize: 32, fontWeight: 800, color: "#22d3ee" }}>Manage Lanes</h2>
-          <button
-            style={{
-              background: "linear-gradient(90deg,#15ffea 0%,#22d3ee 100%)",
-              color: "#10151b",
-              padding: "0.89rem 2.3rem",
-              borderRadius: 11,
-              fontWeight: 700,
-              border: "none",
-              fontSize: "1.14rem",
-              cursor: "pointer",
-              boxShadow: "0 2px 12px #15ffea18",
-            }}
-            onClick={() => openModal()}
-          >
-            + Add Lane
-          </button>
-        </div>
-        {loading ? (
-          <div style={{ color: "#15ffea", fontWeight: 600 }}>Loading lanes...</div>
-        ) : (
-          <div style={{
-            overflowX: "auto",
-            background: "#151d2b",
-            borderRadius: 19,
-            boxShadow: "0 0 28px #22d3ee08",
-            padding: "2.1rem",
-            marginTop: 12
-          }}>
-            <table style={{ width: "100%", color: "#fff", fontSize: 17, borderCollapse: "collapse" }}>
-              <thead>
-                <tr style={{ background: "#233056", color: "#22d3ee" }}>
-                  <th style={thStyle}>Origin</th>
-                  <th style={thStyle}>Origin State</th>
-                  <th style={thStyle}>Destination</th>
-                  <th style={thStyle}>Dest State</th>
-                  <th style={thStyle}>Equipment</th>
-                  <th style={thStyle}>Weight</th>
-                  <th style={thStyle}>Pickup</th>
-                  <th style={thStyle}>Delivery</th>
-                  <th style={thStyle}>Notes</th>
-                  <th style={thStyle}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {lanes.length === 0 ? (
-                  <tr>
-                    <td style={{ padding: 18, color: "#aaa", fontWeight: 600, textAlign: "center" }} colSpan={10}>
-                      No lanes found.
-                    </td>
-                  </tr>
-                ) : (
-                  lanes.map((lane) => (
-                    <tr key={lane.id} style={{ borderBottom: "1px solid #232b3a" }}>
-                      <td style={tdStyle}>{lane.origin}</td>
-                      <td style={tdStyle}>{lane.origin_state}</td>
-                      <td style={tdStyle}>{lane.destination}</td>
-                      <td style={tdStyle}>{lane.dest_state}</td>
-                      <td style={tdStyle}>{lane.equipment}</td>
-                      <td style={tdStyle}>{lane.weight}</td>
-                      <td style={tdStyle}>{lane.pickup_date ? lane.pickup_date : ""}</td>
-                      <td style={tdStyle}>{lane.delivery_date ? lane.delivery_date : ""}</td>
-                      <td style={tdStyle}>{lane.notes}</td>
-                      <td style={tdStyle}>
-                        <button
-                          style={{
-                            background: "linear-gradient(90deg,#22d3ee 0%,#15ffea 100%)",
-                            color: "#10151b",
-                            border: "none",
-                            borderRadius: 7,
-                            padding: "6px 13px",
-                            marginRight: 8,
-                            cursor: "pointer",
-                            fontWeight: 700
-                          }}
-                          onClick={() => openModal(lane)}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          style={{
-                            background: "#ff3e3e",
-                            color: "#fff",
-                            border: "none",
-                            borderRadius: 7,
-                            padding: "6px 13px",
-                            cursor: "pointer",
-                            fontWeight: 700
-                          }}
-                          onClick={() => handleDelete(lane.id)}
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-      {modalOpen && (
-        <div style={{
-          position: "fixed",
-          left: 0, top: 0, width: "100vw", height: "100vh",
-          background: "#0008",
-          zIndex: 1000,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center"
-        }}>
-          <div style={{
-            background: "#182138",
-            borderRadius: 18,
-            boxShadow: "0 2px 36px #22d3ee28",
-            maxWidth: 440,
-            width: "94vw",
-            padding: "2.3rem 1.7rem",
-            position: "relative"
-          }}>
-            <button
-              onClick={closeModal}
-              style={{
-                position: "absolute", right: 14, top: 14,
-                background: "none", border: "none", color: "#22d3ee",
-                fontWeight: 800, fontSize: 22, cursor: "pointer"
-              }}
-              aria-label="Close"
-            >×</button>
-            <h3 style={{ color: "#22d3ee", fontWeight: 800, fontSize: 22, marginBottom: 18 }}>
-              {editing ? "Edit Lane" : "Add Lane"}
-            </h3>
-            <form onSubmit={handleSave}>
-              <div style={{ display: "grid", gap: 12 }}>
-                <input style={inputStyle} name="origin" placeholder="Origin City" value={form.origin} onChange={handleFormChange} required />
-                <input style={inputStyle} name="origin_state" placeholder="Origin State" value={form.origin_state} onChange={handleFormChange} required />
-                <input style={inputStyle} name="destination" placeholder="Destination City" value={form.destination} onChange={handleFormChange} required />
-                <input style={inputStyle} name="dest_state" placeholder="Destination State" value={form.dest_state} onChange={handleFormChange} required />
-                <input style={inputStyle} name="equipment" placeholder="Equipment Type" value={form.equipment} onChange={handleFormChange} required />
-                <input style={inputStyle} name="weight" type="number" min={0} placeholder="Weight (lbs)" value={form.weight} onChange={handleFormChange} />
-                <input style={inputStyle} name="pickup_date" type="date" placeholder="Pickup Date" value={form.pickup_date} onChange={handleFormChange} />
-                <input style={inputStyle} name="delivery_date" type="date" placeholder="Delivery Date" value={form.delivery_date} onChange={handleFormChange} />
-                <textarea style={inputStyle} name="notes" placeholder="Notes" value={form.notes} onChange={handleFormChange} />
-              </div>
-              {error && <div style={errorStyle}>{error}</div>}
-              {success && <div style={successStyle}>{success}</div>}
-              <button
-                type="submit"
-                style={{
-                  ...buttonStyle,
-                  marginTop: 14,
-                  background: loading ? "#374151" : "linear-gradient(90deg,#15ffea 0%,#22d3ee 100%)",
-                  color: "#10151b",
-                }}
-                disabled={loading}
-              >
-                {loading ? "Saving..." : (editing ? "Update Lane" : "Add Lane")}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
+      </div>
+
+      {/* Lane Table */}
+      <div className="bg-gray-800 p-4 rounded-lg">
+        <h2 className="text-xl mb-4">
+          {activeTab === 'my' && 'My Lanes'}
+          {activeTab === 'all' && 'All Lanes'}
+          {activeTab === 'archived' && 'Archived Lanes'}
+        </h2>
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr>
+              <th className="border-b p-2">Origin</th>
+              <th className="border-b p-2">Destination</th>
+              <th className="border-b p-2">Equipment</th>
+              <th className="border-b p-2">Weight</th>
+              <th className="border-b p-2">Date</th>
+              <th className="border-b p-2">Status</th>
+              <th className="border-b p-2">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {lanes.map((lane) => (
+              <tr key={lane.id}>
+                <td className="p-2">{lane.origin_city}, {lane.origin_state}</td>
+                <td className="p-2">{lane.dest_city}, {lane.dest_state}</td>
+                <td className="p-2">{lane.equipment}</td>
+                <td className="p-2">{lane.weight}</td>
+                <td className="p-2">{lane.date}</td>
+                <td className="p-2">{lane.status}</td>
+                <td className="p-2">
+                  {activeTab !== 'archived' ? (
+                    <button
+                      onClick={() => updateLaneStatus(lane.id, 'Archived')}
+                      className="bg-gray-600 hover:bg-gray-700 px-2 py-1 rounded"
+                    >
+                      Archive
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => updateLaneStatus(lane.id, 'Active')}
+                      className="bg-cyan-600 hover:bg-cyan-700 px-2 py-1 rounded"
+                    >
+                      Repost
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </main>
   );
 }
-
-const inputStyle = {
-  width: "100%",
-  padding: "0.77rem",
-  borderRadius: "0.75rem",
-  border: "1.4px solid #22d3ee",
-  background: "#222d3e",
-  color: "#fff",
-  fontSize: "1.05rem",
-  outline: "none",
-  fontWeight: 600,
-  marginBottom: 0,
-};
-
-const buttonStyle = {
-  width: "100%",
-  padding: "0.77rem",
-  borderRadius: "0.8rem",
-  border: "none",
-  fontWeight: 700,
-  fontSize: "1.12rem",
-  cursor: "pointer",
-  boxShadow: "0 2px 14px #22d3ee10",
-  transition: "background .16s, color .16s",
-};
-
-const thStyle = {
-  padding: "16px 7px",
-  fontWeight: 800,
-  fontSize: 17,
-  textAlign: "left",
-  borderBottom: "2px solid #101624",
-  letterSpacing: "0.01em"
-};
-
-const tdStyle = {
-  padding: "11px 7px",
-  fontWeight: 500,
-  fontSize: 16,
-  letterSpacing: "0.01em"
-};
-
-const errorStyle = {
-  color: "#f87171",
-  marginTop: 12,
-  marginBottom: 8,
-  fontWeight: 700,
-  letterSpacing: ".01em",
-};
-const successStyle = {
-  color: "#15ffea",
-  marginTop: 12,
-  marginBottom: 8,
-  fontWeight: 700,
-  letterSpacing: ".01em",
-};
