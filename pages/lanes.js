@@ -10,11 +10,13 @@ export default function Lanes() {
     origin_city: '',
     origin_state: '',
     origin_zip: '',
-    origin_kma: '',
+    origin_kma_code: '',
+    origin_kma_name: '',
     dest_city: '',
     dest_state: '',
     dest_zip: '',
-    dest_kma: '',
+    dest_kma_code: '',
+    dest_kma_name: '',
     equipment: '',
     weight: '',
     length: '',
@@ -39,7 +41,7 @@ export default function Lanes() {
       const { data, error } = await supabase
         .from('cities')
         .select('*')
-        .order('state', { ascending: true })
+        .order('state_or_province', { ascending: true })
         .order('city', { ascending: true });
       if (!error && data) setCities(data);
     };
@@ -68,15 +70,16 @@ export default function Lanes() {
 
   const handleCitySelect = (field, value) => {
     const selectedCity = cities.find(
-      (c) => `${c.city}, ${c.state} ${c.zip}` === value
+      (c) => `${c.city}, ${c.state_or_province} ${c.zip}` === value
     );
     if (selectedCity) {
       setFormData({
         ...formData,
         [`${field}_city`]: selectedCity.city,
-        [`${field}_state`]: selectedCity.state,
+        [`${field}_state`]: selectedCity.state_or_province,
         [`${field}_zip`]: selectedCity.zip,
-        [`${field}_kma`]: selectedCity.kma
+        [`${field}_kma_code`]: selectedCity.kma_code,
+        [`${field}_kma_name`]: selectedCity.kma_name
       });
     }
   };
@@ -90,11 +93,13 @@ export default function Lanes() {
         origin_city: formData.origin_city,
         origin_state: formData.origin_state,
         origin_zip: formData.origin_zip,
-        origin_kma: formData.origin_kma,
+        origin_kma_code: formData.origin_kma_code,
+        origin_kma_name: formData.origin_kma_name,
         dest_city: formData.dest_city,
         dest_state: formData.dest_state,
         dest_zip: formData.dest_zip,
-        dest_kma: formData.dest_kma,
+        dest_kma_code: formData.dest_kma_code,
+        dest_kma_name: formData.dest_kma_name,
         equipment: formData.equipment,
         weight: formData.weight,
         length: formData.length,
@@ -109,11 +114,13 @@ export default function Lanes() {
         origin_city: '',
         origin_state: '',
         origin_zip: '',
-        origin_kma: '',
+        origin_kma_code: '',
+        origin_kma_name: '',
         dest_city: '',
         dest_state: '',
         dest_zip: '',
-        dest_kma: '',
+        dest_kma_code: '',
+        dest_kma_name: '',
         equipment: '',
         weight: '',
         length: '',
@@ -131,31 +138,31 @@ export default function Lanes() {
 
   return (
     <main className="min-h-screen bg-gray-950 text-white p-6">
-      <h1 className="text-2xl font-bold mb-4">Lanes</h1>
+      <h1 className="text-3xl font-bold mb-6 text-cyan-400">Lane Management</h1>
 
       <div className="flex space-x-4 mb-6">
         <button
-          className={`px-4 py-2 rounded ${activeTab === 'my' ? 'bg-cyan-600' : 'bg-gray-700'}`}
+          className={`px-4 py-2 rounded-xl transition ${activeTab === 'my' ? 'bg-cyan-600 shadow-lg' : 'bg-gray-800 hover:bg-gray-700'}`}
           onClick={() => setActiveTab('my')}
         >
           My Lanes
         </button>
         <button
-          className={`px-4 py-2 rounded ${activeTab === 'all' ? 'bg-cyan-600' : 'bg-gray-700'}`}
+          className={`px-4 py-2 rounded-xl transition ${activeTab === 'all' ? 'bg-cyan-600 shadow-lg' : 'bg-gray-800 hover:bg-gray-700'}`}
           onClick={() => setActiveTab('all')}
         >
           All Lanes
         </button>
         <button
-          className={`px-4 py-2 rounded ${activeTab === 'archived' ? 'bg-cyan-600' : 'bg-gray-700'}`}
+          className={`px-4 py-2 rounded-xl transition ${activeTab === 'archived' ? 'bg-cyan-600 shadow-lg' : 'bg-gray-800 hover:bg-gray-700'}`}
           onClick={() => setActiveTab('archived')}
         >
           Archived Lanes
         </button>
       </div>
 
-      <div className="bg-gray-800 p-4 rounded-lg mb-6">
-        <h2 className="text-xl mb-4">Add a Lane</h2>
+      <div className="bg-gray-900 p-4 rounded-2xl mb-6 shadow-lg">
+        <h2 className="text-xl text-emerald-400 mb-4">Add a Lane</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <select
             value={
@@ -164,12 +171,12 @@ export default function Lanes() {
                 : ''
             }
             onChange={(e) => handleCitySelect('origin', e.target.value)}
-            className="bg-gray-900 text-white p-2 rounded"
+            className="bg-gray-800 text-white p-2 rounded-lg"
           >
             <option value="">Select Origin</option>
             {cities.map((c, idx) => (
-              <option key={idx} value={`${c.city}, ${c.state} ${c.zip}`}>
-                {c.city}, {c.state} {c.zip}
+              <option key={idx} value={`${c.city}, ${c.state_or_province} ${c.zip}`}>
+                {c.city}, {c.state_or_province} {c.zip}
               </option>
             ))}
           </select>
@@ -180,12 +187,12 @@ export default function Lanes() {
                 : ''
             }
             onChange={(e) => handleCitySelect('dest', e.target.value)}
-            className="bg-gray-900 text-white p-2 rounded"
+            className="bg-gray-800 text-white p-2 rounded-lg"
           >
             <option value="">Select Destination</option>
             {cities.map((c, idx) => (
-              <option key={idx} value={`${c.city}, ${c.state} ${c.zip}`}>
-                {c.city}, {c.state} {c.zip}
+              <option key={idx} value={`${c.city}, ${c.state_or_province} ${c.zip}`}>
+                {c.city}, {c.state_or_province} {c.zip}
               </option>
             ))}
           </select>
@@ -194,52 +201,52 @@ export default function Lanes() {
             placeholder="Equipment"
             value={formData.equipment}
             onChange={(e) => handleInputChange('equipment', e.target.value)}
-            className="bg-gray-900 text-white p-2 rounded"
+            className="bg-gray-800 text-white p-2 rounded-lg"
           />
           <input
             type="number"
             placeholder="Weight (lbs)"
             value={formData.weight}
             onChange={(e) => handleInputChange('weight', e.target.value)}
-            className="bg-gray-900 text-white p-2 rounded"
+            className="bg-gray-800 text-white p-2 rounded-lg"
           />
           <input
             type="number"
             placeholder="Length (ft)"
             value={formData.length}
             onChange={(e) => handleInputChange('length', e.target.value)}
-            className="bg-gray-900 text-white p-2 rounded"
+            className="bg-gray-800 text-white p-2 rounded-lg"
           />
           <input
             type="date"
             value={formData.date}
             onChange={(e) => handleInputChange('date', e.target.value)}
-            className="bg-gray-900 text-white p-2 rounded"
+            className="bg-gray-800 text-white p-2 rounded-lg"
           />
           <textarea
             placeholder="Comments"
             value={formData.comment}
             onChange={(e) => handleInputChange('comment', e.target.value)}
-            className="bg-gray-900 text-white p-2 rounded col-span-2"
+            className="bg-gray-800 text-white p-2 rounded-lg col-span-2"
           />
         </div>
         <button
           onClick={addLane}
-          className="mt-4 bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded"
+          className="mt-4 bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-xl shadow-lg transition"
         >
           Add Lane
         </button>
       </div>
 
-      <div className="bg-gray-800 p-4 rounded-lg">
-        <h2 className="text-xl mb-4">
-          {activeTab === 'my' && 'My Lanes'}
-          {activeTab === 'all' && 'All Lanes'}
+      <div className="bg-gray-900 p-4 rounded-2xl shadow-lg">
+        <h2 className="text-xl mb-4 text-cyan-400">
+          {activeTab === 'my' && 'My Active Lanes'}
+          {activeTab === 'all' && 'All Active Lanes'}
           {activeTab === 'archived' && 'Archived Lanes'}
         </h2>
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr>
+            <tr className="text-emerald-400">
               <th className="border-b p-2">Origin</th>
               <th className="border-b p-2">Destination</th>
               <th className="border-b p-2">Equipment</th>
@@ -251,7 +258,7 @@ export default function Lanes() {
           </thead>
           <tbody>
             {lanes.map((lane) => (
-              <tr key={lane.id}>
+              <tr key={lane.id} className="hover:bg-gray-800">
                 <td className="p-2">{lane.origin_city}, {lane.origin_state}</td>
                 <td className="p-2">{lane.dest_city}, {lane.dest_state}</td>
                 <td className="p-2">{lane.equipment}</td>
@@ -262,14 +269,14 @@ export default function Lanes() {
                   {activeTab !== 'archived' ? (
                     <button
                       onClick={() => updateLaneStatus(lane.id, 'Archived')}
-                      className="bg-gray-600 hover:bg-gray-700 px-2 py-1 rounded"
+                      className="bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded-lg"
                     >
                       Archive
                     </button>
                   ) : (
                     <button
                       onClick={() => updateLaneStatus(lane.id, 'Active')}
-                      className="bg-cyan-600 hover:bg-cyan-700 px-2 py-1 rounded"
+                      className="bg-cyan-600 hover:bg-cyan-700 px-3 py-1 rounded-lg"
                     >
                       Repost
                     </button>
@@ -283,3 +290,4 @@ export default function Lanes() {
     </main>
   );
 }
+
