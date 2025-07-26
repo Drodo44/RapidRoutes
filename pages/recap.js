@@ -1,302 +1,153 @@
-import { useEffect, useState } from "react";
-import { useRouter } from "next/router";
-import Image from "next/image";
-import supabase from "../utils/supabaseClient";
+import { useState, useEffect } from 'react';
+import supabase from '../utils/supabaseClient';
+import dynamic from 'next/dynamic';
 
-// Custom neon styles
-const recapStyles = {
-  tableWrap: {
-    overflowX: "auto",
-    background: "linear-gradient(110deg, #192031 50%, #132f43 100%)",
-    borderRadius: 24,
-    boxShadow: "0 0 40px #22d3ee25",
-    padding: "2.4rem 2.1rem",
-    marginTop: 18,
-    marginBottom: 20,
-  },
-  table: {
-    width: "100%",
-    color: "#e0eefd",
-    fontSize: 18,
-    borderCollapse: "separate",
-    borderSpacing: 0,
-    minWidth: 950,
-    background: "none"
-  },
-  th: {
-    background: "linear-gradient(90deg,#22d3ee 50%,#15ffea 100%)",
-    color: "#101826",
-    fontWeight: 900,
-    fontSize: 19,
-    padding: "20px 9px",
-    borderTopLeftRadius: 14,
-    borderTopRightRadius: 14,
-    borderBottom: "3.5px solid #101624",
-    letterSpacing: ".01em",
-    textShadow: "0 4px 24px #22d3ee33",
-  },
-  td: {
-    background: "rgba(31, 45, 75, 0.93)",
-    color: "#fff",
-    padding: "16px 8px",
-    fontWeight: 600,
-    fontSize: 17,
-    borderBottom: "1.7px solid #22d3ee28",
-    letterSpacing: ".01em",
-    boxShadow: "0 1.5px 7px #15ffea12"
-  },
-  highlight: {
-    background: "linear-gradient(90deg,#1E40AF 55%,#22d3ee 100%)",
-    color: "#15ffea",
-    borderRadius: 9,
-    padding: "5px 8px",
-    fontWeight: 900,
-    letterSpacing: ".02em",
-    fontSize: 17,
-    textShadow: "0 2px 12px #15ffea45",
-    margin: "0 2px"
-  },
-  equipment: {
-    color: "#19ffe6",
-    background: "#12273b",
-    padding: "6px 11px",
-    borderRadius: 8,
-    fontWeight: 800,
-    fontSize: 16,
-    letterSpacing: ".01em",
-    boxShadow: "0 2px 8px #22d3ee10"
-  },
-  statusActive: {
-    background: "linear-gradient(90deg,#00FFAC 40%,#18c2fc 100%)",
-    color: "#13333a",
-    fontWeight: 900,
-    padding: "6px 13px",
-    borderRadius: 10,
-    fontSize: 15
-  },
-  notes: {
-    background: "#1d2d44",
-    color: "#15ffea",
-    borderRadius: 8,
-    padding: "7px 13px",
-    fontWeight: 600,
-    fontSize: 16
-  }
-};
+// Dynamically import react-leaflet (to avoid SSR issues)
+const MapContainer = dynamic(() => import('react-leaflet').then(mod => mod.MapContainer), { ssr: false });
+const TileLayer = dynamic(() => import('react-leaflet').then(mod => mod.TileLayer), { ssr: false });
+const Marker = dynamic(() => import('react-leaflet').then(mod => mod.Marker), { ssr: false });
+const Circle = dynamic(() => import('react-leaflet').then(mod => mod.Circle), { ssr: false });
+const Polyline = dynamic(() => import('react-leaflet').then(mod => mod.Polyline), { ssr: false });
 
 export default function Recap() {
-  const [user, setUser] = useState(null);
   const [lanes, setLanes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const router = useRouter();
+  const [selectedLane, setSelectedLane] = useState(null);
+  const [search, setSearch] = useState('');
+  const [filteredResults, setFilteredResults] = useState([]);
+  const [weather, setWeather] = useState({ pickup: null, delivery: null });
 
+  // Fetch all active lanes
   useEffect(() => {
-    const fetchUserAndLanes = async () => {
-      const { data, error } = await supabase.auth.getUser();
-      if (!data?.user || error) {
-        router.push("/login");
-      } else {
-        setUser(data.user);
-        fetchLanes(data.user.id);
-      }
+    const fetchLanes = async () => {
+      const { data, error } = await supabase
+        .from('lanes')
+        .select('*')
+        .eq('status', 'Active')
+        .order('created_at', { ascending: false });
+      if (!error) setLanes(data);
     };
-    const fetchLanes = async (userId) => {
-      setLoading(true);
-      const { data, error } = await supabase.from("lanes").select("*").eq("user_id", userId).order("created_at", { ascending: false });
-      setLanes(error ? [] : data || []);
-      setLoading(false);
-    };
-    fetchUserAndLanes();
-    // eslint-disable-next-line
+    fetchLanes();
   }, []);
 
-  // --- EXPORT FUNCTIONS ---
-  const handleExportDAT = async () => {
-    try {
-      if (!user?.id) return;
-      const res = await fetch(`/api/export/dat?user_id=${user.id}`);
-      if (!res.ok) throw new Error("Export failed.");
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "RapidRoutes_DAT.csv";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      alert("DAT export failed. Please try again.");
+  // Search filter for dropdown
+  useEffect(() => {
+    if (search.trim() === '') {
+      setFilteredResults([]);
+      return;
     }
+    const term = search.toLowerCase();
+    const results = lanes.filter(l =>
+      l.origin_city.toLowerCase().includes(term) ||
+      l.dest_city.toLowerCase().includes(term) ||
+      (l.id && l.id.toString().includes(term))
+    );
+    setFilteredResults(results.slice(0, 10)); // show top 10
+  }, [search, lanes]);
+
+  // Fetch weather data for selected lane
+  useEffect(() => {
+    const fetchWeather = async () => {
+      if (!selectedLane) return;
+      const fetchCityWeather = async (city, state) => {
+        try {
+          const apiKey = process.env.NEXT_PUBLIC_OPENWEATHER_KEY;
+          const resp = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city},${state},US&appid=${apiKey}&units=imperial`);
+          if (!resp.ok) return null;
+          const data = await resp.json();
+          return {
+            temp: data.main.temp,
+            conditions: data.weather[0].description
+          };
+        } catch {
+          return null;
+        }
+      };
+      const pickupWeather = await fetchCityWeather(selectedLane.origin_city, selectedLane.origin_state);
+      const deliveryWeather = await fetchCityWeather(selectedLane.dest_city, selectedLane.dest_state);
+      setWeather({ pickup: pickupWeather, delivery: deliveryWeather });
+    };
+    fetchWeather();
+  }, [selectedLane]);
+
+  const handleSelectLane = (lane) => {
+    setSelectedLane(lane);
+    setSearch('');
+    setFilteredResults([]);
   };
 
-  const handleExportRecap = async () => {
-    try {
-      if (!user?.id) return;
-      const res = await fetch(`/api/export/recap?user_id=${user.id}`);
-      if (!res.ok) throw new Error("Export failed.");
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "RapidRoutes_Recap.xlsx";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      alert("Recap export failed. Please try again.");
-    }
+  const handleExportHTML = () => {
+    const htmlContent = document.documentElement.outerHTML;
+    const blob = new Blob([htmlContent], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'Active_Postings_Recap.html';
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: "linear-gradient(120deg,#101624 60%,#172042 100%)",
-        color: "#fff",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      <header
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "1.1rem 2.2rem",
-          background: "#131c31",
-          boxShadow: "0 3px 18px #00e7ff28",
-          borderBottom: "1.5px solid #15ffea28",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <Image
-            src="/logo.png"
-            alt="RapidRoutes Logo"
-            width={44}
-            height={44}
-            priority
-            style={{
-              borderRadius: "11px",
-              background: "#101826",
-              boxShadow: "0 2px 12px #22d3ee12",
-            }}
-          />
-          <span style={{ fontSize: 25, fontWeight: 800, letterSpacing: ".02em", color: "#15ffea", marginLeft: 10 }}>
-            RapidRoutes
-          </span>
-        </div>
-        <button
-          onClick={() => router.push("/dashboard")}
-          style={{
-            background: "#192031",
-            color: "#22d3ee",
-            padding: "0.54rem 1.7rem",
-            border: "none",
-            borderRadius: 11,
-            cursor: "pointer",
-            fontWeight: 600,
-            fontSize: "1.04rem",
-            letterSpacing: ".01em",
-            boxShadow: "0 2px 8px #22d3ee08",
-          }}
-        >
-          Back to Dashboard
-        </button>
-      </header>
-      <section style={{ flex: 1, padding: "2.2rem 5vw", maxWidth: 1200, margin: "0 auto", width: "100%" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-          <h2 style={{ fontSize: 36, fontWeight: 900, color: "#22d3ee", textShadow: "0 6px 32px #22d3ee29" }}>Recap & Export</h2>
-          <div>
-            <button
-              style={{
-                background: "linear-gradient(90deg,#15ffea 0%,#22d3ee 100%)",
-                color: "#10151b",
-                padding: "0.98rem 2.5rem",
-                borderRadius: 14,
-                fontWeight: 900,
-                border: "none",
-                fontSize: "1.19rem",
-                cursor: "pointer",
-                marginRight: 16,
-                boxShadow: "0 2px 14px #15ffea18",
-              }}
-              onClick={handleExportDAT}
-            >
-              Export DAT CSV
-            </button>
-            <button
-              style={{
-                background: "linear-gradient(90deg,#1E40AF 0%,#22d3ee 100%)",
-                color: "#fff",
-                padding: "0.98rem 2.5rem",
-                borderRadius: 14,
-                fontWeight: 900,
-                border: "none",
-                fontSize: "1.19rem",
-                cursor: "pointer",
-                boxShadow: "0 2px 14px #1E40AF18",
-              }}
-              onClick={handleExportRecap}
-            >
-              Export Recap Workbook
-            </button>
+    <main className="min-h-screen bg-gray-950 text-white p-6">
+      <h1 className="text-3xl font-bold mb-4 text-cyan-400">Active Postings Recap</h1>
+
+      {/* Search dropdown */}
+      <div className="relative mb-6">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by city, ZIP, or Lane ID..."
+          className="w-full p-3 rounded-lg bg-gray-900 text-white"
+        />
+        {filteredResults.length > 0 && (
+          <ul className="absolute z-10 bg-gray-800 text-white w-full mt-1 rounded-lg max-h-64 overflow-auto shadow-lg">
+            {filteredResults.map((lane) => (
+              <li
+                key={lane.id}
+                onClick={() => handleSelectLane(lane)}
+                className="p-3 hover:bg-gray-700 cursor-pointer border-b border-gray-700"
+              >
+                <div className="font-bold">{lane.origin_city}, {lane.origin_state} → {lane.dest_city}, {lane.dest_state}</div>
+                <div className="text-sm text-gray-400">
+                  {lane.equipment} • {lane.weight} lbs • Posted {new Date(lane.created_at).toLocaleDateString()}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {/* Snap Card */}
+      {selectedLane && (
+        <div className="bg-gray-900 p-4 rounded-2xl mb-6 shadow-lg">
+          <h2 className="text-xl text-emerald-400 mb-2">
+            {selectedLane.origin_city}, {selectedLane.origin_state} → {selectedLane.dest_city}, {selectedLane.dest_state}
+          </h2>
+          <p className="text-gray-300">Equipment: {selectedLane.equipment} | Weight: {selectedLane.weight} lbs | Length: {selectedLane.length} ft</p>
+          <p className="text-gray-400">Posted on {new Date(selectedLane.created_at).toLocaleDateString()}</p>
+          {weather.pickup && (
+            <p className="mt-2 text-gray-300">
+              Pickup Weather: {weather.pickup.temp}°F, {weather.pickup.conditions}
+            </p>
+          )}
+          {weather.delivery && (
+            <p className="text-gray-300">
+              Delivery Weather: {weather.delivery.temp}°F, {weather.delivery.conditions}
+            </p>
+          )}
+          <div className="flex space-x-4 mt-4">
+            <button onClick={handleExportHTML} className="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded-xl shadow-lg">Download Recap</button>
           </div>
         </div>
-        {/* Stunning Neon Recap Table */}
-        <div style={recapStyles.tableWrap}>
-          <table style={recapStyles.table}>
-            <thead>
-              <tr>
-                <th style={recapStyles.th}>Origin</th>
-                <th style={recapStyles.th}>Origin State</th>
-                <th style={recapStyles.th}>Destination</th>
-                <th style={recapStyles.th}>Dest State</th>
-                <th style={recapStyles.th}>Equipment</th>
-                <th style={recapStyles.th}>Weight</th>
-                <th style={recapStyles.th}>Pickup</th>
-                <th style={recapStyles.th}>Delivery</th>
-                <th style={recapStyles.th}>Status</th>
-                <th style={recapStyles.th}>Notes</th>
-              </tr>
-            </thead>
-            <tbody>
-              {lanes.length === 0 ? (
-                <tr>
-                  <td style={{ ...recapStyles.td, textAlign: "center" }} colSpan={10}>
-                    No lanes found.
-                  </td>
-                </tr>
-              ) : (
-                lanes.map((lane, idx) => (
-                  <tr key={lane.id || idx}>
-                    <td style={recapStyles.td}><span style={recapStyles.highlight}>{lane.origin}</span></td>
-                    <td style={recapStyles.td}>{lane.origin_state}</td>
-                    <td style={recapStyles.td}><span style={recapStyles.highlight}>{lane.destination}</span></td>
-                    <td style={recapStyles.td}>{lane.dest_state}</td>
-                    <td style={recapStyles.td}><span style={recapStyles.equipment}>{lane.equipment}</span></td>
-                    <td style={recapStyles.td}>{lane.weight}</td>
-                    <td style={recapStyles.td}>{lane.pickup_date || ""}</td>
-                    <td style={recapStyles.td}>{lane.delivery_date || ""}</td>
-                    <td style={recapStyles.td}><span style={recapStyles.statusActive}>Active</span></td>
-                    <td style={recapStyles.td}><span style={recapStyles.notes}>{lane.notes}</span></td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-        <div style={{ color: "#aaa", marginTop: 38, fontSize: 16, textAlign: "center" }}>
-          <hr style={{ border: "0", borderTop: "1.3px solid #22d3ee30", margin: "36px auto 18px auto", width: "52%" }} />
-          <div>
-            <Image src="/logo.png" alt="Logo" width={42} height={42} style={{ verticalAlign: "middle", borderRadius: 9, marginBottom: -10 }} />
-          </div>
-          <div style={{ margin: "18px 0 0 0", color: "#19ffe6", fontWeight: 700, fontSize: 17 }}>
-            Created by Andrew Connellan – Logistics Account Executive at TQL HQ: Cincinnati, OH
-          </div>
-        </div>
-      </section>
-    </main>
-  );
-}
+      )}
+
+      {/* Map */}
+      <div className="bg-gray-900 p-4 rounded-2xl shadow-lg">
+        <MapContainer center={[39.5, -98.35]} zoom={4} style={{ height: '500px', width: '100%' }}>
+          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+          {selectedLane && (
+            <>
+              <Marker position={[selectedLane.origin_lat, selectedLane.origin_lon]} />
+              <Marker position={[selectedLane.dest_lat, selectedLane.dest_lon]} />
+              <Polyline positions={[
+                [selectedLane.origin_lat, selectedLane.origin_lon
