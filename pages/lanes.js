@@ -5,18 +5,18 @@ export default function Lanes() {
   const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState('my');
   const [lanes, setLanes] = useState([]);
-  const [cities, setCities] = useState([]);
+  const [searchCities, setSearchCities] = useState([]);
+  const [originSearch, setOriginSearch] = useState('');
+  const [destSearch, setDestSearch] = useState('');
   const [formData, setFormData] = useState({
     origin_city: '',
     origin_state: '',
     origin_zip: '',
-    origin_kma_code: '',
-    origin_kma_name: '',
+    origin_market: '',
     dest_city: '',
     dest_state: '',
     dest_zip: '',
-    dest_kma_code: '',
-    dest_kma_name: '',
+    dest_market: '',
     equipment: '',
     weight: '',
     length: '',
@@ -36,103 +36,107 @@ export default function Lanes() {
     if (user) fetchLanes();
   }, [user, activeTab]);
 
-  useEffect(() => {
-    const loadCities = async () => {
-      const { data, error } = await supabase
-        .from('cities')
-        .select('*')
-        .order('state_or_province', { ascending: true })
-        .order('city', { ascending: true });
-      if (!error && data) setCities(data);
-    };
-    loadCities();
-  }, []);
-
   const fetchLanes = async () => {
     if (!user) return;
     let query = supabase.from('lanes').select('*');
 
-    if (activeTab === 'my') {
-      query = query.eq('user_id', user.id).eq('status', 'Active');
-    } else if (activeTab === 'all') {
-      query = query.eq('status', 'Active');
-    } else if (activeTab === 'archived') {
-      query = query.eq('status', 'Archived');
-    }
+    if (activeTab === 'my') query = query.eq('user_id', user.id).eq('status', 'Active');
+    else if (activeTab === 'all') query = query.eq('status', 'Active');
+    else if (activeTab === 'archived') query = query.eq('status', 'Archived');
 
-    const { data, error } = await query.order('created_at', { ascending: false });
-    if (!error) setLanes(data);
+    const { data } = await query.order('created_at', { ascending: false });
+    if (data) setLanes(data);
+  };
+
+  const searchCity = async (term, type) => {
+    if (term.trim().length < 2) {
+      setSearchCities([]);
+      return;
+    }
+    const { data, error } = await supabase
+      .from('cities')
+      .select('*')
+      .ilike('city', `%${term}%`)
+      .limit(10);
+    if (!error && data) {
+      setSearchCities(data.map(c => ({
+        display: `${c.city}, ${c.state_or_province} ${c.zip} (${c.kma_name || ''})`,
+        ...c,
+        type
+      })));
+    }
+  };
+
+  const handleSelectCity = (cityData) => {
+    if (cityData.type === 'origin') {
+      setFormData({
+        ...formData,
+        origin_city: cityData.city,
+        origin_state: cityData.state_or_province,
+        origin_zip: cityData.zip,
+        origin_market: cityData.kma_name
+      });
+      setOriginSearch(cityData.display);
+    } else {
+      setFormData({
+        ...formData,
+        dest_city: cityData.city,
+        dest_state: cityData.state_or_province,
+        dest_zip: cityData.zip,
+        dest_market: cityData.kma_name
+      });
+      setDestSearch(cityData.display);
+    }
+    setSearchCities([]);
   };
 
   const handleInputChange = (field, value) => {
     setFormData({ ...formData, [field]: value });
   };
 
-  const handleCitySelect = (field, value) => {
-    const selectedCity = cities.find(
-      (c) => `${c.city}, ${c.state_or_province} ${c.zip}` === value
-    );
-    if (selectedCity) {
-      setFormData({
-        ...formData,
-        [`${field}_city`]: selectedCity.city,
-        [`${field}_state`]: selectedCity.state_or_province,
-        [`${field}_zip`]: selectedCity.zip,
-        [`${field}_kma_code`]: selectedCity.kma_code,
-        [`${field}_kma_name`]: selectedCity.kma_name
-      });
-    }
-  };
-
   const addLane = async () => {
     if (!user || !formData.origin_city || !formData.dest_city) return;
 
-    const { error } = await supabase.from('lanes').insert([
-      {
-        user_id: user.id,
-        origin_city: formData.origin_city,
-        origin_state: formData.origin_state,
-        origin_zip: formData.origin_zip,
-        origin_kma_code: formData.origin_kma_code,
-        origin_kma_name: formData.origin_kma_name,
-        dest_city: formData.dest_city,
-        dest_state: formData.dest_state,
-        dest_zip: formData.dest_zip,
-        dest_kma_code: formData.dest_kma_code,
-        dest_kma_name: formData.dest_kma_name,
-        equipment: formData.equipment,
-        weight: formData.weight,
-        length: formData.length,
-        date: formData.date,
-        comment: formData.comment,
-        status: 'Active'
-      }
-    ]);
+    await supabase.from('lanes').insert([{
+      user_id: user.id,
+      origin_city: formData.origin_city,
+      origin_state: formData.origin_state,
+      origin_zip: formData.origin_zip,
+      origin_kma_name: formData.origin_market,
+      dest_city: formData.dest_city,
+      dest_state: formData.dest_state,
+      dest_zip: formData.dest_zip,
+      dest_kma_name: formData.dest_market,
+      equipment: formData.equipment,
+      weight: formData.weight,
+      length: formData.length,
+      date: formData.date,
+      comment: formData.comment,
+      status: 'Active'
+    }]);
 
-    if (!error) {
-      setFormData({
-        origin_city: '',
-        origin_state: '',
-        origin_zip: '',
-        origin_kma_code: '',
-        origin_kma_name: '',
-        dest_city: '',
-        dest_state: '',
-        dest_zip: '',
-        dest_kma_code: '',
-        dest_kma_name: '',
-        equipment: '',
-        weight: '',
-        length: '',
-        date: '',
-        comment: ''
-      });
-      fetchLanes();
-    }
+    setFormData({
+      origin_city: '',
+      origin_state: '',
+      origin_zip: '',
+      origin_market: '',
+      dest_city: '',
+      dest_state: '',
+      dest_zip: '',
+      dest_market: '',
+      equipment: '',
+      weight: '',
+      length: '',
+      date: '',
+      comment: ''
+    });
+    setOriginSearch('');
+    setDestSearch('');
+    fetchLanes();
   };
 
-  const updateLaneStatus = async (id, newStatus) => {
-    await supabase.from('lanes').update({ status: newStatus }).eq('id', id);
+  const updateLaneStatus = async (id, status) => {
+    await supabase.from('lanes').update({ status }).eq('id', id);
     fetchLanes();
   };
 
@@ -141,61 +145,74 @@ export default function Lanes() {
       <h1 className="text-3xl font-bold mb-6 text-cyan-400">Lane Management</h1>
 
       <div className="flex space-x-4 mb-6">
-        <button
-          className={`px-4 py-2 rounded-xl transition ${activeTab === 'my' ? 'bg-cyan-600 shadow-lg' : 'bg-gray-800 hover:bg-gray-700'}`}
-          onClick={() => setActiveTab('my')}
-        >
-          My Lanes
-        </button>
-        <button
-          className={`px-4 py-2 rounded-xl transition ${activeTab === 'all' ? 'bg-cyan-600 shadow-lg' : 'bg-gray-800 hover:bg-gray-700'}`}
-          onClick={() => setActiveTab('all')}
-        >
-          All Lanes
-        </button>
-        <button
-          className={`px-4 py-2 rounded-xl transition ${activeTab === 'archived' ? 'bg-cyan-600 shadow-lg' : 'bg-gray-800 hover:bg-gray-700'}`}
-          onClick={() => setActiveTab('archived')}
-        >
-          Archived Lanes
-        </button>
+        {['my', 'all', 'archived'].map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-4 py-2 rounded-xl transition ${activeTab === tab ? 'bg-cyan-600 shadow-lg' : 'bg-gray-800 hover:bg-gray-700'}`}
+          >
+            {tab === 'my' ? 'My Lanes' : tab === 'all' ? 'All Lanes' : 'Archived'}
+          </button>
+        ))}
       </div>
 
       <div className="bg-gray-900 p-4 rounded-2xl mb-6 shadow-lg">
         <h2 className="text-xl text-emerald-400 mb-4">Add a Lane</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <select
-            value={
-              formData.origin_city
-                ? `${formData.origin_city}, ${formData.origin_state} ${formData.origin_zip}`
-                : ''
-            }
-            onChange={(e) => handleCitySelect('origin', e.target.value)}
-            className="bg-gray-800 text-white p-2 rounded-lg"
-          >
-            <option value="">Select Origin</option>
-            {cities.map((c, idx) => (
-              <option key={idx} value={`${c.city}, ${c.state_or_province} ${c.zip}`}>
-                {c.city}, {c.state_or_province} {c.zip}
-              </option>
-            ))}
-          </select>
-          <select
-            value={
-              formData.dest_city
-                ? `${formData.dest_city}, ${formData.dest_state} ${formData.dest_zip}`
-                : ''
-            }
-            onChange={(e) => handleCitySelect('dest', e.target.value)}
-            className="bg-gray-800 text-white p-2 rounded-lg"
-          >
-            <option value="">Select Destination</option>
-            {cities.map((c, idx) => (
-              <option key={idx} value={`${c.city}, ${c.state_or_province} ${c.zip}`}>
-                {c.city}, {c.state_or_province} {c.zip}
-              </option>
-            ))}
-          </select>
+          {/* Origin Autocomplete */}
+          <div className="relative">
+            <input
+              type="text"
+              value={originSearch}
+              placeholder="Origin City"
+              onChange={(e) => {
+                setOriginSearch(e.target.value);
+                searchCity(e.target.value, 'origin');
+              }}
+              className="bg-gray-800 text-white p-2 rounded-lg w-full"
+            />
+            {searchCities.length > 0 && searchCities[0].type === 'origin' && (
+              <ul className="absolute z-10 bg-gray-800 w-full rounded-lg mt-1 max-h-48 overflow-auto">
+                {searchCities.map((c, idx) => (
+                  <li
+                    key={idx}
+                    onClick={() => handleSelectCity(c)}
+                    className="p-2 hover:bg-gray-700 cursor-pointer"
+                  >
+                    {c.display}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* Destination Autocomplete */}
+          <div className="relative">
+            <input
+              type="text"
+              value={destSearch}
+              placeholder="Destination City"
+              onChange={(e) => {
+                setDestSearch(e.target.value);
+                searchCity(e.target.value, 'dest');
+              }}
+              className="bg-gray-800 text-white p-2 rounded-lg w-full"
+            />
+            {searchCities.length > 0 && searchCities[0].type === 'dest' && (
+              <ul className="absolute z-10 bg-gray-800 w-full rounded-lg mt-1 max-h-48 overflow-auto">
+                {searchCities.map((c, idx) => (
+                  <li
+                    key={idx}
+                    onClick={() => handleSelectCity(c)}
+                    className="p-2 hover:bg-gray-700 cursor-pointer"
+                  >
+                    {c.display}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
           <input
             type="text"
             placeholder="Equipment"
@@ -232,12 +249,13 @@ export default function Lanes() {
         </div>
         <button
           onClick={addLane}
-          className="mt-4 bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-xl shadow-lg transition"
+          className="mt-4 bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-xl shadow-lg"
         >
           Add Lane
         </button>
       </div>
 
+      {/* Lanes Table */}
       <div className="bg-gray-900 p-4 rounded-2xl shadow-lg">
         <h2 className="text-xl mb-4 text-cyan-400">
           {activeTab === 'my' && 'My Active Lanes'}
@@ -290,4 +308,3 @@ export default function Lanes() {
     </main>
   );
 }
-
