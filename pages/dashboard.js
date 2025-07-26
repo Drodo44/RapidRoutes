@@ -13,22 +13,17 @@ export default function Dashboard() {
   }, []);
 
   const fetchDashboardData = async () => {
-    // Count active lanes
     const { count: activeCount } = await supabase
       .from('lanes')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'Active');
-
-    // Count archived lanes
     const { count: archivedCount } = await supabase
       .from('lanes')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'Archived');
-
     setActiveLanes(activeCount || 0);
     setArchivedLanes(archivedCount || 0);
 
-    // Avg time-to-cover (hours) for archived lanes
     const { data: archived } = await supabase
       .from('lanes')
       .select('created_at, updated_at')
@@ -40,10 +35,9 @@ export default function Dashboard() {
         const end = new Date(lane.updated_at || lane.created_at).getTime();
         return sum + (end - start);
       }, 0);
-      setAvgTimeToCover(Math.round(total / archived.length / 3600000)); // hours
+      setAvgTimeToCover(Math.round(total / archived.length / 3600000));
     }
 
-    // Top 5 markets by count
     const { data: markets } = await supabase
       .from('lanes')
       .select('origin_kma_name')
@@ -54,13 +48,10 @@ export default function Dashboard() {
         if (!m.origin_kma_name) return;
         counts[m.origin_kma_name] = (counts[m.origin_kma_name] || 0) + 1;
       });
-      const sorted = Object.entries(counts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5);
+      const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
       setTopMarkets(sorted);
     }
 
-    // Recent activity (last 24h)
     const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
     const { data: recent } = await supabase
       .from('lanes')
@@ -75,7 +66,6 @@ export default function Dashboard() {
     <main className="min-h-screen bg-gray-950 text-white p-6">
       <h1 className="text-3xl font-bold mb-6 text-cyan-400">RapidRoutes Dashboard</h1>
 
-      {/* KPI Section */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         <div className="bg-gray-900 p-4 rounded-2xl shadow-lg">
           <p className="text-gray-400">Active Lanes</p>
@@ -91,13 +81,12 @@ export default function Dashboard() {
         </div>
         <div className="bg-gray-900 p-4 rounded-2xl shadow-lg">
           <p className="text-gray-400">Top Markets</p>
-          {topMarkets.map(([market, count]) => (
-            <p key={market} className="text-emerald-300">{market}: {count}</p>
+          {topMarkets.map(([m, count]) => (
+            <p key={m} className="text-emerald-300">{m}: {count}</p>
           ))}
         </div>
       </div>
 
-      {/* Activity Feed */}
       <div className="bg-gray-900 p-4 rounded-2xl shadow-lg">
         <h2 className="text-xl text-cyan-400 mb-4">Recent Activity (24h)</h2>
         {activityFeed.length === 0 ? (
@@ -114,7 +103,6 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Navigation Shortcuts */}
       <div className="flex space-x-4 mt-8">
         <a href="/lanes" className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-xl shadow-lg">Go to Lanes</a>
         <a href="/recap" className="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded-xl shadow-lg">Active Postings</a>
