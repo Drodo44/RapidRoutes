@@ -9,41 +9,27 @@ export default function Admin() {
   const router = useRouter();
 
   useEffect(() => {
-    const getUserAndProfile = async () => {
+    const fetchProfile = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.push('/login');
-        return;
-      }
+      if (!user) return router.push('/login');
       setUser(user);
-
-      const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-      if (!profile || profile.role !== 'Admin') {
-        router.push('/dashboard');
-        return;
-      }
-      setProfile(profile);
+      const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+      if (!p || p.role !== 'Admin') return router.push('/dashboard');
+      setProfile(p);
     };
-    getUserAndProfile();
+    fetchProfile();
   }, []);
 
   useEffect(() => {
     if (profile && profile.role === 'Admin') {
-      fetchUsers();
+      supabase.from('profiles').select('*').then(({ data }) => setUsers(data || []));
     }
   }, [profile]);
-
-  const fetchUsers = async () => {
-    const { data, error } = await supabase.from('profiles').select('*');
-    if (!error) setUsers(data || []);
-  };
 
   return (
     <main className="min-h-screen bg-gray-950 text-white p-6">
       <h1 className="text-3xl font-bold text-cyan-400 mb-6">Admin Dashboard</h1>
-      {users.length === 0 ? (
-        <p className="text-gray-400">Loading users...</p>
-      ) : (
+      {users.length === 0 ? <p className="text-gray-400">Loading users...</p> : (
         <table className="w-full text-left border-collapse bg-gray-900 rounded-xl shadow-lg">
           <thead>
             <tr className="text-emerald-400">
