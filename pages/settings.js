@@ -9,21 +9,18 @@ export default function Settings() {
   const router = useRouter();
 
   useEffect(() => {
-    const loadUser = async () => {
+    const fetchProfile = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.push('/login');
-        return;
-      }
+      if (!user) return router.push('/login');
       setUser(user);
-      const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-      setProfile(profile);
-      setBlocklist(profile?.blocklist || '');
+      const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+      setProfile(p);
+      setBlocklist(p?.blocklist || '');
     };
-    loadUser();
+    fetchProfile();
   }, []);
 
-  const saveSettings = async () => {
+  const save = async () => {
     await supabase.from('profiles').update({ blocklist }).eq('id', user.id);
     alert('Settings saved.');
   };
@@ -37,22 +34,14 @@ export default function Settings() {
           <p><strong>Role:</strong> {profile.role}</p>
           <div>
             <label className="block mb-2 text-gray-300">ZIP/KMA Blocklist (comma-separated)</label>
-            <textarea
-              value={blocklist}
-              onChange={(e) => setBlocklist(e.target.value)}
-              className="bg-gray-800 text-white p-2 rounded-lg w-full"
-            />
+            <textarea value={blocklist} onChange={(e) => setBlocklist(e.target.value)}
+              className="bg-gray-800 text-white p-2 rounded-lg w-full" />
           </div>
-          <button
-            onClick={saveSettings}
-            className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-xl shadow-lg"
-          >
+          <button onClick={save} className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-xl shadow-lg">
             Save Settings
           </button>
         </div>
-      ) : (
-        <p className="text-gray-400">Loading...</p>
-      )}
+      ) : <p className="text-gray-400">Loading...</p>}
     </main>
   );
 }
