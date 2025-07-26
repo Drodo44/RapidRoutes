@@ -140,9 +140,21 @@ export default function Lanes() {
     fetchLanes();
   };
 
+  const exportCsv = () => {
+    window.location.href = '/api/exportDatCsv';
+  };
+
   return (
     <main className="min-h-screen bg-gray-950 text-white p-6">
-      <h1 className="text-3xl font-bold mb-6 text-cyan-400">Lane Management</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold text-cyan-400">Lane Management</h1>
+        <button
+          onClick={exportCsv}
+          className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-xl shadow-lg"
+        >
+          Export DAT CSV
+        </button>
+      </div>
 
       <div className="flex space-x-4 mb-6">
         {['my', 'all', 'archived'].map(tab => (
@@ -156,6 +168,7 @@ export default function Lanes() {
         ))}
       </div>
 
+      {/* Lane Entry Form */}
       <div className="bg-gray-900 p-4 rounded-2xl mb-6 shadow-lg">
         <h2 className="text-xl text-emerald-400 mb-4">Add a Lane</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
