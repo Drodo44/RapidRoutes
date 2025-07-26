@@ -2,22 +2,35 @@ import { useState, useEffect } from 'react';
 import supabase from '../utils/supabaseClient';
 import dynamic from 'next/dynamic';
 
-// Dynamically import react-leaflet (for map display)
+// Map imports
 const MapContainer = dynamic(() => import('react-leaflet').then(mod => mod.MapContainer), { ssr: false });
 const TileLayer = dynamic(() => import('react-leaflet').then(mod => mod.TileLayer), { ssr: false });
 const Marker = dynamic(() => import('react-leaflet').then(mod => mod.Marker), { ssr: false });
 const Circle = dynamic(() => import('react-leaflet').then(mod => mod.Circle), { ssr: false });
 const Polyline = dynamic(() => import('react-leaflet').then(mod => mod.Polyline), { ssr: false });
 
+// Haversine distance (miles)
+function haversine(lat1, lon1, lat2, lon2) {
+  const toRad = (deg) => (deg * Math.PI) / 180;
+  const R = 3958.8; // miles
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.round(R * c);
+}
+
 export default function Recap() {
   const [lanes, setLanes] = useState([]);
   const [selectedLane, setSelectedLane] = useState(null);
   const [search, setSearch] = useState('');
   const [filteredResults, setFilteredResults] = useState([]);
+  const [crawlCities, setCrawlCities] = useState({ pickups: [], deliveries: [] });
   const [weather, setWeather] = useState({ pickup: null, delivery: null });
-  const [aiNotes, setAiNotes] = useState('');
-  const [carrierSuggestions, setCarrierSuggestions] = useState([]);
   const [marketRisk, setMarketRisk] = useState('');
+  const [aiNotes, setAiNotes] = useState('');
 
   useEffect(() => {
     const fetchLanes = async () => {
@@ -49,72 +62,82 @@ export default function Recap() {
     );
   }, [search, lanes]);
 
-  useEffect(() => {
-    const fetchWeather = async () => {
-      if (!selectedLane) return;
-      const apiKey = process.env.NEXT_PUBLIC_OPENWEATHER_KEY;
-      const fetchCityWeather = async (city, state) => {
-        try {
-          const resp = await fetch(
-            `https://api.openweathermap.org/data/2.5/weather?q=${city},${state},US&appid=${apiKey}&units=imperial`
-          );
-          if (!resp.ok) return null;
-          const data = await resp.json();
-          return { temp: data.main.temp, conditions: data.weather[0].description };
-        } catch {
-          return null;
-        }
-      };
-      const pickupWeather = await fetchCityWeather(selectedLane.origin_city, selectedLane.origin_state);
-      const deliveryWeather = await fetchCityWeather(selectedLane.dest_city, selectedLane.dest_state);
-      setWeather({ pickup: pickupWeather, delivery: deliveryWeather });
-    };
-    fetchWeather();
-  }, [selectedLane]);
-
-  useEffect(() => {
-    const generateInsights = async () => {
-      if (!selectedLane) return;
-
-      // Market volatility (simple placeholder logic using randomization for now)
-      const riskLevels = ['Stable', 'Volatile', 'High Demand', 'Low Demand'];
-      const randomRisk = riskLevels[Math.floor(Math.random() * riskLevels.length)];
-      setMarketRisk(randomRisk);
-
-      // AI freight notes
-      const notes = {
-        Stable: "Market is stable. Expect average call volume.",
-        Volatile: "Rates moving quickly — check DAT rate trends before quoting.",
-        "High Demand": "Strong call potential. Consider quoting slightly higher to maximize margin.",
-        "Low Demand": "Quiet market. Be aggressive on rates to secure carriers."
-      };
-      setAiNotes(notes[randomRisk] || "No market trend data available.");
-
-      // Carrier suggestions based on archived lanes (pull top 3)
-      const { data: carriers } = await supabase
-        .from('lanes')
-        .select('comment')
-        .eq('status', 'Archived')
-        .ilike('origin_city', `%${selectedLane.origin_city}%`)
-        .limit(10);
-      if (carriers) {
-        const names = carriers
-          .map((c) => c.comment || '')
-          .filter((c) => c.toLowerCase().includes('carrier'))
-          .slice(0, 3);
-        setCarrierSuggestions(names.length > 0 ? names : ['No carrier history found']);
+  const fetchWeather = async (lane) => {
+    const apiKey = process.env.NEXT_PUBLIC_OPENWEATHER_KEY;
+    const fetchCityWeather = async (city, state) => {
+      try {
+        const resp = await fetch(
+          `https://api.openweathermap.org/data/2.5/weather?q=${city},${state},US&appid=${apiKey}&units=imperial`
+        );
+        if (!resp.ok) return null;
+        const data = await resp.json();
+        return { temp: data.main.temp, conditions: data.weather[0].description };
+      } catch {
+        return null;
       }
     };
-    generateInsights();
-  }, [selectedLane]);
+    const pickupWeather = await fetchCityWeather(lane.origin_city, lane.origin_state);
+    const deliveryWeather = await fetchCityWeather(lane.dest_city, lane.dest_state);
+    setWeather({ pickup: pickupWeather, delivery: deliveryWeather });
+  };
+
+  const fetchCrawlCities = async (lane) => {
+    const { data: pickups } = await supabase
+      .from('cities')
+      .select('city, state_or_province, latitude, longitude')
+      .neq('zip', lane.origin_zip)
+      .ilike('state_or_province', lane.origin_state)
+      .limit(10);
+
+    const { data: deliveries } = await supabase
+      .from('cities')
+      .select('city, state_or_province, latitude, longitude')
+      .neq('zip', lane.dest_zip)
+      .ilike('state_or_province', lane.dest_state)
+      .limit(10);
+
+    if (pickups && deliveries) {
+      // Calculate miles from actual cities
+      const pickupMiles = pickups.map((c) => ({
+        ...c,
+        miles: haversine(lane.origin_lat, lane.origin_lon, c.latitude, c.longitude)
+      }));
+      const deliveryMiles = deliveries.map((c) => ({
+        ...c,
+        miles: haversine(lane.dest_lat, lane.dest_lon, c.latitude, c.longitude)
+      }));
+      setCrawlCities({ pickups: pickupMiles, deliveries: deliveryMiles });
+    }
+  };
+
+  const generateAiInsights = (lane) => {
+    const riskLevels = ['Stable', 'Volatile', 'High Demand', 'Low Demand'];
+    const randomRisk = riskLevels[Math.floor(Math.random() * riskLevels.length)];
+    setMarketRisk(randomRisk);
+
+    const notes = {
+      Stable: "Market is stable. Expect average call volume.",
+      Volatile: "Rates moving quickly — watch DAT trends.",
+      "High Demand": "Expect strong call volume. Consider quoting slightly higher.",
+      "Low Demand": "Market is quiet. Be aggressive on rates."
+    };
+    setAiNotes(notes[randomRisk] || "No insights available.");
+  };
 
   const handleSelectLane = (lane) => {
     setSelectedLane(lane);
     setSearch('');
     setFilteredResults([]);
+    fetchWeather(lane);
+    fetchCrawlCities(lane);
+    generateAiInsights(lane);
   };
 
-  const handleExportHTML = () => {
+  const exportCsv = () => {
+    window.location.href = '/api/exportDatCsv';
+  };
+
+  const exportRecapHtml = () => {
     const htmlContent = document.documentElement.outerHTML;
     const blob = new Blob([htmlContent], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
@@ -123,10 +146,6 @@ export default function Recap() {
     link.download = 'Active_Postings_Recap.html';
     link.click();
     URL.revokeObjectURL(url);
-  };
-
-  const exportCsv = () => {
-    window.location.href = '/api/exportDatCsv';
   };
 
   return (
@@ -141,7 +160,7 @@ export default function Recap() {
         </button>
       </div>
 
-      {/* Snap Dropdown */}
+      {/* Search/Snap Dropdown */}
       <div className="relative mb-6">
         <input
           type="text"
@@ -170,7 +189,6 @@ export default function Recap() {
         )}
       </div>
 
-      {/* Snap Card */}
       {selectedLane && (
         <div className="bg-gray-900 p-4 rounded-2xl mb-6 shadow-lg">
           <h2 className="text-xl text-emerald-400 mb-2">
@@ -196,18 +214,25 @@ export default function Recap() {
           <p className="mt-2 text-yellow-400">Market Condition: {marketRisk}</p>
           <p className="text-cyan-300 mt-1">{aiNotes}</p>
 
-          <div className="mt-2 text-gray-300">
-            <p className="font-bold">Carrier Suggestions:</p>
-            <ul className="list-disc list-inside">
-              {carrierSuggestions.map((c, idx) => (
-                <li key={idx}>{c}</li>
+          {/* Crawl cities with miles */}
+          <div className="mt-4">
+            <p className="font-bold text-emerald-400">Pickup Market Options (miles from {selectedLane.origin_city}):</p>
+            <ul className="list-disc list-inside text-gray-300">
+              {crawlCities.pickups.map((c, idx) => (
+                <li key={idx}>{c.city}, {c.state_or_province} – {c.miles} miles</li>
+              ))}
+            </ul>
+            <p className="font-bold text-emerald-400 mt-4">Delivery Market Options (miles from {selectedLane.dest_city}):</p>
+            <ul className="list-disc list-inside text-gray-300">
+              {crawlCities.deliveries.map((c, idx) => (
+                <li key={idx}>{c.city}, {c.state_or_province} – {c.miles} miles</li>
               ))}
             </ul>
           </div>
 
           <div className="flex space-x-4 mt-4">
             <button
-              onClick={handleExportHTML}
+              onClick={exportRecapHtml}
               className="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded-xl shadow-lg"
             >
               Download Recap
@@ -222,7 +247,6 @@ export default function Recap() {
         </div>
       )}
 
-      {/* Map View */}
       <div className="bg-gray-900 p-4 rounded-2xl shadow-lg">
         <MapContainer center={[39.5, -98.35]} zoom={4} style={{ height: '500px', width: '100%' }}>
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
