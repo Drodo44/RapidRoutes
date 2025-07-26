@@ -1,14 +1,18 @@
-import { generateDatCsv } from '../../lib/datcrawl';
+// pages/api/exportDatCsv.js
+import { generateDatCsv } from "../../lib/datcrawl";
 
 export default async function handler(req, res) {
   try {
-    const csv = await generateDatCsv();
+    const { lanes } = req.body;
+    if (!lanes || !Array.isArray(lanes)) {
+      return res.status(400).json({ error: "Invalid lane data" });
+    }
 
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename="DAT_Upload.csv"');
+    const csv = generateDatCsv(lanes);
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", "attachment; filename=DAT_Upload.csv");
     res.status(200).send(csv);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to generate CSV' });
+    res.status(500).json({ error: err.message });
   }
 }
