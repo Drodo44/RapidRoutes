@@ -2,11 +2,26 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom glow effects */
+/* Global Background */
+body {
+  @apply bg-gradient-to-b from-[#0a0f1a] to-[#101a2d] text-white;
+}
+
+/* Navigation and Button Styles */
 .nav-link {
   @apply text-white hover:text-cyan-400 transition duration-300 ease-in-out;
 }
 
 .logout-btn {
   @apply px-4 py-2 bg-cyan-500 rounded-lg font-semibold text-black hover:bg-cyan-400 transition shadow-md hover:shadow-cyan-400/40;
+}
+
+/* Buttons */
+button {
+  @apply shadow-lg hover:shadow-cyan-400/30 transition;
+}
+
+/* Inputs */
+input {
+  @apply w-full p-3 rounded-lg bg-[#1b2a44] text-white border border-cyan-500/30 focus:border-cyan-400 focus:outline-none;
 }
