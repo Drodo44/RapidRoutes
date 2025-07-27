@@ -1,52 +1,12 @@
-/* styles/globals.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
-
-body {
-  font-family: 'Roboto', Arial, sans-serif;
-  background: #0b1623;
-  color: #f7fafc;
-  margin: 0;
-  padding: 0;
-  min-height: 100vh;
+/* Custom glow effects */
+.nav-link {
+  @apply text-white hover:text-cyan-400 transition duration-300 ease-in-out;
 }
 
-/* Neon theme custom colors */
-.text-neon-blue { color: #25d4f6; }
-.bg-neon-blue { background-color: #25d4f6; }
-.text-neon-green { color: #5effa1; }
-.bg-neon-green { background-color: #5effa1; }
-.border-neon-blue { border-color: #25d4f6; }
-.shadow-neon { box-shadow: 0 0 20px #25d4f6, 0 0 40px #0b1623 inset; }
-
-a {
-  color: #25d4f6;
-  text-decoration: none;
-}
-
-button:focus {
-  outline: 2px solid #25d4f6;
-  outline-offset: 2px;
-}
-
-input, select, textarea {
-  background: #172133;
-  border: 1px solid #25d4f6;
-  color: #fff;
-  border-radius: 0.5rem;
-  padding: 0.5rem;
-}
-
-input:focus, select:focus, textarea:focus {
-  border-color: #5effa1;
-}
-
-::-webkit-scrollbar {
-  width: 8px;
-  background: #0b1623;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #25d4f6;
-  border-radius: 6px;
+.logout-btn {
+  @apply px-4 py-2 bg-cyan-500 rounded-lg font-semibold text-black hover:bg-cyan-400 transition shadow-md hover:shadow-cyan-400/40;
 }
