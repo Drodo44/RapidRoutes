@@ -48,4 +48,51 @@ export default function Dashboard() {
         </div>
         <button
           onClick={handleLogout}
-          className="bg-blue-700 hover:bg-
+          className="bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded-xl text-white font-semibold"
+        >
+          Logout
+        </button>
+      </header>
+
+      <section className="p-8">
+        <h2 className="text-3xl font-bold mb-6">Your Lanes</h2>
+        {loading ? (
+          <div className="text-blue-400">Loading lanes...</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left bg-gray-900 rounded-xl mb-8">
+              <thead>
+                <tr>
+                  <th className="p-3">Origin</th>
+                  <th className="p-3">Destination</th>
+                  <th className="p-3">Equipment</th>
+                  <th className="p-3">Weight</th>
+                  <th className="p-3">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lanes.length === 0 ? (
+                  <tr>
+                    <td className="p-4" colSpan={5}>No lanes found.</td>
+                  </tr>
+                ) : (
+                  lanes.map((lane) => (
+                    <tr key={lane.id} className="border-b border-gray-800">
+                      <td className="p-3">{lane.origin_city}, {lane.origin_state}</td>
+                      <td className="p-3">{lane.dest_city}, {lane.dest_state}</td>
+                      <td className="p-3">{lane.equipment}</td>
+                      <td className="p-3">{lane.weight}</td>
+                      <td className="p-3">{lane.status || "Active"}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+
+            <Chart />
+          </div>
+        )}
+      </section>
+    </main>
+  );
+}
