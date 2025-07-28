@@ -1,55 +1,32 @@
-import { useEffect, useState } from "react";
+// /pages/settings.js
+import { useState } from "react";
 import { supabase } from "../utils/supabaseClient";
 
 export default function Settings() {
-  const [blocklist, setBlocklist] = useState([]);
-  const [newZip, setNewZip] = useState("");
+  const [notification, setNotification] = useState(false);
+  const [message, setMessage] = useState("");
 
-  useEffect(() => {
-    fetchBlocklist();
-  }, []);
-
-  const fetchBlocklist = async () => {
-    const { data } = await supabase.from("blocklists").select("*");
-    setBlocklist(data || []);
-  };
-
-  const addZip = async () => {
-    await supabase.from("blocklists").insert([{ zip: newZip }]);
-    setNewZip("");
-    fetchBlocklist();
-  };
-
-  const removeZip = async (id) => {
-    await supabase.from("blocklists").delete().eq("id", id);
-    fetchBlocklist();
+  const saveSettings = async () => {
+    const { error } = await supabase.from("settings").upsert([{ notifications: notification }]);
+    setMessage(error ? "Failed to save settings." : "Settings saved!");
   };
 
   return (
-    <div className="p-8">
-      <h1 className="text-4xl font-bold text-cyan-400 drop-shadow mb-6">Settings</h1>
-      <div className="bg-[#141f35] p-6 rounded-lg shadow-cyan-glow">
-        <h2 className="text-xl text-cyan-300 mb-4">Blocked ZIP/KMA List</h2>
-        <div className="flex space-x-4 mb-4">
-          <input
-            value={newZip}
-            onChange={(e) => setNewZip(e.target.value)}
-            placeholder="Enter ZIP"
-          />
-          <button onClick={addZip} className="bg-cyan-600 hover:bg-cyan-500 px-4 py-2 rounded-lg">
-            Add ZIP
-          </button>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-950 text-white">
+      <h1 className="text-4xl font-bold mb-4 text-cyan-400">Settings</h1>
+      <div className="bg-gray-900 p-8 rounded-2xl shadow-2xl max-w-md w-full">
+        <div className="flex items-center mb-6">
+          <label htmlFor="notif-toggle" className="mr-3 font-semibold text-gray-300">
+            Email Notifications
+          </label>
+          <input type="checkbox" id="notif-toggle" checked={notification}
+            onChange={() => setNotification(!notification)} className="w-5 h-5" />
         </div>
-        <ul className="space-y-2">
-          {blocklist.map((item) => (
-            <li key={item.id} className="flex justify-between">
-              <span>{item.zip}</span>
-              <button onClick={() => removeZip(item.id)} className="text-red-400 hover:underline">
-                Remove
-              </button>
-            </li>
-          ))}
-        </ul>
+        <button onClick={saveSettings}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg">
+          Save Settings
+        </button>
+        {message && <p className="mt-4 text-cyan-400">{message}</p>}
       </div>
     </div>
   );
