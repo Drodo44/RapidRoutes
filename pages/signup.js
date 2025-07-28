@@ -1,35 +1,83 @@
-import { useState } from 'react';
-import supabase from '../utils/supabaseClient';
+import { useState } from "react";
+import { useRouter } from "next/router";
+import { supabase } from "../utils/supabaseClient";
+import Image from "next/image";
 
 export default function Signup() {
-  const [email, setEmail] = useState('');
-  const [message, setMessage] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [role, setRole] = useState("Broker");
+  const [error, setError] = useState("");
+  const router = useRouter();
 
-  const sendMagicLink = async () => {
-    const { error } = await supabase.auth.signInWithOtp({ email });
-    if (error) setMessage('Error sending signup link.');
-    else setMessage('Check your email to confirm your account.');
+  const handleSignup = async (e) => {
+    e.preventDefault();
+    setError("");
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { name, role } }
+    });
+    if (error) {
+      setError(error.message);
+    } else {
+      router.push("/login");
+    }
   };
 
   return (
-    <main className="min-h-screen bg-gray-950 text-white flex flex-col justify-center items-center">
-      <div className="bg-gray-900 p-8 rounded-2xl shadow-lg w-full max-w-md text-center">
-        <h1 className="text-3xl font-bold text-cyan-400 mb-4">Sign Up</h1>
-        <input
-          type="email"
-          placeholder="Your Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full mb-4 p-3 bg-gray-800 text-white rounded-lg"
-        />
-        <button onClick={sendMagicLink} className="w-full bg-emerald-600 hover:bg-emerald-700 py-2 rounded-xl">
-          Send Sign Up Link
-        </button>
-        {message && <p className="mt-4 text-gray-300">{message}</p>}
-        <p className="mt-4">
-          Already have an account? <a href="/login" className="text-cyan-400">Log In</a>
-        </p>
+    <div className="min-h-screen flex items-center justify-center bg-gray-950">
+      <div className="bg-gray-900 p-8 rounded-2xl shadow-2xl max-w-md w-full text-center">
+        <Image src="/logo.png" alt="RapidRoutes Logo" width={200} height={200} priority />
+        <h2 className="text-cyan-400 text-2xl font-bold mt-6 mb-4">Create Your RapidRoutes Account</h2>
+        <form onSubmit={handleSignup} className="flex flex-col gap-4">
+          <input
+            type="text"
+            placeholder="Full Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            className="w-full p-3 rounded-lg bg-gray-800 border border-gray-600 text-white"
+          />
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            className="w-full p-3 rounded-lg bg-gray-800 border border-gray-600 text-white"
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            className="w-full p-3 rounded-lg bg-gray-800 border border-gray-600 text-white"
+          />
+          <select
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+            className="w-full p-3 rounded-lg bg-gray-800 border border-gray-600 text-white"
+          >
+            <option>Admin</option>
+            <option>Broker</option>
+            <option>Support</option>
+            <option>Apprentice</option>
+          </select>
+          {error && <div className="text-red-400">{error}</div>}
+          <button
+            type="submit"
+            className="w-full p-3 bg-green-600 hover:bg-green-700 rounded-lg text-white font-semibold"
+          >
+            Sign Up
+          </button>
+          <a href="/login" className="text-cyan-400 hover:underline">
+            Already have an account? Login
+          </a>
+        </form>
       </div>
-    </main>
+    </div>
   );
 }
