@@ -1,54 +1,58 @@
-import { useEffect, useState } from 'react';
-import supabase from '../utils/supabaseClient';
-import { useRouter } from 'next/router';
+import { useEffect, useState } from "react";
+import { supabase } from "../utils/supabaseClient";
 
 export default function Admin() {
-  const [user, setUser] = useState(null);
-  const [profile, setProfile] = useState(null);
   const [users, setUsers] = useState([]);
-  const router = useRouter();
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return router.push('/login');
-      setUser(user);
-      const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-      if (!p || p.role !== 'Admin') return router.push('/dashboard');
-      setProfile(p);
-    };
-    fetchProfile();
+    fetchUsers();
   }, []);
 
-  useEffect(() => {
-    if (profile && profile.role === 'Admin') {
-      supabase.from('profiles').select('*').then(({ data }) => setUsers(data || []));
-    }
-  }, [profile]);
+  const fetchUsers = async () => {
+    const { data } = await supabase.from("profiles").select("*");
+    setUsers(data || []);
+  };
+
+  const changeRole = async (id, role) => {
+    await supabase.from("profiles").update({ role }).eq("id", id);
+    fetchUsers();
+  };
 
   return (
-    <main className="min-h-screen bg-gray-950 text-white p-6">
-      <h1 className="text-3xl font-bold text-cyan-400 mb-6">Admin Dashboard</h1>
-      {users.length === 0 ? <p className="text-gray-400">Loading users...</p> : (
-        <table className="w-full text-left border-collapse bg-gray-900 rounded-xl shadow-lg">
+    <div className="p-8">
+      <h1 className="text-4xl font-bold text-cyan-400 drop-shadow mb-6">Admin Panel</h1>
+      <div className="bg-[#141f35] p-6 rounded-lg shadow-cyan-glow">
+        <h2 className="text-xl text-cyan-300 mb-4">Manage Users</h2>
+        <table className="w-full text-left">
           <thead>
-            <tr className="text-emerald-400">
-              <th className="border-b p-2">Email</th>
-              <th className="border-b p-2">Role</th>
-              <th className="border-b p-2">Created</th>
+            <tr className="border-b border-cyan-500/30">
+              <th>Email</th>
+              <th>Role</th>
+              <th>Change Role</th>
             </tr>
           </thead>
           <tbody>
-            {users.map((u) => (
-              <tr key={u.id} className="hover:bg-gray-800">
-                <td className="p-2">{u.email}</td>
-                <td className="p-2">{u.role}</td>
-                <td className="p-2">{new Date(u.created_at).toLocaleDateString()}</td>
+            {users.map((user) => (
+              <tr key={user.id} className="border-b border-cyan-500/20">
+                <td>{user.email}</td>
+                <td>{user.role}</td>
+                <td>
+                  <select
+                    value={user.role}
+                    onChange={(e) => changeRole(user.id, e.target.value)}
+                    className="bg-[#1b2a44] text-white rounded p-1"
+                  >
+                    <option value="Broker">Broker</option>
+                    <option value="Admin">Admin</option>
+                    <option value="Support">Support</option>
+                    <option value="Apprentice">Apprentice</option>
+                  </select>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
-      )}
-    </main>
+      </div>
+    </div>
   );
 }
