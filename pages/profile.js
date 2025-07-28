@@ -1,47 +1,29 @@
-// pages/profile.js
-
 import { useEffect, useState } from "react";
-import { useRouter } from "next/router";
-import { getUserWithRole } from "../utils/authHelpers";
+import { supabase } from "../utils/supabaseClient";
 
 export default function Profile() {
-  const router = useRouter();
-  const [user, setUser] = useState(null);
-  const [allowed, setAllowed] = useState(false);
+  const [profile, setProfile] = useState({});
 
   useEffect(() => {
-    const check = async () => {
-      const { user } = await getUserWithRole();
+    const loadProfile = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (user) {
-        setUser(user);
-        setAllowed(true);
-      } else {
-        router.push("/login");
+        const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+        setProfile(data || {});
       }
     };
-    check();
+    loadProfile();
   }, []);
 
-  if (!allowed) return null;
-
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-[#111827] text-white">
-      <h1 className="text-4xl font-bold mb-4 text-neon-blue">My Profile</h1>
-      <div className="bg-[#1a2236] p-8 rounded-2xl shadow-2xl max-w-md w-full">
-        {user ? (
-          <div className="space-y-4">
-            <div>
-              <span className="font-semibold text-gray-300">Email:</span>
-              <span className="ml-2">{user.email}</span>
-            </div>
-            <div>
-              <span className="font-semibold text-gray-300">User ID:</span>
-              <span className="ml-2">{user.id}</span>
-            </div>
-          </div>
-        ) : (
-          <div className="text-red-400">You must be logged in to see your profile.</div>
-        )}
+    <div className="p-8">
+      <h1 className="text-4xl font-bold text-cyan-400 drop-shadow mb-6">My Profile</h1>
+      <div className="bg-[#141f35] p-6 rounded-lg shadow-cyan-glow space-y-4">
+        <p><strong>Email:</strong> {profile.email}</p>
+        <p><strong>Role:</strong> {profile.role}</p>
+        <p><strong>Member Since:</strong> {profile.created_at ? new Date(profile.created_at).toLocaleDateString() : ""}</p>
       </div>
     </div>
   );
