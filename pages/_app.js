@@ -23,13 +23,15 @@ function Navigation({ onLogout }) {
 
 export default function App({ Component, pageProps }) {
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const authPages = ["/login", "/signup", "/register"];
+  const authPages = ["/", "/login", "/signup", "/register"];
 
   useEffect(() => {
     const getUser = async () => {
       const { data } = await supabase.auth.getUser();
       setUser(data?.user || null);
+      setLoading(false);
     };
     getUser();
   }, []);
@@ -38,6 +40,10 @@ export default function App({ Component, pageProps }) {
     await supabase.auth.signOut();
     router.push("/login");
   };
+
+  if (loading) {
+    return <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">Loading...</div>;
+  }
 
   return (
     <main className="min-h-screen bg-gray-950 text-white flex flex-col">
