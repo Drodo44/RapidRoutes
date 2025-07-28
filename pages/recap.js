@@ -1,95 +1,73 @@
+// /pages/recap.js
 import { useEffect, useState } from "react";
 import { supabase } from "../utils/supabaseClient";
 
 export default function Recap() {
   const [lanes, setLanes] = useState([]);
-  const [insights, setInsights] = useState("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchActiveLanes();
-    fetchInsights();
-    const subscription = supabase
-      .channel("lanes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "lanes" }, fetchActiveLanes)
-      .subscribe();
-    return () => supabase.removeChannel(subscription);
+    const fetchLanes = async () => {
+      const { data, error } = await supabase.from("lanes").select("*");
+      if (!error) setLanes(data || []);
+      setLoading(false);
+    };
+    fetchLanes();
   }, []);
 
-  const fetchActiveLanes = async () => {
-    const { data } = await supabase.from("lanes").select("*").eq("status", "active");
-    setLanes(data || []);
-  };
-
-  const fetchInsights = async () => {
-    const res = await fetch("/api/ai-recap");
-    const data = await res.json();
-    setInsights(data.insights || "Market stable, weather clear for most active lanes.");
-  };
-
-  const exportHTML = () => {
-    const content = `
-      <html>
-        <head><title>Active Postings</title></head>
-        <body style="background:#0a0f1a;color:#fff;">
-          <h1>Active Postings</h1>
-          <p>${insights}</p>
-          <table border="1" cellpadding="5" cellspacing="0" style="color:#fff;border-color:#22d3ee;">
-            <thead><tr><th>Origin</th><th>Destination</th><th>Equipment</th><th>Weight</th><th>Dates</th></tr></thead>
-            <tbody>
-              ${lanes.map(
-                (l) =>
-                  `<tr><td>${l.origin}</td><td>${l.destination}</td><td>${l.equipment}</td><td>${l.weight}</td><td>${l.earliest} – ${l.latest}</td></tr>`
-              ).join("")}
-            </tbody>
-          </table>
-          <footer style="margin-top:20px;font-size:12px;">
-            Created by Andrew Connellan – Logistics Account Executive at TQL HQ: Cincinnati, OH
-          </footer>
-        </body>
-      </html>
-    `;
-    const blob = new Blob([content], { type: "text/html" });
+  const handleDownload = () => {
+    const html = document.getElementById("recap-report").outerHTML;
+    const blob = new Blob([html], { type: "text/html" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "Active_Postings.html";
-    document.body.appendChild(a);
+    a.download = "Active_Postings_Recap.html";
     a.click();
-    a.remove();
   };
 
   return (
-    <div className="p-8 space-y-8">
-      <h1 className="text-4xl font-bold text-cyan-400 drop-shadow">Active Recap</h1>
-      <p className="bg-[#101a2d] p-4 rounded-lg border border-cyan-600/30">{insights}</p>
-      <div className="bg-[#141f35] p-6 rounded-lg shadow-cyan-glow">
-        <table className="w-full text-left">
-          <thead>
-            <tr className="border-b border-cyan-500/30">
-              <th>Origin</th>
-              <th>Destination</th>
-              <th>Equipment</th>
-              <th>Weight</th>
-              <th>Dates</th>
-            </tr>
-          </thead>
-          <tbody>
-            {lanes.map((lane) => (
-              <tr key={lane.id} className="border-b border-cyan-500/20">
-                <td>{lane.origin}</td>
-                <td>{lane.destination}</td>
-                <td>{lane.equipment}</td>
-                <td>{lane.weight}</td>
-                <td>{lane.earliest} – {lane.latest}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <button
-          onClick={exportHTML}
-          className="mt-4 bg-cyan-600 hover:bg-cyan-500 px-6 py-3 rounded-lg font-semibold"
-        >
-          Export Active Postings (HTML)
+    <div className="min-h-screen bg-gray-950 text-white py-10 px-4">
+      <div id="recap-report" className="max-w-6xl mx-auto bg-gray-900 rounded-2xl shadow-2xl p-6">
+        <h1 className="text-4xl font-bold text-cyan-400 mb-8">Active Postings Recap</h1>
+        {loading ? (
+          <p className="text-blue-400">Loading lanes...</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-800 text-cyan-400">
+                  <th className="p-3">Origin</th>
+                  <th className="p-3">Destination</th>
+                  <th className="p-3">Equipment</th>
+                  <th className="p-3">Weight</th>
+                  <th className="p-3">Date</th>
+                  <th className="p-3">Length</th>
+                  <th className="p-3">RRSI</th>
+                  <th className="p-3">Comment</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lanes.map((lane) => (
+                  <tr key={lane.id} className="even:bg-gray-800 odd:bg-gray-700">
+                    <td className="p-3">{lane.origin_city}, {lane.origin_state}</td>
+                    <td className="p-3">{lane.dest_city}, {lane.dest_state}</td>
+                    <td className="p-3">{lane.equipment}</td>
+                    <td className="p-3">{lane.weight}</td>
+                    <td className="p-3">{lane.date}</td>
+                    <td className="p-3">{lane.length}</td>
+                    <td className="p-3 text-green-400 font-bold">{lane.rrsi || 90}</td>
+                    <td className="p-3">{lane.comment}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+      <div className="max-w-6xl mx-auto mt-6 text-center">
+        <button onClick={handleDownload}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg">
+          Download Recap (HTML)
         </button>
       </div>
     </div>
