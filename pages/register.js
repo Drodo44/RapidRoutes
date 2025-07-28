@@ -1,50 +1,40 @@
-// pages/settings.js
+// /pages/register.js
+import { useState } from "react";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/router";
-import { getUserWithRole } from "../utils/authHelpers";
+export default function Register() {
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [password, setPassword] = useState("");
+  const [message, setMessage] = useState("");
 
-export default function Settings() {
-  const router = useRouter();
-  const [allowed, setAllowed] = useState(false);
-  const [notification, setNotification] = useState(false);
-
-  useEffect(() => {
-    const check = async () => {
-      const { user } = await getUserWithRole();
-      if (user) {
-        setAllowed(true);
-      } else {
-        router.push("/login");
-      }
-    };
-    check();
-  }, []);
-
-  if (!allowed) return null;
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (email && name && password) {
+      setMessage("Registered! (Demo placeholder)");
+    } else {
+      setMessage("All fields are required.");
+    }
+  };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-[#111827] text-white">
-      <h1 className="text-4xl font-bold mb-4 text-neon-blue">Settings</h1>
-      <div className="bg-[#1a2236] p-8 rounded-2xl shadow-2xl max-w-md w-full">
-        <div className="flex items-center mb-6">
-          <label className="mr-3 font-semibold text-gray-300" htmlFor="notif-toggle">
-            Email Notifications
-          </label>
-          <input
-            id="notif-toggle"
-            type="checkbox"
-            checked={notification}
-            onChange={() => setNotification(!notification)}
-            className="w-5 h-5"
-          />
-        </div>
-        <button
-          onClick={() => alert('Settings saved (placeholder)!')}
-          className="bg-neon-blue text-white px-6 py-2 rounded-2xl mt-4 hover:bg-blue-500 transition"
-        >
-          Save Settings
-        </button>
+    <div className="min-h-screen flex items-center justify-center bg-gray-950">
+      <div className="card">
+        <img src="/logo.png" alt="RapidRoutes Logo" className="mx-auto w-32 mb-4" />
+        <h2 className="text-cyan-400 text-2xl font-bold mb-4">Register for RapidRoutes</h2>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <input type="text" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)}
+            className="w-full p-3 rounded-lg bg-gray-800 border border-gray-600 text-white" />
+          <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)}
+            className="w-full p-3 rounded-lg bg-gray-800 border border-gray-600 text-white" />
+          <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)}
+            className="w-full p-3 rounded-lg bg-gray-800 border border-gray-600 text-white" />
+          <button type="submit"
+            className="w-full p-3 bg-green-600 hover:bg-green-700 rounded-lg text-white font-semibold">
+            Register
+          </button>
+          {message && <p className="text-cyan-400">{message}</p>}
+          <a href="/login" className="text-cyan-400 hover:underline text-center">Back to Login</a>
+        </form>
       </div>
     </div>
   );
