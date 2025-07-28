@@ -1,47 +1,56 @@
-import { useEffect, useState } from 'react';
-import supabase from '../utils/supabaseClient';
-import { useRouter } from 'next/router';
+import { useEffect, useState } from "react";
+import { supabase } from "../utils/supabaseClient";
 
 export default function Settings() {
-  const [user, setUser] = useState(null);
-  const [profile, setProfile] = useState(null);
-  const [blocklist, setBlocklist] = useState('');
-  const router = useRouter();
+  const [blocklist, setBlocklist] = useState([]);
+  const [newZip, setNewZip] = useState("");
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return router.push('/login');
-      setUser(user);
-      const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-      setProfile(p);
-      setBlocklist(p?.blocklist || '');
-    };
-    fetchProfile();
+    fetchBlocklist();
   }, []);
 
-  const save = async () => {
-    await supabase.from('profiles').update({ blocklist }).eq('id', user.id);
-    alert('Settings saved.');
+  const fetchBlocklist = async () => {
+    const { data } = await supabase.from("blocklists").select("*");
+    setBlocklist(data || []);
+  };
+
+  const addZip = async () => {
+    await supabase.from("blocklists").insert([{ zip: newZip }]);
+    setNewZip("");
+    fetchBlocklist();
+  };
+
+  const removeZip = async (id) => {
+    await supabase.from("blocklists").delete().eq("id", id);
+    fetchBlocklist();
   };
 
   return (
-    <main className="min-h-screen bg-gray-950 text-white p-6">
-      <h1 className="text-3xl font-bold text-cyan-400 mb-6">My Settings</h1>
-      {profile ? (
-        <div className="bg-gray-900 p-4 rounded-2xl shadow-lg space-y-4 max-w-lg">
-          <p><strong>Email:</strong> {profile.email}</p>
-          <p><strong>Role:</strong> {profile.role}</p>
-          <div>
-            <label className="block mb-2 text-gray-300">ZIP/KMA Blocklist (comma-separated)</label>
-            <textarea value={blocklist} onChange={(e) => setBlocklist(e.target.value)}
-              className="bg-gray-800 text-white p-2 rounded-lg w-full" />
-          </div>
-          <button onClick={save} className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-xl shadow-lg">
-            Save Settings
+    <div className="p-8">
+      <h1 className="text-4xl font-bold text-cyan-400 drop-shadow mb-6">Settings</h1>
+      <div className="bg-[#141f35] p-6 rounded-lg shadow-cyan-glow">
+        <h2 className="text-xl text-cyan-300 mb-4">Blocked ZIP/KMA List</h2>
+        <div className="flex space-x-4 mb-4">
+          <input
+            value={newZip}
+            onChange={(e) => setNewZip(e.target.value)}
+            placeholder="Enter ZIP"
+          />
+          <button onClick={addZip} className="bg-cyan-600 hover:bg-cyan-500 px-4 py-2 rounded-lg">
+            Add ZIP
           </button>
         </div>
-      ) : <p className="text-gray-400">Loading...</p>}
-    </main>
+        <ul className="space-y-2">
+          {blocklist.map((item) => (
+            <li key={item.id} className="flex justify-between">
+              <span>{item.zip}</span>
+              <button onClick={() => removeZip(item.id)} className="text-red-400 hover:underline">
+                Remove
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
   );
 }
