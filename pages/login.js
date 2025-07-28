@@ -21,9 +21,17 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-950">
-      <div className="bg-gray-900 p-8 rounded-2xl shadow-2xl max-w-md w-full text-center">
-        <Image src="/logo.png" alt="RapidRoutes Logo" width={200} height={200} priority />
-        <h2 className="text-cyan-400 text-2xl font-bold mt-6 mb-4">Sign In to RapidRoutes</h2>
+      <div className="card">
+        <Image
+          src="/logo.png"
+          alt="RapidRoutes Logo"
+          width={200}
+          height={200}
+          priority
+        />
+        <h2 className="text-cyan-400 text-2xl font-bold mt-6 mb-4">
+          Sign In to RapidRoutes
+        </h2>
         <input
           type="email"
           placeholder="Your email"
