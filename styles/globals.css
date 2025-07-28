@@ -2,27 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Global dark background and text */
+/* Global body styling */
 body {
   @apply bg-gradient-to-b from-[#0a0f1a] to-[#101a2d] text-white;
 }
 
-/* Navigation links (top tabs) */
+/* Nav bar link style */
 .nav-link {
   @apply text-white hover:text-cyan-400 transition duration-300 ease-in-out;
 }
 
-/* Logout button */
+/* Logout button style */
 .logout-btn {
   @apply px-4 py-2 bg-cyan-500 rounded-lg font-semibold text-black hover:bg-cyan-400 transition shadow-md hover:shadow-cyan-400/40;
 }
 
-/* Buttons (shared) */
+/* Buttons */
 button {
   @apply shadow-lg hover:shadow-cyan-400/30 transition;
 }
 
-/* Inputs (shared) */
-input {
+/* Inputs */
+input, select, textarea {
   @apply w-full p-3 rounded-lg bg-[#1b2a44] text-white border border-cyan-500/30 focus:border-cyan-400 focus:outline-none;
 }
