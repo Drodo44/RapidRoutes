@@ -3,7 +3,7 @@ module.exports = {
   content: [
     "./pages/**/*.{js,ts,jsx,tsx}",
     "./components/**/*.{js,ts,jsx,tsx}",
-    "./styles/**/*.{css}", // ensure Tailwind scans globals.css
+    "./styles/**/*.{css}",
   ],
   theme: {
     extend: {
