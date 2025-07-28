@@ -68,4 +68,49 @@ export default function Lanes() {
             className="w-full p-2 rounded bg-gray-800 border border-gray-700 text-white" />
         </div>
         <div className="mb-4">
-          <label className="block mb-1">Destination
+          <label className="block mb-1">Destination State</label>
+          <input name="dest_state" required value={form.dest_state} onChange={handleChange}
+            className="w-full p-2 rounded bg-gray-800 border border-gray-700 text-white" />
+        </div>
+        <div className="mb-4">
+          <label className="block mb-1">Equipment</label>
+          <input name="equipment" required value={form.equipment} onChange={handleChange}
+            className="w-full p-2 rounded bg-gray-800 border border-gray-700 text-white" />
+        </div>
+        <div className="mb-4">
+          <label className="block mb-1">Weight (lbs)</label>
+          <input name="weight" type="number" required value={form.weight} onChange={handleChange}
+            className="w-full p-2 rounded bg-gray-800 border border-gray-700 text-white" />
+        </div>
+        <div className="mb-4">
+          <label className="block mb-1">Pickup Date</label>
+          <input name="date" type="date" required value={form.date} onChange={handleChange}
+            className="w-full p-2 rounded bg-gray-800 border border-gray-700 text-white" />
+        </div>
+        <div className="mb-4">
+          <label className="block mb-1">Length (ft)</label>
+          <input name="length" type="number" required value={form.length} onChange={handleChange}
+            className="w-full p-2 rounded bg-gray-800 border border-gray-700 text-white" />
+        </div>
+        <div className="mb-4">
+          <label className="block mb-1">Comment (Optional)</label>
+          <textarea name="comment" value={form.comment} onChange={handleChange}
+            className="w-full p-2 rounded bg-gray-800 border border-gray-700 text-white" />
+        </div>
+
+        <button type="submit"
+          className="w-full bg-blue-600 hover:bg-blue-700 py-2 rounded-xl font-bold shadow-xl mt-4">
+          Save Lane & Generate DAT CSV
+        </button>
+
+        {message && <p className="mt-4 text-cyan-400">{message}</p>}
+        {downloadUrl && (
+          <a href={downloadUrl} download
+            className="block mt-4 text-green-400 underline text-center">
+            Download DAT CSV
+          </a>
+        )}
+      </form>
+    </div>
+  );
+}
