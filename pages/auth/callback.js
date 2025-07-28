@@ -8,12 +8,8 @@ export default function AuthCallback() {
   useEffect(() => {
     const handleCallback = async () => {
       // Supabase will detect the session from URL
-      const { error } = await supabase.auth.getSessionFromUrl({ storeSession: true });
-      if (!error) {
-        router.replace("/dashboard");
-      } else {
-        router.replace("/login?error=auth");
-      }
+      await supabase.auth.getSessionFromUrl({ storeSession: true });
+      router.replace("/dashboard");
     };
     handleCallback();
   }, []);
