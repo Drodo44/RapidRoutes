@@ -1,3 +1,4 @@
+// /pages/dashboard.js
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
@@ -46,10 +47,8 @@ export default function Dashboard() {
           <Image src="/logo.png" alt="RapidRoutes Logo" width={40} height={40} priority />
           <span className="text-2xl font-bold tracking-tight">RapidRoutes</span>
         </div>
-        <button
-          onClick={handleLogout}
-          className="bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded-xl text-white font-semibold"
-        >
+        <button onClick={handleLogout}
+          className="bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded-xl text-white font-semibold">
           Logout
         </button>
       </header>
@@ -72,9 +71,7 @@ export default function Dashboard() {
               </thead>
               <tbody>
                 {lanes.length === 0 ? (
-                  <tr>
-                    <td className="p-4" colSpan={5}>No lanes found.</td>
-                  </tr>
+                  <tr><td className="p-4" colSpan={5}>No lanes found.</td></tr>
                 ) : (
                   lanes.map((lane) => (
                     <tr key={lane.id} className="border-b border-gray-800">
@@ -88,7 +85,6 @@ export default function Dashboard() {
                 )}
               </tbody>
             </table>
-
             <Chart />
           </div>
         )}
