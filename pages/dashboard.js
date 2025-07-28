@@ -1,113 +1,127 @@
-import { useEffect, useState } from 'react';
-import supabase from '../utils/supabaseClient';
+// pages/dashboard.js
+import { useEffect, useState } from "react";
+import { supabase } from "../utils/supabaseClient";
+import dynamic from "next/dynamic";
+
+// Dynamic import for charts (client-side only)
+const { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip } =
+  dynamic(() => import("recharts"), { ssr: false });
 
 export default function Dashboard() {
-  const [activeLanes, setActiveLanes] = useState(0);
-  const [archivedLanes, setArchivedLanes] = useState(0);
-  const [avgTimeToCover, setAvgTimeToCover] = useState(0);
-  const [topMarkets, setTopMarkets] = useState([]);
+  const [user, setUser] = useState(null);
+  const [role, setRole] = useState("");
+  const [kpis, setKpis] = useState({});
   const [activityFeed, setActivityFeed] = useState([]);
+  const [aiTip, setAiTip] = useState("");
 
   useEffect(() => {
-    fetchDashboardData();
+    const getUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      setUser(user);
+      if (user) fetchProfile(user.id);
+    };
+    getUser();
   }, []);
 
-  const fetchDashboardData = async () => {
-    const { count: activeCount } = await supabase
-      .from('lanes')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'Active');
-    const { count: archivedCount } = await supabase
-      .from('lanes')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'Archived');
-    setActiveLanes(activeCount || 0);
-    setArchivedLanes(archivedCount || 0);
+  const fetchProfile = async (userId) => {
+    const { data } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", userId)
+      .single();
+    setRole(data?.role || "Broker");
+    fetchKpis(userId);
+    fetchActivity();
+    fetchAiTip();
+  };
 
-    const { data: archived } = await supabase
-      .from('lanes')
-      .select('created_at, updated_at')
-      .eq('status', 'Archived')
-      .limit(50);
-    if (archived && archived.length > 0) {
-      const total = archived.reduce((sum, lane) => {
-        const start = new Date(lane.created_at).getTime();
-        const end = new Date(lane.updated_at || lane.created_at).getTime();
-        return sum + (end - start);
-      }, 0);
-      setAvgTimeToCover(Math.round(total / archived.length / 3600000));
-    }
+  const fetchKpis = async (userId) => {
+    const { data } = await supabase.rpc("fetch_dashboard_kpis", { user_id: userId });
+    setKpis(data || {});
+  };
 
-    const { data: markets } = await supabase
-      .from('lanes')
-      .select('origin_kma_name')
-      .eq('status', 'Active');
-    if (markets) {
-      const counts = {};
-      markets.forEach((m) => {
-        if (!m.origin_kma_name) return;
-        counts[m.origin_kma_name] = (counts[m.origin_kma_name] || 0) + 1;
-      });
-      const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
-      setTopMarkets(sorted);
-    }
-
-    const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
-    const { data: recent } = await supabase
-      .from('lanes')
-      .select('*')
-      .gte('created_at', since)
-      .order('created_at', { ascending: false })
+  const fetchActivity = async () => {
+    const { data } = await supabase
+      .from("activity_feed")
+      .select("*")
+      .order("created_at", { ascending: false })
       .limit(10);
-    if (recent) setActivityFeed(recent);
+    setActivityFeed(data || []);
+  };
+
+  const fetchAiTip = async () => {
+    const res = await fetch("/api/ai-tip");
+    const data = await res.json();
+    setAiTip(data.tip || "Stay proactive with DAT postings during morning peaks!");
   };
 
   return (
-    <main className="min-h-screen bg-gray-950 text-white p-6">
-      <h1 className="text-3xl font-bold mb-6 text-cyan-400">RapidRoutes Dashboard</h1>
+    <div className="p-8 flex flex-col space-y-8">
+      <h1 className="text-4xl font-bold text-cyan-400 mb-4 drop-shadow">
+        Dashboard
+      </h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <div className="bg-gray-900 p-4 rounded-2xl shadow-lg">
-          <p className="text-gray-400">Active Lanes</p>
-          <h2 className="text-2xl text-emerald-400">{activeLanes}</h2>
+      {/* KPIs */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="bg-[#141f35] rounded-lg p-6 shadow-cyan-glow text-center">
+          <p className="text-sm opacity-70">Active Lanes</p>
+          <p className="text-3xl font-bold">{kpis.active_lanes || 0}</p>
         </div>
-        <div className="bg-gray-900 p-4 rounded-2xl shadow-lg">
-          <p className="text-gray-400">Archived Lanes</p>
-          <h2 className="text-2xl text-emerald-400">{archivedLanes}</h2>
+        <div className="bg-[#141f35] rounded-lg p-6 shadow-cyan-glow text-center">
+          <p className="text-sm opacity-70">Loads Covered</p>
+          <p className="text-3xl font-bold">{kpis.loads_covered || 0}</p>
         </div>
-        <div className="bg-gray-900 p-4 rounded-2xl shadow-lg">
-          <p className="text-gray-400">Avg Time to Cover</p>
-          <h2 className="text-2xl text-emerald-400">{avgTimeToCover} hrs</h2>
+        <div className="bg-[#141f35] rounded-lg p-6 shadow-cyan-glow text-center">
+          <p className="text-sm opacity-70">Revenue ($)</p>
+          <p className="text-3xl font-bold">{kpis.revenue || 0}</p>
         </div>
-        <div className="bg-gray-900 p-4 rounded-2xl shadow-lg">
-          <p className="text-gray-400">Top Markets</p>
-          {topMarkets.map(([m, count]) => (
-            <p key={m} className="text-emerald-300">{m}: {count}</p>
+        <div className="bg-[#141f35] rounded-lg p-6 shadow-cyan-glow text-center">
+          <p className="text-sm opacity-70">RRSI Score</p>
+          <p className="text-3xl font-bold">{kpis.rrsi || 0}</p>
+        </div>
+      </div>
+
+      {/* AI Tip */}
+      <div className="bg-[#101a2d] rounded-lg p-6 shadow-md border border-cyan-600/30">
+        <h2 className="text-xl font-semibold text-cyan-300 mb-2">
+          AI Strategy Tip
+        </h2>
+        <p>{aiTip}</p>
+      </div>
+
+      {/* Activity Feed */}
+      <div className="bg-[#141f35] rounded-lg p-6 shadow-cyan-glow">
+        <h2 className="text-xl font-semibold text-cyan-300 mb-4">Recent Activity</h2>
+        <ul className="space-y-2 max-h-64 overflow-y-auto">
+          {activityFeed.map((item, idx) => (
+            <li key={idx} className="text-sm">
+              {item.message} –{" "}
+              <span className="opacity-70">
+                {new Date(item.created_at).toLocaleString()}
+              </span>
+            </li>
           ))}
+        </ul>
+      </div>
+
+      {/* Lane Performance Chart (sample) */}
+      <div className="bg-[#141f35] rounded-lg p-6 shadow-cyan-glow">
+        <h2 className="text-xl font-semibold text-cyan-300 mb-4">
+          Lane Performance Trends
+        </h2>
+        <div className="h-64">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={kpis.lane_trends || []}>
+              <XAxis dataKey="date" stroke="#22d3ee" />
+              <YAxis stroke="#22d3ee" />
+              <Tooltip />
+              <Line type="monotone" dataKey="loads" stroke="#06b6d4" strokeWidth={3} />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
       </div>
-
-      <div className="bg-gray-900 p-4 rounded-2xl shadow-lg">
-        <h2 className="text-xl text-cyan-400 mb-4">Recent Activity (24h)</h2>
-        {activityFeed.length === 0 ? (
-          <p className="text-gray-500">No recent activity</p>
-        ) : (
-          <ul>
-            {activityFeed.map((lane) => (
-              <li key={lane.id} className="mb-2 text-gray-300">
-                {lane.origin_city}, {lane.origin_state} → {lane.dest_city}, {lane.dest_state} |{' '}
-                {lane.equipment} | {new Date(lane.created_at).toLocaleTimeString()}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      <div className="flex space-x-4 mt-8">
-        <a href="/lanes" className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-xl shadow-lg">Go to Lanes</a>
-        <a href="/recap" className="bg-cyan-600 hover:bg-cyan-700 px-4 py-2 rounded-xl shadow-lg">Active Postings</a>
-        <a href="/api/exportDatCsv" className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-xl shadow-lg">Export DAT CSV</a>
-      </div>
-    </main>
+    </div>
   );
 }
