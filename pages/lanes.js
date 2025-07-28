@@ -1,187 +1,189 @@
-import { useEffect, useState } from 'react';
-import supabase from '../utils/supabaseClient';
+import { useState, useEffect } from "react";
+import { supabase } from "../utils/supabaseClient";
 
 export default function Lanes() {
-  const [user, setUser] = useState(null);
-  const [activeTab, setActiveTab] = useState('my');
   const [lanes, setLanes] = useState([]);
-  const [searchCities, setSearchCities] = useState([]);
-  const [originSearch, setOriginSearch] = useState('');
-  const [destSearch, setDestSearch] = useState('');
-  const [formData, setFormData] = useState({
-    origin_city: '', origin_state: '', origin_zip: '', origin_market: '',
-    dest_city: '', dest_state: '', dest_zip: '', dest_market: '',
-    equipment: '', weight: '', length: '', date: '', comment: ''
+  const [form, setForm] = useState({
+    origin: "",
+    originZip: "",
+    destination: "",
+    destinationZip: "",
+    earliest: "",
+    latest: "",
+    equipment: "FD",
+    length: 48,
+    weight: 47000,
+    randomize: true,
+    weightMin: 46750,
+    weightMax: 48000,
+    notes: "",
   });
+  const [showIntermodal, setShowIntermodal] = useState(false);
+  const [currentLane, setCurrentLane] = useState(null);
 
   useEffect(() => {
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-    };
-    getUser();
+    fetchLanes();
+    const subscription = supabase
+      .channel("lanes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "lanes" }, fetchLanes)
+      .subscribe();
+    return () => supabase.removeChannel(subscription);
   }, []);
 
-  useEffect(() => {
-    if (user) fetchLanes();
-  }, [user, activeTab]);
-
   const fetchLanes = async () => {
-    let query = supabase.from('lanes').select('*');
-    if (activeTab === 'my') query = query.eq('user_id', user.id).eq('status', 'Active');
-    else if (activeTab === 'all') query = query.eq('status', 'Active');
-    else if (activeTab === 'archived') query = query.eq('status', 'Archived');
-    const { data } = await query.order('created_at', { ascending: false });
-    if (data) setLanes(data);
+    const { data } = await supabase.from("lanes").select("*").order("created_at", { ascending: false });
+    setLanes(data || []);
   };
 
-  const searchCity = async (term, type) => {
-    if (term.trim().length < 2) return setSearchCities([]);
-    const { data } = await supabase.from('cities').select('*').ilike('city', `%${term}%`).limit(10);
-    if (data) {
-      setSearchCities(data.map(c => ({
-        display: `${c.city}, ${c.state_or_province} ${c.zip} (${c.kma_name || ''})`,
-        ...c, type
-      })));
-    }
+  const handleInput = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
   };
-
-  const handleSelectCity = (c) => {
-    if (c.type === 'origin') {
-      setFormData({ ...formData, origin_city: c.city, origin_state: c.state_or_province,
-        origin_zip: c.zip, origin_market: c.kma_name });
-      setOriginSearch(c.display);
-    } else {
-      setFormData({ ...formData, dest_city: c.city, dest_state: c.state_or_province,
-        dest_zip: c.zip, dest_market: c.kma_name });
-      setDestSearch(c.display);
-    }
-    setSearchCities([]);
-  };
-
-  const handleInputChange = (field, value) => setFormData({ ...formData, [field]: value });
 
   const addLane = async () => {
-    if (!user || !formData.origin_city || !formData.dest_city) return;
-    await supabase.from('lanes').insert([{ ...formData, user_id: user.id, status: 'Active' }]);
-    setFormData({ origin_city: '', origin_state: '', origin_zip: '', origin_market: '',
-      dest_city: '', dest_state: '', dest_zip: '', dest_market: '',
-      equipment: '', weight: '', length: '', date: '', comment: '' });
-    setOriginSearch(''); setDestSearch(''); fetchLanes();
+    const { data, error } = await supabase.from("lanes").insert([form]).select().single();
+    if (!error) {
+      if (checkIntermodal(data)) {
+        setCurrentLane(data);
+        setShowIntermodal(true);
+      }
+      fetchLanes();
+    }
   };
 
-  const updateLaneStatus = async (id, status) => {
-    await supabase.from('lanes').update({ status }).eq('id', id); fetchLanes();
+  const checkIntermodal = (lane) => {
+    // Placeholder check logic (replace with your rules for Intermodal-eligible lanes)
+    const distanceEligible = true; // add distance/market logic here
+    return distanceEligible;
   };
 
-  const exportCsv = () => { window.location.href = '/api/exportDatCsv'; };
+  const markCovered = async (id) => {
+    await supabase.from("lanes").update({ status: "covered" }).eq("id", id);
+    fetchLanes();
+  };
+
+  const deleteLane = async (id) => {
+    await supabase.from("lanes").delete().eq("id", id);
+    fetchLanes();
+  };
+
+  const exportCSV = async () => {
+    const res = await fetch("/api/exportDatCsv");
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "DAT_Postings.csv";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+
+  const intermodalFollowUp = async (choice) => {
+    await supabase.from("lanes").update({ intermodal_status: choice }).eq("id", currentLane.id);
+    setShowIntermodal(false);
+    fetchLanes();
+  };
 
   return (
-    <main className="min-h-screen bg-gray-950 text-white p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-cyan-400">Lane Management</h1>
-        <button onClick={exportCsv} className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-xl shadow-lg">
-          Export DAT CSV
-        </button>
-      </div>
-      <div className="flex space-x-4 mb-6">
-        {['my', 'all', 'archived'].map(tab => (
-          <button key={tab} onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 rounded-xl ${activeTab === tab ? 'bg-cyan-600 shadow-lg' : 'bg-gray-800 hover:bg-gray-700'}`}>
-            {tab === 'my' ? 'My Lanes' : tab === 'all' ? 'All Lanes' : 'Archived'}
-          </button>
-        ))}
-      </div>
-      <div className="bg-gray-900 p-4 rounded-2xl mb-6 shadow-lg">
-        <h2 className="text-xl text-emerald-400 mb-4">Add a Lane</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Autocomplete */}
-          <div className="relative">
-            <input type="text" value={originSearch} placeholder="Origin City"
-              onChange={(e) => { setOriginSearch(e.target.value); searchCity(e.target.value, 'origin'); }}
-              className="bg-gray-800 text-white p-2 rounded-lg w-full" />
-            {searchCities.length > 0 && searchCities[0].type === 'origin' && (
-              <ul className="absolute z-10 bg-gray-800 w-full rounded-lg mt-1 max-h-48 overflow-auto">
-                {searchCities.map((c, idx) => (
-                  <li key={idx} onClick={() => handleSelectCity(c)}
-                    className="p-2 hover:bg-gray-700 cursor-pointer">{c.display}</li>
-                ))}
-              </ul>
-            )}
-          </div>
-          <div className="relative">
-            <input type="text" value={destSearch} placeholder="Destination City"
-              onChange={(e) => { setDestSearch(e.target.value); searchCity(e.target.value, 'dest'); }}
-              className="bg-gray-800 text-white p-2 rounded-lg w-full" />
-            {searchCities.length > 0 && searchCities[0].type === 'dest' && (
-              <ul className="absolute z-10 bg-gray-800 w-full rounded-lg mt-1 max-h-48 overflow-auto">
-                {searchCities.map((c, idx) => (
-                  <li key={idx} onClick={() => handleSelectCity(c)}
-                    className="p-2 hover:bg-gray-700 cursor-pointer">{c.display}</li>
-                ))}
-              </ul>
-            )}
-          </div>
-          <input type="text" placeholder="Equipment" value={formData.equipment}
-            onChange={(e) => handleInputChange('equipment', e.target.value)}
-            className="bg-gray-800 text-white p-2 rounded-lg" />
-          <input type="number" placeholder="Weight (lbs)" value={formData.weight}
-            onChange={(e) => handleInputChange('weight', e.target.value)}
-            className="bg-gray-800 text-white p-2 rounded-lg" />
-          <input type="number" placeholder="Length (ft)" value={formData.length}
-            onChange={(e) => handleInputChange('length', e.target.value)}
-            className="bg-gray-800 text-white p-2 rounded-lg" />
-          <input type="date" value={formData.date}
-            onChange={(e) => handleInputChange('date', e.target.value)}
-            className="bg-gray-800 text-white p-2 rounded-lg" />
-          <textarea placeholder="Comments" value={formData.comment}
-            onChange={(e) => handleInputChange('comment', e.target.value)}
-            className="bg-gray-800 text-white p-2 rounded-lg col-span-2" />
+    <div className="p-8 space-y-8">
+      <h1 className="text-4xl font-bold text-cyan-400 mb-4 drop-shadow">Lane Management</h1>
+
+      {/* Lane Entry Form */}
+      <div className="bg-[#141f35] p-6 rounded-lg shadow-cyan-glow space-y-4">
+        <input name="origin" value={form.origin} onChange={handleInput} placeholder="Origin City, State" />
+        <input name="originZip" value={form.originZip} onChange={handleInput} placeholder="Origin ZIP" />
+        <input name="destination" value={form.destination} onChange={handleInput} placeholder="Destination City, State" />
+        <input name="destinationZip" value={form.destinationZip} onChange={handleInput} placeholder="Destination ZIP" />
+        <div className="flex space-x-4">
+          <input type="date" name="earliest" value={form.earliest} onChange={handleInput} />
+          <input type="date" name="latest" value={form.latest} onChange={handleInput} />
         </div>
-        <button onClick={addLane}
-          className="mt-4 bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-xl shadow-lg">
+        <div className="flex space-x-4">
+          <select name="equipment" value={form.equipment} onChange={handleInput}>
+            <option value="FD">Flatbed</option>
+            <option value="SD">Stepdeck</option>
+            <option value="RGN">RGN</option>
+          </select>
+          <input type="number" name="length" value={form.length} onChange={handleInput} placeholder="Length (ft)" />
+        </div>
+        <div className="flex space-x-4 items-center">
+          <input type="number" name="weightMin" value={form.weightMin} onChange={handleInput} placeholder="Min Weight" />
+          <input type="number" name="weightMax" value={form.weightMax} onChange={handleInput} placeholder="Max Weight" />
+          <label className="flex items-center space-x-2">
+            <input type="checkbox" checked={form.randomize} onChange={() => setForm({ ...form, randomize: !form.randomize })} />
+            <span>Randomize Weights</span>
+          </label>
+        </div>
+        <textarea name="notes" value={form.notes} onChange={handleInput} placeholder="Notes (AI can suggest if blank)" />
+        <button onClick={addLane} className="bg-cyan-600 hover:bg-cyan-500 px-6 py-3 rounded-lg font-semibold">
           Add Lane
         </button>
       </div>
-      <div className="bg-gray-900 p-4 rounded-2xl shadow-lg">
-        <h2 className="text-xl mb-4 text-cyan-400">
-          {activeTab === 'my' ? 'My Active Lanes' : activeTab === 'all' ? 'All Active Lanes' : 'Archived Lanes'}
-        </h2>
-        <table className="w-full text-left border-collapse">
+
+      {/* Lane Table */}
+      <div className="bg-[#141f35] p-6 rounded-lg shadow-cyan-glow">
+        <h2 className="text-2xl text-cyan-300 mb-4">Active Lanes</h2>
+        <table className="w-full text-left">
           <thead>
-            <tr className="text-emerald-400">
-              <th className="border-b p-2">Origin</th>
-              <th className="border-b p-2">Destination</th>
-              <th className="border-b p-2">Equipment</th>
-              <th className="border-b p-2">Weight</th>
-              <th className="border-b p-2">Date</th>
-              <th className="border-b p-2">Status</th>
-              <th className="border-b p-2">Actions</th>
+            <tr className="border-b border-cyan-500/30">
+              <th>Origin</th>
+              <th>Destination</th>
+              <th>Equipment</th>
+              <th>Weight</th>
+              <th>Dates</th>
+              <th>Status</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {lanes.map((lane) => (
-              <tr key={lane.id} className="hover:bg-gray-800">
-                <td className="p-2">{lane.origin_city}, {lane.origin_state}</td>
-                <td className="p-2">{lane.dest_city}, {lane.dest_state}</td>
-                <td className="p-2">{lane.equipment}</td>
-                <td className="p-2">{lane.weight}</td>
-                <td className="p-2">{lane.date}</td>
-                <td className="p-2">{lane.status}</td>
-                <td className="p-2">
-                  {activeTab !== 'archived' ? (
-                    <button onClick={() => updateLaneStatus(lane.id, 'Archived')}
-                      className="bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded-lg">Archive</button>
-                  ) : (
-                    <button onClick={() => updateLaneStatus(lane.id, 'Active')}
-                      className="bg-cyan-600 hover:bg-cyan-700 px-3 py-1 rounded-lg">Repost</button>
-                  )}
+              <tr key={lane.id} className="border-b border-cyan-500/20">
+                <td>{lane.origin}</td>
+                <td>{lane.destination}</td>
+                <td>{lane.equipment}</td>
+                <td>
+                  {form.randomize
+                    ? `${lane.weightMin}-${lane.weightMax} lbs`
+                    : `${lane.weight} lbs`}
+                </td>
+                <td>{lane.earliest} – {lane.latest}</td>
+                <td>{lane.status || "Active"}</td>
+                <td className="space-x-2">
+                  <button onClick={() => markCovered(lane.id)} className="text-green-400 hover:underline">Mark Covered</button>
+                  <button onClick={() => deleteLane(lane.id)} className="text-red-400 hover:underline">Delete</button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+        <button onClick={exportCSV} className="mt-4 bg-cyan-600 hover:bg-cyan-500 px-6 py-3 rounded-lg font-semibold">
+          Export DAT CSV
+        </button>
       </div>
-    </main>
+
+      {/* Intermodal Popup */}
+      {showIntermodal && currentLane && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50">
+          <div className="bg-[#101a2d] p-8 rounded-lg shadow-cyan-glow max-w-lg w-full space-y-4">
+            <h2 className="text-2xl text-cyan-300">Intermodal Opportunity</h2>
+            <p>This lane looks perfect for Intermodal. Copy the email below and send to your partner for a quote:</p>
+            <textarea
+              readOnly
+              value={`Subject: Intermodal Opportunity (${currentLane.origin} – ${currentLane.destination})\n\nThis lane looks viable for Intermodal. Can you please quote this shipment?\n\nPickup City: ${currentLane.origin}\nPickup State:\nDelivery City: ${currentLane.destination}\nDelivery State:\nWeight: ${form.weight} lbs\nCommodity:\nDimensions / Pallet Count:\nPickup Date: ${form.earliest}\nTruck Rate:\n\nPlease let me know if you need any additional information. Thanks!`}
+              className="w-full h-48"
+            />
+            <p className="text-sm text-gray-400">
+              Timestamp saved. This quote request will be tracked.
+            </p>
+            <div className="flex justify-end space-x-4">
+              <button onClick={() => intermodalFollowUp("yes")} className="text-green-400 hover:underline">Yes, Shipped Intermodal</button>
+              <button onClick={() => intermodalFollowUp("expensive")} className="text-yellow-400 hover:underline">No, Too Expensive</button>
+              <button onClick={() => intermodalFollowUp("noquote")} className="text-red-400 hover:underline">No Quote in Time</button>
+              <button onClick={() => intermodalFollowUp("truckonly")} className="text-blue-400 hover:underline">Customer Prefers Truck</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
