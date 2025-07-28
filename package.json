@@ -1,19 +1,31 @@
-"dependencies": {
-  "@supabase/auth-helpers-nextjs": "^0.5.7",
-  "@supabase/auth-helpers-react": "^0.4.0",
-  "@supabase/supabase-js": "^2.43.5",
-  "exceljs": "^4.4.0",
-  "next": "14.2.3",
-  "papaparse": "^5.4.1",
-  "puppeteer": "^22.5.0",
-  "react": "18.2.0",
-  "react-dom": "18.2.0",
-  "recharts": "^2.12.0"
-},
-"devDependencies": {
-  "eslint": "8.57.0",
-  "eslint-config-next": "14.2.3",
-  "tailwindcss": "^3.4.1",
-  "autoprefixer": "^10.4.16",
-  "postcss": "^8.4.33"
+{
+  "name": "rapidroutes",
+  "version": "1.0.0",
+  "description": "RapidRoutes - Intelligent Freight Brokerage Platform",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@supabase/auth-helpers-nextjs": "^0.5.7",
+    "@supabase/auth-helpers-react": "^0.4.0",
+    "@supabase/supabase-js": "^2.43.5",
+    "exceljs": "^4.4.0",
+    "next": "14.2.3",
+    "papaparse": "^5.4.1",
+    "puppeteer": "^22.5.0",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "recharts": "^2.12.0"
+  },
+  "devDependencies": {
+    "eslint": "8.57.0",
+    "eslint-config-next": "14.2.3",
+    "tailwindcss": "^3.4.1",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.33"
+  }
 }
