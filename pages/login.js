@@ -1,66 +1,66 @@
 import { useState } from "react";
 import { useRouter } from "next/router";
-import Image from "next/image";
 import { supabase } from "../utils/supabaseClient";
 
 export default function Login() {
   const [email, setEmail] = useState("");
-  const [isSent, setIsSent] = useState(false);
+  const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState("");
   const router = useRouter();
 
-  const handleLogin = async () => {
+  const handleLogin = async (e) => {
+    e.preventDefault();
     setError("");
-    const { error } = await supabase.auth.signInWithOtp({
+    const { error } = await supabase.auth.signInWithPassword({
       email,
+      password,
       options: {
-        emailRedirectTo: typeof window !== "undefined"
-          ? `${window.location.origin}/auth/callback`
-          : undefined,
+        shouldCreateUser: false,
+        persistSession: rememberMe,
       },
     });
     if (error) {
       setError(error.message);
     } else {
-      setIsSent(true);
+      router.push("/dashboard");
     }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-950">
       <div className="card">
-        <Image
-          src="/logo.png"
-          alt="RapidRoutes Logo"
-          width={200}
-          height={200}
-          priority
-          className="mx-auto"
-        />
-        <h2 className="text-cyan-400 text-2xl font-bold mt-6 mb-4">Sign In to RapidRoutes</h2>
-        <input
-          type="email"
-          placeholder="Your email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          disabled={isSent}
-          className="w-full p-3 rounded-lg bg-gray-800 border border-cyan-400 text-white mb-4"
-        />
-        <button
-          onClick={handleLogin}
-          disabled={isSent}
-          className="w-full p-3 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-semibold mb-4"
-        >
-          {isSent ? "Link Sent" : "Send Login Link"}
-        </button>
-        {error && <p className="text-red-400">{error}</p>}
-        {isSent && <p className="text-green-400">Check your email!</p>}
-        <button
-          onClick={() => router.push("/")}
-          className="mt-4 bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg text-white"
-        >
-          Back to Home
-        </button>
+        <h2 className="text-cyan-400 text-2xl font-bold mb-4">Sign In to RapidRoutes</h2>
+        <form onSubmit={handleLogin} className="flex flex-col gap-4">
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            required
+            className="w-full p-3 rounded-lg bg-gray-800 border border-cyan-400 text-white"
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            required
+            className="w-full p-3 rounded-lg bg-gray-800 border border-cyan-400 text-white"
+          />
+          <label className="flex items-center gap-2 text-gray-300">
+            <input type="checkbox" checked={rememberMe} onChange={e => setRememberMe(e.target.checked)} />
+            Remember Me
+          </label>
+          <button
+            type="submit"
+            className="w-full p-3 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-semibold"
+          >
+            Login
+          </button>
+          <a href="/reset-password" className="text-cyan-400 hover:underline text-center">Forgot Password?</a>
+        </form>
+        {error && <div className="text-red-400 mt-4">{error}</div>}
       </div>
     </div>
   );
