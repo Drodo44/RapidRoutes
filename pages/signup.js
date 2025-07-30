@@ -1,89 +1,73 @@
 import { useState } from "react";
 import { useRouter } from "next/router";
 import { supabase } from "../utils/supabaseClient";
-import Image from "next/image";
+
+const ROLES = ["Admin", "Broker", "Support", "Apprentice"];
 
 export default function Signup() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [role, setRole] = useState("Broker");
-  const [error, setError] = useState("");
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    role: "Broker"
+  });
+  const [message, setMessage] = useState("");
   const router = useRouter();
+
+  const handleChange = (e) => {
+    setForm(f => ({ ...f, [e.target.name]: e.target.value }));
+  };
 
   const handleSignup = async (e) => {
     e.preventDefault();
-    setError("");
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { name, role } }
-    });
+    setMessage("Submitting account request...");
+    const { error } = await supabase.from("pending_users").insert([form]);
     if (error) {
-      setError(error.message);
+      setMessage("Error: " + error.message);
     } else {
-      router.push("/login");
+      setMessage("Your account request has been submitted. An admin will review and approve.");
+      // Optionally: trigger admin notification here
     }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-950">
       <div className="card">
-        <Image
-          src="/logo.png"
-          alt="RapidRoutes Logo"
-          width={200}
-          height={200}
-          priority
-          className="mx-auto"
-        />
-        <h2 className="text-cyan-400 text-2xl font-bold mt-6 mb-4">Create Your RapidRoutes Account</h2>
+        <h2 className="text-cyan-400 text-2xl font-bold mb-4">Request a RapidRoutes Account</h2>
         <form onSubmit={handleSignup} className="flex flex-col gap-4">
           <input
             type="text"
+            name="name"
             placeholder="Full Name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
+            value={form.name}
+            onChange={handleChange}
             required
             className="w-full p-3 rounded-lg bg-gray-800 border border-gray-600 text-white"
           />
           <input
             type="email"
+            name="email"
             placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="w-full p-3 rounded-lg bg-gray-800 border border-gray-600 text-white"
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            value={form.email}
+            onChange={handleChange}
             required
             className="w-full p-3 rounded-lg bg-gray-800 border border-gray-600 text-white"
           />
           <select
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
+            name="role"
+            value={form.role}
+            onChange={handleChange}
             className="w-full p-3 rounded-lg bg-gray-800 border border-gray-600 text-white"
           >
-            <option>Admin</option>
-            <option>Broker</option>
-            <option>Support</option>
-            <option>Apprentice</option>
+            {ROLES.map(r => <option key={r}>{r}</option>)}
           </select>
-          {error && <div className="text-red-400">{error}</div>}
           <button
             type="submit"
             className="w-full p-3 bg-green-600 hover:bg-green-700 rounded-lg text-white font-semibold"
           >
-            Sign Up
+            Request Account
           </button>
-          <a href="/login" className="text-cyan-400 hover:underline">
-            Already have an account? Login
-          </a>
         </form>
+        {message && <div className="text-cyan-400 mt-4">{message}</div>}
       </div>
     </div>
   );
