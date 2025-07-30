@@ -1,17 +1,21 @@
 // pages/lanes.js
 import { useState } from "react";
-import { equipmentTypes, getCitySuggestions } from "../utils/laneHelpers";
+import { supabase } from "../utils/supabaseClient";
+import { equipmentTypes } from "../utils/laneHelpers";
 import { generateDATCsv } from "../lib/datExport";
 
 export default function Lanes() {
-  // Lane data structure
   const [lanes, setLanes] = useState([
     {
       earliest: "",
       latest: "",
       origin: "",
+      originCity: "",
+      originState: "",
       originZip: "",
       dest: "",
+      destCity: "",
+      destState: "",
       destZip: "",
       equipment: "",
       length: "",
@@ -22,31 +26,66 @@ export default function Lanes() {
       comment: "",
     },
   ]);
-  // Global randomize
-  const [globalRndMin, setGlobalRndMin] = useState("");
-  const [globalRndMax, setGlobalRndMax] = useState("");
-
-  // Autocomplete logic for City, State
   const [originSuggestions, setOriginSuggestions] = useState([]);
   const [destSuggestions, setDestSuggestions] = useState([]);
+  const [originTimeout, setOriginTimeout] = useState(null);
+  const [destTimeout, setDestTimeout] = useState(null);
 
-  // Handle change for lane fields
+  // Fetch city/state from Supabase
+  const fetchCitySuggestions = async (input, setter) => {
+    if (!input || input.length < 2) {
+      setter([]);
+      return;
+    }
+    // Query: city or city,state
+    const [city, state] = input.split(",").map((str) => str.trim());
+    let query = supabase.from("cities").select("city,state,zip").ilike("city", `${city}%`);
+    if (state) query = query.ilike("state", `${state}%`);
+    const { data } = await query.limit(10);
+    setter(data || []);
+  };
+
+  // Update lane values
   const handleChange = (idx, field, value) => {
     const updated = [...lanes];
     updated[idx][field] = value;
     setLanes(updated);
-    // Autofill ZIP when city, state is chosen
-    if (field === "origin" && value.includes(", ")) {
-      const suggestion = getCitySuggestions(value)[0];
-      if (suggestion) updated[idx].originZip = suggestion.zip;
+    // Autofill ZIP/city/state on selection
+    if (field === "origin") {
+      clearTimeout(originTimeout);
+      setOriginTimeout(
+        setTimeout(() => fetchCitySuggestions(value, setOriginSuggestions), 200)
+      );
     }
-    if (field === "dest" && value.includes(", ")) {
-      const suggestion = getCitySuggestions(value)[0];
-      if (suggestion) updated[idx].destZip = suggestion.zip;
+    if (field === "dest") {
+      clearTimeout(destTimeout);
+      setDestTimeout(
+        setTimeout(() => fetchCitySuggestions(value, setDestSuggestions), 200)
+      );
     }
   };
+  // Handle origin autofill from selection
+  const handleOriginSelect = (idx, cityObj) => {
+    const updated = [...lanes];
+    updated[idx].origin = `${cityObj.city}, ${cityObj.state}`;
+    updated[idx].originCity = cityObj.city;
+    updated[idx].originState = cityObj.state;
+    updated[idx].originZip = cityObj.zip;
+    setLanes(updated);
+    setOriginSuggestions([]);
+  };
+  // Handle dest autofill from selection
+  const handleDestSelect = (idx, cityObj) => {
+    const updated = [...lanes];
+    updated[idx].dest = `${cityObj.city}, ${cityObj.state}`;
+    updated[idx].destCity = cityObj.city;
+    updated[idx].destState = cityObj.state;
+    updated[idx].destZip = cityObj.zip;
+    setLanes(updated);
+    setDestSuggestions([]);
+  };
 
-  // Add lane row
+  // Add new lane
   const handleAddLane = () => {
     setLanes([
       ...lanes,
@@ -54,8 +93,12 @@ export default function Lanes() {
         earliest: "",
         latest: "",
         origin: "",
+        originCity: "",
+        originState: "",
         originZip: "",
         dest: "",
+        destCity: "",
+        destState: "",
         destZip: "",
         equipment: "",
         length: "",
@@ -68,28 +111,8 @@ export default function Lanes() {
     ]);
   };
 
-  // Randomize all weights for lanes
-  const handleRandomizeAll = () => {
-    setLanes((prev) =>
-      prev.map((lane) =>
-        lane.randomize && globalRndMin && globalRndMax
-          ? {
-              ...lane,
-              weight:
-                Math.floor(
-                  Math.random() *
-                    (parseInt(globalRndMax) - parseInt(globalRndMin) + 1)
-                ) + parseInt(globalRndMin),
-            }
-          : lane
-      )
-    );
-  };
-
-  // CSV Generation
-  const handleExport = () => {
-    generateDATCsv(lanes);
-  };
+  // Export to DAT CSV
+  const handleExport = () => generateDATCsv(lanes);
 
   return (
     <div className="min-h-screen bg-[#0b1322] text-white p-8">
@@ -127,40 +150,52 @@ export default function Lanes() {
               value={lane.latest}
               onChange={(e) => handleChange(idx, "latest", e.target.value)}
             />
-            <input
-              type="text"
-              placeholder="City, State"
-              className="rounded p-1 bg-[#232a3c] text-white"
-              value={lane.origin}
-              onChange={(e) => {
-                handleChange(idx, "origin", e.target.value);
-                setOriginSuggestions(getCitySuggestions(e.target.value));
-              }}
-              list={`origin-suggest-${idx}`}
-              autoComplete="off"
-            />
-            <datalist id={`origin-suggest-${idx}`}>
-              {originSuggestions.map((city) => (
-                <option key={city.city + city.state} value={`${city.city}, ${city.state}`} />
-              ))}
-            </datalist>
-            <input
-              type="text"
-              placeholder="City, State"
-              className="rounded p-1 bg-[#232a3c] text-white"
-              value={lane.dest}
-              onChange={(e) => {
-                handleChange(idx, "dest", e.target.value);
-                setDestSuggestions(getCitySuggestions(e.target.value));
-              }}
-              list={`dest-suggest-${idx}`}
-              autoComplete="off"
-            />
-            <datalist id={`dest-suggest-${idx}`}>
-              {destSuggestions.map((city) => (
-                <option key={city.city + city.state} value={`${city.city}, ${city.state}`} />
-              ))}
-            </datalist>
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="City, State"
+                className="rounded p-1 bg-[#232a3c] text-white w-full"
+                value={lane.origin}
+                onChange={(e) => handleChange(idx, "origin", e.target.value)}
+                autoComplete="off"
+              />
+              {originSuggestions.length > 0 && (
+                <ul className="absolute left-0 w-full bg-[#222940] border border-cyan-600 z-10 rounded mt-1">
+                  {originSuggestions.map((city) => (
+                    <li
+                      key={city.city + city.state + city.zip}
+                      className="p-2 hover:bg-cyan-800 cursor-pointer"
+                      onClick={() => handleOriginSelect(idx, city)}
+                    >
+                      {city.city}, {city.state} ({city.zip})
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="City, State"
+                className="rounded p-1 bg-[#232a3c] text-white w-full"
+                value={lane.dest}
+                onChange={(e) => handleChange(idx, "dest", e.target.value)}
+                autoComplete="off"
+              />
+              {destSuggestions.length > 0 && (
+                <ul className="absolute left-0 w-full bg-[#222940] border border-cyan-600 z-10 rounded mt-1">
+                  {destSuggestions.map((city) => (
+                    <li
+                      key={city.city + city.state + city.zip}
+                      className="p-2 hover:bg-cyan-800 cursor-pointer"
+                      onClick={() => handleDestSelect(idx, city)}
+                    >
+                      {city.city}, {city.state} ({city.zip})
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
             <select
               className="rounded p-1 bg-[#232a3c] text-white"
               value={lane.equipment}
@@ -225,12 +260,6 @@ export default function Lanes() {
             onClick={handleAddLane}
           >
             Add Lane
-          </button>
-          <button
-            className="bg-blue-700 hover:bg-blue-600 px-4 py-2 rounded"
-            onClick={handleRandomizeAll}
-          >
-            Randomize All Weights
           </button>
           <button
             className="bg-cyan-700 hover:bg-cyan-600 px-4 py-2 rounded"
