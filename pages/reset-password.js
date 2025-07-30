@@ -1,172 +1,45 @@
-import { useState, useEffect } from "react";
-import { useRouter } from "next/router";
+import { useState } from "react";
 import { supabase } from "../utils/supabaseClient";
 
 export default function ResetPassword() {
-  const router = useRouter();
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
+  const [email, setEmail] = useState("");
+  const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [sessionLoaded, setSessionLoaded] = useState(false);
-
-  useEffect(() => {
-    const finishSession = async () => {
-      if (!router.isReady) return;
-      const { access_token, type, code } = router.query;
-      // Handle OAuth code for new Supabase SDK
-      if (code) {
-        await supabase.auth.exchangeCodeForSession(code);
-        setSessionLoaded(true);
-        return;
-      }
-      // Handle legacy recovery token
-      if (type === "recovery" && access_token) {
-        await supabase.auth.setSession({ access_token, refresh_token: access_token });
-        setSessionLoaded(true);
-        return;
-      }
-      // If no token or code, fail gracefully
-      setSessionLoaded(true);
-    };
-    finishSession();
-  }, [router.isReady, router.query]);
 
   const handleReset = async (e) => {
     e.preventDefault();
+    setMessage("");
     setError("");
-    setSuccess("");
-    if (!password || !confirm) {
-      setError("Please enter and confirm your new password.");
-      return;
-    }
-    if (password !== confirm) {
-      setError("Passwords do not match.");
-      return;
-    }
-    setLoading(true);
-    const { error } = await supabase.auth.updateUser({ password });
-    setLoading(false);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: typeof window !== "undefined" ? `${window.location.origin}/login` : undefined
+    });
     if (error) setError(error.message);
-    else {
-      setSuccess("Password reset successful! Redirecting to login...");
-      setTimeout(() => router.push("/login"), 2000);
-    }
+    else setMessage("Password reset email sent. Check your inbox.");
   };
 
-  if (!sessionLoaded) return null;
-
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: "linear-gradient(120deg,#101624 60%,#172042 100%)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      <div
-        style={{
-          background: "rgba(22,32,54,0.98)",
-          borderRadius: "2rem",
-          padding: "2.4rem 2rem 2.1rem 2rem",
-          boxShadow: "0 6px 48px #22d3ee22",
-          maxWidth: 410,
-          width: "100%",
-          textAlign: "center",
-          border: "1.2px solid #22d3ee33",
-        }}
-      >
-        <h2
-          style={{
-            color: "#22d3ee",
-            fontWeight: 800,
-            fontSize: "2.1rem",
-            marginBottom: "1.05rem",
-            letterSpacing: "0.01em",
-          }}
-        >
-          Reset Password
-        </h2>
-        <form onSubmit={handleReset} style={{ marginTop: 10 }}>
+    <div className="min-h-screen flex items-center justify-center bg-gray-950">
+      <div className="card">
+        <h2 className="text-cyan-400 text-2xl font-bold mb-4">Reset Password</h2>
+        <form onSubmit={handleReset} className="flex flex-col gap-4">
           <input
-            type="password"
-            placeholder="New password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
+            type="email"
+            placeholder="Enter your email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
             required
-            style={inputStyle}
-            autoFocus
+            className="w-full p-3 rounded-lg bg-gray-800 border border-cyan-400 text-white"
           />
-          <input
-            type="password"
-            placeholder="Confirm new password"
-            value={confirm}
-            onChange={e => setConfirm(e.target.value)}
-            required
-            style={inputStyle}
-          />
-          {error && <div style={errorStyle}>{error}</div>}
-          {success && <div style={successStyle}>{success}</div>}
           <button
             type="submit"
-            style={{
-              ...buttonStyle,
-              background: loading
-                ? "#374151"
-                : "linear-gradient(90deg,#15ffea 0%,#22d3ee 100%)",
-              color: "#181c22",
-            }}
-            disabled={loading}
+            className="w-full p-3 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-semibold"
           >
-            {loading ? "Resetting..." : "Reset Password"}
+            Send Reset Email
           </button>
         </form>
+        {message && <div className="text-green-400 mt-4">{message}</div>}
+        {error && <div className="text-red-400 mt-4">{error}</div>}
       </div>
-    </main>
+    </div>
   );
 }
-
-const inputStyle = {
-  width: "100%",
-  padding: "0.75rem",
-  borderRadius: "0.75rem",
-  border: "1.5px solid #22d3ee",
-  background: "#181e2e",
-  color: "#fff",
-  fontSize: "1.07rem",
-  outline: "none",
-  marginBottom: "1.1rem",
-  marginTop: "0.2rem",
-  fontWeight: 600,
-  letterSpacing: ".01em",
-};
-
-const buttonStyle = {
-  width: "100%",
-  padding: "0.8rem",
-  borderRadius: "0.8rem",
-  border: "none",
-  fontWeight: 700,
-  fontSize: "1.12rem",
-  marginBottom: "1rem",
-  marginTop: 0,
-  cursor: "pointer",
-  boxShadow: "0 2px 14px #22d3ee15",
-  transition: "background .16s, color .16s",
-};
-
-const errorStyle = {
-  color: "#f87171",
-  marginBottom: "0.7rem",
-  fontWeight: 700,
-  letterSpacing: ".01em",
-};
-const successStyle = {
-  color: "#15ffea",
-  marginBottom: "0.7rem",
-  fontWeight: 700,
-  letterSpacing: ".01em",
-};
