@@ -1,0 +1,42 @@
+// /components/Navbar.js
+
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { supabase } from "../utils/supabaseClient";
+
+export default function Navbar() {
+  const [profile, setProfile] = useState(null);
+
+  useEffect(() => {
+    // Fetch session and then fetch profile
+    const getProfile = async () => {
+      const { data } = await supabase.auth.getSession();
+      const session = data?.session;
+      if (session?.user) {
+        const { data: userProfile } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("email", session.user.email)
+          .single();
+        setProfile(userProfile);
+      }
+    };
+    getProfile();
+  }, []);
+
+  return (
+    <nav className="flex items-center gap-6 px-8 py-3 bg-gray-900 border-b border-gray-800">
+      <Link href="/dashboard" className="text-white hover:text-cyan-400">Dashboard</Link>
+      <Link href="/lanes" className="text-white hover:text-cyan-400">Lanes</Link>
+      <Link href="/recap" className="text-white hover:text-cyan-400">Recap</Link>
+      <Link href="/settings" className="text-white hover:text-cyan-400">Settings</Link>
+      <Link href="/profile" className="text-white hover:text-cyan-400">Profile</Link>
+      {/* Only show Admin link if role is Admin */}
+      {profile?.role === "Admin" && (
+        <Link href="/admin" className="text-cyan-400 font-semibold hover:underline">Admin</Link>
+      )}
+      <div className="flex-1" />
+      {/* Logout button or profile info here */}
+    </nav>
+  );
+}
