@@ -158,9 +158,9 @@ export default function Lanes() {
               <th className="p-2">Equipment</th>
               <th className="p-2">Length</th>
               <th className="p-2">Weight</th>
-              <th className="p-2">Rnd?</th>
-              <th className="p-2">Rnd Min</th>
-              <th className="p-2">Rnd Max</th>
+              <th className="p-2">Randomize?</th>
+              <th className="p-2">Min</th>
+              <th className="p-2">Max</th>
               <th className="p-2">Comment</th>
               <th className="p-2"></th>
             </tr>
