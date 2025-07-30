@@ -1,21 +1,23 @@
 // pages/lanes.js
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import equipmentTypes from "../data/equipmentTypes";
 import { generateDATCsv, downloadCsv } from "../lib/datExport";
-import { searchCities } from "../utils/citySearch"; // helper that hits Supabase
+import { searchCities } from "../utils/citySearch";
+import IntermodalPopup from "../components/IntermodalPopup";
 
 export default function Lanes() {
-  const [lanes, setLanes] = useState([
-    emptyLane()
-  ]);
+  const [lanes, setLanes] = useState([emptyLane()]);
+  const [showModalIndex, setShowModalIndex] = useState(null);
 
   function emptyLane() {
     return {
       originQuery: "", originCity: "", originState: "", originZip: "",
       destQuery: "", destCity: "", destState: "", destZip: "",
       earliest: "", latest: "", length: "", weight: "",
-      equipment: "FD", comment: "", randomize: false,
-      minWeight: "", maxWeight: "", originOptions: [], destOptions: []
+      equipment: "FD", comment: "",
+      randomize: false, minWeight: "", maxWeight: "",
+      intermodal: false,
+      originOptions: [], destOptions: []
     };
   }
 
@@ -23,6 +25,12 @@ export default function Lanes() {
     const { name, value, type, checked } = e.target;
     const newLanes = [...lanes];
     newLanes[index][name] = type === "checkbox" ? checked : value;
+
+    // Trigger Intermodal modal if intermodal toggled on
+    if (name === "intermodal" && checked) {
+      setShowModalIndex(index);
+    }
+
     setLanes(newLanes);
   };
 
@@ -68,13 +76,13 @@ export default function Lanes() {
               <th className="p-2">Max</th>
               <th className="p-2">Equipment</th>
               <th className="p-2">Comment</th>
+              <th className="p-2">Intermodal</th>
               <th className="p-2">Remove</th>
             </tr>
           </thead>
           <tbody>
             {lanes.map((lane, index) => (
               <tr key={index} className="even:bg-gray-900 odd:bg-gray-800">
-                {/* Origin */}
                 <td className="p-2 relative">
                   <input
                     type="text"
@@ -98,7 +106,6 @@ export default function Lanes() {
                   )}
                 </td>
 
-                {/* Destination */}
                 <td className="p-2 relative">
                   <input
                     type="text"
@@ -156,6 +163,9 @@ export default function Lanes() {
                   <input type="text" name="comment" value={lane.comment} onChange={(e) => handleChange(index, e)} className="input" />
                 </td>
                 <td className="p-2 text-center">
+                  <input type="checkbox" name="intermodal" checked={lane.intermodal} onChange={(e) => handleChange(index, e)} />
+                </td>
+                <td className="p-2 text-center">
                   <button onClick={() => removeLane(index)} className="text-red-400 hover:text-red-600 font-bold">
                     ✕
                   </button>
@@ -187,6 +197,13 @@ export default function Lanes() {
           width: 100%;
         }
       `}</style>
+
+      {showModalIndex !== null && (
+        <IntermodalPopup
+          lane={lanes[showModalIndex]}
+          onClose={() => setShowModalIndex(null)}
+        />
+      )}
     </main>
   );
 }
