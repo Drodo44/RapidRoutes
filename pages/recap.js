@@ -1,74 +1,124 @@
-// /pages/recap.js
+// pages/recap.js
 import { useEffect, useState } from "react";
 import { supabase } from "../utils/supabaseClient";
+import Image from "next/image";
+import { shouldSuggestReefer } from "../utils/reeferAdvisor";
+import { getSellingPoint } from "../utils/sellingPoints";
 
 export default function Recap() {
-  const [lanes, setLanes] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [groupedLanes, setGroupedLanes] = useState([]);
 
   useEffect(() => {
-    const fetchLanes = async () => {
-      const { data, error } = await supabase.from("lanes").select("*");
-      if (!error) setLanes(data || []);
-      setLoading(false);
-    };
-    fetchLanes();
+    fetchGroupedLanes();
   }, []);
 
-  const handleDownload = () => {
-    const html = document.getElementById("recap-report").outerHTML;
-    const blob = new Blob([html], { type: "text/html" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "Active_Postings_Recap.html";
-    a.click();
+  const fetchGroupedLanes = async () => {
+    const { data, error } = await supabase
+      .from("lane_versions")
+      .select("*")
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      console.error("Error loading lanes:", error.message);
+      return;
+    }
+
+    const grouped = {};
+
+    for (const row of data) {
+      const key = `${row.original_origin_city}→${row.original_dest_city}`;
+      if (!grouped[key]) {
+        grouped[key] = {
+          origin: row.original_origin_city,
+          dest: row.original_dest_city,
+          crawls: [],
+          metadata: {
+            equipment: row.equipment,
+            intermodal: row.intermodal,
+            hazmat: row.comment?.toLowerCase().includes("hazmat"),
+            comment: row.comment || "",
+            earliest: row.earliest,
+            latest: row.latest,
+          },
+        };
+      }
+      grouped[key].crawls.push(row);
+    }
+
+    setGroupedLanes(Object.values(grouped));
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white py-10 px-4">
-      <div id="recap-report" className="max-w-6xl mx-auto bg-gray-900 rounded-2xl shadow-2xl p-6">
-        <h1 className="text-4xl font-bold text-cyan-400 mb-8">Active Postings Recap</h1>
-        {loading ? (
-          <p className="text-blue-400">Loading lanes...</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-gray-800 text-cyan-400">
-                  <th className="p-3">Origin</th>
-                  <th className="p-3">Destination</th>
-                  <th className="p-3">Equipment</th>
-                  <th className="p-3">Weight</th>
-                  <th className="p-3">Date</th>
-                  <th className="p-3">Length</th>
-                  <th className="p-3">RRSI</th>
-                  <th className="p-3">Comment</th>
-                </tr>
-              </thead>
-              <tbody>
-                {lanes.map((lane) => (
-                  <tr key={lane.id} className="even:bg-gray-800 odd:bg-gray-700">
-                    <td className="p-3">{lane.origin_city}, {lane.origin_state}</td>
-                    <td className="p-3">{lane.dest_city}, {lane.dest_state}</td>
-                    <td className="p-3">{lane.equipment}</td>
-                    <td className="p-3">{lane.weight}</td>
-                    <td className="p-3">{lane.date}</td>
-                    <td className="p-3">{lane.length}</td>
-                    <td className="p-3 text-green-400 font-bold">{lane.rrsi || 90}</td>
-                    <td className="p-3">{lane.comment}</td>
+    <div className="min-h-screen bg-[#0b1623] text-white px-6 py-10">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex items-center gap-4 mb-8">
+          <Image src="/logo.png" width={40} height={40} alt="RapidRoutes" />
+          <h1 className="text-3xl font-bold text-cyan-400">Recap</h1>
+        </div>
+
+        {groupedLanes.map((group, i) => {
+          const flags = [];
+          if (group.metadata.hazmat) flags.push("HAZMAT");
+          if (group.metadata.intermodal) flags.push("INTERMODAL");
+          if (shouldSuggestReefer(group.metadata).show) flags.push("REEFER?");
+
+          const sellingPoint = getSellingPoint(group.origin, group.dest, group.metadata);
+
+          return (
+            <div
+              key={i}
+              className="mb-10 border border-cyan-700 rounded-xl p-6 bg-[#151d2b] shadow-md"
+            >
+              <h2 className="text-xl font-bold text-neon-blue mb-2">
+                {group.origin} ➝ {group.dest}
+              </h2>
+
+              {flags.length > 0 && (
+                <div className="text-sm text-yellow-300 italic mb-2">
+                  {flags.join(" • ")}
+                </div>
+              )}
+
+              {sellingPoint && (
+                <div className="text-sm text-green-400 font-medium mb-4">
+                  🧠 {sellingPoint}
+                </div>
+              )}
+
+              <table className="w-full text-sm text-left mt-2">
+                <thead>
+                  <tr className="text-cyan-300 border-b border-gray-600">
+                    <th className="p-2">Pickup City</th>
+                    <th className="p-2">Miles from Origin</th>
+                    <th className="p-2">Delivery City</th>
+                    <th className="p-2">Miles from Destination</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-      <div className="max-w-6xl mx-auto mt-6 text-center">
-        <button onClick={handleDownload}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg">
-          Download Recap (HTML)
-        </button>
+                </thead>
+                <tbody>
+                  {group.crawls.map((row, j) => (
+                    <tr
+                      key={j}
+                      className="even:bg-[#1a2437] odd:bg-[#202b42] border-b border-gray-700"
+                    >
+                      <td className="p-2">
+                        {row.pickup_city}, {row.pickup_state}
+                      </td>
+                      <td className="p-2">{row.miles_from_origin} mi</td>
+                      <td className="p-2">
+                        {row.delivery_city}, {row.delivery_state}
+                      </td>
+                      <td className="p-2">{row.miles_from_dest} mi</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+        })}
+
+        <footer className="mt-12 text-center text-xs text-gray-400 italic">
+          Created by Andrew Connellan – Logistics Account Executive at TQL HQ: Cincinnati, OH
+        </footer>
       </div>
     </div>
   );
