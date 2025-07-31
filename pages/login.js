@@ -1,67 +1,41 @@
+// pages/login.js
 import { useState } from "react";
-import { useRouter } from "next/router";
 import { supabase } from "../utils/supabaseClient";
+import Image from "next/image";
+import Link from "next/link";
 
 export default function Login() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [rememberMe, setRememberMe] = useState(true);
-  const [error, setError] = useState("");
-  const router = useRouter();
+  const [message, setMessage] = useState("");
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setError("");
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-      options: {
-        shouldCreateUser: false,
-        persistSession: rememberMe,
-      },
-    });
-    if (error) {
-      setError(error.message);
-    } else {
-      router.push("/dashboard");
-    }
+  const handleLogin = async () => {
+    const { error } = await supabase.auth.signInWithOtp({ email });
+    setMessage(error ? "Login failed." : "Check your email for magic link.");
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-950">
-      <div className="card">
-        <h2 className="text-cyan-400 text-2xl font-bold mb-4">Sign In to RapidRoutes</h2>
-        <form onSubmit={handleLogin} className="flex flex-col gap-4">
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            required
-            className="w-full p-3 rounded-lg bg-gray-800 border border-cyan-400 text-white"
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            required
-            className="w-full p-3 rounded-lg bg-gray-800 border border-cyan-400 text-white"
-          />
-          <label className="flex items-center gap-2 text-gray-300">
-            <input type="checkbox" checked={rememberMe} onChange={e => setRememberMe(e.target.checked)} />
-            Remember Me
-          </label>
-          <button
-            type="submit"
-            className="w-full p-3 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-semibold"
-          >
-            Login
-          </button>
-          <a href="/reset-password" className="text-cyan-400 hover:underline text-center">Forgot Password?</a>
-        </form>
-        {error && <div className="text-red-400 mt-4">{error}</div>}
+    <main className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
+      <div className="bg-[#1e293b] p-8 rounded-xl max-w-md w-full text-center shadow-md">
+        <Image src="/logo.png" width={200} height={200} alt="Logo" className="mx-auto" />
+        <h2 className="text-2xl font-bold text-cyan-400 mb-4">Log In</h2>
+
+        <input
+          type="email"
+          placeholder="Your Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="w-full p-3 rounded mb-4 text-black"
+        />
+        <button
+          onClick={handleLogin}
+          className="w-full bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded font-semibold"
+        >
+          Send Magic Link
+        </button>
+
+        {message && <p className="mt-4 text-yellow-400 text-sm">{message}</p>}
+        <Link href="/" className="block mt-6 text-sm text-cyan-300 hover:underline">Back to Home</Link>
       </div>
-    </div>
+    </main>
   );
 }
