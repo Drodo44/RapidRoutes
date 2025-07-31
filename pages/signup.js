@@ -1,87 +1,86 @@
-// pages/signup.js
 import { useState } from "react";
 import { supabase } from "../utils/supabaseClient";
-import Image from "next/image";
-import Link from "next/link";
+import { useRouter } from "next/router";
 
 export default function Signup() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [role, setRole] = useState("Apprentice");
+  const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const router = useRouter();
 
-  const handleSignup = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setMessage("Creating account...");
+    setError("");
+    setMessage("");
 
-    const { data, error } = await supabase.auth.signUp({
+    const { data, error: signupError } = await supabase.auth.signUp({
       email,
-      password
+      password: crypto.randomUUID().slice(0, 16) + "Rr!",
     });
 
-    if (error) {
-      setMessage("Signup failed: " + error.message);
+    if (signupError) {
+      setError(signupError.message);
       return;
     }
 
-    const userId = data?.user?.id;
-    if (userId) {
-      await supabase.from("profiles").insert([
-        {
-          id: userId,
-          email,
-          name,
-          role: "Apprentice",
-          active: true
-        }
-      ]);
-      setMessage("Account created. Awaiting admin approval.");
-    } else {
-      setMessage("Signup successful. Please check your email.");
+    if (data?.user?.id) {
+      const { error: pendingError } = await supabase
+        .from("pending_users")
+        .insert([{ id: data.user.id, email, name, role }]);
+
+      if (pendingError) {
+        setError("Error saving user. Contact support.");
+      } else {
+        setMessage("Signup successful. Waiting for admin approval.");
+      }
     }
   };
 
   return (
-    <main className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
-      <div className="bg-[#1e293b] p-8 rounded-xl max-w-md w-full text-center shadow-md">
-        <Image src="/logo.png" width={200} height={200} alt="Logo" className="mx-auto" />
-        <h2 className="text-2xl font-bold text-cyan-400 mb-4">Sign Up</h2>
-
-        <form onSubmit={handleSignup} className="space-y-4">
-          <input
-            type="text"
-            placeholder="Full Name"
-            required
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full p-3 rounded text-black"
-          />
+    <main className="min-h-screen bg-gray-950 text-white flex flex-col items-center justify-center px-4">
+      <div className="bg-gray-900 p-6 rounded-xl shadow-md max-w-md w-full">
+        <h1 className="text-cyan-400 text-2xl font-bold mb-4 text-center">Create Account</h1>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <input
             type="email"
-            placeholder="Email"
-            required
+            placeholder="Email address"
+            className="p-3 rounded-lg bg-gray-800 border border-cyan-400 text-white"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full p-3 rounded text-black"
+            required
           />
           <input
-            type="password"
-            placeholder="Password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full p-3 rounded text-black"
+            type="text"
+            placeholder="Full name"
+            className="p-3 rounded-lg bg-gray-800 border border-cyan-400 text-white"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
           />
+          <select
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+            className="p-3 rounded-lg bg-gray-800 border border-cyan-400 text-white"
+          >
+            <option value="Apprentice">Apprentice</option>
+            <option value="Broker">Broker</option>
+            <option value="Support">Support</option>
+          </select>
           <button
             type="submit"
-            className="w-full bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded font-semibold"
+            className="w-full p-3 bg-emerald-600 hover:bg-emerald-700 rounded-lg text-white font-semibold"
           >
-            Create Account
+            Sign Up
           </button>
         </form>
-
-        {message && <p className="mt-4 text-yellow-400 text-sm">{message}</p>}
-        <Link href="/" className="block mt-6 text-sm text-cyan-300 hover:underline">Back to Home</Link>
+        {message && <p className="text-green-400 mt-4">{message}</p>}
+        {error && <p className="text-red-400 mt-4">{error}</p>}
+        <div className="mt-4 text-center">
+          <a href="/login" className="text-sm text-cyan-300 hover:underline">
+            Already have an account? Log in
+          </a>
+        </div>
       </div>
     </main>
   );
