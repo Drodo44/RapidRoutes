@@ -1,12 +1,12 @@
-// pages/404.js
-import Link from "next/link";
-
-export default function NotFound() {
+// /pages/404.js
+export default function Custom404() {
   return (
-    <main className="min-h-screen bg-gray-950 text-white flex flex-col items-center justify-center text-center p-10">
-      <h1 className="text-5xl font-bold text-red-500 mb-4">404</h1>
-      <p className="text-xl text-gray-300 mb-6">Page Not Found</p>
-      <Link href="/" className="text-cyan-400 underline hover:text-cyan-200">Return Home</Link>
+    <main className="min-h-screen bg-gray-950 text-white flex flex-col items-center justify-center">
+      <h1 className="text-6xl text-red-400 font-bold">404</h1>
+      <p className="text-xl mt-4">Page Not Found</p>
+      <a href="/" className="mt-6 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 rounded-lg text-white">
+        Go Home
+      </a>
     </main>
   );
 }
