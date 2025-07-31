@@ -1,24 +1,25 @@
+// pages/login.js
 import { useState } from 'react';
 import { useRouter } from 'next/router';
-import supabase from '../utils/supabaseClient';
+import { supabase } from '@/utils/supabaseClient';
 
 export default function Login() {
-  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+  const router = useRouter();
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    setError('');
+    setErrorMsg('');
 
-    const { data, error: loginError } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
-    if (loginError) {
-      setError(loginError.message);
+    if (error || !data.session) {
+      setErrorMsg('Invalid credentials.');
       return;
     }
 
@@ -28,55 +29,56 @@ export default function Login() {
       .eq('email', email)
       .single();
 
-    if (profileError) {
-      setError('Error loading profile.');
+    if (profileError || !profile) {
+      setErrorMsg('Profile not found.');
       return;
     }
 
     if (!profile.active) {
-      setError('Account not yet approved.');
+      setErrorMsg('Account not yet approved.');
       return;
     }
 
-    // Store profile info and route by role
-    localStorage.setItem('userRole', profile.role);
-    if (profile.role === 'Admin') router.push('/admin');
-    else if (profile.role === 'Broker') router.push('/dashboard');
-    else if (profile.role === 'Support') router.push('/dashboard');
-    else router.push('/dashboard');
+    if (profile.role === 'Admin') {
+      router.push('/admin');
+    } else {
+      router.push('/dashboard');
+    }
   };
 
   return (
-    <main className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
-      <form
-        onSubmit={handleLogin}
-        className="bg-gray-900 p-8 rounded-lg shadow-lg max-w-md w-full"
-      >
-        <h2 className="text-2xl font-bold mb-4 text-cyan-400 text-center">Login</h2>
-        <input
-          type="email"
-          placeholder="Email"
-          className="w-full p-2 mb-4 rounded text-black"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          className="w-full p-2 mb-4 rounded text-black"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-        <button type="submit" className="w-full p-2 bg-blue-600 rounded hover:bg-blue-700">
-          Login
-        </button>
-        {error && <p className="text-red-500 text-sm mt-4">{error}</p>}
-        <p className="text-cyan-400 text-sm mt-4 text-center">
-          <a href="/reset-password">Forgot your password?</a>
+    <main className="min-h-screen flex items-center justify-center bg-gray-950 text-white">
+      <div className="bg-gray-900 p-8 rounded-lg shadow-md w-full max-w-md">
+        <h2 className="text-2xl font-bold text-cyan-400 text-center mb-4">Login</h2>
+        <form onSubmit={handleLogin}>
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            className="w-full p-2 mb-4 rounded bg-blue-100 text-black"
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            className="w-full p-2 mb-4 rounded bg-blue-100 text-black"
+          />
+          <button
+            type="submit"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+          >
+            Login
+          </button>
+          {errorMsg && <p className="text-red-500 mt-2 text-center">{errorMsg}</p>}
+        </form>
+        <p className="text-center text-sm mt-4 text-cyan-400">
+          <a href="/forgot">Forgot your password?</a>
         </p>
-      </form>
+      </div>
     </main>
   );
 }
