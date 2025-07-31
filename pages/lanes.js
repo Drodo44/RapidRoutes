@@ -1,219 +1,233 @@
-// pages/lanes.js
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { supabase } from "../utils/supabaseClient";
+import { generateDATCSV } from "../lib/datExport";
 import equipmentTypes from "../data/equipmentTypes";
-import { generateDATCsv, downloadCsv } from "../lib/datExport";
-import { searchCities } from "../utils/citySearch";
-import IntermodalPopup from "../components/IntermodalPopup";
-import { shouldSuggestReefer } from "../utils/reeferAdvisor";
+import { saveAs } from "file-saver";
 
 export default function Lanes() {
-  const [lanes, setLanes] = useState([emptyLane()]);
-  const [showModalIndex, setShowModalIndex] = useState(null);
+  const [lanes, setLanes] = useState([]);
+  const [userId, setUserId] = useState(null);
+  const [weightRange, setWeightRange] = useState({ min: 46750, max: 48000 });
 
-  function emptyLane() {
-    return {
-      originQuery: "", originCity: "", originState: "", originZip: "",
-      destQuery: "", destCity: "", destState: "", destZip: "",
-      earliest: "", latest: "", length: "", weight: "",
-      equipment: "FD", comment: "",
-      randomize: false, minWeight: "", maxWeight: "",
-      intermodal: false,
-      originOptions: [], destOptions: []
-    };
-  }
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      const user = data?.session?.user;
+      if (user) setUserId(user.id);
+    });
+  }, []);
 
-  const handleChange = (index, e) => {
-    const { name, value, type, checked } = e.target;
-    const newLanes = [...lanes];
-    newLanes[index][name] = type === "checkbox" ? checked : value;
-
-    if (name === "intermodal" && checked) {
-      setShowModalIndex(index);
-    }
-
-    setLanes(newLanes);
+  const handleAddLane = () => {
+    setLanes([
+      ...lanes,
+      {
+        pickupCity: "",
+        pickupState: "",
+        pickupZip: "",
+        deliveryCity: "",
+        deliveryState: "",
+        deliveryZip: "",
+        earliestDate: "",
+        latestDate: "",
+        length: "48",
+        weightMin: "",
+        weightMax: "",
+        equipment: "",
+        comment: "",
+        contactMethods: ["Email", "Primary Phone"],
+        randomize: false,
+      },
+    ]);
   };
 
-  const handleCityInput = async (index, type, value) => {
-    const newLanes = [...lanes];
-    newLanes[index][`${type}Query`] = value;
-    newLanes[index][`${type}Options`] = await searchCities(value);
-    setLanes(newLanes);
+  const handleRemoveLane = (index) => {
+    const updated = [...lanes];
+    updated.splice(index, 1);
+    setLanes(updated);
   };
 
-  const handleCitySelect = (index, type, cityObj) => {
-    const newLanes = [...lanes];
-    newLanes[index][`${type}Query`] = `${cityObj.city}, ${cityObj.state}`;
-    newLanes[index][`${type}City`] = cityObj.city;
-    newLanes[index][`${type}State`] = cityObj.state;
-    newLanes[index][`${type}Zip`] = cityObj.zip;
-    newLanes[index][`${type}Options`] = [];
-    setLanes(newLanes);
+  const handleChange = (index, field, value) => {
+    const updated = [...lanes];
+    updated[index][field] = value;
+    setLanes(updated);
   };
 
-  const addLane = () => setLanes([...lanes, emptyLane()]);
-  const removeLane = (index) => setLanes(lanes.filter((_, i) => i !== index));
-  const handleExport = () => {
-    const csv = generateDATCsv(lanes);
-    downloadCsv(csv);
+  const handleRandomizeToggle = (index) => {
+    const updated = [...lanes];
+    updated[index].randomize = !updated[index].randomize;
+    updated[index].weightMin = weightRange.min;
+    updated[index].weightMax = weightRange.max;
+    setLanes(updated);
+  };
+
+  const handleGenerate = async () => {
+    if (!userId) return alert("User not authenticated.");
+
+    const records = lanes.map((lane) => ({
+      ...lane,
+      user_id: userId,
+      created_at: new Date().toISOString(),
+    }));
+
+    await supabase.from("lanes").insert(records);
+
+    const csv = generateDATCSV(lanes);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    saveAs(blob, `DAT_Postings_${Date.now()}.csv`);
   };
 
   return (
-    <main className="min-h-screen bg-gray-950 text-white py-10 px-4">
-      <div className="max-w-full overflow-x-auto">
-        <h1 className="text-4xl font-bold mb-6 text-cyan-400">Lane Entry</h1>
-        <table className="w-full text-sm border-collapse mb-8">
-          <thead>
-            <tr className="bg-gray-800 text-white">
-              <th className="p-2">Origin</th>
-              <th className="p-2">Destination</th>
-              <th className="p-2">Earliest</th>
-              <th className="p-2">Latest</th>
-              <th className="p-2">Length</th>
-              <th className="p-2">Weight</th>
-              <th className="p-2">Rand?</th>
-              <th className="p-2">Min</th>
-              <th className="p-2">Max</th>
-              <th className="p-2">Equipment</th>
-              <th className="p-2">Comment</th>
-              <th className="p-2">Intermodal</th>
-              <th className="p-2">Remove</th>
-            </tr>
-          </thead>
-          <tbody>
-            {lanes.map((lane, index) => (
-              <>
-                <tr key={index} className="even:bg-gray-900 odd:bg-gray-800">
-                  <td className="p-2 relative">
-                    <input
-                      type="text"
-                      value={lane.originQuery}
-                      onChange={(e) => handleCityInput(index, "origin", e.target.value)}
-                      placeholder="City, ST or ZIP"
-                      className="w-full px-2 py-1 bg-gray-700 rounded text-white"
-                    />
-                    {lane.originOptions.length > 0 && (
-                      <ul className="absolute bg-gray-900 border border-gray-700 mt-1 z-10 w-full max-h-40 overflow-y-auto">
-                        {lane.originOptions.map((city, i) => (
-                          <li
-                            key={i}
-                            onClick={() => handleCitySelect(index, "origin", city)}
-                            className="px-3 py-1 hover:bg-gray-800 cursor-pointer"
-                          >
-                            {city.city}, {city.state} {city.zip}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </td>
+    <main className="min-h-screen bg-gray-950 text-white p-6">
+      <h1 className="text-3xl font-bold text-cyan-400 mb-4">Lane Entry</h1>
 
-                  <td className="p-2 relative">
-                    <input
-                      type="text"
-                      value={lane.destQuery}
-                      onChange={(e) => handleCityInput(index, "dest", e.target.value)}
-                      placeholder="City, ST or ZIP"
-                      className="w-full px-2 py-1 bg-gray-700 rounded text-white"
-                    />
-                    {lane.destOptions.length > 0 && (
-                      <ul className="absolute bg-gray-900 border border-gray-700 mt-1 z-10 w-full max-h-40 overflow-y-auto">
-                        {lane.destOptions.map((city, i) => (
-                          <li
-                            key={i}
-                            onClick={() => handleCitySelect(index, "dest", city)}
-                            className="px-3 py-1 hover:bg-gray-800 cursor-pointer"
-                          >
-                            {city.city}, {city.state} {city.zip}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </td>
+      {lanes.map((lane, idx) => (
+        <div
+          key={idx}
+          className="border border-cyan-800 rounded-lg p-4 mb-4 bg-gray-900 shadow-md"
+        >
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <input
+              type="text"
+              placeholder="Pickup City"
+              value={lane.pickupCity}
+              onChange={(e) => handleChange(idx, "pickupCity", e.target.value)}
+              className="p-2 bg-gray-800 rounded"
+            />
+            <input
+              type="text"
+              placeholder="Pickup State"
+              value={lane.pickupState}
+              onChange={(e) => handleChange(idx, "pickupState", e.target.value)}
+              className="p-2 bg-gray-800 rounded"
+            />
+            <input
+              type="text"
+              placeholder="Pickup ZIP (optional)"
+              value={lane.pickupZip}
+              onChange={(e) => handleChange(idx, "pickupZip", e.target.value)}
+              className="p-2 bg-gray-800 rounded"
+            />
+            <input
+              type="text"
+              placeholder="Delivery City"
+              value={lane.deliveryCity}
+              onChange={(e) => handleChange(idx, "deliveryCity", e.target.value)}
+              className="p-2 bg-gray-800 rounded"
+            />
+            <input
+              type="text"
+              placeholder="Delivery State"
+              value={lane.deliveryState}
+              onChange={(e) => handleChange(idx, "deliveryState", e.target.value)}
+              className="p-2 bg-gray-800 rounded"
+            />
+            <input
+              type="text"
+              placeholder="Delivery ZIP (optional)"
+              value={lane.deliveryZip}
+              onChange={(e) => handleChange(idx, "deliveryZip", e.target.value)}
+              className="p-2 bg-gray-800 rounded"
+            />
+          </div>
 
-                  <td className="p-2">
-                    <input type="date" name="earliest" value={lane.earliest} onChange={(e) => handleChange(index, e)} className="input" />
-                  </td>
-                  <td className="p-2">
-                    <input type="date" name="latest" value={lane.latest} onChange={(e) => handleChange(index, e)} className="input" />
-                  </td>
-                  <td className="p-2">
-                    <input type="number" name="length" value={lane.length} onChange={(e) => handleChange(index, e)} className="input" />
-                  </td>
-                  <td className="p-2">
-                    <input type="number" name="weight" value={lane.weight} onChange={(e) => handleChange(index, e)} className="input" />
-                  </td>
-                  <td className="p-2 text-center">
-                    <input type="checkbox" name="randomize" checked={lane.randomize} onChange={(e) => handleChange(index, e)} />
-                  </td>
-                  <td className="p-2">
-                    <input type="number" name="minWeight" value={lane.minWeight} onChange={(e) => handleChange(index, e)} className="input" disabled={!lane.randomize} />
-                  </td>
-                  <td className="p-2">
-                    <input type="number" name="maxWeight" value={lane.maxWeight} onChange={(e) => handleChange(index, e)} className="input" disabled={!lane.randomize} />
-                  </td>
-                  <td className="p-2">
-                    <select name="equipment" value={lane.equipment} onChange={(e) => handleChange(index, e)} className="input">
-                      {equipmentTypes.map((eq) => (
-                        <option key={eq.code} value={eq.code}>
-                          {eq.code} – {eq.label}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="p-2">
-                    <input type="text" name="comment" value={lane.comment} onChange={(e) => handleChange(index, e)} className="input" />
-                  </td>
-                  <td className="p-2 text-center">
-                    <input type="checkbox" name="intermodal" checked={lane.intermodal} onChange={(e) => handleChange(index, e)} />
-                  </td>
-                  <td className="p-2 text-center">
-                    <button onClick={() => removeLane(index)} className="text-red-400 hover:text-red-600 font-bold">
-                      ✕
-                    </button>
-                  </td>
-                </tr>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <input
+              type="date"
+              value={lane.earliestDate}
+              onChange={(e) => handleChange(idx, "earliestDate", e.target.value)}
+              className="p-2 bg-gray-800 rounded"
+            />
+            <input
+              type="date"
+              value={lane.latestDate}
+              onChange={(e) => handleChange(idx, "latestDate", e.target.value)}
+              className="p-2 bg-gray-800 rounded"
+            />
+            <input
+              type="number"
+              placeholder="Length (ft)"
+              value={lane.length}
+              onChange={(e) => handleChange(idx, "length", e.target.value)}
+              className="p-2 bg-gray-800 rounded"
+            />
+          </div>
 
-                {shouldSuggestReefer(lane).show && (
-                  <tr>
-                    <td colSpan={13} className="p-2 bg-yellow-900 text-yellow-300 italic text-sm">
-                      💡 Can this run in a Reefer? Rates are often better due to {shouldSuggestReefer(lane).reason}.
-                    </td>
-                  </tr>
-                )}
-              </>
-            ))}
-          </tbody>
-        </table>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <input
+              type="number"
+              placeholder="Weight Min"
+              value={lane.weightMin}
+              onChange={(e) => handleChange(idx, "weightMin", e.target.value)}
+              disabled={lane.randomize}
+              className="p-2 bg-gray-800 rounded"
+            />
+            <input
+              type="number"
+              placeholder="Weight Max"
+              value={lane.weightMax}
+              onChange={(e) => handleChange(idx, "weightMax", e.target.value)}
+              disabled={lane.randomize}
+              className="p-2 bg-gray-800 rounded"
+            />
+            <select
+              value={lane.equipment}
+              onChange={(e) => handleChange(idx, "equipment", e.target.value)}
+              className="p-2 bg-gray-800 rounded"
+            >
+              <option value="">Select Equipment</option>
+              {equipmentTypes.map((type) => (
+                <option key={type.code} value={type.code}>
+                  {type.code} – {type.description}
+                </option>
+              ))}
+            </select>
+          </div>
 
-        <div className="flex flex-col md:flex-row items-center gap-4">
-          <button onClick={addLane} className="bg-green-600 hover:bg-green-700 px-6 py-3 rounded-xl font-bold shadow-xl">
-            Add Lane
+          <div className="flex items-center gap-4 mb-4">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={lane.randomize}
+                onChange={() => handleRandomizeToggle(idx)}
+              />
+              Randomize Weight
+            </label>
+            {lane.randomize && (
+              <span className="text-sm text-gray-400">
+                Using global range: {weightRange.min} – {weightRange.max}
+              </span>
+            )}
+            <input
+              type="text"
+              placeholder="Comment"
+              value={lane.comment}
+              onChange={(e) => handleChange(idx, "comment", e.target.value)}
+              className="flex-1 p-2 bg-gray-800 rounded"
+            />
+          </div>
+
+          <button
+            onClick={() => handleRemoveLane(idx)}
+            className="text-sm text-red-500 hover:text-red-700"
+          >
+            Remove Lane
           </button>
-          {lanes.length > 0 && (
-            <button onClick={handleExport} className="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-xl font-bold shadow-xl">
-              Save & Generate DAT CSV
-            </button>
-          )}
         </div>
+      ))}
+
+      <div className="flex gap-4">
+        <button
+          onClick={handleAddLane}
+          className="bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded-lg text-white font-semibold"
+        >
+          Add Lane
+        </button>
+        <button
+          onClick={handleGenerate}
+          className="bg-emerald-700 hover:bg-emerald-800 px-4 py-2 rounded-lg text-white font-semibold"
+        >
+          Save & Generate DAT CSV
+        </button>
       </div>
-
-      <style jsx>{`
-        .input {
-          padding: 0.5rem;
-          background: #1e293b;
-          border-radius: 0.5rem;
-          border: 1px solid #334155;
-          color: white;
-          width: 100%;
-        }
-      `}</style>
-
-      {showModalIndex !== null && (
-        <IntermodalPopup
-          lane={lanes[showModalIndex]}
-          onClose={() => setShowModalIndex(null)}
-        />
-      )}
     </main>
   );
 }
