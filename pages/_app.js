@@ -1,19 +1,15 @@
-// pages/_app.js
+import "@/styles/globals.css";
 import { useEffect } from "react";
 import { supabase } from "../utils/supabaseClient";
-import "../styles/globals.css";
 
-function MyApp({ Component, pageProps }) {
+export default function App({ Component, pageProps }) {
   useEffect(() => {
-    const {
-      data: { subscription }
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_IN") {
-        console.log("User signed in", session);
-      }
+    const { data: listener } = supabase.auth.onAuthStateChange(() => {
+      // Handles automatic user session persistence
     });
-
-    return () => subscription.unsubscribe();
+    return () => {
+      listener?.subscription.unsubscribe();
+    };
   }, []);
 
   return (
@@ -22,5 +18,3 @@ function MyApp({ Component, pageProps }) {
     </main>
   );
 }
-
-export default MyApp;
