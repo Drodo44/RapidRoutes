@@ -1,5 +1,7 @@
+// pages/reset-password.js
 import { useState } from "react";
 import { supabase } from "../utils/supabaseClient";
+import Image from "next/image";
 
 export default function ResetPassword() {
   const [email, setEmail] = useState("");
@@ -11,22 +13,33 @@ export default function ResetPassword() {
     setMessage("");
     setError("");
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: typeof window !== "undefined" ? `${window.location.origin}/login` : undefined
+      redirectTo:
+        typeof window !== "undefined"
+          ? `${window.location.origin}/login`
+          : undefined,
     });
     if (error) setError(error.message);
     else setMessage("Password reset email sent. Check your inbox.");
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-950">
-      <div className="card">
+    <div className="min-h-screen flex items-center justify-center bg-gray-950 px-4">
+      <div className="bg-[#1e293b] p-6 rounded-xl max-w-md w-full text-center shadow-xl">
+        <Image
+          src="/logo.png"
+          width={150}
+          height={150}
+          alt="RapidRoutes Logo"
+          className="mx-auto mb-4"
+        />
         <h2 className="text-cyan-400 text-2xl font-bold mb-4">Reset Password</h2>
-        <form onSubmit={handleReset} className="flex flex-col gap-4">
+
+        <form onSubmit={handleReset} className="space-y-4">
           <input
             type="email"
             placeholder="Enter your email"
             value={email}
-            onChange={e => setEmail(e.target.value)}
+            onChange={(e) => setEmail(e.target.value)}
             required
             className="w-full p-3 rounded-lg bg-gray-800 border border-cyan-400 text-white"
           />
@@ -37,6 +50,7 @@ export default function ResetPassword() {
             Send Reset Email
           </button>
         </form>
+
         {message && <div className="text-green-400 mt-4">{message}</div>}
         {error && <div className="text-red-400 mt-4">{error}</div>}
       </div>
