@@ -1,4 +1,4 @@
-import "@/styles/globals.css";
+import "../styles/globals.css"; // ✅ Fixed path
 import { useEffect } from "react";
 import { supabase } from "../utils/supabaseClient";
 
