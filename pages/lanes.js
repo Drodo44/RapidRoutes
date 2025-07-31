@@ -4,6 +4,7 @@ import equipmentTypes from "../data/equipmentTypes";
 import { generateDATCsv, downloadCsv } from "../lib/datExport";
 import { searchCities } from "../utils/citySearch";
 import IntermodalPopup from "../components/IntermodalPopup";
+import { shouldSuggestReefer } from "../utils/reeferAdvisor";
 
 export default function Lanes() {
   const [lanes, setLanes] = useState([emptyLane()]);
@@ -26,7 +27,6 @@ export default function Lanes() {
     const newLanes = [...lanes];
     newLanes[index][name] = type === "checkbox" ? checked : value;
 
-    // Trigger Intermodal modal if intermodal toggled on
     if (name === "intermodal" && checked) {
       setShowModalIndex(index);
     }
@@ -82,95 +82,105 @@ export default function Lanes() {
           </thead>
           <tbody>
             {lanes.map((lane, index) => (
-              <tr key={index} className="even:bg-gray-900 odd:bg-gray-800">
-                <td className="p-2 relative">
-                  <input
-                    type="text"
-                    value={lane.originQuery}
-                    onChange={(e) => handleCityInput(index, "origin", e.target.value)}
-                    placeholder="City, ST or ZIP"
-                    className="w-full px-2 py-1 bg-gray-700 rounded text-white"
-                  />
-                  {lane.originOptions.length > 0 && (
-                    <ul className="absolute bg-gray-900 border border-gray-700 mt-1 z-10 w-full max-h-40 overflow-y-auto">
-                      {lane.originOptions.map((city, i) => (
-                        <li
-                          key={i}
-                          onClick={() => handleCitySelect(index, "origin", city)}
-                          className="px-3 py-1 hover:bg-gray-800 cursor-pointer"
-                        >
-                          {city.city}, {city.state} {city.zip}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </td>
+              <>
+                <tr key={index} className="even:bg-gray-900 odd:bg-gray-800">
+                  <td className="p-2 relative">
+                    <input
+                      type="text"
+                      value={lane.originQuery}
+                      onChange={(e) => handleCityInput(index, "origin", e.target.value)}
+                      placeholder="City, ST or ZIP"
+                      className="w-full px-2 py-1 bg-gray-700 rounded text-white"
+                    />
+                    {lane.originOptions.length > 0 && (
+                      <ul className="absolute bg-gray-900 border border-gray-700 mt-1 z-10 w-full max-h-40 overflow-y-auto">
+                        {lane.originOptions.map((city, i) => (
+                          <li
+                            key={i}
+                            onClick={() => handleCitySelect(index, "origin", city)}
+                            className="px-3 py-1 hover:bg-gray-800 cursor-pointer"
+                          >
+                            {city.city}, {city.state} {city.zip}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </td>
 
-                <td className="p-2 relative">
-                  <input
-                    type="text"
-                    value={lane.destQuery}
-                    onChange={(e) => handleCityInput(index, "dest", e.target.value)}
-                    placeholder="City, ST or ZIP"
-                    className="w-full px-2 py-1 bg-gray-700 rounded text-white"
-                  />
-                  {lane.destOptions.length > 0 && (
-                    <ul className="absolute bg-gray-900 border border-gray-700 mt-1 z-10 w-full max-h-40 overflow-y-auto">
-                      {lane.destOptions.map((city, i) => (
-                        <li
-                          key={i}
-                          onClick={() => handleCitySelect(index, "dest", city)}
-                          className="px-3 py-1 hover:bg-gray-800 cursor-pointer"
-                        >
-                          {city.city}, {city.state} {city.zip}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </td>
+                  <td className="p-2 relative">
+                    <input
+                      type="text"
+                      value={lane.destQuery}
+                      onChange={(e) => handleCityInput(index, "dest", e.target.value)}
+                      placeholder="City, ST or ZIP"
+                      className="w-full px-2 py-1 bg-gray-700 rounded text-white"
+                    />
+                    {lane.destOptions.length > 0 && (
+                      <ul className="absolute bg-gray-900 border border-gray-700 mt-1 z-10 w-full max-h-40 overflow-y-auto">
+                        {lane.destOptions.map((city, i) => (
+                          <li
+                            key={i}
+                            onClick={() => handleCitySelect(index, "dest", city)}
+                            className="px-3 py-1 hover:bg-gray-800 cursor-pointer"
+                          >
+                            {city.city}, {city.state} {city.zip}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </td>
 
-                <td className="p-2">
-                  <input type="date" name="earliest" value={lane.earliest} onChange={(e) => handleChange(index, e)} className="input" />
-                </td>
-                <td className="p-2">
-                  <input type="date" name="latest" value={lane.latest} onChange={(e) => handleChange(index, e)} className="input" />
-                </td>
-                <td className="p-2">
-                  <input type="number" name="length" value={lane.length} onChange={(e) => handleChange(index, e)} className="input" />
-                </td>
-                <td className="p-2">
-                  <input type="number" name="weight" value={lane.weight} onChange={(e) => handleChange(index, e)} className="input" />
-                </td>
-                <td className="p-2 text-center">
-                  <input type="checkbox" name="randomize" checked={lane.randomize} onChange={(e) => handleChange(index, e)} />
-                </td>
-                <td className="p-2">
-                  <input type="number" name="minWeight" value={lane.minWeight} onChange={(e) => handleChange(index, e)} className="input" disabled={!lane.randomize} />
-                </td>
-                <td className="p-2">
-                  <input type="number" name="maxWeight" value={lane.maxWeight} onChange={(e) => handleChange(index, e)} className="input" disabled={!lane.randomize} />
-                </td>
-                <td className="p-2">
-                  <select name="equipment" value={lane.equipment} onChange={(e) => handleChange(index, e)} className="input">
-                    {equipmentTypes.map((eq) => (
-                      <option key={eq.code} value={eq.code}>
-                        {eq.code} – {eq.label}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td className="p-2">
-                  <input type="text" name="comment" value={lane.comment} onChange={(e) => handleChange(index, e)} className="input" />
-                </td>
-                <td className="p-2 text-center">
-                  <input type="checkbox" name="intermodal" checked={lane.intermodal} onChange={(e) => handleChange(index, e)} />
-                </td>
-                <td className="p-2 text-center">
-                  <button onClick={() => removeLane(index)} className="text-red-400 hover:text-red-600 font-bold">
-                    ✕
-                  </button>
-                </td>
-              </tr>
+                  <td className="p-2">
+                    <input type="date" name="earliest" value={lane.earliest} onChange={(e) => handleChange(index, e)} className="input" />
+                  </td>
+                  <td className="p-2">
+                    <input type="date" name="latest" value={lane.latest} onChange={(e) => handleChange(index, e)} className="input" />
+                  </td>
+                  <td className="p-2">
+                    <input type="number" name="length" value={lane.length} onChange={(e) => handleChange(index, e)} className="input" />
+                  </td>
+                  <td className="p-2">
+                    <input type="number" name="weight" value={lane.weight} onChange={(e) => handleChange(index, e)} className="input" />
+                  </td>
+                  <td className="p-2 text-center">
+                    <input type="checkbox" name="randomize" checked={lane.randomize} onChange={(e) => handleChange(index, e)} />
+                  </td>
+                  <td className="p-2">
+                    <input type="number" name="minWeight" value={lane.minWeight} onChange={(e) => handleChange(index, e)} className="input" disabled={!lane.randomize} />
+                  </td>
+                  <td className="p-2">
+                    <input type="number" name="maxWeight" value={lane.maxWeight} onChange={(e) => handleChange(index, e)} className="input" disabled={!lane.randomize} />
+                  </td>
+                  <td className="p-2">
+                    <select name="equipment" value={lane.equipment} onChange={(e) => handleChange(index, e)} className="input">
+                      {equipmentTypes.map((eq) => (
+                        <option key={eq.code} value={eq.code}>
+                          {eq.code} – {eq.label}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="p-2">
+                    <input type="text" name="comment" value={lane.comment} onChange={(e) => handleChange(index, e)} className="input" />
+                  </td>
+                  <td className="p-2 text-center">
+                    <input type="checkbox" name="intermodal" checked={lane.intermodal} onChange={(e) => handleChange(index, e)} />
+                  </td>
+                  <td className="p-2 text-center">
+                    <button onClick={() => removeLane(index)} className="text-red-400 hover:text-red-600 font-bold">
+                      ✕
+                    </button>
+                  </td>
+                </tr>
+
+                {shouldSuggestReefer(lane).show && (
+                  <tr>
+                    <td colSpan={13} className="p-2 bg-yellow-900 text-yellow-300 italic text-sm">
+                      💡 Can this run in a Reefer? Rates are often better due to {shouldSuggestReefer(lane).reason}.
+                    </td>
+                  </tr>
+                )}
+              </>
             ))}
           </tbody>
         </table>
