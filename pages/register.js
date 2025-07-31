@@ -1,41 +1,42 @@
-// /pages/register.js
-import { useState } from "react";
+// pages/register.js
+import { useEffect, useState } from "react";
+import { supabase } from "../utils/supabaseClient";
 
 export default function Register() {
-  const [email, setEmail] = useState("");
-  const [name, setName] = useState("");
-  const [password, setPassword] = useState("");
-  const [message, setMessage] = useState("");
+  const [status, setStatus] = useState("Loading...");
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (email && name && password) {
-      setMessage("Registered! (Demo placeholder)");
-    } else {
-      setMessage("All fields are required.");
-    }
-  };
+  useEffect(() => {
+    const checkStatus = async () => {
+      const {
+        data: { session }
+      } = await supabase.auth.getSession();
+
+      if (!session) return setStatus("Not logged in");
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", session.user.id)
+        .single();
+
+      if (!profile) {
+        setStatus("Your request has been submitted. An admin will review it shortly.");
+      } else if (profile.role === "Apprentice") {
+        setStatus("Welcome Apprentice! Limited access until approval.");
+      } else {
+        setStatus("You are already approved.");
+      }
+    };
+
+    checkStatus();
+  }, []);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-950">
-      <div className="card">
-        <img src="/logo.png" alt="RapidRoutes Logo" className="mx-auto w-32 mb-4" />
-        <h2 className="text-cyan-400 text-2xl font-bold mb-4">Register for RapidRoutes</h2>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <input type="text" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)}
-            className="w-full p-3 rounded-lg bg-gray-800 border border-gray-600 text-white" />
-          <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)}
-            className="w-full p-3 rounded-lg bg-gray-800 border border-gray-600 text-white" />
-          <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)}
-            className="w-full p-3 rounded-lg bg-gray-800 border border-gray-600 text-white" />
-          <button type="submit"
-            className="w-full p-3 bg-green-600 hover:bg-green-700 rounded-lg text-white font-semibold">
-            Register
-          </button>
-          {message && <p className="text-cyan-400">{message}</p>}
-          <a href="/login" className="text-cyan-400 hover:underline text-center">Back to Login</a>
-        </form>
+    <main className="min-h-screen bg-gray-950 text-white flex items-center justify-center px-4">
+      <div className="bg-[#1e293b] p-6 rounded-xl shadow-xl max-w-md w-full text-center">
+        <h1 className="text-2xl font-bold text-cyan-400 mb-4">Registration Status</h1>
+        <p className="text-lg text-gray-300">{status}</p>
       </div>
-    </div>
+    </main>
   );
 }
