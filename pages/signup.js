@@ -1,74 +1,41 @@
+// pages/signup.js
 import { useState } from "react";
-import { useRouter } from "next/router";
 import { supabase } from "../utils/supabaseClient";
-
-const ROLES = ["Admin", "Broker", "Support", "Apprentice"];
+import Image from "next/image";
+import Link from "next/link";
 
 export default function Signup() {
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    role: "Broker"
-  });
+  const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
-  const router = useRouter();
 
-  const handleChange = (e) => {
-    setForm(f => ({ ...f, [e.target.name]: e.target.value }));
-  };
-
-  const handleSignup = async (e) => {
-    e.preventDefault();
-    setMessage("Submitting account request...");
-    const { error } = await supabase.from("pending_users").insert([form]);
-    if (error) {
-      setMessage("Error: " + error.message);
-    } else {
-      setMessage("Your account request has been submitted. An admin will review and approve.");
-      // Optionally: trigger admin notification here
-    }
+  const handleSignup = async () => {
+    const { error } = await supabase.auth.signInWithOtp({ email });
+    setMessage(error ? "Signup failed." : "Check your email for magic link.");
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-950">
-      <div className="card">
-        <h2 className="text-cyan-400 text-2xl font-bold mb-4">Request a RapidRoutes Account</h2>
-        <form onSubmit={handleSignup} className="flex flex-col gap-4">
-          <input
-            type="text"
-            name="name"
-            placeholder="Full Name"
-            value={form.name}
-            onChange={handleChange}
-            required
-            className="w-full p-3 rounded-lg bg-gray-800 border border-gray-600 text-white"
-          />
-          <input
-            type="email"
-            name="email"
-            placeholder="Email"
-            value={form.email}
-            onChange={handleChange}
-            required
-            className="w-full p-3 rounded-lg bg-gray-800 border border-gray-600 text-white"
-          />
-          <select
-            name="role"
-            value={form.role}
-            onChange={handleChange}
-            className="w-full p-3 rounded-lg bg-gray-800 border border-gray-600 text-white"
-          >
-            {ROLES.map(r => <option key={r}>{r}</option>)}
-          </select>
-          <button
-            type="submit"
-            className="w-full p-3 bg-green-600 hover:bg-green-700 rounded-lg text-white font-semibold"
-          >
-            Request Account
-          </button>
-        </form>
-        {message && <div className="text-cyan-400 mt-4">{message}</div>}
+    <main className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
+      <div className="bg-[#1e293b] p-8 rounded-xl max-w-md w-full text-center shadow-md">
+        <Image src="/logo.png" width={200} height={200} alt="Logo" className="mx-auto" />
+        <h2 className="text-2xl font-bold text-cyan-400 mb-4">Sign Up</h2>
+
+        <input
+          type="email"
+          placeholder="Your Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="w-full p-3 rounded mb-4 text-black"
+        />
+        <button
+          onClick={handleSignup}
+          className="w-full bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded font-semibold"
+        >
+          Send Magic Link
+        </button>
+
+        {message && <p className="mt-4 text-yellow-400 text-sm">{message}</p>}
+        <Link href="/" className="block mt-6 text-sm text-cyan-300 hover:underline">Back to Home</Link>
       </div>
-    </div>
+    </main>
   );
 }
