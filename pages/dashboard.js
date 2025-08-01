@@ -6,11 +6,12 @@ import Image from "next/image";
 
 export default function Dashboard() {
   const [user, setUser] = useState(null);
+  const [lanes, setLanes] = useState([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    const checkSessionAndProfile = async () => {
+    const checkSessionAndLoadData = async () => {
       const {
         data: { user },
         error,
@@ -35,24 +36,23 @@ export default function Dashboard() {
       }
 
       setUser(user);
+      await loadLanes();
+    };
+
+    const loadLanes = async () => {
+      setLoading(true);
+      const { data, error } = await supabase.from("lanes").select("*");
+      if (!error && data) setLanes(data);
       setLoading(false);
     };
 
-    checkSessionAndProfile();
+    checkSessionAndLoadData();
   }, [router]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push("/login");
   };
-
-  if (loading) {
-    return (
-      <main className="min-h-screen flex items-center justify-center bg-gray-950 text-white">
-        <p className="text-blue-400">Loading dashboard...</p>
-      </main>
-    );
-  }
 
   return (
     <main className="min-h-screen bg-gray-950 text-white flex flex-col">
@@ -78,10 +78,47 @@ export default function Dashboard() {
       </header>
 
       <section className="flex-1 p-8">
-        <h2 className="text-3xl font-bold mb-6">Welcome back!</h2>
-        {/* Replace below with actual dashboard logic */}
-        <p className="text-gray-300">User ID: {user.id}</p>
-        <p className="text-gray-400">Email: {user.email}</p>
+        <h2 className="text-3xl font-bold mb-6">Your Lanes</h2>
+        {loading ? (
+          <p className="text-blue-400">Loading lanes...</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left bg-gray-900 rounded-xl">
+              <thead>
+                <tr className="text-cyan-400">
+                  <th className="p-3">Origin</th>
+                  <th className="p-3">Destination</th>
+                  <th className="p-3">Equipment</th>
+                  <th className="p-3">Weight</th>
+                  <th className="p-3">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lanes.length === 0 ? (
+                  <tr>
+                    <td className="p-4" colSpan={5}>
+                      No lanes found.
+                    </td>
+                  </tr>
+                ) : (
+                  lanes.map((lane) => (
+                    <tr key={lane.id} className="border-b border-gray-800">
+                      <td className="p-3">
+                        {lane.origin_city}, {lane.origin_state}
+                      </td>
+                      <td className="p-3">
+                        {lane.dest_city}, {lane.dest_state}
+                      </td>
+                      <td className="p-3">{lane.equipment}</td>
+                      <td className="p-3">{lane.weight}</td>
+                      <td className="p-3">{lane.status || "Active"}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
     </main>
   );
