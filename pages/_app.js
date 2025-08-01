@@ -2,17 +2,16 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../utils/supabaseClient";
 import "../styles/globals.css";
+import Layout from "../components/Layout";
 
 function MyApp({ Component, pageProps }) {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    // Hydrate session on load
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user || null);
     });
 
-    // Realtime session tracking
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -23,9 +22,9 @@ function MyApp({ Component, pageProps }) {
   }, []);
 
   return (
-    <main className="min-h-screen bg-gray-950 text-white">
+    <Layout>
       <Component {...pageProps} user={user} />
-    </main>
+    </Layout>
   );
 }
 
