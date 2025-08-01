@@ -1,139 +1,274 @@
 // pages/lanes.js
-
 import { useState, useEffect } from "react";
 import supabase from "../utils/supabaseClient";
-import { suggestComment } from "../lib/commentAI";
 import { calculateRRSI } from "../lib/rrsi";
-import { saveLaneNote } from "../lib/laneNotes";
+import { suggestComment } from "../lib/commentAI";
 import ProtectedRoute from "../components/ProtectedRoute";
+import allCities from "../data/allCities.json"; // assume this exists
 
 function LaneForm() {
   const [form, setForm] = useState({
-    origin_city: "",
-    origin_state: "",
-    dest_city: "",
-    dest_state: "",
+    origin: "",
+    destination: "",
     equipment: "",
-    weight: "",
     date: "",
     length: "",
     comment: "",
+    randomize: false,
+    weight: "",
+    weightMin: "",
+    weightMax: "",
+    status: "Active",
   });
 
-  const [suggested, setSuggested] = useState("");
+  const [aiComment, setAiComment] = useState("");
+  const [filteredCities, setFilteredCities] = useState([]);
+  const [fieldFocus, setFieldFocus] = useState("");
   const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const autoSuggest = () => {
-      if (form.equipment && form.origin_state && form.dest_state) {
-        const suggestion = suggestComment(form);
-        setSuggested(suggestion);
-      }
-    };
-    autoSuggest();
-  }, [form.equipment, form.origin_state, form.dest_state]);
+    if (form.equipment && form.origin && form.destination) {
+      setAiComment(suggestComment({
+        equipment: form.equipment,
+        origin_state: form.origin.split(", ")[1],
+        dest_state: form.destination.split(", ")[1],
+      }));
+    }
+  }, [form.equipment, form.origin, form.destination]);
 
-  function handleChange(e) {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  }
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setForm({
+      ...form,
+      [name]: type === "checkbox" ? checked : value,
+    });
 
-  async function handleSubmit(e) {
+    if (["origin", "destination"].includes(name)) {
+      const match = value.toLowerCase();
+      const matches = allCities
+        .filter(
+          (city) =>
+            `${city.city}, ${city.state}`.toLowerCase().includes(match)
+        )
+        .slice(0, 10);
+      setFilteredCities(matches);
+      setFieldFocus(name);
+    }
+  };
+
+  const handleCitySelect = (entry) => {
+    setForm((prev) => ({
+      ...prev,
+      [fieldFocus]: `${entry.city}, ${entry.state}`,
+    }));
+    setFilteredCities([]);
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setMessage("");
 
-    const rrs = calculateRRSI(form);
-    const fullForm = { ...form, rrs };
+    if (
+      form.randomize &&
+      (!form.weightMin || !form.weightMax || form.weightMin >= form.weightMax)
+    ) {
+      setMessage("❌ Invalid weight range.");
+      return;
+    }
 
-    const { data, error } = await supabase.from("lanes").insert([fullForm]);
+    if (!form.randomize && !form.weight) {
+      setMessage("❌ Enter a fixed weight or enable randomizer.");
+      return;
+    }
+
+    const rrs = calculateRRSI(form);
+
+    const laneData = {
+      ...form,
+      rrs,
+    };
+
+    const { error } = await supabase.from("lanes").insert([laneData]);
 
     if (error) {
       setMessage("❌ " + error.message);
     } else {
-      setMessage("✅ Lane saved!");
-      saveLaneNote(form.origin_city, form.dest_city, form.equipment, form.comment);
+      setMessage("✅ Lane added!");
       setForm({
-        origin_city: "",
-        origin_state: "",
-        dest_city: "",
-        dest_state: "",
+        origin: "",
+        destination: "",
         equipment: "",
-        weight: "",
         date: "",
         length: "",
         comment: "",
+        randomize: false,
+        weight: "",
+        weightMin: "",
+        weightMax: "",
+        status: "Active",
       });
     }
-
-    setLoading(false);
-  }
+  };
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-[#111827] flex items-center justify-center py-12 text-white">
+      <div className="min-h-screen bg-[#0b1623] text-white py-10 px-4 flex justify-center">
         <form
-          className="bg-[#1a2236] p-8 rounded-2xl shadow-2xl max-w-xl w-full"
           onSubmit={handleSubmit}
+          className="bg-[#151d2b] p-8 rounded-2xl shadow-2xl w-full max-w-xl"
         >
-          <h1 className="text-3xl font-bold mb-6 text-neon-blue">Create New Lane</h1>
+          <h1 className="text-3xl font-bold text-neon-blue mb-6">
+            Create New Lane
+          </h1>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block mb-1">Origin City</label>
-              <input name="origin_city" value={form.origin_city} onChange={handleChange} required className="w-full p-2 rounded bg-[#222f45]" />
-            </div>
-            <div>
-              <label className="block mb-1">Origin State</label>
-              <input name="origin_state" value={form.origin_state} onChange={handleChange} required className="w-full p-2 rounded bg-[#222f45]" />
-            </div>
-            <div>
-              <label className="block mb-1">Dest City</label>
-              <input name="dest_city" value={form.dest_city} onChange={handleChange} required className="w-full p-2 rounded bg-[#222f45]" />
-            </div>
-            <div>
-              <label className="block mb-1">Dest State</label>
-              <input name="dest_state" value={form.dest_state} onChange={handleChange} required className="w-full p-2 rounded bg-[#222f45]" />
-            </div>
+          <label className="block mb-1">Origin (City, ST)</label>
+          <input
+            name="origin"
+            value={form.origin}
+            onChange={handleChange}
+            className="w-full p-2 rounded bg-[#222f45] mb-2"
+            required
+            autoComplete="off"
+          />
+          {fieldFocus === "origin" &&
+            filteredCities.map((c) => (
+              <div
+                key={`${c.city},${c.state}`}
+                onClick={() => handleCitySelect(c)}
+                className="cursor-pointer text-sm px-3 py-1 bg-[#1f2937] hover:bg-[#374151]"
+              >
+                📍 {c.city}, {c.state}
+              </div>
+            ))}
+
+          <label className="block mt-4 mb-1">Destination (City, ST)</label>
+          <input
+            name="destination"
+            value={form.destination}
+            onChange={handleChange}
+            className="w-full p-2 rounded bg-[#222f45] mb-2"
+            required
+            autoComplete="off"
+          />
+          {fieldFocus === "destination" &&
+            filteredCities.map((c) => (
+              <div
+                key={`${c.city},${c.state}`}
+                onClick={() => handleCitySelect(c)}
+                className="cursor-pointer text-sm px-3 py-1 bg-[#1f2937] hover:bg-[#374151]"
+              >
+                📍 {c.city}, {c.state}
+              </div>
+            ))}
+
+          <label className="block mt-4 mb-1">Equipment</label>
+          <input
+            name="equipment"
+            value={form.equipment}
+            onChange={handleChange}
+            className="w-full p-2 rounded bg-[#222f45]"
+            required
+          />
+
+          <label className="block mt-4 mb-1">Length (ft)</label>
+          <input
+            name="length"
+            type="number"
+            value={form.length}
+            onChange={handleChange}
+            className="w-full p-2 rounded bg-[#222f45]"
+            required
+          />
+
+          <label className="block mt-4 mb-1">Pickup Date</label>
+          <input
+            name="date"
+            type="date"
+            value={form.date}
+            onChange={handleChange}
+            className="w-full p-2 rounded bg-[#222f45]"
+            required
+          />
+
+          <div className="mt-4 flex items-center gap-3">
+            <input
+              type="checkbox"
+              name="randomize"
+              checked={form.randomize}
+              onChange={handleChange}
+            />
+            <label className="text-sm">Randomize Weight?</label>
           </div>
 
-          <div className="mt-4">
-            <label className="block mb-1">Equipment</label>
-            <input name="equipment" value={form.equipment} onChange={handleChange} required className="w-full p-2 rounded bg-[#222f45]" />
-          </div>
-
-          <div className="mt-4 grid grid-cols-2 gap-4">
-            <div>
-              <label className="block mb-1">Weight (lbs)</label>
-              <input name="weight" type="number" value={form.weight} onChange={handleChange} required className="w-full p-2 rounded bg-[#222f45]" />
+          {form.randomize ? (
+            <div className="grid grid-cols-2 gap-4 mt-2">
+              <input
+                name="weightMin"
+                type="number"
+                placeholder="Min lbs"
+                value={form.weightMin}
+                onChange={handleChange}
+                className="p-2 rounded bg-[#222f45]"
+                required
+              />
+              <input
+                name="weightMax"
+                type="number"
+                placeholder="Max lbs"
+                value={form.weightMax}
+                onChange={handleChange}
+                className="p-2 rounded bg-[#222f45]"
+                required
+              />
             </div>
-            <div>
-              <label className="block mb-1">Length (ft)</label>
-              <input name="length" type="number" value={form.length} onChange={handleChange} required className="w-full p-2 rounded bg-[#222f45]" />
+          ) : (
+            <div className="mt-2">
+              <input
+                name="weight"
+                type="number"
+                placeholder="Weight (lbs)"
+                value={form.weight}
+                onChange={handleChange}
+                className="w-full p-2 rounded bg-[#222f45]"
+                required
+              />
             </div>
+          )}
+
+          <div className="mt-4 flex items-center gap-3">
+            <input
+              type="checkbox"
+              name="status"
+              checked={form.status === "Queued"}
+              onChange={(e) =>
+                setForm({ ...form, status: e.target.checked ? "Queued" : "Active" })
+              }
+            />
+            <label className="text-sm">Post Later (Queue)</label>
           </div>
 
-          <div className="mt-4">
-            <label className="block mb-1">Pickup Date</label>
-            <input name="date" type="date" value={form.date} onChange={handleChange} required className="w-full p-2 rounded bg-[#222f45]" />
-          </div>
+          <label className="block mt-4 mb-1">Comment (Optional)</label>
+          <textarea
+            name="comment"
+            value={form.comment}
+            onChange={handleChange}
+            className="w-full p-2 rounded bg-[#222f45]"
+          />
+          {aiComment && (
+            <div className="text-green-400 text-sm mt-1">
+              💡 Suggestion: {aiComment}
+            </div>
+          )}
 
-          <div className="mt-4">
-            <label className="block mb-1">Comment (optional)</label>
-            <textarea name="comment" value={form.comment} onChange={handleChange} className="w-full p-2 rounded bg-[#222f45]" />
-            {suggested && (
-              <p className="text-green-400 text-sm mt-1">💡 Suggested: {suggested}</p>
-            )}
-          </div>
-
-          <button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 py-2 rounded-xl font-bold shadow-xl mt-6">
-            {loading ? "Saving..." : "Create Lane"}
+          <button
+            type="submit"
+            className="w-full bg-blue-600 hover:bg-blue-700 py-2 rounded-xl font-bold shadow-xl mt-6"
+          >
+            Create Lane
           </button>
 
           {message && (
-            <div className="mt-4 text-center font-semibold">
-              {message}
-            </div>
+            <div className="mt-4 text-center font-semibold">{message}</div>
           )}
         </form>
       </div>
