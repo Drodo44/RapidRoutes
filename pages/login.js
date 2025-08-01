@@ -1,7 +1,8 @@
-// pages/login.js
 import { useState } from 'react';
 import { useRouter } from 'next/router';
-import { supabase } from '@/utils/supabaseClient';
+import { supabase } from '../utils/supabaseClient'; // ✅ fixed relative import
+import Image from 'next/image';
+import logo from '../public/logo.png';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -18,15 +19,21 @@ export default function Login() {
       password,
     });
 
-    if (error || !data.session) {
+    if (error) {
       setErrorMsg('Invalid credentials.');
+      return;
+    }
+
+    const user = data.user;
+    if (!user) {
+      setErrorMsg('Login failed.');
       return;
     }
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
-      .eq('email', email)
+      .eq('id', user.id)
       .single();
 
     if (profileError || !profile) {
@@ -39,25 +46,24 @@ export default function Login() {
       return;
     }
 
-    if (profile.role === 'Admin') {
-      router.push('/admin');
-    } else {
-      router.push('/dashboard');
-    }
+    router.push('/dashboard');
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gray-950 text-white">
-      <div className="bg-gray-900 p-8 rounded-lg shadow-md w-full max-w-md">
-        <h2 className="text-2xl font-bold text-cyan-400 text-center mb-4">Login</h2>
-        <form onSubmit={handleLogin}>
+    <main className="min-h-screen bg-gray-950 text-white flex items-center justify-center px-4">
+      <div className="bg-gray-900 p-8 rounded-lg shadow-lg w-full max-w-md">
+        <div className="flex justify-center mb-6">
+          <Image src={logo} alt="RapidRoutes Logo" width={200} height={200} />
+        </div>
+        <h1 className="text-2xl font-bold text-center text-cyan-400 mb-4">Login</h1>
+        <form onSubmit={handleLogin} className="space-y-4">
           <input
             type="email"
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="w-full p-2 mb-4 rounded bg-blue-100 text-black"
+            className="w-full p-2 rounded bg-gray-800 border border-gray-700 text-white"
           />
           <input
             type="password"
@@ -65,18 +71,18 @@ export default function Login() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            className="w-full p-2 mb-4 rounded bg-blue-100 text-black"
+            className="w-full p-2 rounded bg-gray-800 border border-gray-700 text-white"
           />
+          {errorMsg && <p className="text-red-500 text-sm">{errorMsg}</p>}
           <button
             type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+            className="w-full py-2 px-4 rounded bg-blue-600 hover:bg-blue-700 text-white font-semibold"
           >
             Login
           </button>
-          {errorMsg && <p className="text-red-500 mt-2 text-center">{errorMsg}</p>}
         </form>
-        <p className="text-center text-sm mt-4 text-cyan-400">
-          <a href="/forgot">Forgot your password?</a>
+        <p className="mt-4 text-center text-sm text-cyan-300">
+          <a href="/forgot" className="hover:underline">Forgot your password?</a>
         </p>
       </div>
     </main>
