@@ -13,16 +13,16 @@ export default function Login() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setError("");
+    setLoading(true);
 
-    const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
+    const { data: authData, error: loginError } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
-    if (loginError) {
-      setError(loginError.message);
+    if (loginError || !authData?.user) {
+      setError(loginError?.message || "Login failed.");
       setLoading(false);
       return;
     }
@@ -30,14 +30,13 @@ export default function Login() {
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("*")
-      .eq("id", loginData.user.id)
-      .eq("email", email)
+      .eq("id", authData.user.id)
       .eq("active", true)
       .single();
 
     if (profileError || !profile) {
-      setError("Access denied. Your account may not be active.");
       await supabase.auth.signOut();
+      setError("Access denied. Profile not active or missing.");
       setLoading(false);
       return;
     }
@@ -48,7 +47,15 @@ export default function Login() {
   return (
     <main style={styles.page}>
       <div style={styles.card}>
-        <Image src="/logo.png" alt="Logo" width={200} height={200} />
+        <div style={{ marginBottom: 20 }}>
+          <Image
+            src="/logo.png"
+            alt="RapidRoutes Logo"
+            width={200}
+            height={200}
+            style={{ display: "block", margin: "0 auto" }}
+          />
+        </div>
         <h2 style={styles.title}>Sign In to RapidRoutes</h2>
         <form onSubmit={handleLogin}>
           <input
@@ -97,7 +104,12 @@ const styles = {
     maxWidth: "24rem",
     width: "100%",
   },
-  title: { color: "#22d3ee", margin: "1rem 0", fontSize: "1.75rem" },
+  title: {
+    color: "#22d3ee",
+    margin: "1rem 0",
+    fontSize: "1.75rem",
+    fontWeight: "bold",
+  },
   input: {
     width: "100%",
     padding: "0.75rem",
