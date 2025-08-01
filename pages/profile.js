@@ -1,45 +1,44 @@
-// /pages/profile.js
+// pages/profile.js
+
 import { useEffect, useState } from "react";
-import { supabase } from "../utils/supabaseClient";
 import { useRouter } from "next/router";
+import supabase from "../utils/supabaseClient";
 
 export default function Profile() {
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(null);
   const router = useRouter();
 
   useEffect(() => {
-    loadProfile();
-  }, []);
+    const loadUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) router.push("/login");
+      else setUser(user);
+    };
 
-  async function loadProfile() {
-    const { data: session } = await supabase.auth.getSession();
-    const user = session?.data?.session?.user;
-    if (!user) return router.push("/login");
-
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("email, name, role, active")
-      .eq("id", user.id)
-      .single();
-
-    if (!error) setProfile(data);
-    setLoading(false);
-  }
+    loadUser();
+  }, [router]);
 
   return (
-    <main className="min-h-screen bg-gray-950 text-white p-6">
-      <h1 className="text-3xl font-bold text-cyan-400 mb-6">My Profile</h1>
-      {loading ? (
-        <p>Loading...</p>
-      ) : (
-        <div className="space-y-4">
-          <p><strong>Email:</strong> {profile.email}</p>
-          <p><strong>Name:</strong> {profile.name || "N/A"}</p>
-          <p><strong>Role:</strong> {profile.role}</p>
-          <p><strong>Status:</strong> {profile.active ? "✅ Active" : "❌ Inactive"}</p>
-        </div>
-      )}
-    </main>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#111827] text-white">
+      <h1 className="text-4xl font-bold mb-4 text-neon-blue">My Profile</h1>
+      <div className="bg-[#1a2236] p-8 rounded-2xl shadow-2xl max-w-md w-full">
+        {user ? (
+          <div className="space-y-4">
+            <div>
+              <span className="font-semibold text-gray-300">Email:</span>
+              <span className="ml-2">{user.email}</span>
+            </div>
+            <div>
+              <span className="font-semibold text-gray-300">User ID:</span>
+              <span className="ml-2">{user.id}</span>
+            </div>
+          </div>
+        ) : (
+          <div className="text-red-400">Loading...</div>
+        )}
+      </div>
+    </div>
   );
 }
