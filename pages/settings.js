@@ -1,67 +1,33 @@
-import { useEffect, useState } from "react";
-import { supabase } from "../utils/supabaseClient";
-import { useRouter } from "next/router";
+// pages/settings.js
+
+import { useState } from "react";
 
 export default function Settings() {
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState("");
-  const router = useRouter();
-
-  useEffect(() => {
-    loadProfile();
-  }, []);
-
-  async function loadProfile() {
-    const { data: session } = await supabase.auth.getSession();
-    const user = session?.data?.session?.user;
-    if (!user) return router.push("/login");
-
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .single();
-
-    if (!error) setProfile(data);
-    setLoading(false);
-  }
-
-  async function handleUpdate() {
-    setMessage("");
-    const { error } = await supabase
-      .from("profiles")
-      .update({ name: profile.name })
-      .eq("id", profile.id);
-
-    if (!error) setMessage("Profile updated!");
-  }
-
-  if (loading) return <div className="text-white p-8">Loading...</div>;
+  const [notification, setNotification] = useState(false);
 
   return (
-    <main className="min-h-screen bg-gray-950 text-white p-6">
-      <h1 className="text-3xl font-bold text-cyan-400 mb-6">Settings</h1>
-      <div className="space-y-4 max-w-md">
-        <label className="block">
-          <span className="text-white">Name</span>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#111827] text-white">
+      <h1 className="text-4xl font-bold mb-4 text-neon-blue">Settings</h1>
+      <div className="bg-[#1a2236] p-8 rounded-2xl shadow-2xl max-w-md w-full">
+        <div className="flex items-center mb-6">
+          <label className="mr-3 font-semibold text-gray-300" htmlFor="notif-toggle">
+            Email Notifications
+          </label>
           <input
-            type="text"
-            value={profile.name || ""}
-            onChange={(e) =>
-              setProfile((prev) => ({ ...prev, name: e.target.value }))
-            }
-            className="mt-1 block w-full bg-gray-800 border border-cyan-400 text-white p-2 rounded-lg"
+            id="notif-toggle"
+            type="checkbox"
+            checked={notification}
+            onChange={() => setNotification(!notification)}
+            className="w-5 h-5"
           />
-        </label>
+        </div>
         <button
-          onClick={handleUpdate}
-          className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg text-white font-semibold"
+          onClick={() => alert("Settings saved (placeholder)!")}
+          className="bg-neon-blue text-white px-6 py-2 rounded-2xl mt-4 hover:bg-blue-500 transition"
         >
-          Save Changes
+          Save Settings
         </button>
-        {message && <p className="text-green-400 mt-2">{message}</p>}
       </div>
-    </main>
+    </div>
   );
 }
