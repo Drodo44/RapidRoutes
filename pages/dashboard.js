@@ -1,109 +1,113 @@
 // pages/dashboard.js
 import { useEffect, useState } from "react";
-import { useRouter } from "next/router";
 import supabase from "../utils/supabaseClient";
-import Image from "next/image";
+import { calculateRRSI } from "../lib/rrsi";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import ProtectedRoute from "../components/ProtectedRoute";
 
+const COLORS = ["#00C49F", "#0088FE", "#FFBB28", "#FF8042"];
+
 function Dashboard() {
-  const [user, setUser] = useState(null);
   const [lanes, setLanes] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  const router = useRouter();
+  const [feed, setFeed] = useState([]);
 
   useEffect(() => {
-    const fetchUser = async () => {
-      const { data, error } = await supabase.auth.getUser();
-      if (!data?.user || error) {
-        router.push("/login");
-      } else {
-        setUser(data.user);
-        fetchLanes();
-      }
-    };
-
-    const fetchLanes = async () => {
+    const loadLanes = async () => {
       const { data, error } = await supabase.from("lanes").select("*");
-      if (!error) setLanes(data || []);
+      if (!error && data) {
+        setLanes(data);
+        const entries = data.map((lane) => ({
+          id: lane.id,
+          message: `${lane.origin_city}, ${lane.origin_state} → ${lane.dest_city}, ${lane.dest_state}`,
+          timestamp: lane.created_at || lane.date,
+          rrs: lane.rrs,
+        }));
+        setFeed(entries.reverse().slice(0, 5));
+      }
       setLoading(false);
     };
 
-    fetchUser();
+    loadLanes();
   }, []);
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push("/login");
+  const kpi = {
+    active: lanes.length,
+    queued: lanes.filter((l) => l.status === "Queued").length,
+    rrsAvg:
+      lanes.length > 0
+        ? Math.round(
+            lanes.reduce((acc, l) => acc + (l.rrs || 0), 0) / lanes.length
+          )
+        : 0,
+    equipmentMap: lanes.reduce((acc, lane) => {
+      acc[lane.equipment] = (acc[lane.equipment] || 0) + 1;
+      return acc;
+    }, {}),
   };
+
+  const rrsColor =
+    kpi.rrsAvg >= 90 ? "text-green-400" : kpi.rrsAvg >= 75 ? "text-yellow-400" : "text-red-500";
 
   return (
     <ProtectedRoute>
-      <main className="min-h-screen bg-gray-950 text-white flex flex-col">
-        <header className="flex items-center justify-between px-8 py-4 bg-gray-900 shadow-lg">
-          <div className="flex items-center gap-3">
-            <Image
-              src="/logo.png"
-              alt="RapidRoutes Logo"
-              width={40}
-              height={40}
-              priority
-            />
-            <span className="text-2xl font-bold tracking-tight">RapidRoutes</span>
-          </div>
-          <button
-            onClick={handleLogout}
-            className="bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded-xl text-white font-semibold"
-          >
-            Logout
-          </button>
-        </header>
+      <div>
+        <h1 className="text-3xl font-bold mb-6 text-cyan-400">Broker Dashboard</h1>
 
-        <section className="flex-1 p-8">
-          <h2 className="text-3xl font-bold mb-6">Your Lanes</h2>
-          {loading ? (
-            <div className="text-blue-400">Loading lanes...</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-left bg-gray-900 rounded-xl">
-                <thead>
-                  <tr className="text-cyan-400">
-                    <th className="p-3">Origin</th>
-                    <th className="p-3">Destination</th>
-                    <th className="p-3">Equipment</th>
-                    <th className="p-3">Weight</th>
-                    <th className="p-3">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {lanes.length === 0 ? (
-                    <tr>
-                      <td className="p-4" colSpan={5}>
-                        No lanes found.
-                      </td>
-                    </tr>
-                  ) : (
-                    lanes.map((lane) => (
-                      <tr key={lane.id} className="border-b border-gray-800">
-                        <td className="p-3">
-                          {lane.origin_city}, {lane.origin_state}
-                        </td>
-                        <td className="p-3">
-                          {lane.dest_city}, {lane.dest_state}
-                        </td>
-                        <td className="p-3">{lane.equipment}</td>
-                        <td className="p-3">{lane.weight}</td>
-                        <td className="p-3">{lane.status || "Active"}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
-      </main>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+          <KPI title="Active Lanes" value={kpi.active} />
+          <KPI title="Queued Lanes" value={kpi.queued} />
+          <KPI title="Avg RRSI" value={kpi.rrsAvg} colorClass={rrsColor} />
+          <KPI title="Equipment Types" value={Object.keys(kpi.equipmentMap).length} />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+          <div className="bg-[#1a2236] p-4 rounded-2xl shadow-xl">
+            <h2 className="text-lg font-semibold mb-2 text-neon-blue">Equipment Mix</h2>
+            <ResponsiveContainer width="100%" height={240}>
+              <PieChart>
+                <Pie
+                  data={Object.entries(kpi.equipmentMap).map(([name, value]) => ({ name, value }))}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name }) => name}
+                  outerRadius={80}
+                  dataKey="value"
+                >
+                  {Object.entries(kpi.equipmentMap).map((_, index) => (
+                    <Cell key={index} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="bg-[#1a2236] p-4 rounded-2xl shadow-xl">
+            <h2 className="text-lg font-semibold mb-2 text-neon-blue">Recent Activity</h2>
+            <ul className="space-y-2">
+              {feed.map((entry) => (
+                <li key={entry.id} className="text-sm text-gray-300">
+                  📦 {entry.message}{" "}
+                  <span className="ml-2 text-xs text-gray-500">
+                    RRSI: <span className="font-bold">{entry.rrs || "--"}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </div>
     </ProtectedRoute>
+  );
+}
+
+function KPI({ title, value, colorClass = "text-white" }) {
+  return (
+    <div className="bg-[#1a2236] p-6 rounded-2xl shadow-xl">
+      <h3 className="text-sm text-gray-400 mb-2">{title}</h3>
+      <p className={`text-3xl font-bold ${colorClass}`}>{value}</p>
+    </div>
   );
 }
 
