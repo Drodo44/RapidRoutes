@@ -1,25 +1,39 @@
 // pages/dashboard.js
-export default function Dashboard() {
-  return (
-    <div className="text-white">
-      <h1 className="text-4xl font-bold mb-4 text-cyan-400">Welcome to RapidRoutes</h1>
-      <p className="text-gray-300 mb-6">
-        Your all-in-one freight command center. Manage, export, and dominate the lanes.
-      </p>
+import { useEffect, useState } from "react";
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-gray-800 p-4 rounded shadow">
-          <h2 className="text-lg font-semibold text-emerald-400">📦 Active Lanes</h2>
-          <p className="text-2xl mt-2">8</p>
+export default function Dashboard() {
+  const [role, setRole] = useState("Broker");
+
+  return (
+    <div className="p-6">
+      <h1 className="text-3xl font-bold mb-4 text-cyan-400">Welcome, {role}</h1>
+      <p className="text-sm text-gray-400 mb-6">This is your real-time command center.</p>
+
+      <div className="grid md:grid-cols-3 gap-6">
+        <div className="bg-gray-800 p-4 rounded shadow-md border border-gray-700">
+          <h2 className="text-xl font-semibold mb-2 text-white">Active Lanes</h2>
+          <p className="text-4xl text-emerald-400">14</p>
         </div>
-        <div className="bg-gray-800 p-4 rounded shadow">
-          <h2 className="text-lg font-semibold text-yellow-400">📊 KPIs</h2>
-          <p className="text-sm mt-2">Smart insights coming soon</p>
+
+        <div className="bg-gray-800 p-4 rounded shadow-md border border-gray-700">
+          <h2 className="text-xl font-semibold mb-2 text-white">Today’s Exports</h2>
+          <p className="text-4xl text-indigo-400">3</p>
         </div>
-        <div className="bg-gray-800 p-4 rounded shadow">
-          <h2 className="text-lg font-semibold text-blue-400">🧠 AI Suggestions</h2>
-          <p className="text-sm mt-2">We'll flag potential optimizations here</p>
+
+        <div className="bg-gray-800 p-4 rounded shadow-md border border-gray-700">
+          <h2 className="text-xl font-semibold mb-2 text-white">System Health</h2>
+          <p className="text-4xl text-amber-400">✓</p>
         </div>
+      </div>
+
+      <div className="mt-10">
+        <h2 className="text-2xl font-bold mb-2 text-white">Recent Activity</h2>
+        <ul className="space-y-2 text-sm text-gray-300">
+          <li>✅ Exported DAT CSV for 4 lanes</li>
+          <li>✅ Recap report generated</li>
+          <li>✅ Admin approved user john@example.com</li>
+          <li>✅ 22 postings auto-generated</li>
+        </ul>
       </div>
     </div>
   );
