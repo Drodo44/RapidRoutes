@@ -1,58 +1,45 @@
 import { useState } from "react";
-import { checkFitInBoxTruck } from "../lib/floorUtils";
 
 export default function FloorSpaceCalculator() {
   const [length, setLength] = useState("");
   const [width, setWidth] = useState("");
   const [height, setHeight] = useState("");
-  const [count, setCount] = useState("");
-  const [result, setResult] = useState(null);
+  const [result, setResult] = useState("");
 
-  const handleCheck = () => {
-    const fits = checkFitInBoxTruck({ length, width, height, count });
-    setResult(fits ? "✅ Fits in 26' box truck" : "❌ Requires full dry van");
+  const calculate = () => {
+    const len = parseFloat(length);
+    if (isNaN(len)) return setResult("Invalid input");
+
+    if (len <= 26) {
+      setResult("✅ Fits in a 26ft box truck.");
+    } else if (len <= 53) {
+      setResult("⚠️ Requires full-size dry van.");
+    } else {
+      setResult("❌ Too long. Custom equipment needed.");
+    }
   };
 
   return (
-    <div className="bg-gray-800 p-6 rounded-xl shadow-xl max-w-xl w-full text-white">
-      <h2 className="text-xl font-bold text-cyan-400 mb-4">Floor Space Calculator</h2>
-      <div className="grid grid-cols-2 gap-4">
+    <div className="bg-gray-900 p-4 rounded-xl shadow-xl">
+      <h2 className="text-lg font-bold text-cyan-400 mb-2">
+        Floor Space Checker
+      </h2>
+      <div className="space-y-2">
         <input
-          placeholder="Length (in)"
           type="number"
+          placeholder="Length (ft)"
+          className="w-full p-2 rounded bg-gray-800 text-white"
           value={length}
           onChange={(e) => setLength(e.target.value)}
-          className="p-2 rounded bg-gray-700"
         />
-        <input
-          placeholder="Width (in)"
-          type="number"
-          value={width}
-          onChange={(e) => setWidth(e.target.value)}
-          className="p-2 rounded bg-gray-700"
-        />
-        <input
-          placeholder="Height (in)"
-          type="number"
-          value={height}
-          onChange={(e) => setHeight(e.target.value)}
-          className="p-2 rounded bg-gray-700"
-        />
-        <input
-          placeholder="Total Pallets"
-          type="number"
-          value={count}
-          onChange={(e) => setCount(e.target.value)}
-          className="p-2 rounded bg-gray-700"
-        />
+        <button
+          onClick={calculate}
+          className="w-full bg-emerald-600 hover:bg-emerald-500 px-4 py-2 rounded-lg font-semibold"
+        >
+          Check Fit
+        </button>
+        <div className="text-white font-semibold mt-2">{result}</div>
       </div>
-      <button
-        onClick={handleCheck}
-        className="mt-4 bg-blue-600 hover:bg-blue-700 py-2 px-4 rounded font-bold"
-      >
-        Check Fit
-      </button>
-      {result && <p className="mt-4 text-lg font-semibold">{result}</p>}
     </div>
   );
 }
