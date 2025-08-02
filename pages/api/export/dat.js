@@ -1,5 +1,3 @@
-// pages/api/export/dat.js
-
 import { generateDatPostings } from "../../../lib/exportDatCsv";
 import { parse } from "json2csv";
 
@@ -9,7 +7,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { lanes, weightMin, weightMax } = req.body;
+    const { lanes, weightMin = 46750, weightMax = 48000 } = req.body;
     if (!Array.isArray(lanes)) throw new Error("Invalid input data");
 
     const rows = generateDatPostings(lanes, weightMin, weightMax);
