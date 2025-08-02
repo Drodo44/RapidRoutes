@@ -1,16 +1,20 @@
-// pages/_app.js
-import "../styles/globals.css";
-import TopNav from "../components/TopNav";
+import "@/styles/globals.css";
+import { useEffect } from "react";
+import { supabase } from "@/utils/supabaseClient";
 
-function MyApp({ Component, pageProps }) {
+export default function App({ Component, pageProps }) {
+  useEffect(() => {
+    const { data: authListener } = supabase.auth.onAuthStateChange(() => {
+      // Optional: add analytics, session handling, etc.
+    });
+    return () => {
+      authListener?.subscription.unsubscribe();
+    };
+  }, []);
+
   return (
-    <main className="bg-gray-950 min-h-screen text-white">
-      <TopNav />
-      <div className="max-w-7xl mx-auto px-6 py-6">
-        <Component {...pageProps} />
-      </div>
+    <main className="min-h-screen bg-gray-950 text-white">
+      <Component {...pageProps} />
     </main>
   );
 }
-
-export default MyApp;
