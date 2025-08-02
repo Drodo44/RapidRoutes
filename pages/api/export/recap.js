@@ -1,5 +1,3 @@
-// pages/api/export/recap.js
-
 import ExcelJS from "exceljs";
 
 export default async function handler(req, res) {
@@ -27,7 +25,17 @@ export default async function handler(req, res) {
     ];
 
     lanes.forEach((lane) => {
-      sheet.addRow(lane);
+      sheet.addRow({
+        origin: `${lane.origin_city}, ${lane.origin_state}`,
+        destination: `${lane.dest_city}, ${lane.dest_state}`,
+        equipment: lane.equipment,
+        weight: lane.weight,
+        date: lane.date,
+        length: lane.length,
+        status: lane.status || "Active",
+        rrs: lane.rrs || 50,
+        comment: lane.comment || "",
+      });
     });
 
     sheet.eachRow((row, rowNum) => {
@@ -36,7 +44,11 @@ export default async function handler(req, res) {
         cell.fill = {
           type: "pattern",
           pattern: "solid",
-          fgColor: { argb: rowNum % 2 === 0 ? "FF1a2437" : "FF202b42" },
+          fgColor: {
+            argb: rowNum === 1
+              ? "FF1E3A8A" // header blue
+              : rowNum % 2 === 0 ? "FF1a2437" : "FF202b42",
+          },
         };
       });
     });
