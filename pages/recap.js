@@ -1,81 +1,91 @@
 import { useEffect, useState } from "react";
-import Image from "next/image";
-import supabase from "../utils/supabaseClient";
-import { getLaneRiskTag, getHeatColor } from "../lib/weatherUtils";
+import { supabase } from "../utils/supabaseClient";
+import TopNav from "../components/TopNav";
+import { groupLanesByEquipment } from "../lib/laneUtils";
+import { exportRecapWorkbook } from "../utils/recapExport";
 
 export default function Recap() {
   const [lanes, setLanes] = useState([]);
+  const [grouped, setGrouped] = useState({});
 
   useEffect(() => {
     const fetchLanes = async () => {
-      const { data, error } = await supabase.from("lanes").select("*");
-      if (!error) setLanes(data || []);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("lanes")
+        .select("*")
+        .eq("created_by", user.id)
+        .order("created_at", { ascending: false });
+
+      if (data) {
+        setLanes(data);
+        setGrouped(groupLanesByEquipment(data));
+      }
     };
+
     fetchLanes();
   }, []);
 
+  const handleExport = async () => {
+    await exportRecapWorkbook(lanes);
+  };
+
   return (
-    <main className="min-h-screen bg-[#0b1623] text-white px-4 py-10">
-      <div className="max-w-6xl mx-auto bg-[#151d2b] rounded-2xl shadow-2xl p-8">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
-            <Image src="/logo.png" alt="RapidRoutes Logo" width={60} height={60} />
-            <h1 className="text-3xl font-bold text-neon-blue">Active Postings Recap</h1>
-          </div>
-          <p className="text-sm text-gray-400 italic">
-            Created by Andrew Connellan – Logistics Account Executive at TQL, Cincinnati, OH
-          </p>
+    <main className="min-h-screen bg-gray-950 text-white p-6">
+      <TopNav />
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-3xl font-bold text-cyan-400 mb-6">Active Postings Recap</h1>
+
+        <div className="flex justify-end mb-4">
+          <button
+            onClick={handleExport}
+            className="bg-emerald-600 hover:bg-emerald-500 px-4 py-2 rounded-lg text-white font-semibold"
+          >
+            Export to Excel
+          </button>
         </div>
 
-        <div className="overflow-x-auto rounded-xl">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-[#233056] text-neon-blue">
-                <th className="p-3">Origin</th>
-                <th className="p-3">Destination</th>
-                <th className="p-3">Equipment</th>
-                <th className="p-3">Weight</th>
-                <th className="p-3">Date</th>
-                <th className="p-3">Length</th>
-                <th className="p-3">Status</th>
-                <th className="p-3">RRSI</th>
-                <th className="p-3">Risk</th>
-                <th className="p-3">Selling Point</th>
-              </tr>
-            </thead>
-            <tbody>
-              {lanes.length === 0 ? (
-                <tr>
-                  <td className="p-4 text-center text-gray-400" colSpan={10}>
-                    No active lanes found.
-                  </td>
-                </tr>
-              ) : (
-                lanes.map((lane) => {
-                  const rrs = lane.rrs || 50;
-                  const risk = getLaneRiskTag(lane);
-                  const bgColor = getHeatColor(rrs);
-                  const sellingPoint = lane.comment || risk?.note || "";
-
-                  return (
-                    <tr key={lane.id} className="even:bg-[#1a2437] odd:bg-[#202b42]">
-                      <td className="p-3">{lane.origin_city}, {lane.origin_state}</td>
-                      <td className="p-3">{lane.dest_city}, {lane.dest_state}</td>
-                      <td className="p-3">{lane.equipment}</td>
-                      <td className="p-3">{lane.weight}</td>
-                      <td className="p-3">{lane.date}</td>
-                      <td className="p-3">{lane.length}</td>
-                      <td className="p-3">{lane.status || "Active"}</td>
-                      <td className={`p-3 font-bold ${bgColor}`}>{rrs}</td>
-                      <td className="p-3">{risk?.label || "—"}</td>
-                      <td className="p-3 text-gray-200">{sellingPoint}</td>
+        {Object.entries(grouped).map(([equipment, lanes]) => (
+          <div key={equipment} className="mb-8">
+            <h2 className="text-2xl font-semibold text-blue-300 mb-2">
+              {equipment} ({lanes.length} lanes)
+            </h2>
+            <div className="bg-gray-900 rounded-xl shadow p-4">
+              <table className="w-full table-auto text-sm">
+                <thead>
+                  <tr className="text-left border-b border-gray-700">
+                    <th className="p-2">Pickup</th>
+                    <th className="p-2">Dropoff</th>
+                    <th className="p-2">Miles</th>
+                    <th className="p-2">Weather</th>
+                    <th className="p-2">Strategic Note</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lanes.map((lane) => (
+                    <tr key={lane.id} className="border-t border-gray-800">
+                      <td className="p-2">{lane.origin_city}, {lane.origin_state}</td>
+                      <td className="p-2">{lane.dest_city}, {lane.dest_state}</td>
+                      <td className="p-2 text-gray-300">{lane.distance || "—"}</td>
+                      <td className="p-2 text-yellow-400">
+                        {lane.weather_flag ? "⚠️ Risk" : "✔️ Clear"}
+                      </td>
+                      <td className="p-2 text-emerald-300">
+                        {lane.selling_point || ""}
+                      </td>
                     </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ))}
+
+        <p className="text-xs text-gray-500 text-center mt-12">
+          Created by Andrew Connellan – Logistics Account Exec at TQL, Cincinnati, OH.
+        </p>
       </div>
     </main>
   );
