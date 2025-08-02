@@ -1,102 +1,126 @@
 import { useEffect, useState } from "react";
-import { useRouter } from "next/router";
-import supabase from "../utils/supabaseClient";
-import Image from "next/image";
-import FloorSpaceCalculator from "../components/FloorSpaceCalculator";
+import { supabase } from "../utils/supabaseClient";
+import { getFloorSpaceInfo } from "../lib/floorCalculator";
+import { getHeatColor } from "../lib/weatherUtils";
+import TopNav from "../components/TopNav";
 
 export default function Dashboard() {
   const [user, setUser] = useState(null);
-  const [lanes, setLanes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const router = useRouter();
+  const [metrics, setMetrics] = useState({
+    lanesPosted: 0,
+    avgRRSI: 0,
+    carriersEngaged: 0,
+  });
+  const [calc, setCalc] = useState({ pallets: "", length: 0, result: "" });
 
   useEffect(() => {
-    const fetchUser = async () => {
+    const getUser = async () => {
       const { data, error } = await supabase.auth.getUser();
-      if (!data?.user || error) {
-        router.push("/login");
-      } else {
-        setUser(data.user);
-        fetchLanes();
-      }
+      if (error || !data?.user) return;
+      setUser(data.user);
+
+      const { data: lanes } = await supabase
+        .from("lanes")
+        .select("*")
+        .eq("created_by", data.user.id);
+
+      const total = lanes?.length || 0;
+      const avgRRSI =
+        lanes?.reduce((sum, l) => sum + (l.rrs || 50), 0) / total || 0;
+      const carriers = new Set(lanes?.flatMap((l) => l.carriers || [])).size;
+
+      setMetrics({
+        lanesPosted: total,
+        avgRRSI: Math.round(avgRRSI),
+        carriersEngaged: carriers,
+      });
     };
 
-    const fetchLanes = async () => {
-      setLoading(true);
-      const { data, error } = await supabase.from("lanes").select("*");
-      if (!error) setLanes(data || []);
-      setLoading(false);
-    };
-
-    fetchUser();
+    getUser();
   }, []);
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push("/login");
+  const handleCalc = () => {
+    const { pallets, length } = calc;
+    const res = getFloorSpaceInfo(parseInt(pallets), parseFloat(length));
+    setCalc((prev) => ({ ...prev, result: res }));
   };
 
   return (
-    <main className="min-h-screen bg-gray-950 text-white flex flex-col">
-      <header className="flex items-center justify-between px-8 py-4 bg-gray-900 shadow-lg">
-        <div className="flex items-center gap-3">
-          <Image src="/logo.png" alt="RapidRoutes Logo" width={40} height={40} priority />
-          <span className="text-2xl font-bold tracking-tight">RapidRoutes Dashboard</span>
-        </div>
-        <button
-          onClick={handleLogout}
-          className="bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded-xl text-white font-semibold"
-        >
-          Logout
-        </button>
-      </header>
+    <main className="min-h-screen bg-gray-950 text-white px-6 py-8">
+      <TopNav />
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-3xl font-bold text-cyan-400 mb-4">
+          Dashboard Overview
+        </h1>
 
-      <section className="flex-1 p-8">
-        <h2 className="text-3xl font-bold mb-6">Your Lanes</h2>
-        {loading ? (
-          <div className="text-blue-400">Loading lanes...</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-left bg-gray-900 rounded-xl">
-              <thead>
-                <tr className="bg-gray-800 text-cyan-400">
-                  <th className="p-3">Origin</th>
-                  <th className="p-3">Destination</th>
-                  <th className="p-3">Equipment</th>
-                  <th className="p-3">Weight</th>
-                  <th className="p-3">Status</th>
-                  <th className="p-3">RRSI</th>
-                </tr>
-              </thead>
-              <tbody>
-                {lanes.length === 0 ? (
-                  <tr>
-                    <td className="p-4 text-gray-400" colSpan={6}>
-                      No lanes found.
-                    </td>
-                  </tr>
-                ) : (
-                  lanes.map((lane) => (
-                    <tr key={lane.id} className="border-b border-gray-800">
-                      <td className="p-3">{lane.origin_city}, {lane.origin_state}</td>
-                      <td className="p-3">{lane.dest_city}, {lane.dest_state}</td>
-                      <td className="p-3">{lane.equipment}</td>
-                      <td className="p-3">{lane.weight}</td>
-                      <td className="p-3">{lane.status || "Active"}</td>
-                      <td className="p-3 font-bold text-neon-green">{lane.rrs || "—"}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+          <div className="bg-gray-900 rounded-xl p-6 shadow">
+            <h2 className="text-xl font-semibold mb-2">Lanes Posted</h2>
+            <p className="text-3xl">{metrics.lanesPosted}</p>
           </div>
-        )}
-      </section>
+          <div className="bg-gray-900 rounded-xl p-6 shadow">
+            <h2 className="text-xl font-semibold mb-2">Avg. RRSI</h2>
+            <p className={`text-3xl ${getHeatColor(metrics.avgRRSI)}`}>
+              {metrics.avgRRSI}
+            </p>
+          </div>
+          <div className="bg-gray-900 rounded-xl p-6 shadow">
+            <h2 className="text-xl font-semibold mb-2">Carriers Engaged</h2>
+            <p className="text-3xl">{metrics.carriersEngaged}</p>
+          </div>
+        </div>
 
-      <section className="px-8 pb-12">
-        <h3 className="text-2xl font-semibold mt-12 mb-4 text-cyan-400">Floor Space Calculator</h3>
-        <FloorSpaceCalculator />
-      </section>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* AI Freight Intel */}
+          <div className="lg:col-span-2 bg-gray-900 rounded-xl p-6 shadow">
+            <h2 className="text-xl font-semibold mb-4 text-emerald-400">
+              📡 Freight Intelligence Feed
+            </h2>
+            <ul className="list-disc pl-6 space-y-2 text-gray-300">
+              <li>📈 Midwest flatbed demand up 12% over 7 days</li>
+              <li>⚠️ CO & WY lanes flagged for possible weather disruptions</li>
+              <li>🚨 18% increase in carrier bid volatility on reefer lanes</li>
+              <li>💡 Strong reload potential around Dallas, TX this week</li>
+            </ul>
+          </div>
+
+          {/* Floor Calculator */}
+          <div className="bg-gray-900 rounded-xl p-6 shadow">
+            <h2 className="text-xl font-semibold mb-4 text-blue-400">
+              📦 Floor Space Calculator
+            </h2>
+            <div className="space-y-4">
+              <input
+                type="number"
+                placeholder="Number of Pallets"
+                className="w-full p-2 rounded bg-gray-800 text-white"
+                value={calc.pallets}
+                onChange={(e) =>
+                  setCalc((prev) => ({ ...prev, pallets: e.target.value }))
+                }
+              />
+              <input
+                type="number"
+                placeholder="Length per Pallet (ft)"
+                className="w-full p-2 rounded bg-gray-800 text-white"
+                value={calc.length}
+                onChange={(e) =>
+                  setCalc((prev) => ({ ...prev, length: e.target.value }))
+                }
+              />
+              <button
+                onClick={handleCalc}
+                className="bg-emerald-600 hover:bg-emerald-500 px-4 py-2 rounded-lg font-semibold"
+              >
+                Calculate Fit
+              </button>
+              {calc.result && (
+                <p className="text-emerald-300 mt-2">{calc.result}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
     </main>
   );
 }
