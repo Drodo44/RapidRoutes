@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { supabase } from "../utils/supabaseClient";
-import { generateDatCsv } from "../lib/exportDatCsv";
+import { generateDatPostings } from '../lib/exportDatCsv';
 import { saveAs } from "file-saver";
 
 export default function Lanes() {
