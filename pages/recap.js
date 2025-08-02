@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { supabase } from "../utils/supabaseClient";
 import TopNav from "../components/TopNav";
 import { groupLanesByEquipment } from "../lib/laneUtils";
-import { exportRecapWorkbook } from "../utils/recapExport";
 
 export default function Recap() {
   const [lanes, setLanes] = useState([]);
