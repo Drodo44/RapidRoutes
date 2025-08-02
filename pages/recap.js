@@ -1,45 +1,54 @@
 // pages/recap.js
-import { useEffect, useState } from 'react';
-import { supabase } from '../utils/supabaseClient';
-import { Button } from '@/components/ui/button';
+import { useEffect, useState } from "react";
+import { supabase } from "../utils/supabaseClient";
 
 export default function Recap() {
   const [lanes, setLanes] = useState([]);
 
   useEffect(() => {
-    async function load() {
-      const { data } = await supabase.from('lanes').select('*');
-      setLanes(data || []);
-    }
-    load();
+    fetch("/api/lanes") // Replace with real data if not stored
+      .then((res) => res.json())
+      .then((data) => setLanes(data))
+      .catch(console.error);
   }, []);
 
   return (
-    <main className="min-h-screen bg-gray-950 text-white p-8">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold text-cyan-400">Active Lane Recap</h1>
-        <a href="/api/export/recap">
-          <Button>Download Recap Excel</Button>
-        </a>
+    <div className="p-6 bg-gray-950 text-white min-h-screen">
+      <h1 className="text-3xl font-bold mb-4 text-cyan-400">Recap Dashboard</h1>
+
+      <div className="overflow-auto">
+        <table className="min-w-full text-sm bg-gray-800 border border-gray-700">
+          <thead>
+            <tr className="bg-gray-700 text-white">
+              <th className="p-3 text-left">Origin</th>
+              <th className="p-3 text-left">Destination</th>
+              <th className="p-3 text-left">Equipment</th>
+              <th className="p-3 text-left">Miles</th>
+              <th className="p-3 text-left">Comment</th>
+            </tr>
+          </thead>
+          <tbody>
+            {lanes.map((lane, i) => (
+              <tr key={i} className="border-t border-gray-700">
+                <td className="p-3">{lane.originCity}, {lane.originState}</td>
+                <td className="p-3">{lane.destinationCity}, {lane.destinationState}</td>
+                <td className="p-3">{lane.equipment}</td>
+                <td className="p-3">{lane.miles}</td>
+                <td className="p-3 text-green-400">{lane.comment || "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
-      <div className="grid grid-cols-1 gap-4">
-        {lanes.map((lane, idx) => (
-          <div key={idx} className="bg-gray-800 p-4 rounded-xl shadow-md">
-            <div className="text-lg font-semibold">
-              {lane.origin} → {lane.destination}
-            </div>
-            <div className="text-sm text-gray-400">
-              Equipment: {lane.equipment} | {lane.length} ft |{' '}
-              {lane.randomizeWeight
-                ? `${lane.randomLow}-${lane.randomHigh} lbs`
-                : `${lane.baseWeight} lbs`}
-            </div>
-            <div className="text-sm mt-1 text-gray-400">
-              Pickup: {lane.dateEarliest} - {lane.dateLatest} | Commodity: {lane.commodity}
-            </div>
-          </div>
-        ))}
+
+      <div className="mt-6 flex gap-4">
+        <button className="bg-emerald-600 hover:bg-emerald-700 px-5 py-2 rounded text-white">
+          Export to Excel
+        </button>
+        <button className="bg-indigo-600 hover:bg-indigo-700 px-5 py-2 rounded text-white">
+          Export to PDF
+        </button>
       </div>
-    </main>
+    </div>
   );
 }
