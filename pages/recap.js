@@ -1,54 +1,75 @@
 // pages/recap.js
-import { useEffect, useState } from "react";
-import { supabase } from "../utils/supabaseClient";
+import { useState, useEffect } from "react";
+import Image from "next/image";
+import supabase from "../utils/supabaseClient";
 
 export default function Recap() {
   const [lanes, setLanes] = useState([]);
 
   useEffect(() => {
-    fetch("/api/lanes") // Replace with real data if not stored
-      .then((res) => res.json())
-      .then((data) => setLanes(data))
-      .catch(console.error);
+    const fetchLanes = async () => {
+      const { data, error } = await supabase.from("lanes").select("*");
+      if (!error) setLanes(data || []);
+    };
+    fetchLanes();
   }, []);
 
   return (
-    <div className="p-6 bg-gray-950 text-white min-h-screen">
-      <h1 className="text-3xl font-bold mb-4 text-cyan-400">Recap Dashboard</h1>
+    <main className="min-h-screen bg-[#0b1623] text-white px-4 py-10">
+      <div className="max-w-6xl mx-auto bg-[#151d2b] rounded-2xl shadow-2xl p-8">
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-4">
+            <Image src="/logo.png" alt="RapidRoutes Logo" width={60} height={60} />
+            <h1 className="text-3xl font-bold text-neon-blue">
+              Active Postings Recap
+            </h1>
+          </div>
+          <p className="text-sm text-gray-400 italic">
+            Created by Andrew Connellan – Logistics Account Executive at TQL, Cincinnati, OH
+          </p>
+        </div>
 
-      <div className="overflow-auto">
-        <table className="min-w-full text-sm bg-gray-800 border border-gray-700">
-          <thead>
-            <tr className="bg-gray-700 text-white">
-              <th className="p-3 text-left">Origin</th>
-              <th className="p-3 text-left">Destination</th>
-              <th className="p-3 text-left">Equipment</th>
-              <th className="p-3 text-left">Miles</th>
-              <th className="p-3 text-left">Comment</th>
-            </tr>
-          </thead>
-          <tbody>
-            {lanes.map((lane, i) => (
-              <tr key={i} className="border-t border-gray-700">
-                <td className="p-3">{lane.originCity}, {lane.originState}</td>
-                <td className="p-3">{lane.destinationCity}, {lane.destinationState}</td>
-                <td className="p-3">{lane.equipment}</td>
-                <td className="p-3">{lane.miles}</td>
-                <td className="p-3 text-green-400">{lane.comment || "—"}</td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-[#233056] text-neon-blue">
+                <th className="p-3">Origin</th>
+                <th className="p-3">Destination</th>
+                <th className="p-3">Equipment</th>
+                <th className="p-3">Weight</th>
+                <th className="p-3">Date</th>
+                <th className="p-3">Length</th>
+                <th className="p-3">Status</th>
+                <th className="p-3">RRSI</th>
+                <th className="p-3">Comment</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {lanes.length === 0 ? (
+                <tr>
+                  <td className="p-4 text-center text-gray-400" colSpan={9}>
+                    No active lanes found.
+                  </td>
+                </tr>
+              ) : (
+                lanes.map((lane) => (
+                  <tr key={lane.id} className="even:bg-[#1a2437] odd:bg-[#202b42]">
+                    <td className="p-3">{lane.origin_city}, {lane.origin_state}</td>
+                    <td className="p-3">{lane.dest_city}, {lane.dest_state}</td>
+                    <td className="p-3">{lane.equipment}</td>
+                    <td className="p-3">{lane.weight}</td>
+                    <td className="p-3">{lane.date}</td>
+                    <td className="p-3">{lane.length}</td>
+                    <td className="p-3">{lane.status || "Active"}</td>
+                    <td className="p-3 font-bold text-neon-green">{lane.rrs || "—"}</td>
+                    <td className="p-3">{lane.comment || ""}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
-
-      <div className="mt-6 flex gap-4">
-        <button className="bg-emerald-600 hover:bg-emerald-700 px-5 py-2 rounded text-white">
-          Export to Excel
-        </button>
-        <button className="bg-indigo-600 hover:bg-indigo-700 px-5 py-2 rounded text-white">
-          Export to PDF
-        </button>
-      </div>
-    </div>
+    </main>
   );
 }
