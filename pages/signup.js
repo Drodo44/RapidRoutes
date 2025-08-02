@@ -1,87 +1,78 @@
+// pages/signup.js
 import { useState } from "react";
-import { supabase } from "../utils/supabaseClient";
 import { useRouter } from "next/router";
+import { supabase } from "../utils/supabaseClient";
 
 export default function Signup() {
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [name, setName] = useState("");
-  const [role, setRole] = useState("Apprentice");
+  const [role, setRole] = useState("Broker");
   const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
   const router = useRouter();
 
-  const handleSubmit = async (e) => {
+  const handleSignup = async (e) => {
     e.preventDefault();
     setError("");
-    setMessage("");
-
-    const { data, error: signupError } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
-      password: crypto.randomUUID().slice(0, 16) + "Rr!",
+      password,
+      options: {
+        data: { name, role }
+      }
     });
 
-    if (signupError) {
-      setError(signupError.message);
-      return;
-    }
-
-    if (data?.user?.id) {
-      const { error: pendingError } = await supabase
-        .from("pending_users")
-        .insert([{ id: data.user.id, email, name, role }]);
-
-      if (pendingError) {
-        setError("Error saving user. Contact support.");
-      } else {
-        setMessage("Signup successful. Waiting for admin approval.");
-      }
+    if (error) {
+      setError(error.message);
+    } else {
+      router.push("/login");
     }
   };
 
   return (
-    <main className="min-h-screen bg-gray-950 text-white flex flex-col items-center justify-center px-4">
-      <div className="bg-gray-900 p-6 rounded-xl shadow-md max-w-md w-full">
-        <h1 className="text-cyan-400 text-2xl font-bold mb-4 text-center">Create Account</h1>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <input
-            type="email"
-            placeholder="Email address"
-            className="p-3 rounded-lg bg-gray-800 border border-cyan-400 text-white"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-          <input
-            type="text"
-            placeholder="Full name"
-            className="p-3 rounded-lg bg-gray-800 border border-cyan-400 text-white"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-          <select
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-            className="p-3 rounded-lg bg-gray-800 border border-cyan-400 text-white"
-          >
-            <option value="Apprentice">Apprentice</option>
-            <option value="Broker">Broker</option>
-            <option value="Support">Support</option>
-          </select>
-          <button
-            type="submit"
-            className="w-full p-3 bg-emerald-600 hover:bg-emerald-700 rounded-lg text-white font-semibold"
-          >
-            Sign Up
-          </button>
-        </form>
-        {message && <p className="text-green-400 mt-4">{message}</p>}
-        {error && <p className="text-red-400 mt-4">{error}</p>}
-        <div className="mt-4 text-center">
-          <a href="/login" className="text-sm text-cyan-300 hover:underline">
-            Already have an account? Log in
-          </a>
-        </div>
-      </div>
+    <main className="min-h-screen flex items-center justify-center bg-gray-950 text-white">
+      <form onSubmit={handleSignup} className="bg-gray-900 p-8 rounded-2xl shadow-2xl w-full max-w-md space-y-4">
+        <img src="/logo.png" alt="RapidRoutes Logo" className="mx-auto w-32 mb-4" />
+        <h2 className="text-2xl font-bold text-cyan-400 text-center">Sign Up</h2>
+        <input
+          type="text"
+          required
+          placeholder="Full Name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="w-full p-3 rounded bg-gray-800"
+        />
+        <input
+          type="email"
+          required
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="w-full p-3 rounded bg-gray-800"
+        />
+        <input
+          type="password"
+          required
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="w-full p-3 rounded bg-gray-800"
+        />
+        <select
+          value={role}
+          onChange={(e) => setRole(e.target.value)}
+          className="w-full p-3 rounded bg-gray-800"
+        >
+          <option>Admin</option>
+          <option>Broker</option>
+          <option>Support</option>
+          <option>Apprentice</option>
+        </select>
+        {error && <p className="text-red-400">{error}</p>}
+        <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-xl font-bold">
+          Create Account
+        </button>
+      </form>
     </main>
   );
 }
