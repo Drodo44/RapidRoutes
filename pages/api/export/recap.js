@@ -1,39 +1,53 @@
-import { supabase } from "../../../utils/supabaseClient";
-import { Workbook } from "exceljs";
+// pages/api/export/recap.js
+
+import ExcelJS from "exceljs";
 
 export default async function handler(req, res) {
-  const { data, error } = await supabase.from("lanes").select("*");
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Only POST allowed" });
+  }
 
-  if (error) return res.status(500).json({ error });
+  try {
+    const { lanes } = req.body;
+    if (!Array.isArray(lanes)) throw new Error("Invalid lane data");
 
-  const workbook = new Workbook();
-  const sheet = workbook.addWorksheet("Active Postings");
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Active Postings");
 
-  sheet.columns = [
-    { header: "Origin", key: "origin", width: 20 },
-    { header: "Destination", key: "destination", width: 20 },
-    { header: "Equipment", key: "equipment", width: 15 },
-    { header: "Pickup Date", key: "dateEarliest", width: 15 },
-    { header: "Weight", key: "weight", width: 15 },
-    { header: "Note", key: "note", width: 30 },
-  ];
+    sheet.columns = [
+      { header: "Origin", key: "origin", width: 20 },
+      { header: "Destination", key: "destination", width: 20 },
+      { header: "Equipment", key: "equipment", width: 15 },
+      { header: "Weight", key: "weight", width: 12 },
+      { header: "Date", key: "date", width: 15 },
+      { header: "Length", key: "length", width: 10 },
+      { header: "Status", key: "status", width: 12 },
+      { header: "RRSI", key: "rrs", width: 10 },
+      { header: "Comment", key: "comment", width: 30 },
+    ];
 
-  data.forEach((lane) => {
-    sheet.addRow({
-      origin: lane.origin,
-      destination: lane.destination,
-      equipment: lane.equipment,
-      dateEarliest: lane.dateEarliest,
-      weight: lane.randomizeWeight
-        ? `${lane.randomLow}-${lane.randomHigh}`
-        : lane.baseWeight,
-      note: lane.note || "",
+    lanes.forEach((lane) => {
+      sheet.addRow(lane);
     });
-  });
 
-  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-  res.setHeader("Content-Disposition", "attachment; filename=Active_Postings.xlsx");
+    sheet.eachRow((row, rowNum) => {
+      row.eachCell((cell) => {
+        cell.font = { color: { argb: "FFFFFFFF" } };
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: rowNum % 2 === 0 ? "FF1a2437" : "FF202b42" },
+        };
+      });
+    });
 
-  await workbook.xlsx.write(res);
-  res.end();
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", "attachment; filename=Active_Postings.xlsx");
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    res.send(buffer);
+  } catch (error) {
+    console.error("Recap export error:", error);
+    res.status(500).json({ error: "Failed to generate recap workbook" });
+  }
 }
