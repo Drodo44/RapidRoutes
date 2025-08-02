@@ -1,65 +1,39 @@
 import ExcelJS from "exceljs";
+import { NextApiRequest, NextApiResponse } from "next";
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Only POST allowed" });
-  }
+  if (req.method !== "POST") return res.status(405).end("Method Not Allowed");
 
-  try {
-    const { lanes } = req.body;
-    if (!Array.isArray(lanes)) throw new Error("Invalid lane data");
+  const { lanes } = req.body;
+  if (!lanes) return res.status(400).json({ error: "Missing lanes data." });
 
-    const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet("Active Postings");
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet("Active Postings");
 
-    sheet.columns = [
-      { header: "Origin", key: "origin", width: 20 },
-      { header: "Destination", key: "destination", width: 20 },
-      { header: "Equipment", key: "equipment", width: 15 },
-      { header: "Weight", key: "weight", width: 12 },
-      { header: "Date", key: "date", width: 15 },
-      { header: "Length", key: "length", width: 10 },
-      { header: "Status", key: "status", width: 12 },
-      { header: "RRSI", key: "rrs", width: 10 },
-      { header: "Comment", key: "comment", width: 30 },
-    ];
+  sheet.columns = [
+    { header: "Pickup City", key: "origin_city", width: 20 },
+    { header: "Pickup State", key: "origin_state", width: 15 },
+    { header: "Dropoff City", key: "dest_city", width: 20 },
+    { header: "Dropoff State", key: "dest_state", width: 15 },
+    { header: "Equipment", key: "equipment", width: 20 },
+    { header: "Miles", key: "distance", width: 10 },
+    { header: "Weather Flag", key: "weather_flag", width: 15 },
+    { header: "Selling Point", key: "selling_point", width: 40 },
+  ];
 
-    lanes.forEach((lane) => {
-      sheet.addRow({
-        origin: `${lane.origin_city}, ${lane.origin_state}`,
-        destination: `${lane.dest_city}, ${lane.dest_state}`,
-        equipment: lane.equipment,
-        weight: lane.weight,
-        date: lane.date,
-        length: lane.length,
-        status: lane.status || "Active",
-        rrs: lane.rrs || 50,
-        comment: lane.comment || "",
-      });
-    });
+  lanes.forEach((lane) => {
+    sheet.addRow(lane);
+  });
 
-    sheet.eachRow((row, rowNum) => {
-      row.eachCell((cell) => {
-        cell.font = { color: { argb: "FFFFFFFF" } };
-        cell.fill = {
-          type: "pattern",
-          pattern: "solid",
-          fgColor: {
-            argb: rowNum === 1
-              ? "FF1E3A8A" // header blue
-              : rowNum % 2 === 0 ? "FF1a2437" : "FF202b42",
-          },
-        };
-      });
-    });
+  // Footer credit line
+  const row = sheet.addRow([]);
+  row.getCell(1).value =
+    "Created by Andrew Connellan – Logistics Account Exec at TQL, Cincinnati, OH";
+  row.getCell(1).font = { italic: true, size: 10 };
+  sheet.mergeCells(`A${row.number}:H${row.number}`);
 
-    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    res.setHeader("Content-Disposition", "attachment; filename=Active_Postings.xlsx");
-
-    const buffer = await workbook.xlsx.writeBuffer();
-    res.send(buffer);
-  } catch (error) {
-    console.error("Recap export error:", error);
-    res.status(500).json({ error: "Failed to generate recap workbook" });
-  }
+  const buffer = await workbook.xlsx.writeBuffer();
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", "attachment; filename=Active_Postings.xlsx");
+  res.send(buffer);
 }
