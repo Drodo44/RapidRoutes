@@ -23,37 +23,38 @@ export default function Login() {
   };
 
   return (
-    <main className="min-h-screen bg-gray-950 flex items-center justify-center text-white">
-      <div className="bg-gray-900 p-8 rounded-2xl shadow-2xl w-full max-w-md">
-        <img src="/logo.png" alt="RapidRoutes Logo" className="mx-auto w-40 mb-6" />
-        <h2 className="text-2xl font-bold text-center text-cyan-400 mb-4">Sign In to RapidRoutes</h2>
-        <form onSubmit={handleLogin} className="space-y-4">
+    <main className="min-h-screen bg-gray-950 flex flex-col items-center justify-center px-4 text-white">
+      <div className="bg-gray-900 p-8 rounded-2xl shadow-2xl w-full max-w-md text-center">
+        <img src="/logo.png" alt="RapidRoutes Logo" className="mx-auto w-[300px] mb-6" />
+        <h1 className="text-2xl font-bold text-cyan-400 mb-2">Welcome to RapidRoutes</h1>
+        <p className="text-gray-300 mb-6">Redefine the game. Outsmart the lane.</p>
+        <form onSubmit={handleLogin} className="space-y-4 text-left">
+          <label>Email</label>
           <input
             type="email"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="Email"
-            className="w-full p-3 rounded bg-gray-800 text-white"
+            className="w-full p-3 rounded bg-gray-800"
           />
+          <label>Password</label>
           <input
             type="password"
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password"
-            className="w-full p-3 rounded bg-gray-800 text-white"
+            className="w-full p-3 rounded bg-gray-800"
           />
           {error && <p className="text-red-400 text-sm">{error}</p>}
           <button
             type="submit"
-            className="w-full bg-green-600 hover:bg-green-700 py-3 rounded-xl font-bold"
+            className="w-full bg-green-600 hover:bg-green-700 py-3 rounded-xl font-bold mt-4"
           >
             Log In
           </button>
         </form>
-        <p className="text-center mt-6 text-gray-400 text-sm">
-          Need an account?{" "}
+        <p className="mt-6 text-sm text-gray-400">
+          Don’t have an account?{" "}
           <a href="/signup" className="text-cyan-400 underline">Sign Up</a>
         </p>
       </div>
