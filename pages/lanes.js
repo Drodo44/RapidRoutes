@@ -1,279 +1,161 @@
-// pages/lanes.js
-import { useState, useEffect } from "react";
-import supabase from "../utils/supabaseClient";
-import { calculateRRSI } from "../lib/rrsi";
-import { suggestComment } from "../lib/commentAI";
-import ProtectedRoute from "../components/ProtectedRoute";
-import allCities from "../data/allCities.json"; // assume this exists
+import { useState } from "react";
+import { supabase } from "../utils/supabaseClient";
+import { generateDatCsv } from "../lib/exportDatCsv";
+import { saveAs } from "file-saver";
 
-function LaneForm() {
+export default function Lanes() {
+  const [lanes, setLanes] = useState([]);
   const [form, setForm] = useState({
     origin: "",
     destination: "",
-    equipment: "",
-    date: "",
-    length: "",
-    comment: "",
-    randomize: false,
-    weight: "",
-    weightMin: "",
-    weightMax: "",
-    status: "Active",
+    equipment: "FD",
+    length: 48,
+    baseWeight: "",
+    randomizeWeight: false,
+    randomLow: 46750,
+    randomHigh: 48000,
+    dateEarliest: "",
+    dateLatest: "",
+    commodity: "",
+    note: "",
   });
 
-  const [aiComment, setAiComment] = useState("");
-  const [filteredCities, setFilteredCities] = useState([]);
-  const [fieldFocus, setFieldFocus] = useState("");
-  const [message, setMessage] = useState("");
+  const updateForm = (field, value) =>
+    setForm((prev) => ({ ...prev, [field]: value }));
 
-  useEffect(() => {
-    if (form.equipment && form.origin && form.destination) {
-      setAiComment(suggestComment({
-        equipment: form.equipment,
-        origin_state: form.origin.split(", ")[1],
-        dest_state: form.destination.split(", ")[1],
-      }));
-    }
-  }, [form.equipment, form.origin, form.destination]);
-
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setForm({
-      ...form,
-      [name]: type === "checkbox" ? checked : value,
-    });
-
-    if (["origin", "destination"].includes(name)) {
-      const match = value.toLowerCase();
-      const matches = allCities
-        .filter(
-          (city) =>
-            `${city.city}, ${city.state}`.toLowerCase().includes(match)
-        )
-        .slice(0, 10);
-      setFilteredCities(matches);
-      setFieldFocus(name);
-    }
+  const addLane = async () => {
+    const lane = { ...form };
+    const { data, error } = await supabase.from("lanes").insert([lane]);
+    if (!error) setLanes([...lanes, lane]);
   };
 
-  const handleCitySelect = (entry) => {
-    setForm((prev) => ({
-      ...prev,
-      [fieldFocus]: `${entry.city}, ${entry.state}`,
-    }));
-    setFilteredCities([]);
+  const generateCsv = async () => {
+    const csv = await generateDatCsv(lanes, {});
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    saveAs(blob, "DAT_Upload.csv");
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setMessage("");
-
-    if (
-      form.randomize &&
-      (!form.weightMin || !form.weightMax || form.weightMin >= form.weightMax)
-    ) {
-      setMessage("❌ Invalid weight range.");
-      return;
-    }
-
-    if (!form.randomize && !form.weight) {
-      setMessage("❌ Enter a fixed weight or enable randomizer.");
-      return;
-    }
-
-    const rrs = calculateRRSI(form);
-
-    const laneData = {
-      ...form,
-      rrs,
-    };
-
-    const { error } = await supabase.from("lanes").insert([laneData]);
-
-    if (error) {
-      setMessage("❌ " + error.message);
-    } else {
-      setMessage("✅ Lane added!");
-      setForm({
-        origin: "",
-        destination: "",
-        equipment: "",
-        date: "",
-        length: "",
-        comment: "",
-        randomize: false,
-        weight: "",
-        weightMin: "",
-        weightMax: "",
-        status: "Active",
-      });
-    }
+  const downloadRecap = () => {
+    window.open("/api/export/recap", "_blank");
   };
 
   return (
-    <ProtectedRoute>
-      <div className="min-h-screen bg-[#0b1623] text-white py-10 px-4 flex justify-center">
-        <form
-          onSubmit={handleSubmit}
-          className="bg-[#151d2b] p-8 rounded-2xl shadow-2xl w-full max-w-xl"
-        >
-          <h1 className="text-3xl font-bold text-neon-blue mb-6">
-            Create New Lane
-          </h1>
+    <main className="min-h-screen bg-gray-950 text-white p-6">
+      <h1 className="text-3xl font-bold mb-4">Enter Lane</h1>
 
-          <label className="block mb-1">Origin (City, ST)</label>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-900 p-4 rounded">
+        <input
+          type="text"
+          placeholder="Origin City, State"
+          className="p-2 rounded bg-gray-800"
+          value={form.origin}
+          onChange={(e) => updateForm("origin", e.target.value)}
+        />
+        <input
+          type="text"
+          placeholder="Destination City, State"
+          className="p-2 rounded bg-gray-800"
+          value={form.destination}
+          onChange={(e) => updateForm("destination", e.target.value)}
+        />
+        <input
+          type="text"
+          placeholder="Equipment"
+          className="p-2 rounded bg-gray-800"
+          value={form.equipment}
+          onChange={(e) => updateForm("equipment", e.target.value)}
+        />
+        <input
+          type="number"
+          placeholder="Length (ft)"
+          className="p-2 rounded bg-gray-800"
+          value={form.length}
+          onChange={(e) => updateForm("length", e.target.value)}
+        />
+        {!form.randomizeWeight ? (
           <input
-            name="origin"
-            value={form.origin}
-            onChange={handleChange}
-            className="w-full p-2 rounded bg-[#222f45] mb-2"
-            required
-            autoComplete="off"
-          />
-          {fieldFocus === "origin" &&
-            filteredCities.map((c) => (
-              <div
-                key={`${c.city},${c.state}`}
-                onClick={() => handleCitySelect(c)}
-                className="cursor-pointer text-sm px-3 py-1 bg-[#1f2937] hover:bg-[#374151]"
-              >
-                📍 {c.city}, {c.state}
-              </div>
-            ))}
-
-          <label className="block mt-4 mb-1">Destination (City, ST)</label>
-          <input
-            name="destination"
-            value={form.destination}
-            onChange={handleChange}
-            className="w-full p-2 rounded bg-[#222f45] mb-2"
-            required
-            autoComplete="off"
-          />
-          {fieldFocus === "destination" &&
-            filteredCities.map((c) => (
-              <div
-                key={`${c.city},${c.state}`}
-                onClick={() => handleCitySelect(c)}
-                className="cursor-pointer text-sm px-3 py-1 bg-[#1f2937] hover:bg-[#374151]"
-              >
-                📍 {c.city}, {c.state}
-              </div>
-            ))}
-
-          <label className="block mt-4 mb-1">Equipment</label>
-          <input
-            name="equipment"
-            value={form.equipment}
-            onChange={handleChange}
-            className="w-full p-2 rounded bg-[#222f45]"
-            required
-          />
-
-          <label className="block mt-4 mb-1">Length (ft)</label>
-          <input
-            name="length"
             type="number"
-            value={form.length}
-            onChange={handleChange}
-            className="w-full p-2 rounded bg-[#222f45]"
-            required
+            placeholder="Weight (lbs)"
+            className="p-2 rounded bg-gray-800"
+            value={form.baseWeight}
+            onChange={(e) => updateForm("baseWeight", e.target.value)}
           />
-
-          <label className="block mt-4 mb-1">Pickup Date</label>
+        ) : (
+          <>
+            <input
+              type="number"
+              placeholder="Min Weight"
+              className="p-2 rounded bg-gray-800"
+              value={form.randomLow}
+              onChange={(e) => updateForm("randomLow", e.target.value)}
+            />
+            <input
+              type="number"
+              placeholder="Max Weight"
+              className="p-2 rounded bg-gray-800"
+              value={form.randomHigh}
+              onChange={(e) => updateForm("randomHigh", e.target.value)}
+            />
+          </>
+        )}
+        <label className="flex items-center gap-2 text-sm">
           <input
-            name="date"
-            type="date"
-            value={form.date}
-            onChange={handleChange}
-            className="w-full p-2 rounded bg-[#222f45]"
-            required
+            type="checkbox"
+            checked={form.randomizeWeight}
+            onChange={(e) => updateForm("randomizeWeight", e.target.checked)}
           />
-
-          <div className="mt-4 flex items-center gap-3">
-            <input
-              type="checkbox"
-              name="randomize"
-              checked={form.randomize}
-              onChange={handleChange}
-            />
-            <label className="text-sm">Randomize Weight?</label>
-          </div>
-
-          {form.randomize ? (
-            <div className="grid grid-cols-2 gap-4 mt-2">
-              <input
-                name="weightMin"
-                type="number"
-                placeholder="Min lbs"
-                value={form.weightMin}
-                onChange={handleChange}
-                className="p-2 rounded bg-[#222f45]"
-                required
-              />
-              <input
-                name="weightMax"
-                type="number"
-                placeholder="Max lbs"
-                value={form.weightMax}
-                onChange={handleChange}
-                className="p-2 rounded bg-[#222f45]"
-                required
-              />
-            </div>
-          ) : (
-            <div className="mt-2">
-              <input
-                name="weight"
-                type="number"
-                placeholder="Weight (lbs)"
-                value={form.weight}
-                onChange={handleChange}
-                className="w-full p-2 rounded bg-[#222f45]"
-                required
-              />
-            </div>
-          )}
-
-          <div className="mt-4 flex items-center gap-3">
-            <input
-              type="checkbox"
-              name="status"
-              checked={form.status === "Queued"}
-              onChange={(e) =>
-                setForm({ ...form, status: e.target.checked ? "Queued" : "Active" })
-              }
-            />
-            <label className="text-sm">Post Later (Queue)</label>
-          </div>
-
-          <label className="block mt-4 mb-1">Comment (Optional)</label>
-          <textarea
-            name="comment"
-            value={form.comment}
-            onChange={handleChange}
-            className="w-full p-2 rounded bg-[#222f45]"
-          />
-          {aiComment && (
-            <div className="text-green-400 text-sm mt-1">
-              💡 Suggestion: {aiComment}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 py-2 rounded-xl font-bold shadow-xl mt-6"
-          >
-            Create Lane
-          </button>
-
-          {message && (
-            <div className="mt-4 text-center font-semibold">{message}</div>
-          )}
-        </form>
+          Randomize weight
+        </label>
+        <input
+          type="date"
+          placeholder="Pickup Earliest"
+          className="p-2 rounded bg-gray-800"
+          value={form.dateEarliest}
+          onChange={(e) => updateForm("dateEarliest", e.target.value)}
+        />
+        <input
+          type="date"
+          placeholder="Pickup Latest"
+          className="p-2 rounded bg-gray-800"
+          value={form.dateLatest}
+          onChange={(e) => updateForm("dateLatest", e.target.value)}
+        />
+        <input
+          type="text"
+          placeholder="Commodity"
+          className="p-2 rounded bg-gray-800"
+          value={form.commodity}
+          onChange={(e) => updateForm("commodity", e.target.value)}
+        />
+        <input
+          type="text"
+          placeholder="Note (optional)"
+          className="p-2 rounded bg-gray-800 col-span-2"
+          value={form.note}
+          onChange={(e) => updateForm("note", e.target.value)}
+        />
       </div>
-    </ProtectedRoute>
+
+      <div className="flex gap-4 mt-4">
+        <button
+          onClick={addLane}
+          className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded text-white"
+        >
+          Add Lane
+        </button>
+        <button
+          onClick={generateCsv}
+          className="bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded text-white"
+        >
+          Generate DAT CSV
+        </button>
+        <button
+          onClick={downloadRecap}
+          className="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded text-white"
+        >
+          Download Recap Excel
+        </button>
+      </div>
+    </main>
   );
 }
-
-export default LaneForm;
