@@ -1,8 +1,8 @@
-// pages/dashboard.js
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import supabase from "../utils/supabaseClient";
 import Image from "next/image";
+import FloorSpaceCalculator from "../components/FloorSpaceCalculator";
 
 export default function Dashboard() {
   const [user, setUser] = useState(null);
@@ -40,16 +40,8 @@ export default function Dashboard() {
     <main className="min-h-screen bg-gray-950 text-white flex flex-col">
       <header className="flex items-center justify-between px-8 py-4 bg-gray-900 shadow-lg">
         <div className="flex items-center gap-3">
-          <Image
-            src="/logo.png"
-            alt="RapidRoutes Logo"
-            width={40}
-            height={40}
-            priority
-          />
-          <span className="text-2xl font-bold tracking-tight">
-            RapidRoutes Dashboard
-          </span>
+          <Image src="/logo.png" alt="RapidRoutes Logo" width={40} height={40} priority />
+          <span className="text-2xl font-bold tracking-tight">RapidRoutes Dashboard</span>
         </div>
         <button
           onClick={handleLogout}
@@ -58,6 +50,7 @@ export default function Dashboard() {
           Logout
         </button>
       </header>
+
       <section className="flex-1 p-8">
         <h2 className="text-3xl font-bold mb-6">Your Lanes</h2>
         {loading ? (
@@ -72,27 +65,25 @@ export default function Dashboard() {
                   <th className="p-3">Equipment</th>
                   <th className="p-3">Weight</th>
                   <th className="p-3">Status</th>
+                  <th className="p-3">RRSI</th>
                 </tr>
               </thead>
               <tbody>
                 {lanes.length === 0 ? (
                   <tr>
-                    <td className="p-4 text-gray-400" colSpan={5}>
+                    <td className="p-4 text-gray-400" colSpan={6}>
                       No lanes found.
                     </td>
                   </tr>
                 ) : (
                   lanes.map((lane) => (
                     <tr key={lane.id} className="border-b border-gray-800">
-                      <td className="p-3">
-                        {lane.origin_city}, {lane.origin_state}
-                      </td>
-                      <td className="p-3">
-                        {lane.dest_city}, {lane.dest_state}
-                      </td>
+                      <td className="p-3">{lane.origin_city}, {lane.origin_state}</td>
+                      <td className="p-3">{lane.dest_city}, {lane.dest_state}</td>
                       <td className="p-3">{lane.equipment}</td>
                       <td className="p-3">{lane.weight}</td>
                       <td className="p-3">{lane.status || "Active"}</td>
+                      <td className="p-3 font-bold text-neon-green">{lane.rrs || "—"}</td>
                     </tr>
                   ))
                 )}
@@ -100,6 +91,11 @@ export default function Dashboard() {
             </table>
           </div>
         )}
+      </section>
+
+      <section className="px-8 pb-12">
+        <h3 className="text-2xl font-semibold mt-12 mb-4 text-cyan-400">Floor Space Calculator</h3>
+        <FloorSpaceCalculator />
       </section>
     </main>
   );
