@@ -15,42 +15,30 @@ const fullEquipment = [
 ];
 
 export default function EquipmentSelect({ value, onChange }) {
-  const [open, setOpen] = useState(false);
-  const [filter, setFilter] = useState("");
+  const [open,setOpen]=useState(false);
+  const [filter,setFilter]=useState("");
 
-  const list = fullEquipment.filter((e) =>
-    e.toLowerCase().includes(filter.toLowerCase())
-  );
+  const list=fullEquipment.filter(e=>e.toLowerCase().includes(filter.toLowerCase()));
 
-  return (
+  return(
     <div className="relative">
-      <input
-        readOnly
-        value={value}
-        onClick={() => setOpen(!open)}
+      <input readOnly value={value}
+        onClick={()=>setOpen(!open)}
         placeholder="Select equipment"
         className="w-full px-3 py-2 rounded bg-[#242933] border border-gray-700 text-sm cursor-pointer"
       />
-      {open && (
+      {open&&(
         <div className="absolute z-20 w-full bg-[#1E222B] border border-gray-700 rounded shadow-lg">
-          <input
-            autoFocus
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
+          <input autoFocus value={filter}
+            onChange={e=>setFilter(e.target.value)}
             placeholder="Search…"
             className="w-full px-3 py-2 text-sm bg-[#1E222B] border-b border-gray-700 outline-none"
           />
           <ul className="max-h-60 overflow-y-auto">
-            {list.map((e) => (
-              <li
-                key={e}
-                onClick={() => {
-                  onChange(e);
-                  setOpen(false);
-                  setFilter("");
-                }}
-                className="px-3 py-2 text-sm hover:bg-[#364db9] cursor-pointer"
-              >
+            {list.map(e=>(
+              <li key={e}
+                onClick={()=>{onChange(e);setOpen(false);setFilter("");}}
+                className="px-3 py-2 text-sm hover:bg-[#364db9] cursor-pointer">
                 {e}
               </li>
             ))}
