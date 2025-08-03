@@ -1,161 +1,231 @@
+// pages/lanes.js
 import { useState } from "react";
-import { supabase } from "../utils/supabaseClient";
-import { generateDatPostings } from '../lib/exportDatCsv';
-import { saveAs } from "file-saver";
+
+const equipmentOptions = [
+  "Dry Van",
+  "Reefer",
+  "Flatbed",
+  "Flatbed or Step Deck",
+  "Conestoga",
+  "Double Drop",
+  "Lowboy",
+  "Hotshot",
+  "Hopper Bottom",
+  "Container",
+  "Auto Carrier",
+];
+
+const randomWeight = () =>
+  Math.floor(Math.random() * (48000 - 46750 + 1)) + 46750;
 
 export default function Lanes() {
-  const [lanes, setLanes] = useState([]);
-  const [form, setForm] = useState({
-    origin: "",
-    destination: "",
-    equipment: "FD",
-    length: 48,
-    baseWeight: "",
-    randomizeWeight: false,
-    randomLow: 46750,
-    randomHigh: 48000,
-    dateEarliest: "",
-    dateLatest: "",
-    commodity: "",
-    note: "",
-  });
+  const [lanes, setLanes] = useState([
+    {
+      origin: "",
+      destination: "",
+      equipment: "",
+      length: "",
+      weight: "",
+      randomize: false,
+      earliest: "",
+      latest: "",
+      comment: "",
+    },
+  ]);
 
-  const updateForm = (field, value) =>
-    setForm((prev) => ({ ...prev, [field]: value }));
-
-  const addLane = async () => {
-    const lane = { ...form };
-    const { data, error } = await supabase.from("lanes").insert([lane]);
-    if (!error) setLanes([...lanes, lane]);
+  const handleChange = (idx, field, value) => {
+    const updated = [...lanes];
+    if (field === "randomize") {
+      updated[idx].randomize = value;
+      updated[idx].weight = value ? randomWeight() : "";
+    } else {
+      updated[idx][field] = value;
+    }
+    setLanes(updated);
   };
 
-  const generateCsv = async () => {
-    const csv = await generateDatCsv(lanes, {});
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    saveAs(blob, "DAT_Upload.csv");
-  };
+  const addLane = () =>
+    setLanes([
+      ...lanes,
+      {
+        origin: "",
+        destination: "",
+        equipment: "",
+        length: "",
+        weight: "",
+        randomize: false,
+        earliest: "",
+        latest: "",
+        comment: "",
+      },
+    ]);
 
-  const downloadRecap = () => {
-    window.open("/api/export/recap", "_blank");
-  };
+  const removeLane = (idx) =>
+    setLanes(lanes.filter((_, laneIdx) => laneIdx !== idx));
 
   return (
-    <main className="min-h-screen bg-gray-950 text-white p-6">
-      <h1 className="text-3xl font-bold mb-4">Enter Lane</h1>
+    <div className="min-h-screen bg-gray-950 py-10 px-4 text-white">
+      <h1 className="text-3xl font-bold mb-8">Lane Entry</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-900 p-4 rounded">
-        <input
-          type="text"
-          placeholder="Origin City, State"
-          className="p-2 rounded bg-gray-800"
-          value={form.origin}
-          onChange={(e) => updateForm("origin", e.target.value)}
-        />
-        <input
-          type="text"
-          placeholder="Destination City, State"
-          className="p-2 rounded bg-gray-800"
-          value={form.destination}
-          onChange={(e) => updateForm("destination", e.target.value)}
-        />
-        <input
-          type="text"
-          placeholder="Equipment"
-          className="p-2 rounded bg-gray-800"
-          value={form.equipment}
-          onChange={(e) => updateForm("equipment", e.target.value)}
-        />
-        <input
-          type="number"
-          placeholder="Length (ft)"
-          className="p-2 rounded bg-gray-800"
-          value={form.length}
-          onChange={(e) => updateForm("length", e.target.value)}
-        />
-        {!form.randomizeWeight ? (
-          <input
-            type="number"
-            placeholder="Weight (lbs)"
-            className="p-2 rounded bg-gray-800"
-            value={form.baseWeight}
-            onChange={(e) => updateForm("baseWeight", e.target.value)}
-          />
-        ) : (
-          <>
-            <input
-              type="number"
-              placeholder="Min Weight"
-              className="p-2 rounded bg-gray-800"
-              value={form.randomLow}
-              onChange={(e) => updateForm("randomLow", e.target.value)}
-            />
-            <input
-              type="number"
-              placeholder="Max Weight"
-              className="p-2 rounded bg-gray-800"
-              value={form.randomHigh}
-              onChange={(e) => updateForm("randomHigh", e.target.value)}
-            />
-          </>
-        )}
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={form.randomizeWeight}
-            onChange={(e) => updateForm("randomizeWeight", e.target.checked)}
-          />
-          Randomize weight
-        </label>
-        <input
-          type="date"
-          placeholder="Pickup Earliest"
-          className="p-2 rounded bg-gray-800"
-          value={form.dateEarliest}
-          onChange={(e) => updateForm("dateEarliest", e.target.value)}
-        />
-        <input
-          type="date"
-          placeholder="Pickup Latest"
-          className="p-2 rounded bg-gray-800"
-          value={form.dateLatest}
-          onChange={(e) => updateForm("dateLatest", e.target.value)}
-        />
-        <input
-          type="text"
-          placeholder="Commodity"
-          className="p-2 rounded bg-gray-800"
-          value={form.commodity}
-          onChange={(e) => updateForm("commodity", e.target.value)}
-        />
-        <input
-          type="text"
-          placeholder="Note (optional)"
-          className="p-2 rounded bg-gray-800 col-span-2"
-          value={form.note}
-          onChange={(e) => updateForm("note", e.target.value)}
-        />
-      </div>
+      {lanes.map((lane, idx) => (
+        <div
+          key={idx}
+          className="mb-10 border border-gray-800 rounded-xl p-6 space-y-4 bg-gray-900"
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Origin / Destination */}
+            <div>
+              <label className="block mb-1 text-sm font-semibold">Origin</label>
+              <input
+                type="text"
+                value={lane.origin}
+                onChange={(e) => handleChange(idx, "origin", e.target.value)}
+                placeholder="City, State"
+                className="w-full px-3 py-2 rounded bg-gray-800 border border-gray-700 text-sm"
+                list="cities"
+              />
+            </div>
+            <div>
+              <label className="block mb-1 text-sm font-semibold">
+                Destination
+              </label>
+              <input
+                type="text"
+                value={lane.destination}
+                onChange={(e) =>
+                  handleChange(idx, "destination", e.target.value)
+                }
+                placeholder="City, State"
+                className="w-full px-3 py-2 rounded bg-gray-800 border border-gray-700 text-sm"
+                list="cities"
+              />
+            </div>
 
-      <div className="flex gap-4 mt-4">
-        <button
-          onClick={addLane}
-          className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded text-white"
-        >
-          Add Lane
-        </button>
-        <button
-          onClick={generateCsv}
-          className="bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded text-white"
-        >
-          Generate DAT CSV
-        </button>
-        <button
-          onClick={downloadRecap}
-          className="bg-yellow-600 hover:bg-yellow-700 px-4 py-2 rounded text-white"
-        >
-          Download Recap Excel
-        </button>
-      </div>
-    </main>
+            {/* Equipment / Length */}
+            <div>
+              <label className="block mb-1 text-sm font-semibold">
+                Equipment
+              </label>
+              <select
+                value={lane.equipment}
+                onChange={(e) =>
+                  handleChange(idx, "equipment", e.target.value)
+                }
+                className="w-full px-3 py-2 rounded bg-gray-800 border border-gray-700 text-sm"
+              >
+                <option value="">Select equipment</option>
+                {equipmentOptions.map((opt) => (
+                  <option key={opt}>{opt}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block mb-1 text-sm font-semibold">
+                Length (ft)
+              </label>
+              <input
+                type="number"
+                value={lane.length}
+                onChange={(e) => handleChange(idx, "length", e.target.value)}
+                placeholder="e.g., 48"
+                className="w-full px-3 py-2 rounded bg-gray-800 border border-gray-700 text-sm"
+              />
+            </div>
+
+            {/* Weight + Randomize */}
+            <div className="flex flex-col">
+              <label className="mb-1 text-sm font-semibold">Weight (lbs)</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  value={lane.weight}
+                  onChange={(e) =>
+                    handleChange(idx, "weight", e.target.value)
+                  }
+                  disabled={lane.randomize}
+                  placeholder="46,750–48,000"
+                  className={`flex-1 px-3 py-2 rounded bg-gray-800 border border-gray-700 text-sm ${
+                    lane.randomize ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
+                />
+                <label className="flex items-center gap-1 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={lane.randomize}
+                    onChange={(e) =>
+                      handleChange(idx, "randomize", e.target.checked)
+                    }
+                    className="h-4 w-4"
+                  />
+                  Randomize
+                </label>
+              </div>
+            </div>
+
+            {/* Dates */}
+            <div>
+              <label className="block mb-1 text-sm font-semibold">
+                Earliest Pickup Date
+              </label>
+              <input
+                type="date"
+                value={lane.earliest}
+                onChange={(e) => handleChange(idx, "earliest", e.target.value)}
+                className="w-full px-3 py-2 rounded bg-gray-800 border border-gray-700 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block mb-1 text-sm font-semibold">
+                Latest Pickup Date
+              </label>
+              <input
+                type="date"
+                value={lane.latest}
+                onChange={(e) => handleChange(idx, "latest", e.target.value)}
+                className="w-full px-3 py-2 rounded bg-gray-800 border border-gray-700 text-sm"
+              />
+            </div>
+          </div>
+
+          {/* Comment */}
+          <div>
+            <label className="block mb-1 text-sm font-semibold">Comment</label>
+            <textarea
+              rows={2}
+              value={lane.comment}
+              onChange={(e) => handleChange(idx, "comment", e.target.value)}
+              placeholder="Reminder: You are posting to your email AND phone. Per DAT’s policy, any postings with Email / Phone Number typed in the comment box are auto-deleted."
+              className="w-full px-3 py-2 rounded bg-gray-800 border border-gray-700 text-sm italic placeholder-gray-400"
+            />
+          </div>
+
+          {/* Remove Lane */}
+          <button
+            onClick={() => removeLane(idx)}
+            className="text-red-500 hover:text-red-400 text-sm font-semibold"
+          >
+            Remove Lane
+          </button>
+        </div>
+      ))}
+
+      <button
+        onClick={addLane}
+        className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-xl font-semibold shadow-lg"
+      >
+        Add New Lane
+      </button>
+
+      {/* Datalist stub for city autocomplete */}
+      <datalist id="cities">
+        <option value="New York, NY" />
+        <option value="Chicago, IL" />
+        <option value="Los Angeles, CA" />
+        <option value="Houston, TX" />
+        <option value="Dallas, TX" />
+        <option value="Atlanta, GA" />
+        <option value="Miami, FL" />
+      </datalist>
+    </div>
   );
 }
