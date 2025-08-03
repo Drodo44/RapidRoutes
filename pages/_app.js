@@ -1,19 +1,18 @@
 // pages/_app.js
-import "../styles/globals.css";
-import TopNav from "../components/TopNav";
-import { useEffect } from "react";
-import { supabase } from "../utils/supabaseClient";
+import "@/styles/globals.css";
+import Head from "next/head";
 
 export default function App({ Component, pageProps }) {
-  useEffect(() => {
-    const { data: listener } = supabase.auth.onAuthStateChange(() => {});
-    return () => listener?.subscription.unsubscribe();
-  }, []);
-
   return (
-    <main className="min-h-screen bg-gray-950 text-white">
-      <TopNav />
+    <>
+      <Head>
+        <style>{`
+          /* Force navbar links to off-white */
+          .navbar a { color: #E2E8F0; }
+          .navbar a:hover { color: #4361EE; }
+        `}</style>
+      </Head>
       <Component {...pageProps} />
-    </main>
+    </>
   );
 }
