@@ -7,11 +7,12 @@ export default function Home() {
   return (
     <main className="min-h-screen flex items-center justify-center bg-[#14181F] text-[#E2E8F0] px-4">
       <div className="w-full max-w-md text-center space-y-6">
+        {/* ⬆️ Increased logo size for better readability */}
         <Image
           src="/logo.png"
           alt="RapidRoutes Logo"
-          width={200}
-          height={200}
+          width={260}
+          height={260}
           priority
           className="mx-auto"
         />
