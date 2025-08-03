@@ -1,37 +1,37 @@
+// pages/index.js
 import Image from "next/image";
-import logo from "../public/logo.png";
 import { useRouter } from "next/router";
 
 export default function Home() {
   const router = useRouter();
 
   return (
-    <main className="min-h-screen bg-gray-950 text-white flex flex-col items-center justify-center text-center px-4">
-      <div className="mb-6">
+    <main className="min-h-screen bg-gray-950 flex flex-col justify-center items-center px-4 text-white">
+      <div className="max-w-md w-full text-center">
         <Image
-          src={logo}
+          src="/logo.png"
           alt="RapidRoutes Logo"
           width={300}
           height={300}
           className="mx-auto"
         />
-      </div>
-      <h1 className="text-3xl font-bold text-cyan-400 mb-6">
-        Welcome to RapidRoutes
-      </h1>
-      <div className="flex space-x-4">
-        <button
-          onClick={() => router.push("/login")}
-          className="bg-blue-700 hover:bg-blue-800 text-white font-semibold py-2 px-6 rounded-lg transition"
-        >
-          Login
-        </button>
-        <button
-          onClick={() => router.push("/signup")}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 px-6 rounded-lg transition"
-        >
-          Sign Up
-        </button>
+        <h1 className="text-3xl md:text-4xl font-bold text-cyan-400 mt-6">
+          Welcome to RapidRoutes
+        </h1>
+        <div className="flex justify-center gap-4 mt-6">
+          <button
+            className="bg-blue-700 hover:bg-blue-800 px-6 py-2 rounded-lg text-white font-semibold shadow"
+            onClick={() => router.push("/login")}
+          >
+            Login
+          </button>
+          <button
+            className="bg-emerald-600 hover:bg-emerald-700 px-6 py-2 rounded-lg text-white font-semibold shadow"
+            onClick={() => router.push("/signup")}
+          >
+            Sign Up
+          </button>
+        </div>
       </div>
     </main>
   );
