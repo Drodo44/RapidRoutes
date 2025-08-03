@@ -4,30 +4,33 @@ import { useRouter } from "next/router";
 
 export default function Home() {
   const router = useRouter();
-
   return (
-    <main className="min-h-screen bg-gray-950 flex flex-col justify-center items-center px-4 text-white">
-      <div className="max-w-md w-full text-center">
+    <main className="min-h-screen flex items-center justify-center bg-[#14181F] text-[#E2E8F0] px-4">
+      <div className="w-full max-w-md text-center space-y-6">
         <Image
           src="/logo.png"
           alt="RapidRoutes Logo"
-          width={300}
-          height={300}
+          width={200}
+          height={200}
+          priority
           className="mx-auto"
         />
-        <h1 className="text-3xl md:text-4xl font-bold text-cyan-400 mt-6">
-          Welcome to RapidRoutes
-        </h1>
-        <div className="flex justify-center gap-4 mt-6">
+
+        <h1 className="text-3xl font-bold">Welcome to RapidRoutes</h1>
+        <p className="text-gray-400 text-sm">
+          The only logistics platform where algorithmic intelligence meets AI automation
+        </p>
+
+        <div className="flex justify-center gap-4">
           <button
-            className="bg-blue-700 hover:bg-blue-800 px-6 py-2 rounded-lg text-white font-semibold shadow"
             onClick={() => router.push("/login")}
+            className="px-6 py-3 rounded-lg bg-[#4361EE] hover:bg-[#364db9] font-semibold shadow-md"
           >
             Login
           </button>
           <button
-            className="bg-emerald-600 hover:bg-emerald-700 px-6 py-2 rounded-lg text-white font-semibold shadow"
             onClick={() => router.push("/signup")}
+            className="px-6 py-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 font-semibold shadow-md"
           >
             Sign Up
           </button>
