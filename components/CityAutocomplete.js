@@ -1,41 +1,64 @@
+// components/CityAutocomplete.js
 import { useState, useEffect, useRef } from "react";
 import supabase from "../utils/supabaseClient";
 
-/*  Autocomplete for cities table (city, state_or_province)  */
+/**
+ * Autocomplete input tied to the `cities` table:
+ *   • city               (text)
+ *   • state_or_province  (text)
+ */
 export default function CityAutocomplete({ value, onChange, placeholder }) {
-  const [sugg, setSugg]   = useState([]);
-  const boxRef            = useRef(null);
+  const [suggestions, setSuggestions] = useState([]);
+  const boxRef = useRef(null);
 
-  /* close list when clicking outside */
+  /* Close dropdown on outside click */
   useEffect(() => {
-    const click = (e) => { if (!boxRef.current?.contains(e.target)) setSugg([]); };
-    window.addEventListener("mousedown", click);
-    return () => window.removeEventListener("mousedown", click);
+    const close = (e) => {
+      if (!boxRef.current?.contains(e.target)) setSuggestions([]);
+    };
+    window.addEventListener("mousedown", close);
+    return () => window.removeEventListener("mousedown", close);
   }, []);
 
-  /* fetch match list from Supabase */
+  /* Fetch matching cities from Supabase */
   const fetchCities = async (txt) => {
-    if (txt.length < 2) return setSugg([]);
+    if (txt.length < 2) return setSuggestions([]);
     const { data } = await supabase
       .from("cities")
       .select("city,state_or_province")
       .ilike("city", `${txt}%`)
       .limit(10);
-    setSugg(data || []);
+    setSuggestions(data || []);
   };
 
   return (
     <div className="relative" ref={boxRef}>
       <input
         value={value}
-        onChange={(e) => { onChange(e.target.value); fetchCities(e.target.value); }}
+        onChange={(e) => {
+          onChange(e.target.value);
+          fetchCities(e.target.value);
+        }}
         placeholder={placeholder}
         className="w-full px-3 py-2 rounded bg-[#242933] border border-gray-700 text-sm focus:ring-2 focus:ring-[#4361EE] outline-none"
       />
 
-      {sugg.length > 0 && (
+      {suggestions.length > 0 && (
         <ul className="absolute z-20 w-full mt-1 bg-[#1E222B] border border-gray-700 rounded shadow-lg max-h-60 overflow-y-auto">
-          {sugg.map((c) => (
+          {suggestions.map((c) => (
             <li
               key={`${c.city},${c.state_or_province}`}
-              onClick={() => { onChange(`${c.city}, ${c.state_or_province}`); set
+              onClick={() => {
+                onChange(`${c.city}, ${c.state_or_province}`);
+                setSuggestions([]);
+              }}
+              className="px-3 py-2 text-sm hover:bg-[#364db9] cursor-pointer"
+            >
+              {c.city}, {c.state_or_province}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
