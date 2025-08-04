@@ -1,42 +1,34 @@
-import Link from 'next/link';
-import { useRouter } from 'next/router';
-import { supabase } from '../utils/supabaseClient';
-import { useEffect, useState } from 'react';
+// components/Navbar.js
 
-export default function Navbar({ user }) {
+import Link from "next/link";
+import Image from "next/image";
+import { useRouter } from "next/router";
+import { supabase } from "../utils/supabaseClient";
+
+export default function Navbar() {
   const router = useRouter();
-  const [name, setName] = useState('');
-
-  useEffect(() => {
-    const fetchName = async () => {
-      if (user?.id) {
-        const { data } = await supabase
-          .from('profiles')
-          .select('name')
-          .eq('id', user.id)
-          .single();
-        setName(data?.name || user.email);
-      }
-    };
-    fetchName();
-  }, [user]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    router.push('/login');
+    router.push("/login");
   };
 
   return (
-    <nav className="bg-gray-900 text-white px-4 py-3 flex justify-between items-center shadow-md">
-      <div className="text-xl font-bold text-white">RapidRoutes</div>
-      <div className="space-x-4 flex items-center">
-        <Link href="/dashboard" className="hover:text-emerald-400">Dashboard</Link>
-        <Link href="/lanes" className="hover:text-emerald-400">Lanes</Link>
-        <Link href="/recap" className="hover:text-emerald-400">Recap</Link>
-        <Link href="/admin" className="hover:text-emerald-400">Admin</Link>
-        <Link href="/settings" className="hover:text-emerald-400">Settings</Link>
-        <span className="text-sm text-gray-300">Hi, {name}</span>
-        <button onClick={handleLogout} className="bg-red-600 hover:bg-red-700 px-3 py-1 rounded text-sm">Logout</button>
+    <nav className="bg-gray-900 text-white px-6 py-4 flex items-center justify-between shadow-lg">
+      <div className="flex items-center gap-3">
+        <Image src="/logo.png" width={40} height={40} alt="RapidRoutes" />
+        <h1 className="text-xl font-bold">RapidRoutes</h1>
+      </div>
+      <div className="flex gap-6">
+        <Link href="/dashboard" className="hover:underline">Dashboard</Link>
+        <Link href="/lanes" className="hover:underline">Lanes</Link>
+        <Link href="/recap" className="hover:underline">Recap</Link>
+        <Link href="/admin" className="hover:underline">Admin</Link>
+        <Link href="/settings" className="hover:underline">Settings</Link>
+        <Link href="/profile" className="hover:underline">Profile</Link>
+        <button onClick={handleLogout} className="bg-red-600 px-3 py-1 rounded hover:bg-red-700">
+          Logout
+        </button>
       </div>
     </nav>
   );
