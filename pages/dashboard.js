@@ -1,64 +1,105 @@
-import { useEffect, useState } from 'react';
-import { supabase } from '../utils/supabaseClient';
-import FloorSpaceChecker from '../components/FloorSpaceChecker';
-import HeavyHaulChecker from '../components/HeavyHaulChecker';
-import Navbar from '../components/Navbar';
+// pages/dashboard.js
+import { useEffect, useState } from "react";
+import { useRouter } from "next/router";
+import supabase from "../utils/supabaseClient";
+import Image from "next/image";
 
 export default function Dashboard() {
   const [user, setUser] = useState(null);
-  const [name, setName] = useState('');
+  const [lanes, setLanes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     const fetchUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        setUser(session.user);
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('name')
-          .eq('id', session.user.id)
-          .single();
-        setName(profile?.name || 'Broker');
+      const { data, error } = await supabase.auth.getUser();
+      if (!data?.user || error) {
+        router.push("/login");
+      } else {
+        setUser(data.user);
+        fetchLanes();
       }
     };
+
+    const fetchLanes = async () => {
+      setLoading(true);
+      const { data, error } = await supabase.from("lanes").select("*");
+      if (!error) setLanes(data || []);
+      setLoading(false);
+    };
+
     fetchUser();
   }, []);
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push("/login");
+  };
+
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      <Navbar />
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-white mb-1">Welcome back, {name}</h1>
-        <p className="text-md text-gray-400 mb-8 italic">Where algorithmic intelligence meets AI automation</p>
-
-        {/* Stats Placeholder */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-gray-900 rounded-lg shadow p-6 text-center">
-            <p className="text-4xl font-bold text-emerald-400">23</p>
-            <p className="text-gray-400">Lanes Posted Today</p>
-          </div>
-          <div className="bg-gray-900 rounded-lg shadow p-6 text-center">
-            <p className="text-4xl font-bold text-cyan-400">87%</p>
-            <p className="text-gray-400">Engagement Rate</p>
-          </div>
-          <div className="bg-gray-900 rounded-lg shadow p-6 text-center">
-            <p className="text-4xl font-bold text-yellow-400">$4,280</p>
-            <p className="text-gray-400">Revenue Generated</p>
-          </div>
+    <main className="min-h-screen bg-gray-950 text-white flex flex-col">
+      <header className="flex items-center justify-between px-8 py-4 bg-gray-900 shadow-lg">
+        <div className="flex items-center gap-3">
+          <Image
+            src="/logo.png"
+            alt="RapidRoutes Logo"
+            width={40}
+            height={40}
+            priority
+          />
+          <span className="text-2xl font-bold tracking-tight">RapidRoutes</span>
         </div>
+        <button
+          onClick={handleLogout}
+          className="bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded-xl text-white font-semibold"
+        >
+          Logout
+        </button>
+      </header>
 
-        {/* Tools */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-gray-900 rounded-lg p-6 shadow">
-            <h2 className="text-xl font-semibold mb-4">Floor Space Checker</h2>
-            <FloorSpaceChecker />
+      <section className="flex-1 p-8">
+        <h2 className="text-3xl font-bold mb-6">Your Lanes</h2>
+        {loading ? (
+          <div className="text-blue-400">Loading lanes...</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left bg-gray-900 rounded-xl">
+              <thead>
+                <tr className="bg-gray-800 text-cyan-300">
+                  <th className="p-3">Origin</th>
+                  <th className="p-3">Destination</th>
+                  <th className="p-3">Equipment</th>
+                  <th className="p-3">Weight</th>
+                  <th className="p-3">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lanes.length === 0 ? (
+                  <tr>
+                    <td className="p-4 text-center text-gray-400" colSpan={5}>
+                      No lanes found.
+                    </td>
+                  </tr>
+                ) : (
+                  lanes.map((lane) => (
+                    <tr key={lane.id} className="border-b border-gray-800 hover:bg-gray-800 transition">
+                      <td className="p-3">
+                        {lane.origin_city}, {lane.origin_state}
+                      </td>
+                      <td className="p-3">
+                        {lane.dest_city}, {lane.dest_state}
+                      </td>
+                      <td className="p-3">{lane.equipment}</td>
+                      <td className="p-3">{lane.weight}</td>
+                      <td className="p-3">{lane.status || "Active"}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
-          <div className="bg-gray-900 rounded-lg p-6 shadow">
-            <h2 className="text-xl font-semibold mb-4">Heavy Haul Checker</h2>
-            <HeavyHaulChecker />
-          </div>
-        </div>
-      </div>
-    </div>
+        )}
+      </section>
+    </main>
   );
 }
