@@ -1,70 +1,62 @@
-import { useState } from "react";
+import { useState } from 'react';
 
-const permitStates = {
-  AL: { length: 85, width: 102, height: 162 },
-  AZ: { length: 80, width: 102, height: 162 },
-  // Add all 50 states here...
+const stateLimits = {
+  height: 13.6,
+  width: 8.6,
+  length: 53
 };
 
+const heavyHaulStates = ["CA", "TX", "FL", "NY", "PA", "IL", "GA", "NC", "OH", "MI"];
+
 export default function HeavyHaulChecker() {
-  const [length, setLength] = useState("");
-  const [width, setWidth] = useState("");
-  const [height, setHeight] = useState("");
-  const [result, setResult] = useState(null);
+  const [dims, setDims] = useState({ length: '', width: '', height: '' });
+  const [exceeds, setExceeds] = useState(false);
+  const [showPopup, setShowPopup] = useState(false);
+  const [prompt, setPrompt] = useState('');
 
-  const checkOversize = () => {
-    const statesTriggered = [];
-    for (const state in permitStates) {
-      const { length: maxL, width: maxW, height: maxH } = permitStates[state];
-      if (
-        parseFloat(length) > maxL ||
-        parseFloat(width) > maxW ||
-        parseFloat(height) > maxH
-      ) {
-        statesTriggered.push(state);
-      }
-    }
+  const checkLimits = () => {
+    const { length, width, height } = dims;
+    const l = parseFloat(length);
+    const w = parseFloat(width);
+    const h = parseFloat(height);
+    if (!l || !w || !h) return;
 
-    if (statesTriggered.length > 0) {
-      setResult(`This load may require permits in the following states: ${statesTriggered.join(", ")}`);
+    if (l > stateLimits.length || w > stateLimits.width || h > stateLimits.height) {
+      setExceeds(true);
+      setShowPopup(true);
     } else {
-      setResult("Good to go – no permits required.");
+      setExceeds(false);
+      setPrompt("This load does not require permits.");
     }
   };
 
+  const handleRouteConfirm = (yes) => {
+    setShowPopup(false);
+    setPrompt(yes
+      ? `⚠️ This load may require permits if routing through: ${heavyHaulStates.join(', ')}.\nContact your Heavy Haul Partner.`
+      : '✅ Good to go. No permits required.');
+  };
+
   return (
-    <div className="bg-gray-800 p-4 rounded shadow text-white w-full max-w-md mt-6">
-      <h2 className="text-lg font-semibold mb-3">Heavy Haul Compliance Checker</h2>
-      <div className="grid grid-cols-3 gap-3">
-        <input
-          type="number"
-          placeholder="Length (ft)"
-          className="p-2 bg-gray-900 rounded"
-          value={length}
-          onChange={(e) => setLength(e.target.value)}
-        />
-        <input
-          type="number"
-          placeholder="Width (in)"
-          className="p-2 bg-gray-900 rounded"
-          value={width}
-          onChange={(e) => setWidth(e.target.value)}
-        />
-        <input
-          type="number"
-          placeholder="Height (in)"
-          className="p-2 bg-gray-900 rounded"
-          value={height}
-          onChange={(e) => setHeight(e.target.value)}
-        />
-      </div>
-      <button
-        onClick={checkOversize}
-        className="mt-4 bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded text-sm"
-      >
-        Check Compliance
-      </button>
-      {result && <div className="mt-4 text-sm text-cyan-300">{result}</div>}
+    <div className="bg-gray-800 p-4 rounded text-white w-full max-w-md mt-6 shadow-md">
+      <h2 className="text-lg font-bold mb-3">Heavy Haul Checker</h2>
+      <input type="number" placeholder="Length (ft)" onChange={e => setDims({ ...dims, length: e.target.value })} className="w-full mb-2 p-2 bg-gray-900 rounded" />
+      <input type="number" placeholder="Width (ft)" onChange={e => setDims({ ...dims, width: e.target.value })} className="w-full mb-2 p-2 bg-gray-900 rounded" />
+      <input type="number" placeholder="Height (ft)" onChange={e => setDims({ ...dims, height: e.target.value })} className="w-full mb-2 p-2 bg-gray-900 rounded" />
+      <button onClick={checkLimits} className="bg-blue-600 hover:bg-blue-700 w-full py-2 rounded">Check</button>
+
+      {showPopup && (
+        <div className="bg-gray-700 p-3 mt-4 rounded text-sm">
+          <p>This load exceeds legal limits. Route through any of the following?</p>
+          <p className="text-amber-300">{heavyHaulStates.join(', ')}</p>
+          <div className="flex justify-center gap-3 mt-2">
+            <button onClick={() => handleRouteConfirm(true)} className="bg-red-600 px-3 py-1 rounded">Yes</button>
+            <button onClick={() => handleRouteConfirm(false)} className="bg-emerald-600 px-3 py-1 rounded">No</button>
+          </div>
+        </div>
+      )}
+
+      {prompt && <p className="mt-4 text-center">{prompt}</p>}
     </div>
   );
 }
