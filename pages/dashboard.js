@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import Navbar from '../components/Navbar';
+import Navbar from '../components/Navbar.js';
 import FloorSpaceChecker from '../components/FloorSpaceChecker';
 
 export default function Dashboard() {
