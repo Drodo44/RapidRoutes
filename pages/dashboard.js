@@ -1,5 +1,5 @@
-import Navbar from '@/components/Navbar';
-import FloorSpaceChecker from '@/components/FloorSpaceChecker';
+import Navbar from '../components/Navbar';
+import FloorSpaceChecker from '../components/FloorSpaceChecker';
 
 export default function Dashboard() {
   return (
