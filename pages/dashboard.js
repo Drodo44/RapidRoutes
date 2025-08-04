@@ -1,45 +1,39 @@
+import { useState } from 'react';
 import Navbar from '../components/Navbar';
 import FloorSpaceChecker from '../components/FloorSpaceChecker';
 
 export default function Dashboard() {
+  const [email] = useState('aconnellan@tql.com');
+
   return (
-    <>
+    <div className="min-h-screen bg-[#0f1117] text-white px-6 py-6">
       <Navbar />
-      <main className="min-h-screen bg-[#0F1117] text-white px-6 py-8 space-y-8">
-        <section className="text-center">
-          <h1 className="text-3xl md:text-4xl font-bold text-white">
-            Welcome to RapidRoutes
-          </h1>
-          <p className="text-gray-400 mt-2 text-lg italic">
-            Where algorithmic intelligence meets AI automation
+
+      <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-[#1B1F28] p-4 rounded-lg shadow">
+          <h2 className="text-xl font-semibold text-teal-400 mb-2">
+            Welcome, {email}
+          </h2>
+          <p className="text-sm text-gray-300">
+            Use the tools below to calculate space or check legal limits.
           </p>
-        </section>
+        </div>
 
-        {/* Metric Cards */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-[#1B1F28] rounded-xl p-5 border border-gray-700">
-            <h2 className="text-sm text-gray-400">Total Active Lanes</h2>
-            <p className="text-2xl font-semibold mt-1">--</p>
-          </div>
-          <div className="bg-[#1B1F28] rounded-xl p-5 border border-gray-700">
-            <h2 className="text-sm text-gray-400">Postings Today</h2>
-            <p className="text-2xl font-semibold mt-1">--</p>
-          </div>
-          <div className="bg-[#1B1F28] rounded-xl p-5 border border-gray-700">
-            <h2 className="text-sm text-gray-400">Archived Lanes</h2>
-            <p className="text-2xl font-semibold mt-1">--</p>
-          </div>
-          <div className="bg-[#1B1F28] rounded-xl p-5 border border-gray-700">
-            <h2 className="text-sm text-gray-400">RRSI Score</h2>
-            <p className="text-2xl font-semibold mt-1">--</p>
-          </div>
-        </section>
+        <div className="bg-[#1B1F28] p-4 rounded-lg shadow">
+          <h2 className="text-xl font-semibold text-cyan-400 mb-2">
+            Broker Stats
+          </h2>
+          <p className="text-sm text-gray-300">
+            📈 KPI trends and AI insights coming soon...
+          </p>
+        </div>
+      </div>
 
-        {/* Floor Space Calculator */}
-        <section className="mt-10">
-          <FloorSpaceChecker />
-        </section>
-      </main>
-    </>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+        <FloorSpaceChecker />
+      </div>
+    </div>
   );
 }
