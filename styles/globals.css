@@ -1,21 +1,16 @@
+/* styles/globals.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Extra branding & card style */
-body {
-  background: #0f172a;
-  color: #fff;
-  min-height: 100vh;
+.input {
+  @apply w-full p-3 rounded bg-[#222f45] border border-gray-700 text-white;
 }
 
-.card {
-  background: #111827;
-  padding: 2rem;
-  border-radius: 1rem;
-  box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
-  text-align: center;
-  max-width: 28rem;
-  width: 100%;
-  margin: auto;
+.text-neon-blue {
+  color: #22d3ee;
+}
+
+.text-neon-green {
+  color: #00ff95;
 }
