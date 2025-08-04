@@ -1,80 +1,62 @@
-// pages/admin.js
-
 import { useEffect, useState } from "react";
 import { supabase } from "../utils/supabaseClient";
-import { useRouter } from "next/router";
+import Navbar from "../components/Navbar";
 
-export default function AdminDashboard() {
+export default function Admin() {
   const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const router = useRouter();
 
   useEffect(() => {
-    fetchUsers();
+    const loadUsers = async () => {
+      const { data } = await supabase.from("profiles").select("*");
+      setUsers(data || []);
+    };
+    loadUsers();
   }, []);
 
-  const fetchUsers = async () => {
-    setLoading(true);
-    const { data, error } = await supabase.from("profiles").select("*");
-    if (!error) setUsers(data || []);
-    setLoading(false);
-  };
-
-  const updateRole = async (id, newRole) => {
-    await supabase.from("profiles").update({ role: newRole }).eq("id", id);
-    fetchUsers();
-  };
-
-  const removeUser = async (id) => {
-    await supabase.from("profiles").delete().eq("id", id);
-    fetchUsers();
+  const approveUser = async (id) => {
+    await supabase.from("profiles").update({ role: "Broker" }).eq("id", id);
+    setUsers((prev) =>
+      prev.map((u) => (u.id === id ? { ...u, role: "Broker" } : u))
+    );
   };
 
   return (
-    <main className="min-h-screen bg-gray-950 text-white p-10">
-      <h1 className="text-4xl font-bold text-neon-blue mb-6">Admin – User Management</h1>
-      {loading ? (
-        <div className="text-blue-400">Loading users...</div>
-      ) : (
-        <table className="w-full text-left bg-gray-900 rounded-xl">
-          <thead>
-            <tr className="bg-gray-800 text-cyan-400">
+    <div className="min-h-screen bg-gray-950 text-white">
+      <Navbar />
+      <main className="p-8">
+        <h1 className="text-2xl font-bold mb-6">Admin Dashboard</h1>
+        <table className="w-full text-left border border-gray-800">
+          <thead className="bg-gray-900 border-b border-gray-700">
+            <tr>
               <th className="p-3">Name</th>
               <th className="p-3">Email</th>
               <th className="p-3">Role</th>
-              <th className="p-3">Actions</th>
+              <th className="p-3">Approve</th>
             </tr>
           </thead>
           <tbody>
-            {users.map((u) => (
-              <tr key={u.id} className="border-b border-gray-700">
-                <td className="p-3">{u.name || "(No name)"}</td>
-                <td className="p-3">{u.email}</td>
-                <td className="p-3">{u.role}</td>
-                <td className="p-3 space-x-2">
-                  {["Admin", "Broker", "Support", "Apprentice"].map((r) => (
+            {users.map((user) => (
+              <tr key={user.id} className="border-b border-gray-800">
+                <td className="p-3">{user.name}</td>
+                <td className="p-3">{user.email}</td>
+                <td className="p-3">{user.role}</td>
+                <td className="p-3">
+                  {user.role === "Apprentice" ? (
                     <button
-                      key={r}
-                      onClick={() => updateRole(u.id, r)}
-                      className={`px-3 py-1 rounded ${
-                        u.role === r ? "bg-green-600" : "bg-gray-700 hover:bg-gray-600"
-                      }`}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1 rounded"
+                      onClick={() => approveUser(user.id)}
                     >
-                      {r}
+                      Approve
                     </button>
-                  ))}
-                  <button
-                    onClick={() => removeUser(u.id)}
-                    className="bg-red-600 hover:bg-red-700 px-3 py-1 rounded"
-                  >
-                    Remove
-                  </button>
+                  ) : (
+                    <span className="text-gray-400">Approved</span>
+                  )}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-      )}
-    </main>
+      </main>
+    </div>
   );
 }
