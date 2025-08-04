@@ -1,27 +1,22 @@
-import { NextApiRequest, NextApiResponse } from "next";
-import { generateDatCsvRows } from "../../../lib/exportDatCsv";
-import { Parser } from "json2csv";
+// pages/api/export/dat.js
+
+import { generateChunkedCsv } from "../../../lib/csvChunker";
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") return res.status(405).end("Method Not Allowed");
+  const lanes = req.body.lanes || [];
 
-  const { lanes, settings } = req.body;
+  const headers = [
+    "Pickup Earliest*", "Pickup Latest", "Length (ft)*", "Weight (lbs)*", "Full/Partial*", "Equipment*", "Use Private Network*",
+    "Private Network Rate", "Allow Private Network Booking", "Allow Private Network Bidding",
+    "Use DAT Loadboard*", "DAT Loadboard Rate", "Allow DAT Loadboard Booking", "Use Extended Network",
+    "Contact Method*", "Origin City*", "Origin State*", "Origin Postal Code",
+    "Destination City*", "Destination State*", "Destination Postal Code", "Comment", "Commodity", "Reference ID"
+  ];
 
-  if (!lanes || !settings) {
-    return res.status(400).json({ error: "Missing lanes or settings." });
-  }
+  const csvChunks = generateChunkedCsv(lanes, headers);
+  const mergedCsv = csvChunks.join("\n\n---NEXT FILE---\n\n");
 
-  try {
-    const rows = await generateDatCsvRows(lanes, settings);
-
-    const parser = new Parser({ quote: "" });
-    const csv = parser.parse(rows);
-
-    res.setHeader("Content-Type", "text/csv");
-    res.setHeader("Content-Disposition", "attachment; filename=DAT_Postings.csv");
-    res.status(200).send(csv);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "CSV generation failed." });
-  }
+  res.setHeader("Content-Type", "text/csv");
+  res.setHeader("Content-Disposition", "attachment; filename=DAT_Postings.csv");
+  res.status(200).send(mergedCsv);
 }
