@@ -1,11 +1,9 @@
-// components/FloorSpaceChecker.js
 import { useState } from "react";
 
 export default function FloorSpaceChecker() {
   const [pallets, setPallets] = useState("");
   const [lengthFt, setLengthFt] = useState("");
   const [widthFt, setWidthFt]   = useState("");
-  const [heightFt, setHeightFt] = useState("");
   const [stackable, setStackable] = useState(false);
   const [result, setResult] = useState(null);
 
@@ -13,11 +11,10 @@ export default function FloorSpaceChecker() {
     const p = Number(pallets),
           L = Number(lengthFt),
           W = Number(widthFt);
-    if (!p||!L||!W) {
+    if (!p || !L || !W) {
       setResult("Please enter pallet count, length, and width.");
       return;
     }
-    // Assume trailer internal width = 8.5 ft
     const trailerWidth = 8.5;
     const perRow = Math.max(1, Math.floor(trailerWidth / W));
     const layers = stackable ? 2 : 1;
