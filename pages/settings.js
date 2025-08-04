@@ -1,116 +1,79 @@
-import { useEffect, useState } from "react";
-import { supabase } from "../utils/supabaseClient";
-import TopNav from "../components/TopNav";
+// pages/settings.js
+
+import { useState } from 'react';
 
 export default function Settings() {
-  const [userId, setUserId] = useState(null);
-  const [form, setForm] = useState({
-    trailer: "FD",
-    weightMin: 46750,
-    weightMax: 48000,
-    contactMethod: "Email",
-  });
+  const [aiEnabled, setAiEnabled] = useState(true);
+  const [randomWeight, setRandomWeight] = useState(true);
+  const [zipBlocklist, setZipBlocklist] = useState(["30303", "11222"]);
+  const [newZip, setNewZip] = useState("");
 
-  useEffect(() => {
-    const load = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+  const handleAddZip = () => {
+    if (newZip && !zipBlocklist.includes(newZip)) {
+      setZipBlocklist([...zipBlocklist, newZip]);
+      setNewZip("");
+    }
+  };
 
-      setUserId(user.id);
-
-      const { data } = await supabase
-        .from("settings")
-        .select("*")
-        .eq("user_id", user.id)
-        .single();
-
-      if (data) {
-        setForm({
-          trailer: data.trailer || "FD",
-          weightMin: data.weight_min || 46750,
-          weightMax: data.weight_max || 48000,
-          contactMethod: data.contact_method || "Email",
-        });
-      }
-    };
-
-    load();
-  }, []);
-
-  const saveSettings = async () => {
-    if (!userId) return;
-
-    const updates = {
-      user_id: userId,
-      trailer: form.trailer,
-      weight_min: form.weightMin,
-      weight_max: form.weightMax,
-      contact_method: form.contactMethod,
-    };
-
-    await supabase.from("settings").upsert(updates);
-    alert("Settings saved.");
+  const handleRemoveZip = (zip) => {
+    setZipBlocklist(zipBlocklist.filter(z => z !== zip));
   };
 
   return (
-    <main className="min-h-screen bg-gray-950 text-white px-6 py-8">
-      <TopNav />
-      <div className="max-w-xl mx-auto bg-gray-900 p-6 rounded-xl shadow">
-        <h1 className="text-2xl font-bold text-cyan-400 mb-4">Settings</h1>
+    <main className="min-h-screen bg-[#0f172a] text-white flex flex-col items-center py-12">
+      <div className="w-full max-w-xl bg-[#1a2236] rounded-2xl shadow-2xl p-8">
+        <h1 className="text-3xl font-bold text-neon-blue mb-6 text-center">Settings</h1>
 
-        <div className="space-y-4">
-          <div>
-            <label className="block font-medium mb-1">Default Trailer Type</label>
+        <div className="mb-6 flex justify-between items-center">
+          <span className="text-lg font-medium text-gray-300">Enable AI Suggestions</span>
+          <input
+            type="checkbox"
+            checked={aiEnabled}
+            onChange={() => setAiEnabled(!aiEnabled)}
+            className="w-6 h-6"
+          />
+        </div>
+
+        <div className="mb-6 flex justify-between items-center">
+          <span className="text-lg font-medium text-gray-300">Randomize Weights</span>
+          <input
+            type="checkbox"
+            checked={randomWeight}
+            onChange={() => setRandomWeight(!randomWeight)}
+            className="w-6 h-6"
+          />
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-gray-300 font-medium mb-2">ZIP Blocklist</label>
+          <div className="flex gap-2 mb-4">
             <input
               type="text"
-              className="w-full p-2 rounded bg-gray-800 text-white"
-              value={form.trailer}
-              onChange={(e) => setForm({ ...form, trailer: e.target.value })}
+              value={newZip}
+              onChange={(e) => setNewZip(e.target.value)}
+              placeholder="Enter ZIP"
+              className="bg-[#222f45] text-white px-3 py-2 rounded w-full"
             />
-          </div>
-
-          <div>
-            <label className="block font-medium mb-1">Weight Range (lbs)</label>
-            <div className="flex space-x-2">
-              <input
-                type="number"
-                className="w-1/2 p-2 rounded bg-gray-800 text-white"
-                placeholder="Min"
-                value={form.weightMin}
-                onChange={(e) =>
-                  setForm({ ...form, weightMin: parseInt(e.target.value) })
-                }
-              />
-              <input
-                type="number"
-                className="w-1/2 p-2 rounded bg-gray-800 text-white"
-                placeholder="Max"
-                value={form.weightMax}
-                onChange={(e) =>
-                  setForm({ ...form, weightMax: parseInt(e.target.value) })
-                }
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block font-medium mb-1">Default Contact Method</label>
-            <select
-              className="w-full p-2 rounded bg-gray-800 text-white"
-              value={form.contactMethod}
-              onChange={(e) => setForm({ ...form, contactMethod: e.target.value })}
+            <button
+              onClick={handleAddZip}
+              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
             >
-              <option value="Email">Email</option>
-              <option value="Primary Phone">Primary Phone</option>
-            </select>
+              Add
+            </button>
           </div>
-
-          <button
-            onClick={saveSettings}
-            className="w-full bg-emerald-600 hover:bg-emerald-500 px-4 py-2 rounded-lg font-semibold"
-          >
-            Save Settings
-          </button>
+          <div className="grid grid-cols-3 gap-2">
+            {zipBlocklist.map((zip, idx) => (
+              <div key={idx} className="bg-gray-800 px-3 py-2 rounded flex justify-between items-center">
+                <span>{zip}</span>
+                <button
+                  onClick={() => handleRemoveZip(zip)}
+                  className="text-red-400 font-bold text-sm"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </main>
