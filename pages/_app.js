@@ -1,5 +1,5 @@
 // pages/_app.js
-import "@/styles/globals.css";
+import "../styles/globals.css";   // ← relative path; works out-of-the-box
 import Head from "next/head";
 
 export default function App({ Component, pageProps }) {
@@ -7,9 +7,9 @@ export default function App({ Component, pageProps }) {
     <>
       <Head>
         <style>{`
-          /* Force navbar links to off-white */
-          .navbar a { color: #E2E8F0; }
-          .navbar a:hover { color: #4361EE; }
+          /* Navbar link color override */
+          .navbar a { color: #E2E8F0 !important; }
+          .navbar a:hover { color: #4361EE !important; }
         `}</style>
       </Head>
       <Component {...pageProps} />
