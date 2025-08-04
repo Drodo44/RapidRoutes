@@ -1,39 +1,41 @@
+// pages/api/export/recap.js
+
 import ExcelJS from "exceljs";
-import { NextApiRequest, NextApiResponse } from "next";
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") return res.status(405).end("Method Not Allowed");
-
-  const { lanes } = req.body;
-  if (!lanes) return res.status(400).json({ error: "Missing lanes data." });
+  const lanes = req.body?.lanes || [];
 
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet("Active Postings");
 
   sheet.columns = [
-    { header: "Pickup City", key: "origin_city", width: 20 },
-    { header: "Pickup State", key: "origin_state", width: 15 },
-    { header: "Dropoff City", key: "dest_city", width: 20 },
-    { header: "Dropoff State", key: "dest_state", width: 15 },
-    { header: "Equipment", key: "equipment", width: 20 },
-    { header: "Miles", key: "distance", width: 10 },
-    { header: "Weather Flag", key: "weather_flag", width: 15 },
-    { header: "Selling Point", key: "selling_point", width: 40 },
+    { header: "Pickup", key: "origin" },
+    { header: "Delivery", key: "destination" },
+    { header: "Equipment", key: "equipment" },
+    { header: "Weight", key: "weight" },
+    { header: "Length", key: "length" },
+    { header: "Date", key: "date" },
+    { header: "RRSI", key: "rrsi" },
+    { header: "Comment", key: "comment" }
   ];
 
   lanes.forEach((lane) => {
-    sheet.addRow(lane);
+    sheet.addRow({
+      origin: `${lane.originCity}, ${lane.originState}`,
+      destination: `${lane.destCity}, ${lane.destState}`,
+      equipment: lane.equipment,
+      weight: lane.weight,
+      length: lane.length,
+      date: lane.date,
+      rrsi: lane.rrsi,
+      comment: lane.comment,
+    });
   });
 
-  // Footer credit line
-  const row = sheet.addRow([]);
-  row.getCell(1).value =
-    "Created by Andrew Connellan – Logistics Account Exec at TQL, Cincinnati, OH";
-  row.getCell(1).font = { italic: true, size: 10 };
-  sheet.mergeCells(`A${row.number}:H${row.number}`);
+  sheet.columns.forEach((col) => (col.width = Math.max(12, col.header.length + 2)));
 
   const buffer = await workbook.xlsx.writeBuffer();
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
   res.setHeader("Content-Disposition", "attachment; filename=Active_Postings.xlsx");
-  res.send(buffer);
+  res.status(200).send(buffer);
 }
