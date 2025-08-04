@@ -1,44 +1,40 @@
 // pages/profile.js
 
-import { useEffect, useState } from "react";
+import { useUser } from "@supabase/auth-helpers-react";
+import Navbar from "../components/Navbar";
 import { useRouter } from "next/router";
-import supabase from "../utils/supabaseClient";
+import { useEffect } from "react";
 
 export default function Profile() {
-  const [user, setUser] = useState(null);
+  const user = useUser();
   const router = useRouter();
 
   useEffect(() => {
-    const loadUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) router.push("/login");
-      else setUser(user);
-    };
-
-    loadUser();
-  }, [router]);
+    if (!user) router.push("/login");
+  }, [user]);
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-[#111827] text-white">
-      <h1 className="text-4xl font-bold mb-4 text-neon-blue">My Profile</h1>
-      <div className="bg-[#1a2236] p-8 rounded-2xl shadow-2xl max-w-md w-full">
-        {user ? (
-          <div className="space-y-4">
-            <div>
-              <span className="font-semibold text-gray-300">Email:</span>
-              <span className="ml-2">{user.email}</span>
+    <>
+      <Navbar />
+      <main className="min-h-screen bg-[#0f172a] flex flex-col items-center justify-center text-white px-4">
+        <div className="bg-[#1a2236] p-8 rounded-2xl shadow-2xl max-w-md w-full">
+          <h1 className="text-3xl font-bold text-neon-blue mb-6 text-center">My Profile</h1>
+          {user ? (
+            <div className="space-y-4">
+              <div>
+                <span className="text-gray-400">Email:</span>
+                <span className="ml-2">{user.email}</span>
+              </div>
+              <div>
+                <span className="text-gray-400">User ID:</span>
+                <span className="ml-2">{user.id}</span>
+              </div>
             </div>
-            <div>
-              <span className="font-semibold text-gray-300">User ID:</span>
-              <span className="ml-2">{user.id}</span>
-            </div>
-          </div>
-        ) : (
-          <div className="text-red-400">Loading...</div>
-        )}
-      </div>
-    </div>
+          ) : (
+            <p>Loading user...</p>
+          )}
+        </div>
+      </main>
+    </>
   );
 }
