@@ -1,9 +1,31 @@
-import Link from "next/link";
 import { useRouter } from "next/router";
+import { useEffect, useState } from "react";
 import { supabase } from "../utils/supabaseClient";
+import Image from "next/image";
+import logo from "../public/logo.png";
 
-export default function Navbar({ user }) {
+export default function Navbar() {
   const router = useRouter();
+  const [name, setName] = useState("");
+
+  useEffect(() => {
+    const getProfile = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (session?.user) {
+        const { data } = await supabase
+          .from("profiles")
+          .select("name")
+          .eq("id", session.user.id)
+          .single();
+        if (data?.name) setName(data.name);
+      }
+    };
+
+    getProfile();
+  }, []);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -11,25 +33,20 @@ export default function Navbar({ user }) {
   };
 
   return (
-    <nav className="bg-gray-900 text-white flex items-center justify-between px-6 py-3 shadow-md">
-      <div className="flex items-center gap-4">
-        <img src="/logo.png" alt="RapidRoutes Logo" className="h-10 w-auto" />
-        <span className="text-xl font-bold tracking-wide">RapidRoutes</span>
+    <header className="flex items-center justify-between px-6 py-4 bg-gray-900 border-b border-gray-800 shadow-sm">
+      <div className="flex items-center gap-3">
+        <Image src={logo} alt="Logo" width={40} height={40} />
+        <h1 className="text-white text-xl font-bold">RapidRoutes</h1>
       </div>
-      <div className="flex items-center gap-6">
-        <Link href="/dashboard" className="hover:text-emerald-400 transition">Dashboard</Link>
-        <Link href="/lanes" className="hover:text-emerald-400 transition">Lanes</Link>
-        <Link href="/recap" className="hover:text-emerald-400 transition">Recap</Link>
-        <Link href="/admin" className="hover:text-emerald-400 transition">Admin</Link>
-        <Link href="/settings" className="hover:text-emerald-400 transition">Settings</Link>
-        <span className="text-sm font-medium italic text-gray-300">{user?.user_metadata?.name || user?.email}</span>
+      <div className="flex items-center gap-4">
+        <p className="text-gray-300 hidden md:block">Logged in as: <span className="font-semibold">{name || "User"}</span></p>
         <button
           onClick={handleLogout}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded transition text-sm"
+          className="bg-red-600 hover:bg-red-700 text-white text-sm px-4 py-2 rounded"
         >
           Logout
         </button>
       </div>
-    </nav>
+    </header>
   );
 }
