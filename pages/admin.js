@@ -1,62 +1,61 @@
+// pages/admin.js
+
 import { useEffect, useState } from "react";
-import { supabase } from "../utils/supabaseClient";
-import Navbar from "../components/Navbar";
+import supabase from "../utils/supabaseClient";
 
 export default function Admin() {
   const [users, setUsers] = useState([]);
 
   useEffect(() => {
-    const loadUsers = async () => {
-      const { data } = await supabase.from("profiles").select("*");
-      setUsers(data || []);
-    };
-    loadUsers();
+    fetchUsers();
   }, []);
 
-  const approveUser = async (id) => {
-    await supabase.from("profiles").update({ role: "Broker" }).eq("id", id);
-    setUsers((prev) =>
-      prev.map((u) => (u.id === id ? { ...u, role: "Broker" } : u))
-    );
+  const fetchUsers = async () => {
+    const { data, error } = await supabase.from("profiles").select("*");
+    if (!error) setUsers(data);
+  };
+
+  const handleRoleChange = async (userId, newRole) => {
+    await supabase.from("profiles").update({ role: newRole }).eq("id", userId);
+    fetchUsers();
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      <Navbar />
-      <main className="p-8">
-        <h1 className="text-2xl font-bold mb-6">Admin Dashboard</h1>
-        <table className="w-full text-left border border-gray-800">
-          <thead className="bg-gray-900 border-b border-gray-700">
+    <main className="min-h-screen bg-[#0f172a] text-white py-12 px-4">
+      <div className="max-w-5xl mx-auto bg-[#1a2236] rounded-2xl shadow-2xl p-6">
+        <h1 className="text-3xl font-bold text-neon-blue mb-6 text-center">Admin Panel</h1>
+        <table className="w-full text-left">
+          <thead className="text-neon-blue">
             <tr>
-              <th className="p-3">Name</th>
-              <th className="p-3">Email</th>
-              <th className="p-3">Role</th>
-              <th className="p-3">Approve</th>
+              <th className="p-2">Name</th>
+              <th className="p-2">Email</th>
+              <th className="p-2">Role</th>
+              <th className="p-2">Update</th>
             </tr>
           </thead>
           <tbody>
-            {users.map((user) => (
-              <tr key={user.id} className="border-b border-gray-800">
-                <td className="p-3">{user.name}</td>
-                <td className="p-3">{user.email}</td>
-                <td className="p-3">{user.role}</td>
-                <td className="p-3">
-                  {user.role === "Apprentice" ? (
-                    <button
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1 rounded"
-                      onClick={() => approveUser(user.id)}
-                    >
-                      Approve
-                    </button>
-                  ) : (
-                    <span className="text-gray-400">Approved</span>
-                  )}
+            {users.map((u) => (
+              <tr key={u.id} className="even:bg-[#202b42] odd:bg-[#1a2437]">
+                <td className="p-2">{u.name}</td>
+                <td className="p-2">{u.email}</td>
+                <td className="p-2">{u.role}</td>
+                <td className="p-2">
+                  <select
+                    value={u.role}
+                    onChange={(e) => handleRoleChange(u.id, e.target.value)}
+                    className="bg-gray-800 text-white px-3 py-1 rounded"
+                  >
+                    <option>Admin</option>
+                    <option>Broker</option>
+                    <option>Support</option>
+                    <option>Apprentice</option>
+                  </select>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-      </main>
-    </div>
+      </div>
+    </main>
   );
 }
