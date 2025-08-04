@@ -1,87 +1,100 @@
+// pages/lanes.js
+
 import { useState } from "react";
-import CityAutocomplete from "../components/CityAutocomplete";
-import EquipmentSelect from "../components/EquipmentSelect";
-import RandomizeModal from "../components/RandomizeModal";
+import supabase from "../utils/supabaseClient";
+import HeavyHaulPopup from "../components/HeavyHaulPopup";
 
-const newLane=()=>({
-  origin:"",destination:"",earliest:"",latest:"",
-  equipment:"",length:"",weight:"",rate:"",randomize:false,comment:""
-});
-const rand=(min,max)=>Math.floor(Math.random()*(max-min+1))+min;
+export default function Lanes() {
+  const [form, setForm] = useState({
+    originCity: "",
+    originState: "",
+    originZip: "",
+    destCity: "",
+    destState: "",
+    destZip: "",
+    equipment: "",
+    weight: "",
+    date: "",
+    length: "",
+    comment: "",
+  });
+  const [showPopup, setShowPopup] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-export default function Lanes(){
-  const[lanes,setLanes]=useState([newLane()]);
-  const[showModal,setShowModal]=useState(null);
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
 
-  const upd=(i,f,v)=>setLanes(p=>p.map((l,idx)=>idx===i?{...l,[f]:v}:l));
+  const isOversize = () => {
+    const weight = parseInt(form.weight);
+    const length = parseInt(form.length);
+    return weight > 48000 || length > 53;
+  };
 
-  const applyRand=(min,max,all)=>setLanes(p=>p.map((l,idx)=>(
-    all||idx===showModal?{...l,weight:rand(min,max),randomize:true}:l
-  )));
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
 
-  return(
-    <div className="min-h-screen bg-[#14181F] text-[#E2E8F0] py-10 px-4">
-      <h1 className="text-2xl font-bold mb-6">Lane Entry</h1>
+    if (isOversize()) {
+      setShowPopup(true);
+      setSaving(false);
+      return;
+    }
 
-      {lanes.map((l,i)=>(
-        <div key={i} className="mb-8 space-y-4 p-5 rounded-lg border border-gray-800 bg-[#1E222B]">
+    const { error } = await supabase.from("lanes").insert([form]);
+    if (error) alert("Error saving lane.");
+    else alert("Lane created!");
+    setForm({
+      originCity: "",
+      originState: "",
+      originZip: "",
+      destCity: "",
+      destState: "",
+      destZip: "",
+      equipment: "",
+      weight: "",
+      date: "",
+      length: "",
+      comment: "",
+    });
+    setSaving(false);
+  };
 
-          <div className="grid md:grid-cols-2 gap-4">
-            <div><label className="text-sm font-semibold">Origin</label>
-              <CityAutocomplete value={l.origin} onChange={v=>upd(i,"origin",v)} placeholder="City, State" />
-            </div>
-            <div><label className="text-sm font-semibold">Destination</label>
-              <CityAutocomplete value={l.destination} onChange={v=>upd(i,"destination",v)} placeholder="City, State" />
-            </div>
-            <div><label className="text-sm font-semibold">Earliest Pickup Date</label>
-              <input type="date" value={l.earliest} onChange={e=>upd(i,"earliest",e.target.value)}
-                className="w-full px-3 py-2 rounded bg-[#242933] border border-gray-700 text-sm" />
-            </div>
-            <div><label className="text-sm font-semibold">Latest Pickup Date</label>
-              <input type="date" value={l.latest} onChange={e=>upd(i,"latest",e.target.value)}
-                className="w-full px-3 py-2 rounded bg-[#242933] border border-gray-700 text-sm" />
-            </div>
-            <div><label className="text-sm font-semibold">Equipment</label>
-              <EquipmentSelect value={l.equipment} onChange={v=>upd(i,"equipment",v)} />
-            </div>
-            <div><label className="text-sm font-semibold">Length (ft)</label>
-              <input type="number" value={l.length} onChange={e=>upd(i,"length",e.target.value)}
-                className="w-full px-3 py-2 rounded bg-[#242933] border border-gray-700 text-sm" />
-            </div>
-            <div>
-              <label className="text-sm font-semibold">Weight (lbs)</label>
-              <div className="flex items-center gap-3">
-                <input type="number" value={l.weight} onChange={e=>upd(i,"weight",e.target.value)}
-                  className="flex-1 px-3 py-2 rounded bg-[#242933] border border-gray-700 text-sm" />
-                <input type="checkbox" checked={l.randomize}
-                  onChange={e=>{ if(e.target.checked) setShowModal(i); else upd(i,"randomize",false); }}
-                  className="h-4 w-4" />
-              </div>
-            </div>
-            <div>
-              <label className="text-sm font-semibold">Rate ($)</label>
-              <input type="number" value={l.rate} onChange={e=>upd(i,"rate",e.target.value)}
-                className="w-full px-3 py-2 rounded bg-[#242933] border border-gray-700 text-sm" />
-            </div>
-          </div>
-
-          <div>
-            <label className="text-sm font-semibold">Comment</label>
-            <textarea rows={2} value={l.comment} onChange={e=>upd(i,"comment",e.target.value)}
-              placeholder="Reminder: You are posting to your email AND phone. Per DAT’s policy, any postings with Email / Phone Number typed in the comment box are auto-deleted."
-              className="w-full px-3 py-2 rounded bg-[#242933] border border-gray-700 italic placeholder-gray-400 text-sm" />
-          </div>
-
-          <button onClick={()=>setLanes(lanes.filter((_,idx)=>idx!==i))}
-            className="text-red-500 hover:text-red-400 text-sm font-semibold">Remove Lane</button>
+  return (
+    <div className="min-h-screen bg-[#111827] flex items-center justify-center py-12">
+      <form
+        onSubmit={handleSubmit}
+        className="bg-[#1a2236] p-8 rounded-2xl shadow-2xl max-w-2xl w-full text-white"
+      >
+        <h1 className="text-3xl font-bold mb-6 text-neon-blue">Add New Lane</h1>
+        <div className="grid grid-cols-2 gap-4">
+          <input name="originCity" placeholder="Origin City" required value={form.originCity} onChange={handleChange} className="input" />
+          <input name="originState" placeholder="Origin State" required value={form.originState} onChange={handleChange} className="input" />
+          <input name="originZip" placeholder="Origin ZIP" required value={form.originZip} onChange={handleChange} className="input" />
+          <input name="destCity" placeholder="Dest City" required value={form.destCity} onChange={handleChange} className="input" />
+          <input name="destState" placeholder="Dest State" required value={form.destState} onChange={handleChange} className="input" />
+          <input name="destZip" placeholder="Dest ZIP" required value={form.destZip} onChange={handleChange} className="input" />
+          <input name="equipment" placeholder="Equipment" required value={form.equipment} onChange={handleChange} className="input" />
+          <input name="weight" type="number" placeholder="Weight (lbs)" required value={form.weight} onChange={handleChange} className="input" />
+          <input name="length" type="number" placeholder="Length (ft)" required value={form.length} onChange={handleChange} className="input" />
+          <input name="date" type="date" required value={form.date} onChange={handleChange} className="input" />
         </div>
-      ))}
-
-      <button onClick={()=>setLanes([...lanes,newLane()])}
-        className="px-6 py-3 rounded-xl bg-[#4361EE] hover:bg-[#364db9] font-semibold shadow-lg">Add New Lane</button>
-
-      {/* Randomize modal */}
-      <RandomizeModal show={showModal!==null} onClose={()=>setShowModal(null)} apply={applyRand} />
+        <textarea
+          name="comment"
+          placeholder="Comment (optional)"
+          value={form.comment}
+          onChange={handleChange}
+          className="w-full mt-4 bg-[#222f45] rounded p-3"
+        />
+        <button
+          type="submit"
+          className="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-xl font-bold mt-4"
+          disabled={saving}
+        >
+          {saving ? "Saving..." : "Submit Lane"}
+        </button>
+      </form>
+      <HeavyHaulPopup isOpen={showPopup} onClose={() => setShowPopup(false)} />
     </div>
   );
 }
