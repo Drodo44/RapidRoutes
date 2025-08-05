@@ -1,72 +1,61 @@
+import Navbar from "../components/Navbar";
 import { useEffect, useState } from "react";
-import { supabase } from "../utils/supabaseClient";
-import Image from "next/image";
-import logo from "../public/logo.png";
+import supabase from "../utils/supabaseClient";
 
 export default function Recap() {
   const [lanes, setLanes] = useState([]);
 
   useEffect(() => {
     const fetchLanes = async () => {
-      const { data, error } = await supabase.from("lanes").select("*");
-      if (!error) setLanes(data);
+      const { data, error } = await supabase.from("lanes").select("*").order("date", { ascending: false });
+      if (error) console.error("Failed to fetch lanes:", error);
+      else setLanes(data || []);
     };
+
     fetchLanes();
   }, []);
 
   return (
-    <main className="min-h-screen bg-[#0f1117] text-white p-6">
-      <div className="flex items-center mb-8">
-        <Image src={logo} alt="RapidRoutes Logo" width={40} height={40} />
-        <h1 className="text-2xl font-bold ml-4">Active Postings Recap</h1>
-      </div>
+    <>
+      <Navbar />
+      <main className="min-h-screen bg-gray-950 text-white px-4 py-10">
+        <div className="max-w-7xl mx-auto">
+          <h1 className="text-3xl font-bold text-cyan-400 text-center mb-8">Active Postings Recap</h1>
 
-      {lanes.length === 0 ? (
-        <p className="text-gray-400">No lanes to display.</p>
-      ) : (
-        <div className="space-y-8">
-          {lanes.map((lane) => (
-            <div
-              key={lane.id}
-              className="border border-gray-800 rounded-md shadow-sm p-4 bg-[#1b1d25]"
-            >
-              <div className="text-xl font-semibold text-cyan-400">
-                {lane.origin_city}, {lane.origin_state} → {lane.destination_city},{" "}
-                {lane.destination_state}
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4 text-sm">
-                <div>
-                  <strong>Equipment:</strong> {lane.equipment}
-                </div>
-                <div>
-                  <strong>Weight:</strong>{" "}
-                  {lane.randomize_weight
-                    ? `${lane.random_min_weight}–${lane.random_max_weight} lbs (random)`
-                    : `${lane.weight} lbs`}
-                </div>
-                <div>
-                  <strong>Length:</strong> {lane.length} ft
-                </div>
-                <div>
-                  <strong>Pickup:</strong> {lane.pickup_earliest} –{" "}
-                  {lane.pickup_latest}
-                </div>
-                <div>
-                  <strong>Rate:</strong> {lane.rate ? `$${lane.rate}` : "—"}
-                </div>
-                <div>
-                  <strong>Comment:</strong> {lane.comment || "—"}
-                </div>
-              </div>
-            </div>
-          ))}
+          <div className="overflow-x-auto">
+            <table className="w-full table-auto bg-[#1a2236] rounded-xl overflow-hidden shadow-lg text-sm">
+              <thead className="bg-blue-900 text-white">
+                <tr>
+                  <th className="px-4 py-2">Origin</th>
+                  <th className="px-4 py-2">Destination</th>
+                  <th className="px-4 py-2">Equipment</th>
+                  <th className="px-4 py-2">Weight</th>
+                  <th className="px-4 py-2">Length</th>
+                  <th className="px-4 py-2">Date</th>
+                  <th className="px-4 py-2">Comment</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lanes.map((lane) => (
+                  <tr key={lane.id} className="text-white even:bg-gray-800 odd:bg-gray-700">
+                    <td className="px-4 py-2">{lane.originCity}, {lane.originState}</td>
+                    <td className="px-4 py-2">{lane.destCity}, {lane.destState}</td>
+                    <td className="px-4 py-2">{lane.equipment}</td>
+                    <td className="px-4 py-2">{lane.weight}</td>
+                    <td className="px-4 py-2">{lane.length}</td>
+                    <td className="px-4 py-2">{lane.date}</td>
+                    <td className="px-4 py-2">{lane.comment}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <footer className="text-sm text-gray-400 text-center mt-10">
+            Created by Andrew Connellan – Logistics Account Executive at Total Quality Logistics HQ: Cincinnati, OH
+          </footer>
         </div>
-      )}
-
-      <footer className="text-gray-600 text-xs mt-12 border-t border-gray-700 pt-4">
-        Created by Andrew Connellan – Logistics Account Executive at Total
-        Quality Logistics HQ: Cincinnati, OH
-      </footer>
-    </main>
+      </main>
+    </>
   );
 }
