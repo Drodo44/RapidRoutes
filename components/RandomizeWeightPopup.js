@@ -1,5 +1,3 @@
-// components/RandomizeWeightPopup.js
-
 import { useState } from "react";
 
 export default function RandomizeWeightPopup({
@@ -8,16 +6,13 @@ export default function RandomizeWeightPopup({
   setGlobal,
   setRandomize,
   defaultRange,
-  defaultGlobal,
 }) {
   const [min, setMin] = useState(defaultRange.min);
   const [max, setMax] = useState(defaultRange.max);
-  const [global, setGlobalLocal] = useState(defaultGlobal);
 
-  const handleSave = () => {
-    if (min > max || min < 40000 || max > 50000) return;
+  const apply = (scope) => {
     setRange({ min, max });
-    setGlobal(global);
+    setGlobal(scope === "all");
     setRandomize(true);
     onClose();
   };
@@ -27,46 +22,37 @@ export default function RandomizeWeightPopup({
       <div className="bg-[#1a2236] text-white p-6 rounded-xl w-full max-w-md shadow-xl">
         <h2 className="text-xl text-neon-blue font-bold mb-4">Randomize Weight</h2>
         <div className="space-y-3">
-          <div className="flex justify-between items-center">
-            <label>Min (lbs)</label>
-            <input
-              type="number"
-              value={min}
-              onChange={(e) => setMin(parseInt(e.target.value))}
-              className="input w-32"
-            />
-          </div>
-          <div className="flex justify-between items-center">
-            <label>Max (lbs)</label>
-            <input
-              type="number"
-              value={max}
-              onChange={(e) => setMax(parseInt(e.target.value))}
-              className="input w-32"
-            />
-          </div>
-          <label className="flex items-center gap-2 mt-2">
-            <input
-              type="checkbox"
-              checked={global}
-              onChange={() => setGlobalLocal(!global)}
-            />
-            <span>Apply to All Lanes Until Unchecked</span>
-          </label>
+          <input
+            type="number"
+            value={min}
+            onChange={(e) => setMin(parseInt(e.target.value))}
+            placeholder="Min (lbs)"
+            className="input w-full"
+          />
+          <input
+            type="number"
+            value={max}
+            onChange={(e) => setMax(parseInt(e.target.value))}
+            placeholder="Max (lbs)"
+            className="input w-full"
+          />
         </div>
-        <div className="mt-6 flex justify-end gap-3">
+        <div className="mt-6 flex justify-between gap-3">
           <button
-            onClick={onClose}
-            className="px-4 py-2 bg-gray-700 rounded hover:bg-gray-600"
+            onClick={() => apply("single")}
+            className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded font-semibold"
           >
-            Cancel
+            Apply to This Lane
           </button>
           <button
-            onClick={handleSave}
+            onClick={() => apply("all")}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded font-semibold"
           >
-            Save
+            Apply to All Lanes
           </button>
+        </div>
+        <div className="text-right mt-4">
+          <button onClick={onClose} className="text-gray-400 hover:underline text-sm">Cancel</button>
         </div>
       </div>
     </div>
