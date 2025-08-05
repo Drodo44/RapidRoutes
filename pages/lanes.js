@@ -1,10 +1,10 @@
-// pages/lanes.js
-
 import { useState } from "react";
 import supabase from "../utils/supabaseClient";
 import Navbar from "../components/Navbar";
 import HeavyHaulPopup from "../components/HeavyHaulPopup";
 import RandomizeWeightPopup from "../components/RandomizeWeightPopup";
+import { equipmentOptions } from "../utils/equipmentOptions";
+import { autofillState } from "../utils/autofillCities";
 
 export default function Lanes() {
   const [form, setForm] = useState({
@@ -26,8 +26,18 @@ export default function Lanes() {
   const [applyToAll, setApplyToAll] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const handleChange = (e) =>
-    setForm({ ...form, [e.target.name]: e.target.value });
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    let updated = { ...form, [name]: value };
+
+    if (name === "originCity") {
+      updated.originState = autofillState(value) || updated.originState;
+    } else if (name === "destCity") {
+      updated.destState = autofillState(value) || updated.destState;
+    }
+
+    setForm(updated);
+  };
 
   const isOversize = () =>
     parseInt(form.weight) > 48000 || parseInt(form.length) > 53;
@@ -41,12 +51,9 @@ export default function Lanes() {
         weightRange.min
       : parseInt(form.weight);
 
-    const payload = {
-      ...form,
-      weight,
-    };
+    const payload = { ...form, weight };
 
-    if (weight > 48000 || parseInt(form.length) > 53) {
+    if (isOversize()) {
       setShowHeavyPopup(true);
       setSaving(false);
       return;
@@ -78,10 +85,10 @@ export default function Lanes() {
   return (
     <>
       <Navbar />
-      <main className="min-h-screen bg-[#0f172a] text-white flex justify-center py-12">
+      <main className="min-h-screen bg-[#0f172a] text-white py-12 px-4">
         <form
           onSubmit={handleSubmit}
-          className="bg-[#1a2236] p-8 rounded-2xl shadow-2xl max-w-2xl w-full"
+          className="bg-[#1a2236] max-w-xl mx-auto p-8 rounded-2xl shadow-2xl"
         >
           <h1 className="text-3xl font-bold text-neon-blue mb-6 text-center">Create Lane</h1>
           <div className="grid grid-cols-2 gap-4">
@@ -89,7 +96,12 @@ export default function Lanes() {
             <input name="originState" placeholder="Origin State" required value={form.originState} onChange={handleChange} className="input" />
             <input name="destCity" placeholder="Dest City" required value={form.destCity} onChange={handleChange} className="input" />
             <input name="destState" placeholder="Dest State" required value={form.destState} onChange={handleChange} className="input" />
-            <input name="equipment" placeholder="Equipment" required value={form.equipment} onChange={handleChange} className="input" />
+            <select name="equipment" required value={form.equipment} onChange={handleChange} className="input">
+              <option value="">Select Equipment</option>
+              {equipmentOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
             <div className="flex items-center gap-2">
               <input
                 name="weight"
@@ -100,17 +112,13 @@ export default function Lanes() {
                 onChange={handleChange}
                 className="input flex-1"
               />
-              <label className="flex items-center gap-1">
-                <input
-                  type="checkbox"
-                  checked={randomize}
-                  onChange={() => {
-                    if (!randomize) setShowWeightPopup(true);
-                    else setRandomize(false);
-                  }}
-                />
-                <span className="text-sm">Randomize</span>
-              </label>
+              <button
+                type="button"
+                onClick={() => setShowWeightPopup(true)}
+                className="text-xs px-2 py-1 bg-blue-700 rounded hover:bg-blue-800"
+              >
+                Randomize
+              </button>
             </div>
             <input name="length" type="number" placeholder="Length (ft)" required value={form.length} onChange={handleChange} className="input" />
             <input name="date" type="date" required value={form.date} onChange={handleChange} className="input" />
@@ -139,7 +147,6 @@ export default function Lanes() {
             setGlobal={setApplyToAll}
             setRandomize={setRandomize}
             defaultRange={weightRange}
-            defaultGlobal={applyToAll}
           />
         )}
       </main>
