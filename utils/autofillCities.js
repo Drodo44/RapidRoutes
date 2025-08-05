@@ -1,8 +1,8 @@
-import cities from "../data/allCities.json"; // Ensure this file is loaded properly
+import cities from "../data/allCities.json";
 
-export function autofillState(city) {
+export function autofillState(cityInput) {
   const match = cities.find(
-    (c) => c.city.toLowerCase() === city.toLowerCase()
+    (c) => c.city.toLowerCase() === cityInput.toLowerCase()
   );
   return match?.state || "";
 }
