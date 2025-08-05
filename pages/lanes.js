@@ -85,12 +85,12 @@ export default function Lanes() {
   return (
     <>
       <Navbar />
-      <main className="min-h-screen bg-[#0f172a] text-white py-12 px-4">
+      <main className="min-h-screen bg-gray-950 text-white py-12 px-4">
         <form
           onSubmit={handleSubmit}
           className="bg-[#1a2236] max-w-xl mx-auto p-8 rounded-2xl shadow-2xl"
         >
-          <h1 className="text-3xl font-bold text-neon-blue mb-6 text-center">Create Lane</h1>
+          <h1 className="text-3xl font-bold text-cyan-400 mb-6 text-center">Create Lane</h1>
           <div className="grid grid-cols-2 gap-4">
             <input name="originCity" placeholder="Origin City" required value={form.originCity} onChange={handleChange} className="input" />
             <input name="originState" placeholder="Origin State" required value={form.originState} onChange={handleChange} className="input" />
