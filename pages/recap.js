@@ -1,4 +1,4 @@
-import Navbar from "../components/Navbar";
+import RecapExportButtons from "../components/RecapExportButtons";import Navbar from "../components/Navbar";
 import { useEffect, useState } from "react";
 import supabase from "../utils/supabaseClient";
 
@@ -21,7 +21,7 @@ export default function Recap() {
       <main className="min-h-screen bg-gray-950 text-white px-4 py-10">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-3xl font-bold text-cyan-400 text-center mb-8">Active Postings Recap</h1>
-
+<RecapExportButtons lanes={lanes} />
           <div className="overflow-x-auto">
             <table className="w-full table-auto bg-[#1a2236] rounded-xl overflow-hidden shadow-lg text-sm">
               <thead className="bg-blue-900 text-white">
