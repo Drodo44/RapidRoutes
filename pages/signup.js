@@ -1,7 +1,8 @@
 // pages/signup.js
 import { useState } from "react";
 import { useRouter } from "next/router";
-import { supabase } from "../utils/supabaseClient";
+import supabase from "../utils/supabaseClient";
+import Image from "next/image";
 
 export default function Signup() {
   const [email, setEmail] = useState("");
@@ -15,7 +16,7 @@ export default function Signup() {
     e.preventDefault();
     setError("");
 
-    const { data, error } = await supabase.auth.signUp({
+    const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -31,59 +32,50 @@ export default function Signup() {
   };
 
   return (
-    <main className="min-h-screen bg-gray-950 flex items-center justify-center px-4 text-white">
-      <div className="bg-gray-900 p-8 rounded-2xl shadow-2xl w-full max-w-md text-center">
-        <img src="/logo.png" alt="RapidRoutes Logo" className="mx-auto w-[300px] mb-6" />
-        <h1 className="text-2xl font-bold text-cyan-400 mb-2">Create Your Account</h1>
-        <p className="text-gray-300 mb-6">Redefine the game. Outsmart the lane.</p>
+    <main className="flex items-center justify-center min-h-screen bg-gray-950">
+      <div className="bg-[#111827] p-10 rounded-2xl shadow-2xl text-center max-w-md w-full">
+        <Image src="/logo.png" alt="Logo" width={120} height={120} priority />
+        <h2 className="text-3xl font-bold text-cyan-400 mb-6">Sign Up</h2>
         <form onSubmit={handleSignup} className="space-y-4 text-left">
-          <label>Full Name</label>
           <input
             type="text"
-            required
+            placeholder="Full Name"
             value={name}
+            required
             onChange={(e) => setName(e.target.value)}
-            className="w-full p-3 rounded bg-gray-800 text-white"
+            className="w-full p-3 rounded bg-[#1f2937] border border-cyan-600 text-white"
           />
-          <label>Email</label>
           <input
             type="email"
-            required
+            placeholder="Email"
             value={email}
+            required
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full p-3 rounded bg-gray-800 text-white"
+            className="w-full p-3 rounded bg-[#1f2937] border border-cyan-600 text-white"
           />
-          <label>Password</label>
           <input
             type="password"
-            required
+            placeholder="Password"
             value={password}
+            required
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full p-3 rounded bg-gray-800 text-white"
+            className="w-full p-3 rounded bg-[#1f2937] border border-cyan-600 text-white"
           />
-          <label>Role</label>
           <select
             value={role}
             onChange={(e) => setRole(e.target.value)}
-            className="w-full p-3 rounded bg-gray-800 text-white"
+            className="w-full p-3 rounded bg-[#1f2937] border border-cyan-600 text-white"
           >
             <option>Admin</option>
             <option>Broker</option>
             <option>Support</option>
             <option>Apprentice</option>
           </select>
-          {error && <p className="text-red-400 text-sm">{error}</p>}
-          <button
-            type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-xl font-bold mt-4"
-          >
+          {error && <p className="text-red-400">{error}</p>}
+          <button type="submit" className="w-full bg-green-600 hover:bg-green-700 py-3 rounded-xl font-semibold">
             Sign Up
           </button>
         </form>
-        <p className="mt-6 text-sm text-gray-400">
-          Already have an account?{" "}
-          <a href="/login" className="text-cyan-400 underline">Log In</a>
-        </p>
       </div>
     </main>
   );
