@@ -1,60 +1,65 @@
-// pages/login.js  – email + password flow (no magic link)
+// pages/login.js
 import { useState } from "react";
 import { useRouter } from "next/router";
-import { supabase } from "../utils/supabaseClient";
+import supabase from "../utils/supabaseClient";
+import Image from "next/image";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [err, setErr] = useState("");
+  const [error, setError] = useState("");
   const router = useRouter();
 
-  const handleLogin = async () => {
-    setErr("");
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error) setErr(error.message);
-    else router.push("/dashboard");
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setError("");
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (error) {
+      setError(error.message);
+    } else {
+      router.push("/dashboard");
+    }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#14181F] text-[#E2E8F0]">
-      <div className="w-full max-w-sm bg-[#1E222B] p-8 rounded-xl border border-gray-800 space-y-6">
-        <h1 className="text-xl font-bold text-center">RapidRoutes Login</h1>
-
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full px-3 py-2 rounded bg-[#242933] border border-gray-700 text-sm"
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="w-full px-3 py-2 rounded bg-[#242933] border border-gray-700 text-sm"
-        />
-
-        {err && <div className="text-red-400 text-sm">{err}</div>}
-
-        <button
-          onClick={handleLogin}
-          className="w-full py-2 rounded bg-[#4361EE] hover:bg-[#364db9] font-semibold"
-        >
-          Login
-        </button>
-
+    <main className="flex items-center justify-center min-h-screen bg-gray-950">
+      <div className="bg-[#111827] p-10 rounded-2xl shadow-2xl text-center max-w-md w-full">
+        <Image src="/logo.png" alt="Logo" width={120} height={120} priority />
+        <h2 className="mt-6 text-3xl font-bold text-cyan-400">Sign In</h2>
+        <form onSubmit={handleLogin} className="mt-6 space-y-4 text-left">
+          <div>
+            <label className="block mb-1">Email</label>
+            <input
+              type="email"
+              value={email}
+              required
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full p-3 rounded bg-[#1f2937] border border-cyan-600 text-white"
+            />
+          </div>
+          <div>
+            <label className="block mb-1">Password</label>
+            <input
+              type="password"
+              value={password}
+              required
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full p-3 rounded bg-[#1f2937] border border-cyan-600 text-white"
+            />
+          </div>
+          {error && <p className="text-red-400 font-medium">{error}</p>}
+          <button type="submit" className="w-full bg-blue-700 hover:bg-blue-800 py-3 rounded-xl font-semibold">
+            Login
+          </button>
+        </form>
         <button
           onClick={() => router.push("/signup")}
-          className="w-full py-2 rounded bg-emerald-600 hover:bg-emerald-700 text-sm"
+          className="mt-4 text-cyan-400 hover:underline text-sm"
         >
-          Need an account? Sign Up
+          Don’t have an account? Sign Up
         </button>
       </div>
-    </div>
+    </main>
   );
 }
