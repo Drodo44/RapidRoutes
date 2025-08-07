@@ -1,4 +1,3 @@
-// pages/_app.js
 import "../styles/globals.css";
 import Head from "next/head";
 import Link from "next/link";
@@ -8,9 +7,7 @@ import Image from "next/image";
 
 export default function MyApp({ Component, pageProps }) {
   const router = useRouter();
-
-  // Define routes that should NOT show the global nav
-  const noNav = ["/login", "/signup"];
+  const noNav = ["/login", "/signup", "/register"]; // Add /register if you have it
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -22,19 +19,11 @@ export default function MyApp({ Component, pageProps }) {
       <Head>
         <title>RapidRoutes</title>
       </Head>
-
       <div className="min-h-screen bg-gray-950 text-white flex flex-col">
-        {/* Only render nav when not on login/signup */}
         {!noNav.includes(router.pathname) && (
           <header className="flex items-center justify-between px-8 py-4 bg-gray-900 shadow-md">
             <div className="flex items-center gap-3">
-              <Image
-                src="/logo.png"
-                alt="RapidRoutes"
-                width={40}
-                height={40}
-                priority
-              />
+              <Image src="/logo.png" alt="RapidRoutes" width={40} height={40} priority />
               <span className="text-xl font-bold tracking-tight">RapidRoutes</span>
             </div>
             <nav className="flex gap-6">
@@ -51,7 +40,6 @@ export default function MyApp({ Component, pageProps }) {
             </nav>
           </header>
         )}
-
         <main className="flex-grow">
           <Component {...pageProps} />
         </main>
