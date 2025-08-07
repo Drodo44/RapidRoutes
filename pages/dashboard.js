@@ -3,22 +3,27 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import supabase from "../utils/supabaseClient";
 import Image from "next/image";
+import { exportToDAT } from "../lib/datExport";
 
 export default function Dashboard() {
   const [user, setUser] = useState(null);
   const [lanes, setLanes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [randomWeight, setRandomWeight] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
     const fetchUser = async () => {
-      const { data, error } = await supabase.auth.getUser();
-      if (!data?.user || error) {
+      const { data: sessionData } = await supabase.auth.getUser();
+      const currentUser = sessionData.user;
+
+      if (!currentUser) {
         router.push("/login");
-      } else {
-        setUser(data.user);
-        fetchLanes();
+        return;
       }
+
+      setUser(currentUser);
+      fetchLanes();
     };
 
     const fetchLanes = async () => {
@@ -39,8 +44,16 @@ export default function Dashboard() {
     <main className="min-h-screen bg-gray-950 text-white flex flex-col">
       <header className="flex items-center justify-between px-8 py-4 bg-gray-900 shadow-lg">
         <div className="flex items-center gap-3">
-          <Image src="/logo.png" alt="RapidRoutes Logo" width={40} height={40} priority />
-          <span className="text-2xl font-bold tracking-tight">RapidRoutes</span>
+          <Image
+            src="/logo.png"
+            alt="RapidRoutes Logo"
+            width={40}
+            height={40}
+            priority
+          />
+          <span className="text-2xl font-bold tracking-tight">
+            RapidRoutes
+          </span>
         </div>
         <button
           onClick={handleLogout}
@@ -49,8 +62,28 @@ export default function Dashboard() {
           Logout
         </button>
       </header>
+
       <section className="flex-1 p-8">
-        <h2 className="text-3xl font-bold mb-6">Your Lanes</h2>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-3xl font-bold">Your Lanes</h2>
+          <div className="flex items-center gap-4">
+            <label className="text-sm flex items-center gap-2 text-gray-300">
+              <input
+                type="checkbox"
+                checked={randomWeight}
+                onChange={() => setRandomWeight(!randomWeight)}
+              />
+              Randomize Weights
+            </label>
+            <button
+              onClick={() => exportToDAT(lanes, { randomWeight })}
+              className="bg-cyan-600 hover:bg-cyan-700 px-5 py-2 rounded-xl font-semibold"
+            >
+              Export to DAT CSV
+            </button>
+          </div>
+        </div>
+
         {loading ? (
           <div className="text-cyan-400">Loading lanes...</div>
         ) : (
@@ -73,8 +106,8 @@ export default function Dashboard() {
                 ) : (
                   lanes.map((lane) => (
                     <tr key={lane.id} className="border-b border-gray-800">
-                      <td className="p-3">{lane.origin_city}, {lane.origin_state}</td>
-                      <td className="p-3">{lane.dest_city}, {lane.dest_state}</td>
+                      <td className="p-3">{lane.origin}</td>
+                      <td className="p-3">{lane.destination}</td>
                       <td className="p-3">{lane.equipment}</td>
                       <td className="p-3">{lane.weight}</td>
                       <td className="p-3">{lane.status || "Active"}</td>
