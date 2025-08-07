@@ -5,15 +5,12 @@ export default function Document() {
   return (
     <Html lang="en">
       <Head>
-        <link rel="icon" href="/favicon.ico" />
-        <meta name="description" content="RapidRoutes – AI Freight Lane Intelligence for DAT Posting" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
+          href="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.2/dist/tailwind.min.css"
           rel="stylesheet"
         />
       </Head>
-      <body className="bg-gray-950 text-white font-sans">
+      <body className="bg-gray-950 text-white">
         <Main />
         <NextScript />
       </body>
