@@ -1,155 +1,145 @@
+// pages/lanes.js
 import { useState } from "react";
 import supabase from "../utils/supabaseClient";
-import Navbar from "../components/Navbar";
-import HeavyHaulPopup from "../components/HeavyHaulPopup";
-import RandomizeWeightPopup from "../components/RandomizeWeightPopup";
-import { equipmentOptions } from "../utils/equipmentOptions";
-import { autofillState } from "../utils/autofillCities";
 
 export default function Lanes() {
   const [form, setForm] = useState({
-    originCity: "",
-    originState: "",
-    destCity: "",
-    destState: "",
+    origin: "",
+    destination: "",
     equipment: "",
     weight: "",
-    date: "",
     length: "",
+    date: "",
     comment: "",
   });
-
-  const [showHeavyPopup, setShowHeavyPopup] = useState(false);
-  const [showWeightPopup, setShowWeightPopup] = useState(false);
-  const [randomize, setRandomize] = useState(false);
-  const [weightRange, setWeightRange] = useState({ min: 46750, max: 48000 });
-  const [applyToAll, setApplyToAll] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [randomizeWeight, setRandomizeWeight] = useState(false);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    let updated = { ...form, [name]: value };
-
-    if (name === "originCity") {
-      updated.originState = autofillState(value) || updated.originState;
-    } else if (name === "destCity") {
-      updated.destState = autofillState(value) || updated.destState;
-    }
-
-    setForm(updated);
+    setForm({ ...form, [e.target.name]: e.target.value });
   };
-
-  const isOversize = () =>
-    parseInt(form.weight) > 48000 || parseInt(form.length) > 53;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setSaving(true);
 
-    const weight = randomize
-      ? Math.floor(Math.random() * (weightRange.max - weightRange.min + 1)) +
-        weightRange.min
-      : parseInt(form.weight);
+    const weightValue = randomizeWeight
+      ? Math.floor(Math.random() * (48000 - 46750 + 1)) + 46750
+      : form.weight;
 
-    const payload = { ...form, weight };
+    const { data, error } = await supabase.from("lanes").insert([
+      {
+        ...form,
+        weight: parseInt(weightValue),
+      },
+    ]);
 
-    if (isOversize()) {
-      setShowHeavyPopup(true);
-      setSaving(false);
-      return;
+    if (!error) {
+      alert("Lane added successfully!");
+      setForm({
+        origin: "",
+        destination: "",
+        equipment: "",
+        weight: "",
+        length: "",
+        date: "",
+        comment: "",
+      });
+    } else {
+      alert("Error saving lane.");
     }
-
-    const { error } = await supabase.from("lanes").insert([payload]);
-    if (error) alert("Error saving lane.");
-    else alert("Lane created!");
-
-    setForm({
-      originCity: "",
-      originState: "",
-      destCity: "",
-      destState: "",
-      equipment: "",
-      weight: "",
-      date: "",
-      length: "",
-      comment: "",
-    });
-
-    if (!applyToAll) {
-      setRandomize(false);
-    }
-
-    setSaving(false);
   };
 
   return (
-    <>
-      <Navbar />
-      <main className="min-h-screen bg-gray-950 text-white py-12 px-4">
-        <form
-          onSubmit={handleSubmit}
-          className="bg-[#1a2236] max-w-xl mx-auto p-8 rounded-2xl shadow-2xl"
-        >
-          <h1 className="text-3xl font-bold text-cyan-400 mb-6 text-center">Create Lane</h1>
-          <div className="grid grid-cols-2 gap-4">
-            <input name="originCity" placeholder="Origin City" required value={form.originCity} onChange={handleChange} className="input" />
-            <input name="originState" placeholder="Origin State" required value={form.originState} onChange={handleChange} className="input" />
-            <input name="destCity" placeholder="Dest City" required value={form.destCity} onChange={handleChange} className="input" />
-            <input name="destState" placeholder="Dest State" required value={form.destState} onChange={handleChange} className="input" />
-            <select name="equipment" required value={form.equipment} onChange={handleChange} className="input">
-              <option value="">Select Equipment</option>
-              {equipmentOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-            <div className="flex items-center gap-2">
-              <input
-                name="weight"
-                type="number"
-                placeholder="Weight"
-                disabled={randomize}
-                value={form.weight}
-                onChange={handleChange}
-                className="input flex-1"
-              />
-              <button
-                type="button"
-                onClick={() => setShowWeightPopup(true)}
-                className="text-xs px-2 py-1 bg-blue-700 rounded hover:bg-blue-800"
-              >
-                Randomize
-              </button>
-            </div>
-            <input name="length" type="number" placeholder="Length (ft)" required value={form.length} onChange={handleChange} className="input" />
-            <input name="date" type="date" required value={form.date} onChange={handleChange} className="input" />
-          </div>
-          <textarea
-            name="comment"
-            placeholder="Comment (optional)"
-            value={form.comment}
-            onChange={handleChange}
-            className="w-full mt-4 bg-[#222f45] rounded p-3"
-          />
-          <button
-            type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-xl font-bold mt-4"
-            disabled={saving}
-          >
-            {saving ? "Saving..." : "Submit Lane"}
-          </button>
-        </form>
+    <div className="min-h-screen bg-[#111827] flex items-center justify-center py-12">
+      <form
+        onSubmit={handleSubmit}
+        className="bg-[#1a2236] p-8 rounded-2xl shadow-2xl max-w-xl w-full text-white"
+      >
+        <h1 className="text-3xl font-bold mb-6 text-cyan-400">Create New Lane</h1>
 
-        {showHeavyPopup && <HeavyHaulPopup isOpen={true} onClose={() => setShowHeavyPopup(false)} />}
-        {showWeightPopup && (
-          <RandomizeWeightPopup
-            onClose={() => setShowWeightPopup(false)}
-            setRange={setWeightRange}
-            setGlobal={setApplyToAll}
-            setRandomize={setRandomize}
-            defaultRange={weightRange}
+        <label className="block mb-1">Origin City/State</label>
+        <input
+          name="origin"
+          required
+          value={form.origin}
+          onChange={handleChange}
+          className="mb-4 w-full p-3 rounded bg-[#222f45] border border-gray-700 text-white"
+        />
+
+        <label className="block mb-1">Destination City/State</label>
+        <input
+          name="destination"
+          required
+          value={form.destination}
+          onChange={handleChange}
+          className="mb-4 w-full p-3 rounded bg-[#222f45] border border-gray-700 text-white"
+        />
+
+        <label className="block mb-1">Equipment (e.g. FD)</label>
+        <input
+          name="equipment"
+          required
+          value={form.equipment}
+          onChange={handleChange}
+          className="mb-4 w-full p-3 rounded bg-[#222f45] border border-gray-700 text-white"
+        />
+
+        <label className="block mb-1">Weight (lbs)</label>
+        <input
+          name="weight"
+          type="number"
+          required={!randomizeWeight}
+          value={form.weight}
+          onChange={handleChange}
+          className="mb-2 w-full p-3 rounded bg-[#222f45] border border-gray-700 text-white"
+        />
+        <div className="flex items-center mb-4">
+          <input
+            id="random"
+            type="checkbox"
+            checked={randomizeWeight}
+            onChange={() => setRandomizeWeight(!randomizeWeight)}
+            className="mr-2"
           />
-        )}
-      </main>
-    </>
+          <label htmlFor="random" className="text-sm text-gray-300">
+            Randomize weight between 46,750–48,000 lbs
+          </label>
+        </div>
+
+        <label className="block mb-1">Trailer Length (ft)</label>
+        <input
+          name="length"
+          type="number"
+          required
+          value={form.length}
+          onChange={handleChange}
+          className="mb-4 w-full p-3 rounded bg-[#222f45] border border-gray-700 text-white"
+        />
+
+        <label className="block mb-1">Pickup Date</label>
+        <input
+          name="date"
+          type="date"
+          required
+          value={form.date}
+          onChange={handleChange}
+          className="mb-4 w-full p-3 rounded bg-[#222f45] border border-gray-700 text-white"
+        />
+
+        <label className="block mb-1">Comment (Optional)</label>
+        <textarea
+          name="comment"
+          value={form.comment}
+          onChange={handleChange}
+          className="mb-4 w-full p-3 rounded bg-[#222f45] border border-gray-700 text-white"
+        />
+
+        <button
+          type="submit"
+          className="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-xl font-bold shadow-xl mt-2"
+        >
+          Create Lane
+        </button>
+      </form>
+    </div>
   );
 }
