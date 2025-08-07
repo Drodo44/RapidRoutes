@@ -1,62 +1,93 @@
-import { useState } from 'react';
-
-const stateLimits = {
-  height: 13.6,
-  width: 8.6,
-  length: 53
-};
-
-const heavyHaulStates = ["CA", "TX", "FL", "NY", "PA", "IL", "GA", "NC", "OH", "MI"];
+// components/HeavyHaulChecker.js
+import { useState } from "react";
 
 export default function HeavyHaulChecker() {
-  const [dims, setDims] = useState({ length: '', width: '', height: '' });
-  const [exceeds, setExceeds] = useState(false);
-  const [showPopup, setShowPopup] = useState(false);
-  const [prompt, setPrompt] = useState('');
+  const [stateRoute, setStateRoute] = useState("");
+  const [commodity, setCommodity] = useState("");
+  const [value, setValue] = useState("");
+  const [pickup, setPickup] = useState("");
+  const [delivery, setDelivery] = useState("");
+  const [showEmail, setShowEmail] = useState(false);
 
-  const checkLimits = () => {
-    const { length, width, height } = dims;
-    const l = parseFloat(length);
-    const w = parseFloat(width);
-    const h = parseFloat(height);
-    if (!l || !w || !h) return;
-
-    if (l > stateLimits.length || w > stateLimits.width || h > stateLimits.height) {
-      setExceeds(true);
-      setShowPopup(true);
-    } else {
-      setExceeds(false);
-      setPrompt("This load does not require permits.");
-    }
+  const triggerAlert = () => {
+    if (stateRoute) setShowEmail(true);
   };
 
-  const handleRouteConfirm = (yes) => {
-    setShowPopup(false);
-    setPrompt(yes
-      ? `⚠️ This load may require permits if routing through: ${heavyHaulStates.join(', ')}.\nContact your Heavy Haul Partner.`
-      : '✅ Good to go. No permits required.');
-  };
+  const template = `
+Subject: Oversize Load Permit Request – ${stateRoute}
+
+Hello,
+
+I am requesting routing and permit information for a potential heavy haul load through ${stateRoute}.
+
+Details:
+- Commodity: ${commodity}
+- Load Value: $${value}
+- Pickup Date: ${pickup}
+- Delivery Date: ${delivery}
+
+Please advise on requirements or special handling.
+
+Thank you.
+`;
 
   return (
-    <div className="bg-gray-800 p-4 rounded text-white w-full max-w-md mt-6 shadow-md">
-      <h2 className="text-lg font-bold mb-3">Heavy Haul Checker</h2>
-      <input type="number" placeholder="Length (ft)" onChange={e => setDims({ ...dims, length: e.target.value })} className="w-full mb-2 p-2 bg-gray-900 rounded" />
-      <input type="number" placeholder="Width (ft)" onChange={e => setDims({ ...dims, width: e.target.value })} className="w-full mb-2 p-2 bg-gray-900 rounded" />
-      <input type="number" placeholder="Height (ft)" onChange={e => setDims({ ...dims, height: e.target.value })} className="w-full mb-2 p-2 bg-gray-900 rounded" />
-      <button onClick={checkLimits} className="bg-blue-600 hover:bg-blue-700 w-full py-2 rounded">Check</button>
+    <div className="bg-[#1a2236] p-6 rounded-2xl shadow-xl max-w-3xl mx-auto mt-10 text-white">
+      <h2 className="text-2xl font-bold text-cyan-400 mb-4">Heavy Haul Compliance Checker</h2>
+      <div className="grid grid-cols-2 gap-4">
+        <input
+          type="text"
+          placeholder="State or Route"
+          value={stateRoute}
+          onChange={(e) => setStateRoute(e.target.value)}
+          className="p-2 rounded bg-gray-800 border border-gray-600"
+        />
+        <input
+          type="text"
+          placeholder="Commodity"
+          value={commodity}
+          onChange={(e) => setCommodity(e.target.value)}
+          className="p-2 rounded bg-gray-800 border border-gray-600"
+        />
+        <input
+          type="number"
+          placeholder="Load Value ($)"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          className="p-2 rounded bg-gray-800 border border-gray-600"
+        />
+        <input
+          type="text"
+          placeholder="Pickup Date"
+          value={pickup}
+          onChange={(e) => setPickup(e.target.value)}
+          className="p-2 rounded bg-gray-800 border border-gray-600"
+        />
+        <input
+          type="text"
+          placeholder="Delivery Date"
+          value={delivery}
+          onChange={(e) => setDelivery(e.target.value)}
+          className="p-2 rounded bg-gray-800 border border-gray-600"
+        />
+      </div>
+      <button
+        onClick={triggerAlert}
+        className="mt-6 w-full bg-red-600 hover:bg-red-700 py-2 px-4 rounded-xl font-semibold"
+      >
+        Check Route & Generate Email
+      </button>
 
-      {showPopup && (
-        <div className="bg-gray-700 p-3 mt-4 rounded text-sm">
-          <p>This load exceeds legal limits. Route through any of the following?</p>
-          <p className="text-amber-300">{heavyHaulStates.join(', ')}</p>
-          <div className="flex justify-center gap-3 mt-2">
-            <button onClick={() => handleRouteConfirm(true)} className="bg-red-600 px-3 py-1 rounded">Yes</button>
-            <button onClick={() => handleRouteConfirm(false)} className="bg-emerald-600 px-3 py-1 rounded">No</button>
-          </div>
+      {showEmail && (
+        <div className="mt-6">
+          <h3 className="text-lg font-semibold mb-2">Email Template</h3>
+          <textarea
+            readOnly
+            value={template.trim()}
+            className="w-full h-48 p-3 rounded bg-gray-900 border border-gray-700 text-white font-mono"
+          />
         </div>
       )}
-
-      {prompt && <p className="mt-4 text-center">{prompt}</p>}
     </div>
   );
 }
