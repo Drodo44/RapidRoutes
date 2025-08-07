@@ -1,7 +1,7 @@
 // pages/lanes.js
 import { useState } from "react";
 import { useRouter } from "next/router";
-import supabase from "../utils/supabaseClient";
+import { supabase } from "../utils/supabaseClient";
 import Image from "next/image";
 
 export default function Lanes() {
@@ -18,17 +18,15 @@ export default function Lanes() {
   const [randomizeWeight, setRandomizeWeight] = useState(false);
   const [suggestedComment, setSuggestedComment] = useState("");
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
+  const handleChange = (e) =>
+    setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
 
   const suggestComment = () => {
     const { origin, destination, equipment } = form;
     if (!origin || !destination || !equipment) return;
-
     const comment = `Popular ${equipment} route from ${origin} to ${destination} — strong reload lane`;
     setSuggestedComment(comment);
-    setForm((prev) => ({ ...prev, comment }));
+    setForm((f) => ({ ...f, comment }));
   };
 
   const handleSubmit = async (e) => {
@@ -36,15 +34,12 @@ export default function Lanes() {
     const weightValue = randomizeWeight
       ? Math.floor(Math.random() * (48000 - 46750 + 1)) + 46750
       : form.weight;
-
     const { error } = await supabase.from("lanes").insert([
-      {
-        ...form,
-        weight: parseInt(weightValue),
-      },
+      { ...form, weight: parseInt(weightValue, 10) },
     ]);
-
-    if (!error) {
+    if (error) {
+      alert("Error saving lane.");
+    } else {
       alert("Lane created!");
       setForm({
         origin: "",
@@ -56,48 +51,45 @@ export default function Lanes() {
         comment: "",
       });
       setSuggestedComment("");
-    } else {
-      alert("Error saving lane.");
     }
   };
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
-      {/* ✅ Top Navigation Bar */}
+      {/* Navigation */}
       <header className="flex items-center justify-between px-8 py-4 bg-gray-900 shadow-md">
         <div className="flex items-center gap-3">
-          <Image
-            src="/logo.png"
-            alt="RapidRoutes Logo"
-            width={40}
-            height={40}
-            priority
-          />
-          <span className="text-xl font-bold tracking-tight">RapidRoutes</span>
+          <Image src="/logo.png" alt="RapidRoutes" width={40} height={40} />
+          <span className="text-xl font-bold">RapidRoutes</span>
         </div>
         <nav className="flex gap-6">
-          <button onClick={() => router.push("/dashboard")} className="hover:underline">Dashboard</button>
-          <button onClick={() => router.push("/lanes")} className="hover:underline font-semibold text-cyan-400">Lanes</button>
-          <button onClick={() => router.push("/recap")} className="hover:underline">Recap</button>
-          <button onClick={() => router.push("/tools")} className="hover:underline">Tools</button>
-          <button onClick={async () => {
-            await supabase.auth.signOut();
-            router.push("/login");
-          }} className="text-red-400 hover:text-red-500">
+          <button onClick={() => router.push("/dashboard")}>Dashboard</button>
+          <button className="font-semibold text-cyan-400">Lanes</button>
+          <button onClick={() => router.push("/recap")}>Recap</button>
+          <button onClick={() => router.push("/tools")}>Tools</button>
+          <button
+            className="text-red-400"
+            onClick={async () => {
+              await supabase.auth.signOut();
+              router.push("/login");
+            }}
+          >
             Logout
           </button>
         </nav>
       </header>
 
-      {/* ✅ Lane Entry Form */}
+      {/* Form */}
       <div className="flex justify-center py-12">
         <form
           onSubmit={handleSubmit}
           className="bg-[#1a2236] p-8 rounded-2xl shadow-2xl max-w-xl w-full"
         >
-          <h1 className="text-3xl font-bold mb-6 text-cyan-400">Create New Lane</h1>
+          <h1 className="text-3xl font-bold mb-6 text-cyan-400">
+            Create New Lane
+          </h1>
 
-          <label className="block mb-1">Origin City/State</label>
+          <label>Origin City/State</label>
           <input
             name="origin"
             required
@@ -106,7 +98,7 @@ export default function Lanes() {
             className="mb-4 w-full p-3 rounded bg-[#222f45] border border-gray-700"
           />
 
-          <label className="block mb-1">Destination City/State</label>
+          <label>Destination City/State</label>
           <input
             name="destination"
             required
@@ -115,7 +107,7 @@ export default function Lanes() {
             className="mb-4 w-full p-3 rounded bg-[#222f45] border border-gray-700"
           />
 
-          <label className="block mb-1">Equipment Code (e.g. FD)</label>
+          <label>Equipment Code (e.g. FD)</label>
           <input
             name="equipment"
             required
@@ -124,7 +116,7 @@ export default function Lanes() {
             className="mb-4 w-full p-3 rounded bg-[#222f45] border border-gray-700"
           />
 
-          <label className="block mb-1">Weight (lbs)</label>
+          <label>Weight (lbs)</label>
           <input
             name="weight"
             type="number"
@@ -135,18 +127,17 @@ export default function Lanes() {
           />
           <div className="flex items-center mb-4">
             <input
-              id="random"
               type="checkbox"
               checked={randomizeWeight}
-              onChange={() => setRandomizeWeight(!randomizeWeight)}
+              onChange={() => setRandomizeWeight((r) => !r)}
               className="mr-2"
             />
-            <label htmlFor="random" className="text-sm text-gray-300">
-              Randomize weight between 46,750–48,000 lbs
-            </label>
+            <span className="text-gray-300 text-sm">
+              Randomize weight 46,750–48,000 lbs
+            </span>
           </div>
 
-          <label className="block mb-1">Length (ft)</label>
+          <label>Length (ft)</label>
           <input
             name="length"
             type="number"
@@ -156,7 +147,7 @@ export default function Lanes() {
             className="mb-4 w-full p-3 rounded bg-[#222f45] border border-gray-700"
           />
 
-          <label className="block mb-1">Pickup Date</label>
+          <label>Pickup Date</label>
           <input
             name="date"
             type="date"
@@ -166,7 +157,7 @@ export default function Lanes() {
             className="mb-4 w-full p-3 rounded bg-[#222f45] border border-gray-700"
           />
 
-          <label className="block mb-1">Comment (Optional)</label>
+          <label>Comment (Optional)</label>
           <textarea
             name="comment"
             value={form.comment}
@@ -181,7 +172,7 @@ export default function Lanes() {
           <button
             type="button"
             onClick={suggestComment}
-            className="w-full bg-blue-800 hover:bg-blue-900 py-2 rounded-xl font-semibold mb-4"
+            className="w-full bg-blue-800 hover:bg-blue-900 py-2 rounded-xl mb-4 font-semibold"
           >
             Suggest DAT Comment
           </button>
