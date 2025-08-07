@@ -1,38 +1,35 @@
+// pages/index.js
 import Image from "next/image";
 import { useRouter } from "next/router";
 
 export default function Home() {
   const router = useRouter();
   return (
-    <main className="min-h-screen flex items-center justify-center bg-[#14181F] text-[#E2E8F0] px-4">
-      <div className="w-full max-w-md text-center space-y-6">
-        {/* Larger logo */}
+    <main className="flex items-center justify-center min-h-screen bg-gray-950">
+      <div className="bg-[#111827] p-10 rounded-2xl shadow-2xl text-center max-w-xl">
         <Image
           src="/logo.png"
           alt="RapidRoutes Logo"
           width={300}
           height={300}
           priority
-          className="mx-auto"
         />
-
-        <h1 className="text-3xl font-bold">Welcome to RapidRoutes</h1>
-
-        {/* Slightly more pronounced slogan */}
-        <p className="text-gray-300 text-base font-medium">
-          Where algorithmic intelligence meets AI automation
+        <h1 className="mt-6 text-4xl font-bold text-cyan-400">Welcome to RapidRoutes</h1>
+        <p className="mt-4 text-lg text-gray-300">
+          Redefine the game. Outsmart the lane.
+          <br />
+          Your all-in-one, AI-powered freight brokerage platform.
         </p>
-
-        <div className="flex justify-center gap-4">
+        <div className="mt-6 flex justify-center gap-4">
           <button
             onClick={() => router.push("/login")}
-            className="px-6 py-3 rounded-lg bg-[#4361EE] hover:bg-[#364db9] font-semibold shadow-md"
+            className="bg-blue-700 hover:bg-blue-800 text-white px-6 py-3 rounded-xl font-semibold"
           >
             Login
           </button>
           <button
             onClick={() => router.push("/signup")}
-            className="px-6 py-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 font-semibold shadow-md"
+            className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-semibold"
           >
             Sign Up
           </button>
