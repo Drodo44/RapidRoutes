@@ -1,11 +1,8 @@
 // pages/lanes.js
 import { useState } from "react";
-import { useRouter } from "next/router";
 import { supabase } from "../utils/supabaseClient";
-import Image from "next/image";
 
 export default function Lanes() {
-  const router = useRouter();
   const [form, setForm] = useState({
     origin: "",
     destination: "",
@@ -55,41 +52,12 @@ export default function Lanes() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      {/* Navigation */}
-      <header className="flex items-center justify-between px-8 py-4 bg-gray-900 shadow-md">
-        <div className="flex items-center gap-3">
-          <Image src="/logo.png" alt="RapidRoutes" width={40} height={40} />
-          <span className="text-xl font-bold">RapidRoutes</span>
-        </div>
-        <nav className="flex gap-6">
-          <button onClick={() => router.push("/dashboard")}>Dashboard</button>
-          <button className="font-semibold text-cyan-400">Lanes</button>
-          <button onClick={() => router.push("/recap")}>Recap</button>
-          <button onClick={() => router.push("/tools")}>Tools</button>
-          <button
-            className="text-red-400"
-            onClick={async () => {
-              await supabase.auth.signOut();
-              router.push("/login");
-            }}
-          >
-            Logout
-          </button>
-        </nav>
-      </header>
+    <div className="p-8">
+      <div className="max-w-xl mx-auto bg-[#1a2236] p-8 rounded-2xl shadow-2xl text-white">
+        <h1 className="text-3xl font-bold mb-6 text-cyan-400">Create New Lane</h1>
 
-      {/* Form */}
-      <div className="flex justify-center py-12">
-        <form
-          onSubmit={handleSubmit}
-          className="bg-[#1a2236] p-8 rounded-2xl shadow-2xl max-w-xl w-full"
-        >
-          <h1 className="text-3xl font-bold mb-6 text-cyan-400">
-            Create New Lane
-          </h1>
-
-          <label>Origin City/State</label>
+        <form onSubmit={handleSubmit}>
+          <label className="block mb-1">Origin City/State</label>
           <input
             name="origin"
             required
@@ -98,7 +66,7 @@ export default function Lanes() {
             className="mb-4 w-full p-3 rounded bg-[#222f45] border border-gray-700"
           />
 
-          <label>Destination City/State</label>
+          <label className="block mb-1">Destination City/State</label>
           <input
             name="destination"
             required
@@ -107,7 +75,7 @@ export default function Lanes() {
             className="mb-4 w-full p-3 rounded bg-[#222f45] border border-gray-700"
           />
 
-          <label>Equipment Code (e.g. FD)</label>
+          <label className="block mb-1">Equipment Code (e.g. FD)</label>
           <input
             name="equipment"
             required
@@ -116,7 +84,7 @@ export default function Lanes() {
             className="mb-4 w-full p-3 rounded bg-[#222f45] border border-gray-700"
           />
 
-          <label>Weight (lbs)</label>
+          <label className="block mb-1">Weight (lbs)</label>
           <input
             name="weight"
             type="number"
@@ -137,7 +105,7 @@ export default function Lanes() {
             </span>
           </div>
 
-          <label>Length (ft)</label>
+          <label className="block mb-1">Length (ft)</label>
           <input
             name="length"
             type="number"
@@ -147,7 +115,7 @@ export default function Lanes() {
             className="mb-4 w-full p-3 rounded bg-[#222f45] border border-gray-700"
           />
 
-          <label>Pickup Date</label>
+          <label className="block mb-1">Pickup Date</label>
           <input
             name="date"
             type="date"
@@ -157,7 +125,7 @@ export default function Lanes() {
             className="mb-4 w-full p-3 rounded bg-[#222f45] border border-gray-700"
           />
 
-          <label>Comment (Optional)</label>
+          <label className="block mb-1">Comment (Optional)</label>
           <textarea
             name="comment"
             value={form.comment}
