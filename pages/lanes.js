@@ -1,6 +1,8 @@
 // pages/lanes.js
 import { useState } from "react";
 import { supabase } from "../utils/supabaseClient";
+import CityAutocomplete from "../components/CityAutocomplete";
+import EquipmentSelect from "../components/EquipmentSelect";
 
 export default function Lanes() {
   const [form, setForm] = useState({
@@ -17,6 +19,10 @@ export default function Lanes() {
 
   const handleChange = (e) =>
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+
+  const handleEquipmentChange = (val) => {
+    setForm((f) => ({ ...f, equipment: val.split(" ").pop() }));
+  };
 
   const suggestComment = () => {
     const { origin, destination, equipment } = form;
@@ -57,32 +63,28 @@ export default function Lanes() {
         <h1 className="text-3xl font-bold mb-6 text-cyan-400">Create New Lane</h1>
 
         <form onSubmit={handleSubmit}>
+          {/* Origin and destination autocompletes */}
           <label className="block mb-1">Origin City/State</label>
-          <input
-            name="origin"
-            required
+          <CityAutocomplete
             value={form.origin}
-            onChange={handleChange}
-            className="mb-4 w-full p-3 rounded bg-[#222f45] border border-gray-700"
+            onChange={(val) => setForm((f) => ({ ...f, origin: val }))}
+            placeholder="Start typing city…"
           />
-
+          <div className="h-4" />
           <label className="block mb-1">Destination City/State</label>
-          <input
-            name="destination"
-            required
+          <CityAutocomplete
             value={form.destination}
-            onChange={handleChange}
-            className="mb-4 w-full p-3 rounded bg-[#222f45] border border-gray-700"
+            onChange={(val) => setForm((f) => ({ ...f, destination: val }))}
+            placeholder="Start typing city…"
           />
+          <div className="h-4" />
 
-          <label className="block mb-1">Equipment Code (e.g. FD)</label>
-          <input
-            name="equipment"
-            required
+          <label className="block mb-1">Equipment (DAT Code)</label>
+          <EquipmentSelect
             value={form.equipment}
-            onChange={handleChange}
-            className="mb-4 w-full p-3 rounded bg-[#222f45] border border-gray-700"
+            onChange={(val) => handleEquipmentChange(val)}
           />
+          <div className="h-4" />
 
           <label className="block mb-1">Weight (lbs)</label>
           <input
