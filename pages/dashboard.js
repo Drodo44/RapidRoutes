@@ -1,5 +1,5 @@
 import Navbar from "../components/Navbar";
-import FloorSpaceCalculator from "../components/FloorSpaceCalculator";
+import FloorSpaceCalculator from "../components/FloorSpaceChecker";
 import HeavyHaulChecker from "../components/HeavyHaulChecker";
 
 export default function Dashboard() {
