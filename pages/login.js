@@ -1,7 +1,7 @@
 // pages/login.js
 import { useState } from "react";
 import { useRouter } from "next/router";
-import supabase from "../utils/supabaseClient";
+import { supabase } from "../utils/supabaseClient";
 import Image from "next/image";
 
 export default function Login() {
@@ -14,7 +14,6 @@ export default function Login() {
     e.preventDefault();
     setError("");
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-
     if (error) {
       setError(error.message);
     } else {
@@ -25,8 +24,10 @@ export default function Login() {
   return (
     <main className="flex items-center justify-center min-h-screen bg-gray-950">
       <div className="bg-[#111827] p-10 rounded-2xl shadow-2xl text-center max-w-md w-full">
-        <Image src="/logo.png" alt="Logo" width={120} height={120} priority />
-        <h2 className="mt-6 text-3xl font-bold text-cyan-400">Sign In</h2>
+        <div className="flex justify-center mb-6">
+          <Image src="/logo.png" alt="RapidRoutes Logo" width={180} height={180} priority />
+        </div>
+        <h2 className="mt-2 text-3xl font-bold text-cyan-400">Sign In</h2>
         <form onSubmit={handleLogin} className="mt-6 space-y-4 text-left">
           <div>
             <label className="block mb-1">Email</label>
