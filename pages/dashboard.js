@@ -1,15 +1,15 @@
 // pages/dashboard.js
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
-import supabase from "../utils/supabaseClient";
+import { supabase } from "../utils/supabaseClient";
 import Image from "next/image";
-import { exportToDAT } from "../lib/datExport";
+import FloorSpaceCalculator from "../components/FloorSpaceCalculator";
+import HeavyHaulChecker from "../components/HeavyHaulChecker";
 
 export default function Dashboard() {
   const [user, setUser] = useState(null);
   const [lanes, setLanes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [randomWeight, setRandomWeight] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -66,17 +66,12 @@ export default function Dashboard() {
       <section className="flex-1 p-8">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-3xl font-bold">Your Lanes</h2>
-          <div className="flex items-center gap-4">
-            <label className="text-sm flex items-center gap-2 text-gray-300">
-              <input
-                type="checkbox"
-                checked={randomWeight}
-                onChange={() => setRandomWeight(!randomWeight)}
-              />
-              Randomize Weights
-            </label>
+          <div>
             <button
-              onClick={() => exportToDAT(lanes, { randomWeight })}
+              onClick={() => {
+                // Trigger download via API route that produces the DAT CSV
+                window.location.href = "/api/exportDatCsv";
+              }}
               className="bg-cyan-600 hover:bg-cyan-700 px-5 py-2 rounded-xl font-semibold"
             >
               Export to DAT CSV
@@ -118,6 +113,12 @@ export default function Dashboard() {
             </table>
           </div>
         )}
+
+        {/* Additional tools: floor space calculator and heavy haul checker */}
+        <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+          <FloorSpaceCalculator />
+          <HeavyHaulChecker />
+        </div>
       </section>
     </main>
   );
