@@ -12,9 +12,22 @@ export default async function handler(req, res) {
   const rows = [];
 
   for (const lane of lanes) {
-    const crawlCities = generateCrawlCities(lane.origin, lane.destination);
+    // Generate 10 pickup cities near the origin and 10 drop cities near the destination
+    const originCrawls = await generateCrawlCities(lane.origin, lane.destination);
+    const destCrawls = await generateCrawlCities(lane.destination, lane.origin);
 
-    const postings = [lane.origin, ...crawlCities].slice(0, 11); // 1 original + 10 crawl
+    // Slice to ensure we only take 10 from each side
+    const pickups = originCrawls.slice(0, 10);
+    const drops = destCrawls.slice(0, 10);
+    // Base posting for the origin lane itself
+    const basePosting = {
+      city: lane.origin,
+      state: lane.originState || lane.origin.split(",")[1]?.trim() || "",
+      zip: lane.originZip || "",
+    };
+
+    // Combine into a 22 posting list (1 base + 10 pickup + 10 drop)
+    const postings = [basePosting, ...pickups, ...drops];
 
     postings.forEach((pickupCity) => {
       ["Email", "Primary Phone"].forEach((contactMethod) => {
@@ -42,7 +55,7 @@ export default async function handler(req, res) {
           "Origin State*": pickupCity.state,
           "Origin Postal Code": pickupCity.zip,
           "Destination City*": lane.destination,
-          "Destination State*": lane.destinationState || "",
+          "Destination State*": lane.destinationState || lane.destination.split(",")[1]?.trim() || "",
           "Destination Postal Code": lane.destinationZip || "",
           "Comment": lane.notes || "",
           "Commodity": "",
