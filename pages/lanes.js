@@ -3,6 +3,7 @@ import { useState } from "react";
 import { supabase } from "../utils/supabaseClient";
 import CityAutocomplete from "../components/CityAutocomplete";
 import EquipmentSelect from "../components/EquipmentSelect";
+import RandomizeWeightPopup from "../components/RandomizeWeightPopup";
 
 export default function Lanes() {
   const [form, setForm] = useState({
@@ -14,7 +15,14 @@ export default function Lanes() {
     date: "",
     comment: "",
   });
+  // Whether to randomize the weight for this lane
   const [randomizeWeight, setRandomizeWeight] = useState(false);
+  // Range selected for random weight (min/max). Defaults to dry‑van range
+  const [weightRange, setWeightRange] = useState({ min: 46750, max: 48000 });
+  // If the user chooses to apply the selected range to all new lanes, store it here
+  const [globalRange, setGlobalRange] = useState(null);
+  // Controls visibility of the randomization popup
+  const [showPopup, setShowPopup] = useState(false);
   const [suggestedComment, setSuggestedComment] = useState("");
 
   const handleChange = (e) =>
@@ -34,9 +42,17 @@ export default function Lanes() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const weightValue = randomizeWeight
-      ? Math.floor(Math.random() * (48000 - 46750 + 1)) + 46750
-      : form.weight;
+    // Determine the weight value. If randomization is on, generate a random
+    // number within the selected range. Otherwise use the exact weight input.
+    let weightValue;
+    if (randomizeWeight) {
+      const rangeToUse = globalRange || weightRange;
+      const minW = parseInt(rangeToUse.min, 10);
+      const maxW = parseInt(rangeToUse.max, 10);
+      weightValue = Math.floor(Math.random() * (maxW - minW + 1)) + minW;
+    } else {
+      weightValue = form.weight;
+    }
     const { error } = await supabase.from("lanes").insert([
       { ...form, weight: parseInt(weightValue, 10) },
     ]);
@@ -91,21 +107,56 @@ export default function Lanes() {
             name="weight"
             type="number"
             required={!randomizeWeight}
+            disabled={randomizeWeight}
             value={form.weight}
             onChange={handleChange}
             className="mb-2 w-full p-3 rounded bg-[#222f45] border border-gray-700"
           />
+          {/* Randomization controls: when not randomized, show a button to open the popup. When randomized, display the range and option to clear. */}
           <div className="flex items-center mb-4">
-            <input
-              type="checkbox"
-              checked={randomizeWeight}
-              onChange={() => setRandomizeWeight((r) => !r)}
-              className="mr-2"
-            />
-            <span className="text-gray-300 text-sm">
-              Randomize weight 46,750–48,000 lbs
-            </span>
+            {randomizeWeight ? (
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-green-400">
+                  Randomized {globalRange ? `${globalRange.min}–${globalRange.max}` : `${weightRange.min}–${weightRange.max}`} lbs
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRandomizeWeight(false);
+                  }}
+                  className="text-red-400 underline"
+                >
+                  Clear
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowPopup(true)}
+                className="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-sm font-semibold"
+              >
+                Randomize
+              </button>
+            )}
           </div>
+          {showPopup && (
+            <RandomizeWeightPopup
+              onClose={() => setShowPopup(false)}
+              setRange={(r) => {
+                setWeightRange(r);
+                // Also update global range if user chooses apply all
+              }}
+              setGlobal={(applyAll) => {
+                if (applyAll) {
+                  setGlobalRange(weightRange);
+                } else {
+                  setGlobalRange(null);
+                }
+              }}
+              setRandomize={setRandomizeWeight}
+              defaultRange={weightRange}
+            />
+          )}
 
           <label className="block mb-1">Length (ft)</label>
           <input
