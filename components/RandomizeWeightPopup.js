@@ -1,12 +1,24 @@
+import { useState } from "react";
+
+/**
+ * Popup allowing brokers to choose a min/max weight range for randomization.
+ * When the user clicks one of the apply buttons, the selected range is
+ * propagated back to the parent via `setRange` and `setRandomize`. If
+ * `applyAll` is true, `setGlobal` is also triggered to indicate the range
+ * should apply to all lanes created during this session.
+ */
 export default function RandomizeWeightPopup({ onClose, setRange, setGlobal, setRandomize, defaultRange }) {
+  const [range, updateRange] = useState(defaultRange || { min: 46750, max: 48000 });
+
   const handleApply = (applyAll = false) => {
+    // Persist the selected range to the parent component
     setRange(range);
-    setGlobal(applyAll);
     setRandomize(true);
+    if (applyAll) {
+      setGlobal(true);
+    }
     onClose();
   };
-
-  const [range, updateRange] = useState(defaultRange || { min: 46750, max: 48000 });
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center">
