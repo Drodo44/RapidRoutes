@@ -1,155 +1,95 @@
+// pages/market-data.js
+// Drag/drop upload UI. No Supabase import here, so no path issues.
 import { useState } from "react";
-import { useRouter } from "next/router";
-import supabase from "../../utils/supabaseClient";
 
-/**
- * Admin page for uploading market rate data files.
- *
- * This page allows administrators to upload the latest DAT 30‑day spot and contract
- * matrix CSVs as well as a load‑level history file. The uploaded files are
- * submitted to an API route (`/api/uploadMarketData`) which is responsible for
- * parsing the CSVs and inserting the data into Supabase tables. For now the
- * backend route simply acknowledges receipt; parsing logic will be implemented
- * in a follow‑up update. Only users with an `Admin` role should be able to
- * access this page via the admin dashboard.
- */
 export default function MarketDataUpload() {
-  const [vanSpotFile, setVanSpotFile] = useState(null);
-  const [vanContractFile, setVanContractFile] = useState(null);
-  const [reeferSpotFile, setReeferSpotFile] = useState(null);
-  const [reeferContractFile, setReeferContractFile] = useState(null);
-  const [flatbedSpotFile, setFlatbedSpotFile] = useState(null);
-  const [flatbedContractFile, setFlatbedContractFile] = useState(null);
-  const [loadHistoryFile, setLoadHistoryFile] = useState(null);
+  const [equipment, setEquipment] = useState("van");
+  const [spot, setSpot] = useState(null);
+  const [contract, setContract] = useState(null);
+  const [flat, setFlat] = useState(null);
   const [status, setStatus] = useState("");
-  const router = useRouter();
 
-  const handleSubmit = async (e) => {
+  const upload = async (e) => {
     e.preventDefault();
-    setStatus("Uploading...");
-
+    setStatus("Uploading…");
     try {
-      const formData = new FormData();
-      if (vanSpotFile) formData.append("vanSpot", vanSpotFile);
-      if (vanContractFile) formData.append("vanContract", vanContractFile);
-      if (reeferSpotFile) formData.append("reeferSpot", reeferSpotFile);
-      if (reeferContractFile) formData.append(
-        "reeferContract",
-        reeferContractFile
-      );
-      if (flatbedSpotFile) formData.append("flatbedSpot", flatbedSpotFile);
-      if (flatbedContractFile)
-        formData.append("flatbedContract", flatbedContractFile);
-      if (loadHistoryFile) formData.append("loadHistory", loadHistoryFile);
-
+      const [spotText, contractText, flatText] = await Promise.all([
+        spot ? spot.text() : null,
+        contract ? contract.text() : null,
+        flat ? flat.text() : null,
+      ]);
       const res = await fetch("/api/uploadMarketData", {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          equipment,
+          spotCsv: spotText,
+          contractCsv: contractText,
+          flatCsv: flatText,
+        }),
       });
-
-      if (res.ok) {
-        setStatus("Upload successful");
-      } else {
-        const text = await res.text();
-        setStatus(`Upload failed: ${text}`);
-      }
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Upload failed");
+      setStatus("Upload complete.");
     } catch (err) {
-      setStatus(`Upload error: ${err.message}`);
+      setStatus(`Upload failed: ${err.message}`);
+      alert(`Upload failed: ${err.message}`);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white p-10">
-      <h1 className="text-3xl font-bold mb-6 text-cyan-400 text-center">
-        Market Data Upload
-      </h1>
-      <form
-        onSubmit={handleSubmit}
-        className="max-w-3xl mx-auto bg-[#1a2437] p-6 rounded-xl shadow-2xl space-y-4"
-      >
-        <div>
-          <label className="block mb-2 font-semibold">Van Spot Rates (CSV)</label>
+    <main className="mx-auto max-w-3xl p-6 text-gray-100">
+      <h1 className="mb-4 text-2xl font-bold">Market Data Upload</h1>
+      <form onSubmit={upload} className="rounded-xl border border-gray-700 bg-[#0f1115] p-5">
+        <div className="mb-4">
+          <label className="mb-1 block text-xs text-gray-400">Equipment</label>
+          <select
+            value={equipment}
+            onChange={(e) => setEquipment(e.target.value)}
+            className="w-full rounded-lg border border-gray-700 bg-gray-900 p-2"
+          >
+            <option value="van">Van</option>
+            <option value="reefer">Reefer</option>
+            <option value="flatbed">Flatbed</option>
+          </select>
+        </div>
+
+        <div className="mb-3">
+          <label className="mb-1 block text-xs text-gray-400">Spot Matrix CSV</label>
           <input
             type="file"
             accept=".csv"
-            onChange={(e) => setVanSpotFile(e.target.files[0] || null)}
-            className="w-full bg-gray-800 p-2 rounded border border-gray-700"
+            onChange={(e) => setSpot(e.target.files[0] || null)}
+            className="w-full rounded-lg border border-gray-700 bg-gray-900 p-2"
           />
         </div>
-        <div>
-          <label className="block mb-2 font-semibold">
-            Van Contract Rates (CSV)
-          </label>
+
+        <div className="mb-3">
+          <label className="mb-1 block text-xs text-gray-400">Contract Matrix CSV (optional)</label>
           <input
             type="file"
             accept=".csv"
-            onChange={(e) => setVanContractFile(e.target.files[0] || null)}
-            className="w-full bg-gray-800 p-2 rounded border border-gray-700"
+            onChange={(e) => setContract(e.target.files[0] || null)}
+            className="w-full rounded-lg border border-gray-700 bg-gray-900 p-2"
           />
         </div>
-        <div>
-          <label className="block mb-2 font-semibold">
-            Reefer Spot Rates (CSV)
-          </label>
+
+        <div className="mb-4">
+          <label className="mb-1 block text-xs text-gray-400">Load-level CSV (optional)</label>
           <input
             type="file"
             accept=".csv"
-            onChange={(e) => setReeferSpotFile(e.target.files[0] || null)}
-            className="w-full bg-gray-800 p-2 rounded border border-gray-700"
+            onChange={(e) => setFlat(e.target.files[0] || null)}
+            className="w-full rounded-lg border border-gray-700 bg-gray-900 p-2"
           />
         </div>
-        <div>
-          <label className="block mb-2 font-semibold">
-            Reefer Contract Rates (CSV)
-          </label>
-          <input
-            type="file"
-            accept=".csv"
-            onChange={(e) => setReeferContractFile(e.target.files[0] || null)}
-            className="w-full bg-gray-800 p-2 rounded border border-gray-700"
-          />
-        </div>
-        <div>
-          <label className="block mb-2 font-semibold">
-            Flatbed Spot Rates (CSV)
-          </label>
-          <input
-            type="file"
-            accept=".csv"
-            onChange={(e) => setFlatbedSpotFile(e.target.files[0] || null)}
-            className="w-full bg-gray-800 p-2 rounded border border-gray-700"
-          />
-        </div>
-        <div>
-          <label className="block mb-2 font-semibold">
-            Flatbed Contract Rates (CSV)
-          </label>
-          <input
-            type="file"
-            accept=".csv"
-            onChange={(e) => setFlatbedContractFile(e.target.files[0] || null)}
-            className="w-full bg-gray-800 p-2 rounded border border-gray-700"
-          />
-        </div>
-        <div>
-          <label className="block mb-2 font-semibold">
-            Load‑level History (CSV)
-          </label>
-          <input
-            type="file"
-            accept=".csv"
-            onChange={(e) => setLoadHistoryFile(e.target.files[0] || null)}
-            className="w-full bg-gray-800 p-2 rounded border border-gray-700"
-          />
-        </div>
-        <button
-          type="submit"
-          className="w-full bg-cyan-600 hover:bg-cyan-700 text-white py-2 px-4 rounded-lg font-semibold"
-        >
-          Upload Files
+
+        <button className="w-full rounded-lg bg-cyan-600 p-2 font-semibold hover:bg-cyan-700">
+          Upload
         </button>
-        {status && <p className="text-center text-sm text-cyan-400 mt-2">{status}</p>}
+
+        {status && <p className="mt-3 text-center text-sm text-gray-300">{status}</p>}
       </form>
-    </div>
+    </main>
   );
 }
