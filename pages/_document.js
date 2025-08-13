@@ -3,14 +3,9 @@ import { Html, Head, Main, NextScript } from "next/document";
 
 export default function Document() {
   return (
-    <Html lang="en">
-      <Head>
-        <link
-          href="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.2/dist/tailwind.min.css"
-          rel="stylesheet"
-        />
-      </Head>
-      <body className="bg-gray-950 text-white">
+    <Html lang="en" className="dark">
+      <Head />
+      <body className="bg-[#0f1115] text-gray-100 antialiased">
         <Main />
         <NextScript />
       </body>
