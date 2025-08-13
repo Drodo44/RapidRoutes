@@ -1,8 +1,6 @@
 // pages/api/exportDatCsv.js
-// Run-level KMA variety: avoids reusing the same pickup/delivery KMAs across
-// multiple lanes that share the same base origin/dest in a single export run.
-import { supabase } from "../../utils/supabaseClient";
-import { DAT_HEADERS, planPairsForLane, rowsFromBaseAndPairs, toCsv, chunkRows } from "../../lib/datCsvBuilder";
+import { supabase } from "../../utils/supabaseClient.js";
+import { DAT_HEADERS, planPairsForLane, rowsFromBaseAndPairs, toCsv, chunkRows } from "../../lib/datCsvBuilder.js";
 
 function inc(map, baseKey, kma) {
   const byBase = map.get(baseKey) || new Map();
@@ -24,8 +22,6 @@ async function fetchLanes(req) {
     const since = new Date(Date.now() - days * 86400000).toISOString();
     q = q.gte("created_at", since);
   }
-
-  // Prefer status='active' if the column exists; fall back if not.
   const tryActive = includeAll ? null : await q.eq("status", "active").order("created_at", { ascending: false });
   if (tryActive && !tryActive.error) return tryActive.data ?? [];
 
@@ -36,31 +32,25 @@ async function fetchLanes(req) {
 
 async function buildAllRows(req) {
   const preferFillTo10 = req.query.fill === "1";
-
   const lanes = await fetchLanes(req);
-
-  // Run-memory to reduce repetition across lanes:
-  // key by base KMA -> map of candidate KMA -> count used in this export run
-  const usedPickupByBase = new Map();   // Map<string, Map<string, number>>
-  const usedDeliveryByBase = new Map(); // Map<string, Map<string, number>>
+  const usedPickupByBase = new Map();
+  const usedDeliveryByBase = new Map();
 
   const rows = [];
-
   for (const lane of lanes) {
     const { baseOrigin, baseDest, pairs } = await planPairsForLane(lane, { preferFillTo10 });
 
     const baseOK = baseOrigin?.kma || `${baseOrigin.city}-${baseOrigin.state}`;
     const baseDK = baseDest?.kma || `${baseDest.city}-${baseDest.state}`;
 
-    const strictCap = 0;  // strict: never reuse a KMA across lanes with same base
-    const relaxedCap = 1; // relaxed: allow at most one reuse across the whole run
+    const strictCap = 0;
+    const relaxedCap = 1;
 
-    // Pass 1: pick only pairs with completely new pickup+delivery KMAs for this base
     const selected = [];
     for (const p of pairs) {
       const pK = p.pickup.kma || `${p.pickup.city}-${p.pickup.state}`;
       const dK = p.delivery.kma || `${p.delivery.city}-${p.delivery.state}`;
-      if (get(usedPickupByBase, baseOK, pK) <= strictCap - 0 && get(usedDeliveryByBase, baseDK, dK) <= strictCap - 0) {
+      if (get(usedPickupByBase, baseOK, pK) <= strictCap && get(usedDeliveryByBase, baseDK, dK) <= strictCap) {
         selected.push(p);
         inc(usedPickupByBase, baseOK, pK);
         inc(usedDeliveryByBase, baseDK, dK);
@@ -68,7 +58,6 @@ async function buildAllRows(req) {
       if (selected.length === 10) break;
     }
 
-    // Pass 2 (only if ?fill=1): allow 1 reuse per KMA across the run
     if (selected.length < 10 && preferFillTo10) {
       for (const p of pairs) {
         if (selected.includes(p)) continue;
@@ -86,7 +75,6 @@ async function buildAllRows(req) {
     const laneRows = rowsFromBaseAndPairs(lane, baseOrigin, baseDest, selected);
     rows.push(...laneRows);
   }
-
   return rows;
 }
 
@@ -100,7 +88,6 @@ export default async function handler(req, res) {
     const chunks = chunkRows(allRows, 499);
     const totalParts = Math.max(1, chunks.length);
     res.setHeader("X-Total-Parts", String(totalParts));
-
     if (req.method === "HEAD") return res.status(200).end();
 
     const part = Math.min(Math.max(1, Number(req.query.part || 1)), totalParts);
