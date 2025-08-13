@@ -1,59 +1,52 @@
 // pages/reset-password.js
+import Head from "next/head";
 import { useState } from "react";
-import { supabase } from "../utils/supabaseClient";
-import Image from "next/image";
+import { supabase } from "../utils/supabaseClient.js";
 
-export default function ResetPassword() {
+export default function ResetPasswordPage() {
   const [email, setEmail] = useState("");
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
+  const [ok, setOk] = useState("");
+  const [err, setErr] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleReset = async (e) => {
+  async function onSubmit(e) {
     e.preventDefault();
-    setMessage("");
-    setError("");
+    setOk(""); setErr("");
+    setLoading(true);
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo:
-        typeof window !== "undefined"
-          ? `${window.location.origin}/login`
-          : undefined,
+      redirectTo: typeof window !== "undefined" ? `${window.location.origin}/login` : undefined,
     });
-    if (error) setError(error.message);
-    else setMessage("Password reset email sent. Check your inbox.");
-  };
+    setLoading(false);
+    if (error) return setErr(error.message || "Failed to send reset email");
+    setOk("Check your email for a reset link.");
+  }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-950 px-4">
-      <div className="bg-[#1e293b] p-6 rounded-xl max-w-md w-full text-center shadow-xl">
-        <Image
-          src="/logo.png"
-          width={150}
-          height={150}
-          alt="RapidRoutes Logo"
-          className="mx-auto mb-4"
-        />
-        <h2 className="text-cyan-400 text-2xl font-bold mb-4">Reset Password</h2>
-
-        <form onSubmit={handleReset} className="space-y-4">
-          <input
-            type="email"
-            placeholder="Enter your email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="w-full p-3 rounded-lg bg-gray-800 border border-cyan-400 text-white"
-          />
+    <>
+      <Head><title>Reset password — RapidRoutes</title></Head>
+      <main className="min-h-screen flex items-center justify-center bg-[#0f1115] text-gray-100">
+        <form onSubmit={onSubmit} className="w-full max-w-sm rounded-xl border border-gray-700 bg-[#0f1115] p-6">
+          <h1 className="text-xl font-semibold">Reset password</h1>
+          <div className="mt-4">
+            <label className="mb-1 block text-xs text-gray-400">Email</label>
+            <input
+              className="w-full rounded-lg border border-gray-700 bg-gray-900 p-2 text-white"
+              type="email" value={email} onChange={(e) => setEmail(e.target.value)} required
+            />
+          </div>
+          {err && <div className="mt-3 text-sm text-red-400">{err}</div>}
+          {ok && <div className="mt-3 text-sm text-green-400">{ok}</div>}
           <button
-            type="submit"
-            className="w-full p-3 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-semibold"
+            disabled={loading}
+            className="mt-4 w-full rounded-lg bg-blue-600 px-3 py-2 font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
           >
-            Send Reset Email
+            {loading ? "Sending…" : "Send reset email"}
           </button>
+          <div className="mt-4 text-center text-sm">
+            <a href="/login" className="text-gray-300 hover:underline">Back to login</a>
+          </div>
         </form>
-
-        {message && <div className="text-green-400 mt-4">{message}</div>}
-        {error && <div className="text-red-400 mt-4">{error}</div>}
-      </div>
-    </div>
+      </main>
+    </>
   );
 }
