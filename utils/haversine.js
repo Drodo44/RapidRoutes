@@ -1,16 +1,13 @@
 // utils/haversine.js
-// Great-circle distance in miles (stable for small distances).
 export function distanceInMiles(a, b) {
-  const toRad = (deg) => (deg * Math.PI) / 180;
-  const R = 3958.7613;
-  const aLat = a.lat ?? a.latitude, aLon = a.lon ?? a.longitude;
-  const bLat = b.lat ?? b.latitude, bLon = b.lon ?? b.longitude;
-  const dLat = toRad(bLat - aLat);
-  const dLon = toRad(bLon - aLon);
-  const lat1 = toRad(aLat);
-  const lat2 = toRad(bLat);
-  const h =
+  const lat1 = Number(a.lat), lon1 = Number(a.lon);
+  const lat2 = Number(b.lat), lon2 = Number(b.lon);
+  if (![lat1, lon1, lat2, lon2].every((v) => Number.isFinite(v))) return Infinity;
+  const toRad = (x) => (x * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const s =
     Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
-  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 3958.7613 * 2 * Math.asin(Math.min(1, Math.sqrt(s)));
 }
