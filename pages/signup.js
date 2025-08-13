@@ -1,82 +1,60 @@
 // pages/signup.js
+import Head from "next/head";
 import { useState } from "react";
 import { useRouter } from "next/router";
-import supabase from "../utils/supabaseClient";
-import Image from "next/image";
+import { supabase } from "../utils/supabaseClient.js";
 
-export default function Signup() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [role, setRole] = useState("Broker");
-  const [error, setError] = useState("");
+export default function SignupPage() {
   const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [pass, setPass] = useState("");
+  const [err, setErr] = useState("");
+  const [ok, setOk] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSignup = async (e) => {
+  async function onSubmit(e) {
     e.preventDefault();
-    setError("");
-
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { name, role },
-      },
-    });
-
-    if (error) {
-      setError(error.message);
-    } else {
-      router.push("/login");
-    }
-  };
+    setErr(""); setOk("");
+    setLoading(true);
+    const { error } = await supabase.auth.signUp({ email, password: pass });
+    setLoading(false);
+    if (error) return setErr(error.message || "Sign up failed");
+    setOk("Check your email to verify your account.");
+  }
 
   return (
-    <main className="flex items-center justify-center min-h-screen bg-gray-950">
-      <div className="bg-[#111827] p-10 rounded-2xl shadow-2xl text-center max-w-md w-full">
-        <Image src="/logo.png" alt="Logo" width={120} height={120} priority />
-        <h2 className="text-3xl font-bold text-cyan-400 mb-6">Sign Up</h2>
-        <form onSubmit={handleSignup} className="space-y-4 text-left">
-          <input
-            type="text"
-            placeholder="Full Name"
-            value={name}
-            required
-            onChange={(e) => setName(e.target.value)}
-            className="w-full p-3 rounded bg-[#1f2937] border border-cyan-600 text-white"
-          />
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            required
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full p-3 rounded bg-[#1f2937] border border-cyan-600 text-white"
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            required
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full p-3 rounded bg-[#1f2937] border border-cyan-600 text-white"
-          />
-          <select
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-            className="w-full p-3 rounded bg-[#1f2937] border border-cyan-600 text-white"
+    <>
+      <Head><title>Sign up — RapidRoutes</title></Head>
+      <main className="min-h-screen flex items-center justify-center bg-[#0f1115] text-gray-100">
+        <form onSubmit={onSubmit} className="w-full max-w-sm rounded-xl border border-gray-700 bg-[#0f1115] p-6">
+          <h1 className="text-xl font-semibold">Create account</h1>
+          <div className="mt-4">
+            <label className="mb-1 block text-xs text-gray-400">Email</label>
+            <input
+              className="w-full rounded-lg border border-gray-700 bg-gray-900 p-2 text-white"
+              type="email" value={email} onChange={(e) => setEmail(e.target.value)} required
+            />
+          </div>
+          <div className="mt-3">
+            <label className="mb-1 block text-xs text-gray-400">Password</label>
+            <input
+              className="w-full rounded-lg border border-gray-700 bg-gray-900 p-2 text-white"
+              type="password" value={pass} onChange={(e) => setPass(e.target.value)} required minLength={6}
+            />
+          </div>
+          {err && <div className="mt-3 text-sm text-red-400">{err}</div>}
+          {ok && <div className="mt-3 text-sm text-green-400">{ok}</div>}
+          <button
+            disabled={loading}
+            className="mt-4 w-full rounded-lg bg-green-600 px-3 py-2 font-semibold text-white hover:bg-green-700 disabled:opacity-60"
           >
-            <option>Admin</option>
-            <option>Broker</option>
-            <option>Support</option>
-            <option>Apprentice</option>
-          </select>
-          {error && <p className="text-red-400">{error}</p>}
-          <button type="submit" className="w-full bg-green-600 hover:bg-green-700 py-3 rounded-xl font-semibold">
-            Sign Up
+            {loading ? "Creating…" : "Create account"}
           </button>
+          <div className="mt-4 text-center text-sm">
+            <a href="/login" className="text-gray-300 hover:underline">Back to login</a>
+          </div>
         </form>
-      </div>
-    </main>
+      </main>
+    </>
   );
 }
