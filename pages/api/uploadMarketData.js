@@ -1,33 +1,17 @@
 // pages/api/uploadMarketData.js
-import Papa from "papaparse";
-import { supabase } from "../../utils/supabaseClient";
+import { supabase } from "../../utils/supabaseClient.js";
 
-export const config = { api: { bodyParser: { sizeLimit: "20mb" } } };
-
-function parseCsv(text) {
-  if (!text) return [];
-  const out = Papa.parse(text, { header: true, skipEmptyLines: true });
-  if (out.errors?.length) throw new Error(out.errors[0].message);
-  return out.data;
-}
-
-// Build state→state matrix from CSV: first col = origin (e.g., "CA"), headers = destination states.
-function matrixFromCsv(rows) {
-  const matrix = {};
-  if (!rows.length) return matrix;
-  const headers = Object.keys(rows[0] || {});
-  const originKey = headers[0];
-  const dests = headers.slice(1);
-  for (const r of rows) {
-    const o = String(r[originKey] || "").toUpperCase();
-    if (!o) continue;
-    matrix[o] = {};
-    for (const d of dests) {
-      const v = Number(r[d]);
-      if (Number.isFinite(v)) matrix[o][String(d).toUpperCase()] = v;
+function flattenMatrix(matrix, snapshot_id, equipment, source) {
+  const rows = [];
+  for (const [origin, dests] of Object.entries(matrix || {})) {
+    for (const [destination, rate] of Object.entries(dests || {})) {
+      const num = Number(rate);
+      if (Number.isFinite(num)) {
+        rows.push({ snapshot_id, equipment, source, origin, destination, rate: num });
+      }
     }
   }
-  return matrix;
+  return rows;
 }
 
 export default async function handler(req, res) {
@@ -36,47 +20,42 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method Not Allowed" });
   }
   try {
-    const { spotCsv, contractCsv, flatCsv, equipment } = req.body || {};
-    if (!equipment || !["van", "reefer", "flatbed"].includes(equipment)) {
-      return res.status(400).json({ error: "Invalid equipment" });
+    const { entries, flatten } = req.body || {};
+    if (!Array.isArray(entries) || !entries.length) {
+      return res.status(400).json({ error: "Missing entries" });
     }
 
-    const inserts = [];
+    let inserted = 0;
+    for (const e of entries) {
+      const equipment = String(e.equipment || "").toLowerCase();
+      const level = String(e.level || "").toLowerCase();
+      const source = String(e.source || "").toLowerCase();
+      if (!["van", "reefer", "flatbed"].includes(equipment)) throw new Error("Invalid equipment");
+      if (!["state", "region"].includes(level)) throw new Error("Invalid level");
+      if (!["spot", "contract"].includes(source)) throw new Error("Invalid source");
+      if (!e.matrix || typeof e.matrix !== "object") throw new Error("Invalid matrix");
 
-    if (spotCsv) {
-      const rows = parseCsv(spotCsv);
-      inserts.push({ equipment, level: "state", source: "spot", matrix: matrixFromCsv(rows) });
-    }
-    if (contractCsv) {
-      const rows = parseCsv(contractCsv);
-      inserts.push({ equipment, level: "state", source: "contract", matrix: matrixFromCsv(rows) });
-    }
+      const { data: snap, error: err1 } = await supabase
+        .from("rates_snapshots")
+        .insert({ equipment, level, source, matrix: e.matrix })
+        .select("id")
+        .single();
+      if (err1) throw err1;
+      inserted++;
 
-    if (inserts.length) {
-      const { error } = await supabase.from("rates_snapshots").insert(inserts);
-      if (error) throw error;
-    }
-
-    if (flatCsv) {
-      const rows = parseCsv(flatCsv);
-      const flat = rows
-        .map((r) => ({
-          equipment,
-          source: "spot",
-          origin: String(r.origin || r.Origin || "").toUpperCase(),
-          destination: String(r.destination || r.Destination || "").toUpperCase(),
-          rate: Number(r.rate || r.Rate),
-        }))
-        .filter((r) => r.origin && r.destination && Number.isFinite(r.rate));
-      if (flat.length) {
-        const { error } = await supabase.from("rates_flat").insert(flat);
-        if (error) throw error;
+      if (flatten) {
+        const rows = flattenMatrix(e.matrix, snap.id, equipment, source);
+        if (rows.length) {
+          const { error: err2 } = await supabase.from("rates_flat").insert(rows);
+          if (err2) throw err2;
+        }
       }
     }
 
-    await supabase.from("settings").upsert({ key: "rates_last_updated", value: { ts: Date.now() } });
+    // bump a settings key for cache invalidation
+    await supabase.from("settings").upsert({ key: "rates_last_updated", value: { ts: new Date().toISOString() } });
 
-    return res.status(200).json({ ok: true });
+    return res.status(200).json({ ok: true, inserted });
   } catch (e) {
     return res.status(500).json({ error: e.message || "Upload failed" });
   }
