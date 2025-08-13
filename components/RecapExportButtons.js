@@ -1,26 +1,41 @@
-// Updated export component: HTML export only
-// The recap page is meant to be exported as styled HTML rather than Excel or PDF.
-import { triggerRecapDownload } from "../lib/exportRecap";
-
+// components/RecapExportButtons.js
 export default function RecapExportButtons() {
-  /**
-   * Export the current recap table to HTML.  The recap page wraps its
-   * contents in an element with id="recap-root"; triggerRecapDownload will
-   * open a new window containing that HTML with embedded styling and allow
-   * the user to print or save as HTML/PDF via the browser.  This approach
-   * avoids generating Excel or PDF files on the client and keeps the
-   * styling consistent with the dark mode UI.
-   */
-  const handleExport = () => {
-    triggerRecapDownload();
+  const downloadAll = async (params = "") => {
+    const head = await fetch(`/api/exportDatCsv${params}`, { method: "HEAD" });
+    let total = Number(head.headers.get("X-Total-Parts") || "1");
+    if (!total || total < 1) total = 1;
+    for (let part = 1; part <= total; part++) {
+      const a = document.createElement("a");
+      a.href = `/api/exportDatCsv?part=${part}${params ? `&${params.replace(/^\?/, "")}` : ""}`;
+      a.download = "";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      await new Promise((r) => setTimeout(r, 250));
+    }
   };
+
   return (
-    <div className="flex gap-4 mb-6 justify-center">
+    <div className="flex flex-wrap items-center gap-2 justify-end">
       <button
-        onClick={handleExport}
-        className="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg text-white font-semibold"
+        onClick={() => downloadAll("")}
+        className="rounded-xl bg-green-600 px-4 py-2 font-semibold text-white hover:bg-green-700"
       >
-        Export Recap
+        Export DAT CSV
+      </button>
+      <button
+        onClick={() => downloadAll("?fill=1")}
+        className="rounded-xl bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+        title="Allow ≤2 per KMA when needed"
+      >
+        Fill to 10 (allow KMA dup)
+      </button>
+      <button
+        onClick={() => downloadAll("?days=7")}
+        className="rounded-xl bg-gray-700 px-3 py-2 text-sm font-semibold text-white hover:bg-gray-600"
+        title="Last 7 days lanes only"
+      >
+        Last 7 days
       </button>
     </div>
   );
