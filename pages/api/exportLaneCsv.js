@@ -1,7 +1,6 @@
 // pages/api/exportLaneCsv.js
-import { supabase } from "../../utils/supabaseClient";
-import { DAT_HEADERS } from "../../lib/datCsvBuilder";
-import { planPairsForLane, rowsFromBaseAndPairs, toCsv } from "../../lib/datCsvBuilder";
+import { supabase } from "../../utils/supabaseClient.js";
+import { DAT_HEADERS, planPairsForLane, rowsFromBaseAndPairs, toCsv } from "../../lib/datCsvBuilder.js";
 
 export default async function handler(req, res) {
   try {
@@ -14,15 +13,12 @@ export default async function handler(req, res) {
     const preferFillTo10 = req.query.fill === "1";
     const { baseOrigin, baseDest, pairs } = await planPairsForLane(lane, { preferFillTo10 });
     const selected = pairs.slice(0, 10);
-
     const rows = rowsFromBaseAndPairs(lane, baseOrigin, baseDest, selected);
+
     const csv = toCsv(DAT_HEADERS, rows);
     const ts = new Date().toISOString().replace(/[:.]/g, "-");
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename="rapidroutes_DAT_lane_${id}_${ts}.csv"`
-    );
+    res.setHeader("Content-Disposition", `attachment; filename="rapidroutes_DAT_lane_${id}_${ts}.csv"`);
     return res.status(200).send(csv);
   } catch (e) {
     return res.status(500).json({ error: e.message || "Export failed" });
