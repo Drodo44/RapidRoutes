@@ -1,63 +1,80 @@
 // pages/profile.js
 import { useEffect, useState } from "react";
-import { useRouter } from "next/router";
-import supabase from "../utils/supabaseClient";
+import { supabase } from "../utils/supabaseClient.js";
 
-export default function Profile() {
+export default function ProfilePage() {
   const [user, setUser] = useState(null);
-  const [profile, setProfile] = useState(null);
-  const router = useRouter();
+  const [theme, setTheme] = useState("dark");
+  const [showRrsi, setShowRrsi] = useState(false);
+  const [msg, setMsg] = useState("");
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      const { data: authData } = await supabase.auth.getUser();
-      const currentUser = authData?.user;
-      if (!currentUser) {
-        router.push("/login");
-        return;
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user || null);
+      if (!user) return;
+      const { data } = await supabase.from("user_prefs").select("*").eq("user_id", user.id).single();
+      if (data) {
+        setTheme(data.theme || "dark");
+        setShowRrsi(!!data.show_rrsi);
       }
-
-      setUser(currentUser);
-
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("name, role")
-        .eq("id", currentUser.id)
-        .single();
-
-      setProfile(profileData);
-    };
-
-    fetchProfile();
+    })();
   }, []);
 
+  async function save() {
+    if (!user) return;
+    const { error } = await supabase.from("user_prefs").upsert({
+      user_id: user.id,
+      theme,
+      show_rrsi: showRrsi,
+    });
+    if (error) setMsg(error.message || "Save failed");
+    else setMsg("Saved.");
+    // apply theme locally
+    const root = document.documentElement;
+    if (theme === "dark") root.classList.add("dark");
+    else root.classList.remove("dark");
+  }
+
+  if (!user) {
+    return (
+      <main className="mx-auto max-w-3xl p-6 text-gray-100">
+        <div className="card p-6">
+          <div className="text-sm">Please <a className="underline" href="/login">log in</a> to edit profile.</div>
+        </div>
+      </main>
+    );
+  }
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-950 text-white">
-      <h1 className="text-4xl font-bold mb-4 text-cyan-400">My Profile</h1>
-      <div className="bg-[#1a2236] p-8 rounded-2xl shadow-2xl max-w-md w-full">
-        {user && profile ? (
-          <div className="space-y-4">
-            <div>
-              <span className="font-semibold text-gray-300">Name:</span>
-              <span className="ml-2">{profile.name}</span>
-            </div>
-            <div>
-              <span className="font-semibold text-gray-300">Email:</span>
-              <span className="ml-2">{user.email}</span>
-            </div>
-            <div>
-              <span className="font-semibold text-gray-300">User ID:</span>
-              <span className="ml-2">{user.id}</span>
-            </div>
-            <div>
-              <span className="font-semibold text-gray-300">Role:</span>
-              <span className="ml-2">{profile.role}</span>
-            </div>
-          </div>
-        ) : (
-          <p className="text-red-400">You must be logged in to view your profile.</p>
-        )}
+    <main className="mx-auto max-w-3xl p-6 text-gray-100">
+      <h1 className="mb-4 text-2xl font-bold">Profile</h1>
+      <div className="card p-6 space-y-4">
+        <div className="flex items-center gap-3">
+          <label className="text-sm w-40 text-gray-300">Theme</label>
+          <select
+            value={theme}
+            onChange={(e) => setTheme(e.target.value)}
+            className="rounded border border-gray-700 bg-gray-900 p-2 text-white"
+          >
+            <option value="dark">Dark</option>
+            <option value="light">Light (beta)</option>
+          </select>
+        </div>
+        <div className="flex items-center gap-3">
+          <label className="text-sm w-40 text-gray-300">Show RRSI overlays</label>
+          <input type="checkbox" checked={showRrsi} onChange={(e) => setShowRrsi(e.target.checked)} />
+        </div>
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={save}
+            className="rounded bg-green-600 px-4 py-2 font-semibold text-white hover:bg-green-700"
+          >
+            Save
+          </button>
+          {msg && <div className="self-center text-sm text-gray-300">{msg}</div>}
+        </div>
       </div>
-    </div>
+    </main>
   );
 }
