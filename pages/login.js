@@ -1,66 +1,59 @@
 // pages/login.js
+import Head from "next/head";
 import { useState } from "react";
 import { useRouter } from "next/router";
-import { supabase } from "../utils/supabaseClient";
-import Image from "next/image";
+import { supabase } from "../utils/supabaseClient.js";
 
-export default function Login() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+export default function LoginPage() {
   const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [pass, setPass] = useState("");
+  const [err, setErr] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = async (e) => {
+  async function onSubmit(e) {
     e.preventDefault();
-    setError("");
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      setError(error.message);
-    } else {
-      router.push("/dashboard");
-    }
-  };
+    setErr("");
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
+    setLoading(false);
+    if (error) return setErr(error.message || "Login failed");
+    router.replace("/lanes");
+  }
 
   return (
-    <main className="flex items-center justify-center min-h-screen bg-gray-950">
-      <div className="bg-[#111827] p-10 rounded-2xl shadow-2xl text-center max-w-md w-full">
-        <div className="flex justify-center mb-6">
-          <Image src="/logo.png" alt="RapidRoutes Logo" width={180} height={180} priority />
-        </div>
-        <h2 className="mt-2 text-3xl font-bold text-cyan-400">Sign In</h2>
-        <form onSubmit={handleLogin} className="mt-6 space-y-4 text-left">
-          <div>
-            <label className="block mb-1">Email</label>
+    <>
+      <Head><title>Login — RapidRoutes</title></Head>
+      <main className="min-h-screen flex items-center justify-center bg-[#0f1115] text-gray-100">
+        <form onSubmit={onSubmit} className="w-full max-w-sm rounded-xl border border-gray-700 bg-[#0f1115] p-6">
+          <h1 className="text-xl font-semibold">Login</h1>
+          <div className="mt-4">
+            <label className="mb-1 block text-xs text-gray-400">Email</label>
             <input
-              type="email"
-              value={email}
-              required
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full p-3 rounded bg-[#1f2937] border border-cyan-600 text-white"
+              className="w-full rounded-lg border border-gray-700 bg-gray-900 p-2 text-white"
+              type="email" value={email} onChange={(e) => setEmail(e.target.value)} required
             />
           </div>
-          <div>
-            <label className="block mb-1">Password</label>
+          <div className="mt-3">
+            <label className="mb-1 block text-xs text-gray-400">Password</label>
             <input
-              type="password"
-              value={password}
-              required
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full p-3 rounded bg-[#1f2937] border border-cyan-600 text-white"
+              className="w-full rounded-lg border border-gray-700 bg-gray-900 p-2 text-white"
+              type="password" value={pass} onChange={(e) => setPass(e.target.value)} required
             />
           </div>
-          {error && <p className="text-red-400 font-medium">{error}</p>}
-          <button type="submit" className="w-full bg-blue-700 hover:bg-blue-800 py-3 rounded-xl font-semibold">
-            Login
+          {err && <div className="mt-3 text-sm text-red-400">{err}</div>}
+          <button
+            disabled={loading}
+            className="mt-4 w-full rounded-lg bg-blue-600 px-3 py-2 font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+          >
+            {loading ? "Signing in…" : "Sign in"}
           </button>
+          <div className="mt-4 flex items-center justify-between text-sm">
+            <a href="/signup" className="text-gray-300 hover:underline">Create account</a>
+            <a href="/reset-password" className="text-gray-300 hover:underline">Forgot password?</a>
+          </div>
         </form>
-        <button
-          onClick={() => router.push("/signup")}
-          className="mt-4 text-cyan-400 hover:underline text-sm"
-        >
-          Don’t have an account? Sign Up
-        </button>
-      </div>
-    </main>
+      </main>
+    </>
   );
 }
