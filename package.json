@@ -1,36 +1,8 @@
 {
-  "name": "rapidroutes",
-  "version": "1.0.0",
-  "description": "RapidRoutes - Intelligent Freight Brokerage Platform",
-  "main": "index.js",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
-  },
-  "dependencies": {
-    "@supabase/auth-helpers-nextjs": "^0.5.7",
-    "@supabase/auth-helpers-react": "^0.4.0",
-    "@supabase/supabase-js": "^2.43.5",
-    "exceljs": "^4.4.0",
-    "file-saver": "^2.0.5",
-    "json2csv": "^6.0.0-alpha.2",
-    "jspdf": "^3.0.1",
-    "jspdf-autotable": "^5.0.2",
-    "next": "14.2.3",
-    "papaparse": "^5.4.1",
-    "puppeteer": "^22.5.0",
-    "react": "18.2.0",
-    "react-dom": "18.2.0",
-    "recharts": "^2.12.0",
-    "xlsx": "^0.18.5"
+    "test": "vitest run"
   },
   "devDependencies": {
-    "autoprefixer": "^10.4.16",
-    "eslint": "8.57.0",
-    "eslint-config-next": "14.2.3",
-    "postcss": "^8.4.33",
-    "tailwindcss": "^3.4.1"
+    "vitest": "^1.6.0"
   }
 }
