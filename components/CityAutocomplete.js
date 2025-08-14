@@ -1,93 +1,73 @@
 // components/CityAutocomplete.js
 import { useEffect, useMemo, useRef, useState } from "react";
-import { supabase } from "../utils/supabaseClient";
+import { supabase } from "../utils/supabaseClient.js";
 
-export default function CityAutocomplete({ label, value, onSelect }) {
+export default function CityAutocomplete({ label, value, onChange, onPick }) {
   const [q, setQ] = useState(value || "");
-  const [items, setItems] = useState([]);
+  const [opts, setOpts] = useState([]);
   const [open, setOpen] = useState(false);
-  const boxRef = useRef(null);
-  const debounced = useDebounce(q, 200);
+  const ref = useRef(null);
+
+  useEffect(() => setQ(value || ""), [value]);
 
   useEffect(() => {
-    async function run() {
-      const term = debounced.trim();
-      if (!term || term.length < 2) {
-        setItems([]);
-        return;
-      }
-      const [city, state] = term.split(",").map((s) => s?.trim());
-      let query = supabase
+    const id = setTimeout(async () => {
+      const term = q.trim();
+      if (!term) { setOpts([]); return; }
+      const cityPrefix = term.split(",")[0].trim();
+      const { data } = await supabase
         .from("cities")
-        .select("id, city, state_or_province, postal_code")
-        .ilike("city", `${city}%`)
+        .select("id, city, state_or_province, zip")
+        .ilike("city", `${cityPrefix}%`)
         .limit(12);
-      if (state) query = query.ilike("state_or_province", `${state}%`);
-      const { data } = await query;
-      setItems(
-        (data || []).map((c) => ({
-          id: c.id,
-          city: c.city,
-          state: c.state_or_province,
-          zip: c.postal_code || "",
-        }))
-      );
-    }
-    run();
-  }, [debounced]);
+      setOpts(data || []);
+      setOpen(true);
+    }, 200);
+    return () => clearTimeout(id);
+  }, [q]);
 
   useEffect(() => {
-    function onDoc(e) {
-      if (!boxRef.current || boxRef.current.contains(e.target)) return;
+    const onDoc = (e) => {
+      if (!ref.current || ref.current.contains(e.target)) return;
       setOpen(false);
-    }
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
+    };
+    document.addEventListener("click", onDoc);
+    return () => document.removeEventListener("click", onDoc);
   }, []);
 
-  const choose = (c) => {
-    const text = `${c.city}, ${c.state}`;
-    setQ(text);
+  const pick = (c) => {
+    const val = `${c.city}, ${c.state_or_province}`;
+    onChange?.(val);
+    onPick?.(c); // exposes state + zip if needed
+    setQ(val);
     setOpen(false);
-    onSelect?.(c);
   };
 
   return (
-    <div className="relative" ref={boxRef}>
-      {label && <label className="mb-1 block text-xs text-gray-400">{label}</label>}
+    <div className="relative" ref={ref}>
+      <label className="mb-1 block text-xs text-gray-400">{label}</label>
       <input
         value={q}
-        onChange={(e) => {
-          setQ(e.target.value);
-          setOpen(true);
-        }}
-        onFocus={() => setOpen(true)}
-        placeholder="City, ST"
+        onChange={(e) => { setQ(e.target.value); onChange?.(e.target.value); }}
+        onFocus={() => q && setOpen(true)}
         className="w-full rounded-lg border border-gray-700 bg-gray-900 p-2 text-white"
+        placeholder="City, ST"
       />
-      {open && items.length > 0 && (
-        <div className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-lg border border-gray-700 bg-[#0f1115] shadow-lg">
-          {items.map((c) => (
+      {open && opts.length > 0 && (
+        <div className="absolute z-10 mt-1 w-full overflow-auto rounded-lg border border-gray-700 bg-gray-900 text-sm">
+          {opts.map((c) => (
             <button
-              type="button"
               key={c.id}
-              onClick={() => choose(c)}
-              className="block w-full px-3 py-2 text-left text-sm text-gray-200 hover:bg-gray-800"
+              type="button"
+              onClick={() => pick(c)}
+              className="block w-full text-left px-3 py-2 hover:bg-gray-800"
             >
-              {c.city}, {c.state} {c.zip ? `• ${c.zip}` : ""}
+              {c.city}, {c.state_or_province}
+              {c.zip ? <span className="text-xs text-gray-400">  · {c.zip}</span> : null}
             </button>
           ))}
         </div>
       )}
     </div>
   );
-}
-
-function useDebounce(val, ms) {
-  const [v, setV] = useState(val);
-  useEffect(() => {
-    const t = setTimeout(() => setV(val), ms);
-    return () => clearTimeout(t);
-  }, [val, ms]);
-  return v;
 }
