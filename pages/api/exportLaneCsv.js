@@ -1,5 +1,5 @@
 // pages/api/exportLaneCsv.js
-import { supabase } from "../../utils/supabaseClient.js";
+import { adminSupabase as supabase } from "../../utils/supabaseClient.js";
 import { DAT_HEADERS, planPairsForLane, rowsFromBaseAndPairs, toCsv } from "../../lib/datCsvBuilder.js";
 
 export default async function handler(req, res) {
