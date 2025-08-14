@@ -1,14 +1,12 @@
 // pages/api/uploadMarketData.js
-import { supabase } from "../../utils/supabaseClient.js";
+import { adminSupabase as supabase } from "../../utils/supabaseClient.js";
 
 function flattenMatrix(matrix, snapshot_id, equipment, source) {
   const rows = [];
   for (const [origin, dests] of Object.entries(matrix || {})) {
     for (const [destination, rate] of Object.entries(dests || {})) {
       const num = Number(rate);
-      if (Number.isFinite(num)) {
-        rows.push({ snapshot_id, equipment, source, origin, destination, rate: num });
-      }
+      if (Number.isFinite(num)) rows.push({ snapshot_id, equipment, source, origin, destination, rate: num });
     }
   }
   return rows;
@@ -21,9 +19,7 @@ export default async function handler(req, res) {
   }
   try {
     const { entries, flatten } = req.body || {};
-    if (!Array.isArray(entries) || !entries.length) {
-      return res.status(400).json({ error: "Missing entries" });
-    }
+    if (!Array.isArray(entries) || !entries.length) return res.status(400).json({ error: "Missing entries" });
 
     let inserted = 0;
     for (const e of entries) {
@@ -52,9 +48,7 @@ export default async function handler(req, res) {
       }
     }
 
-    // bump a settings key for cache invalidation
     await supabase.from("settings").upsert({ key: "rates_last_updated", value: { ts: new Date().toISOString() } });
-
     return res.status(200).json({ ok: true, inserted });
   } catch (e) {
     return res.status(500).json({ error: e.message || "Upload failed" });
