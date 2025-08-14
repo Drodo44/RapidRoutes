@@ -3,8 +3,9 @@ import { useState } from "react";
 import Head from "next/head";
 import { supabase } from "../utils/supabaseClient.js";
 import CityAutocomplete from "../components/CityAutocomplete.js";
-import EquipmentSelect from "../components/EquipmentSelect.js";
+import EquipmentAutocomplete from "../components/EquipmentAutocomplete.js";
 import RandomizeWeightPopup from "../components/RandomizeWeightPopup.js";
+import ExportBar from "../components/ExportBar.js";
 
 export default function LanesPage() {
   const [origin, setOrigin] = useState("");
@@ -23,9 +24,6 @@ export default function LanesPage() {
   const [msg, setMsg] = useState("");
 
   const openRandomize = () => {
-    const init = randomize
-      ? { min: range.min || sessionDefaultRange?.min || "", max: range.max || sessionDefaultRange?.max || "" }
-      : { min: sessionDefaultRange?.min || "", max: sessionDefaultRange?.max || "" };
     setOpenRand(true);
   };
 
@@ -42,7 +40,6 @@ export default function LanesPage() {
     e.preventDefault();
     setMsg("");
 
-    // Validation
     if (!origin || !destination) return setMsg("Origin and Destination are required.");
     if (!equipment) return setMsg("Equipment code is required.");
     const L = Number(length);
@@ -57,16 +54,13 @@ export default function LanesPage() {
     }
 
     const row = {
-      origin,                // "City, ST" — used by export planner
-      destination,           // "City, ST"
-      equipment,             // DAT code
-      length: Number(length),
+      origin, destination,
+      equipment, length: Number(length),
       randomize_weight: !!randomize,
       weight: randomize ? null : Number(weight),
       weight_min: randomize ? Number(range.min) : null,
       weight_max: randomize ? Number(range.max) : null,
-      date,
-      full_partial: fullPartial,
+      date, full_partial: fullPartial,
       commodity: commodity || null,
       comment: comment || null,
       status: "active",
@@ -76,7 +70,6 @@ export default function LanesPage() {
     if (error) return setMsg(error.message || "Failed to save lane.");
 
     setMsg("Lane saved.");
-    // Reset except keep session default weight range
     setOrigin(""); setDestination(""); setEquipment("V"); setLength("53");
     setRandomize(false); setWeight(""); setRange({ min: sessionDefaultRange?.min || "", max: sessionDefaultRange?.max || "" });
     setDate(""); setFullPartial("full"); setCommodity(""); setComment("");
@@ -86,7 +79,12 @@ export default function LanesPage() {
     <>
       <Head><title>Lanes — RapidRoutes</title></Head>
       <main className="mx-auto max-w-4xl p-6 text-gray-100">
-        <h1 className="mb-4 text-2xl font-bold">Create Lane</h1>
+        <h1 className="mb-2 text-2xl font-bold">Lanes</h1>
+
+        {/* A) Export bar */}
+        <ExportBar />
+
+        {/* Create Lane Form */}
         <form onSubmit={submit} className="card p-4 space-y-4">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <CityAutocomplete label="Origin (City, ST)" value={origin} onChange={setOrigin} />
@@ -96,7 +94,8 @@ export default function LanesPage() {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <label className="mb-1 block text-xs text-gray-400">Equipment (DAT code)</label>
-              <EquipmentSelect value={equipment} onChange={setEquipment} />
+              {/* B) Equipment typeahead */}
+              <EquipmentAutocomplete value={equipment} onChange={setEquipment} />
             </div>
             <div>
               <label className="mb-1 block text-xs text-gray-400">Length (ft)</label>
