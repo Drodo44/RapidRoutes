@@ -1,11 +1,16 @@
 // pages/api/exportDatCsv.js
-import { supabase } from "../../utils/supabaseClient.js";
-import { DAT_HEADERS, planPairsForLane, rowsFromBaseAndPairs, toCsv, chunkRows } from "../../lib/datCsvBuilder.js";
+import { adminSupabase as supabase } from "../../utils/supabaseClient.js";
+import {
+  DAT_HEADERS,
+  planPairsForLane,
+  rowsFromBaseAndPairs,
+  toCsv,
+  chunkRows,
+} from "../../lib/datCsvBuilder.js";
 
 function inc(map, baseKey, kma) {
   const byBase = map.get(baseKey) || new Map();
-  const count = byBase.get(kma) || 0;
-  byBase.set(kma, count + 1);
+  byBase.set(kma, (byBase.get(kma) || 0) + 1);
   map.set(baseKey, byBase);
 }
 function get(map, baseKey, kma) {
@@ -16,7 +21,6 @@ function get(map, baseKey, kma) {
 async function fetchLanes(req) {
   const days = Number(req.query.days || 0);
   const includeAll = req.query.all === "1";
-
   let q = supabase.from("lanes").select("*");
   if (Number.isFinite(days) && days > 0) {
     const since = new Date(Date.now() - days * 86400000).toISOString();
@@ -24,7 +28,6 @@ async function fetchLanes(req) {
   }
   const tryActive = includeAll ? null : await q.eq("status", "active").order("created_at", { ascending: false });
   if (tryActive && !tryActive.error) return tryActive.data ?? [];
-
   const plain = await supabase.from("lanes").select("*").order("created_at", { ascending: false });
   if (plain.error) throw plain.error;
   return plain.data ?? [];
@@ -33,6 +36,7 @@ async function fetchLanes(req) {
 async function buildAllRows(req) {
   const preferFillTo10 = req.query.fill === "1";
   const lanes = await fetchLanes(req);
+
   const usedPickupByBase = new Map();
   const usedDeliveryByBase = new Map();
 
@@ -42,7 +46,6 @@ async function buildAllRows(req) {
 
     const baseOK = baseOrigin?.kma || `${baseOrigin.city}-${baseOrigin.state}`;
     const baseDK = baseDest?.kma || `${baseDest.city}-${baseDest.state}`;
-
     const strictCap = 0;
     const relaxedCap = 1;
 
@@ -72,8 +75,7 @@ async function buildAllRows(req) {
       }
     }
 
-    const laneRows = rowsFromBaseAndPairs(lane, baseOrigin, baseDest, selected);
-    rows.push(...laneRows);
+    rows.push(...rowsFromBaseAndPairs(lane, baseOrigin, baseDest, selected));
   }
   return rows;
 }
