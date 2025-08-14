@@ -1,5 +1,5 @@
 // pages/api/fetchDatBlog.js
-import { supabase } from "../../utils/supabaseClient";
+import { adminSupabase as supabase } from "../../utils/supabaseClient.js";
 
 async function fetchHtml(url) {
   const r = await fetch(url, { headers: { "User-Agent": "RapidRoutesBot/1.0" } });
@@ -7,30 +7,21 @@ async function fetchHtml(url) {
   return await r.text();
 }
 
-// Try to detect likely map images (DAT often uses descriptive alts or filenames)
 function detectMaps(html) {
   const imgs = [...html.matchAll(/<img[^>]+src="([^"]+)"[^>]*?(?:alt="([^"]*)")?/gi)].map((m) => ({
     src: m[1],
     alt: (m[2] || "").toLowerCase(),
   }));
-
-  const pick = (keyword) =>
+  const find = (kw) =>
     imgs
-      .filter(
-        (i) =>
-          i.alt.includes(keyword) ||
-          /van|reefer|flatbed|dry-?van|market-?map|demand/i.test(i.alt) ||
-          /van|reefer|flatbed/i.test(i.src)
-      )
-      .map((i) => i.src);
+      .filter((i) => i.alt.includes(kw) || new RegExp(kw, "i").test(i.src))
+      .map((i) => i.src)[0] || null;
 
-  // We’ll heuristically choose the first of each we find
-  const candidates = {
-    van: pick("van").find((s) => /van/i.test(s)) || null,
-    reefer: pick("reefer").find((s) => /reefer/i.test(s)) || null,
-    flatbed: pick("flatbed").find((s) => /flatbed/i.test(s)) || null,
+  return {
+    van: find("van"),
+    reefer: find("reefer"),
+    flatbed: find("flatbed"),
   };
-  return candidates;
 }
 
 async function uploadPublic(bucket, path, arrayBuffer) {
@@ -41,7 +32,7 @@ async function uploadPublic(bucket, path, arrayBuffer) {
   if (error) throw error;
 }
 
-export default async function handler(req, res) {
+export default async function handler(_req, res) {
   try {
     const html = await fetchHtml("https://www.dat.com/blog");
     const maps = detectMaps(html);
@@ -65,7 +56,6 @@ export default async function handler(req, res) {
       if (error) throw error;
       inserted.push({ equip, path });
     }
-
     return res.status(200).json({ ok: true, inserted });
   } catch (e) {
     return res.status(500).json({ error: e.message || "fetchDatBlog failed" });
