@@ -1,5 +1,5 @@
 // components/CityAutocomplete.js
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "../utils/supabaseClient.js";
 
 export default function CityAutocomplete({ label, value, onChange, onPick }) {
@@ -12,14 +12,15 @@ export default function CityAutocomplete({ label, value, onChange, onPick }) {
 
   useEffect(() => {
     const id = setTimeout(async () => {
-      const term = q.trim();
-      if (!term) { setOpts([]); return; }
+      const term = (q || "").trim();
+      if (term.length < 2) { setOpts([]); return; }
       const cityPrefix = term.split(",")[0].trim();
       const { data } = await supabase
         .from("cities")
         .select("id, city, state_or_province, zip")
         .ilike("city", `${cityPrefix}%`)
-        .limit(12);
+        .order("city", { ascending: true })
+        .limit(20);
       setOpts(data || []);
       setOpen(true);
     }, 200);
@@ -31,17 +32,17 @@ export default function CityAutocomplete({ label, value, onChange, onPick }) {
       if (!ref.current || ref.current.contains(e.target)) return;
       setOpen(false);
     };
-    document.addEventListener("click", onDoc);
-    return () => document.removeEventListener("click", onDoc);
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
   }, []);
 
-  const pick = (c) => {
+  function pick(c) {
     const val = `${c.city}, ${c.state_or_province}`;
     onChange?.(val);
-    onPick?.(c); // exposes state + zip if needed
+    onPick?.({ city: c.city, state: c.state_or_province, zip: c.zip || "" });
     setQ(val);
     setOpen(false);
-  };
+  }
 
   return (
     <div className="relative" ref={ref}>
@@ -54,16 +55,16 @@ export default function CityAutocomplete({ label, value, onChange, onPick }) {
         placeholder="City, ST"
       />
       {open && opts.length > 0 && (
-        <div className="absolute z-10 mt-1 w-full overflow-auto rounded-lg border border-gray-700 bg-gray-900 text-sm">
+        <div className="absolute z-10 mt-1 max-h-72 w-full overflow-auto rounded-lg border border-gray-700 bg-gray-900 text-sm">
           {opts.map((c) => (
             <button
               key={c.id}
               type="button"
               onClick={() => pick(c)}
-              className="block w-full text-left px-3 py-2 hover:bg-gray-800"
+              className="block w-full px-3 py-2 text-left hover:bg-gray-800"
             >
               {c.city}, {c.state_or_province}
-              {c.zip ? <span className="text-xs text-gray-400">  · {c.zip}</span> : null}
+              {c.zip ? <span className="text-xs text-gray-400"> · {c.zip}</span> : null}
             </button>
           ))}
         </div>
