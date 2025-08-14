@@ -1,211 +1,207 @@
 // pages/lanes.js
 import { useState } from "react";
-import { supabase } from "../utils/supabaseClient";
-import CityAutocomplete from "../components/CityAutocomplete";
-import EquipmentSelect from "../components/EquipmentSelect";
-import RandomizeWeightPopup from "../components/RandomizeWeightPopup";
+import Head from "next/head";
+import { supabase } from "../utils/supabaseClient.js";
+import CityAutocomplete from "../components/CityAutocomplete.js";
+import EquipmentSelect from "../components/EquipmentSelect.js";
+import RandomizeWeightPopup from "../components/RandomizeWeightPopup.js";
 
-export default function Lanes() {
-  const [form, setForm] = useState({
-    origin: "",
-    destination: "",
-    equipment: "",
-    weight: "",
-    length: "",
-    date: "",
-    comment: "",
-  });
-  // Whether to randomize the weight for this lane
-  const [randomizeWeight, setRandomizeWeight] = useState(false);
-  // Range selected for random weight (min/max). Defaults to dry‑van range
-  const [weightRange, setWeightRange] = useState({ min: 46750, max: 48000 });
-  // If the user chooses to apply the selected range to all new lanes, store it here
-  const [globalRange, setGlobalRange] = useState(null);
-  // Controls visibility of the randomization popup
-  const [showPopup, setShowPopup] = useState(false);
-  const [suggestedComment, setSuggestedComment] = useState("");
+export default function LanesPage() {
+  const [origin, setOrigin] = useState("");
+  const [destination, setDestination] = useState("");
+  const [equipment, setEquipment] = useState("V");
+  const [length, setLength] = useState("53");
+  const [randomize, setRandomize] = useState(false);
+  const [weight, setWeight] = useState("");
+  const [range, setRange] = useState({ min: "", max: "" });
+  const [sessionDefaultRange, setSessionDefaultRange] = useState(null);
+  const [openRand, setOpenRand] = useState(false);
+  const [date, setDate] = useState("");
+  const [fullPartial, setFullPartial] = useState("full");
+  const [commodity, setCommodity] = useState("");
+  const [comment, setComment] = useState("");
+  const [msg, setMsg] = useState("");
 
-  const handleChange = (e) =>
-    setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
-
-  const handleEquipmentChange = (val) => {
-    setForm((f) => ({ ...f, equipment: val.split(" ").pop() }));
+  const openRandomize = () => {
+    const init = randomize
+      ? { min: range.min || sessionDefaultRange?.min || "", max: range.max || sessionDefaultRange?.max || "" }
+      : { min: sessionDefaultRange?.min || "", max: sessionDefaultRange?.max || "" };
+    setOpenRand(true);
   };
 
-  const suggestComment = () => {
-    const { origin, destination, equipment } = form;
-    if (!origin || !destination || !equipment) return;
-    const comment = `Popular ${equipment} route from ${origin} to ${destination} — strong reload lane`;
-    setSuggestedComment(comment);
-    setForm((f) => ({ ...f, comment }));
+  const onCloseRand = (payload) => {
+    setOpenRand(false);
+    if (!payload) return;
+    setRandomize(true);
+    setRange({ min: payload.min, max: payload.max });
+    setWeight("");
+    if (payload.applyAll) setSessionDefaultRange({ min: payload.min, max: payload.max });
   };
 
-  const handleSubmit = async (e) => {
+  async function submit(e) {
     e.preventDefault();
-    // Determine the weight value. If randomization is on, generate a random
-    // number within the selected range. Otherwise use the exact weight input.
-    let weightValue;
-    if (randomizeWeight) {
-      const rangeToUse = globalRange || weightRange;
-      const minW = parseInt(rangeToUse.min, 10);
-      const maxW = parseInt(rangeToUse.max, 10);
-      weightValue = Math.floor(Math.random() * (maxW - minW + 1)) + minW;
+    setMsg("");
+
+    // Validation
+    if (!origin || !destination) return setMsg("Origin and Destination are required.");
+    if (!equipment) return setMsg("Equipment code is required.");
+    const L = Number(length);
+    if (!Number.isFinite(L) || L <= 0) return setMsg("Length must be a positive number.");
+    if (randomize) {
+      const mi = Number(range.min), ma = Number(range.max);
+      if (!Number.isFinite(mi) || !Number.isFinite(ma) || mi <= 0 || ma < mi)
+        return setMsg("Enter a valid weight range.");
     } else {
-      weightValue = form.weight;
+      const W = Number(weight);
+      if (!Number.isFinite(W) || W <= 0) return setMsg("Weight is required.");
     }
-    const { error } = await supabase.from("lanes").insert([
-      { ...form, weight: parseInt(weightValue, 10) },
-    ]);
-    if (error) {
-      alert("Error saving lane.");
-    } else {
-      alert("Lane created!");
-      setForm({
-        origin: "",
-        destination: "",
-        equipment: "",
-        weight: "",
-        length: "",
-        date: "",
-        comment: "",
-      });
-      setSuggestedComment("");
-    }
-  };
+
+    const row = {
+      origin,                // "City, ST" — used by export planner
+      destination,           // "City, ST"
+      equipment,             // DAT code
+      length: Number(length),
+      randomize_weight: !!randomize,
+      weight: randomize ? null : Number(weight),
+      weight_min: randomize ? Number(range.min) : null,
+      weight_max: randomize ? Number(range.max) : null,
+      date,
+      full_partial: fullPartial,
+      commodity: commodity || null,
+      comment: comment || null,
+      status: "active",
+    };
+
+    const { error } = await supabase.from("lanes").insert(row);
+    if (error) return setMsg(error.message || "Failed to save lane.");
+
+    setMsg("Lane saved.");
+    // Reset except keep session default weight range
+    setOrigin(""); setDestination(""); setEquipment("V"); setLength("53");
+    setRandomize(false); setWeight(""); setRange({ min: sessionDefaultRange?.min || "", max: sessionDefaultRange?.max || "" });
+    setDate(""); setFullPartial("full"); setCommodity(""); setComment("");
+  }
 
   return (
-    <div className="p-8">
-      <div className="max-w-xl mx-auto bg-[#1a2236] p-8 rounded-2xl shadow-2xl text-white">
-        <h1 className="text-3xl font-bold mb-6 text-cyan-400">Create New Lane</h1>
+    <>
+      <Head><title>Lanes — RapidRoutes</title></Head>
+      <main className="mx-auto max-w-4xl p-6 text-gray-100">
+        <h1 className="mb-4 text-2xl font-bold">Create Lane</h1>
+        <form onSubmit={submit} className="card p-4 space-y-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <CityAutocomplete label="Origin (City, ST)" value={origin} onChange={setOrigin} />
+            <CityAutocomplete label="Destination (City, ST)" value={destination} onChange={setDestination} />
+          </div>
 
-        <form onSubmit={handleSubmit}>
-          {/* Origin and destination autocompletes */}
-          <label className="block mb-1">Origin City/State</label>
-          <CityAutocomplete
-            value={form.origin}
-            onChange={(val) => setForm((f) => ({ ...f, origin: val }))}
-            placeholder="Start typing city…"
-          />
-          <div className="h-4" />
-          <label className="block mb-1">Destination City/State</label>
-          <CityAutocomplete
-            value={form.destination}
-            onChange={(val) => setForm((f) => ({ ...f, destination: val }))}
-            placeholder="Start typing city…"
-          />
-          <div className="h-4" />
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-xs text-gray-400">Equipment (DAT code)</label>
+              <EquipmentSelect value={equipment} onChange={setEquipment} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-gray-400">Length (ft)</label>
+              <input
+                value={length}
+                onChange={(e) => setLength(e.target.value.replace(/[^\d]/g, ""))}
+                className="w-full rounded-lg border border-gray-700 bg-gray-900 p-2 text-white"
+                inputMode="numeric"
+              />
+            </div>
+          </div>
 
-          <label className="block mb-1">Equipment (DAT Code)</label>
-          <EquipmentSelect
-            value={form.equipment}
-            onChange={(val) => handleEquipmentChange(val)}
-          />
-          <div className="h-4" />
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-xs text-gray-400">Pickup Date (e.g., 8/12/2025)</label>
+              <input
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                placeholder="MM/DD/YYYY or text"
+                className="w-full rounded-lg border border-gray-700 bg-gray-900 p-2 text-white"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-gray-400">Full / Partial</label>
+              <select
+                value={fullPartial}
+                onChange={(e) => setFullPartial(e.target.value)}
+                className="w-full rounded-lg border border-gray-700 bg-gray-900 p-2 text-white"
+              >
+                <option value="full">full</option>
+                <option value="partial">partial</option>
+              </select>
+            </div>
+          </div>
 
-          <label className="block mb-1">Weight (lbs)</label>
-          <input
-            name="weight"
-            type="number"
-            required={!randomizeWeight}
-            disabled={randomizeWeight}
-            value={form.weight}
-            onChange={handleChange}
-            className="mb-2 w-full p-3 rounded bg-[#222f45] border border-gray-700"
-          />
-          {/* Randomization controls: when not randomized, show a button to open the popup. When randomized, display the range and option to clear. */}
-          <div className="flex items-center mb-4">
-            {randomizeWeight ? (
-              <div className="flex items-center gap-2 text-sm">
-                <span className="text-green-400">
-                  Randomized {globalRange ? `${globalRange.min}–${globalRange.max}` : `${weightRange.min}–${weightRange.max}`} lbs
-                </span>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-xs text-gray-400">Weight (lbs)</label>
+              <div className="flex items-center gap-3">
+                <input
+                  disabled={randomize}
+                  value={weight}
+                  onChange={(e) => setWeight(e.target.value.replace(/[^\d]/g, ""))}
+                  className="w-full rounded-lg border border-gray-700 bg-gray-900 p-2 text-white disabled:opacity-60"
+                  placeholder={randomize ? "" : "e.g., 42500"}
+                  inputMode="numeric"
+                />
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={randomize}
+                    onChange={(e) => {
+                      const on = e.target.checked;
+                      setRandomize(on);
+                      if (on && !range.min && sessionDefaultRange?.min) setRange(sessionDefaultRange);
+                    }}
+                  />
+                  Randomize
+                </label>
                 <button
                   type="button"
-                  onClick={() => {
-                    setRandomizeWeight(false);
-                  }}
-                  className="text-red-400 underline"
+                  onClick={openRandomize}
+                  className="rounded bg-gray-700 px-3 py-2 text-sm hover:bg-gray-600"
                 >
-                  Clear
+                  Set range
                 </button>
               </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setShowPopup(true)}
-                className="bg-blue-700 hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-sm font-semibold"
-              >
-                Randomize
-              </button>
-            )}
-          </div>
-          {showPopup && (
-            <RandomizeWeightPopup
-              onClose={() => setShowPopup(false)}
-              setRange={(r) => {
-                setWeightRange(r);
-                // Also update global range if user chooses apply all
-              }}
-              setGlobal={(applyAll) => {
-                if (applyAll) {
-                  setGlobalRange(weightRange);
-                } else {
-                  setGlobalRange(null);
-                }
-              }}
-              setRandomize={setRandomizeWeight}
-              defaultRange={weightRange}
-            />
-          )}
-
-          <label className="block mb-1">Length (ft)</label>
-          <input
-            name="length"
-            type="number"
-            required
-            value={form.length}
-            onChange={handleChange}
-            className="mb-4 w-full p-3 rounded bg-[#222f45] border border-gray-700"
-          />
-
-          <label className="block mb-1">Pickup Date</label>
-          <input
-            name="date"
-            type="date"
-            required
-            value={form.date}
-            onChange={handleChange}
-            className="mb-4 w-full p-3 rounded bg-[#222f45] border border-gray-700"
-          />
-
-          <label className="block mb-1">Comment (Optional)</label>
-          <textarea
-            name="comment"
-            value={form.comment}
-            onChange={handleChange}
-            className="mb-2 w-full p-3 rounded bg-[#222f45] border border-gray-700"
-          />
-          {suggestedComment && (
-            <div className="mb-4 text-green-400 text-sm">
-              Suggested: “{suggestedComment}”
+              {randomize && (
+                <div className="mt-2 text-xs text-gray-300">
+                  Range: {range.min || "—"}–{range.max || "—"} lbs
+                </div>
+              )}
             </div>
-          )}
-          <button
-            type="button"
-            onClick={suggestComment}
-            className="w-full bg-blue-800 hover:bg-blue-900 py-2 rounded-xl mb-4 font-semibold"
-          >
-            Suggest DAT Comment
-          </button>
 
-          <button
-            type="submit"
-            className="w-full bg-green-600 hover:bg-green-700 py-2 rounded-xl font-bold"
-          >
-            Create Lane
-          </button>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-xs text-gray-400">Commodity (optional)</label>
+                <input
+                  value={commodity}
+                  onChange={(e) => setCommodity(e.target.value)}
+                  className="w-full rounded-lg border border-gray-700 bg-gray-900 p-2 text-white"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-gray-400">Comment (optional)</label>
+                <input
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  className="w-full rounded-lg border border-gray-700 bg-gray-900 p-2 text-white"
+                />
+              </div>
+            </div>
+          </div>
+
+          {msg && <div className="text-sm text-red-400">{msg}</div>}
+
+          <div className="flex justify-end">
+            <button className="rounded-lg bg-green-600 px-4 py-2 font-semibold text-white hover:bg-green-700">
+              Save lane
+            </button>
+          </div>
         </form>
-      </div>
-    </div>
+
+        <RandomizeWeightPopup open={openRand} initial={range} onClose={onCloseRand} />
+      </main>
+    </>
   );
 }
