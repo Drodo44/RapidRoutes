@@ -1,26 +1,29 @@
 // pages/api/debugCrawl.js
-import { generateCrawlCities } from "../../lib/datcrawl.js";
+import { generateCrawlPairs } from "../../lib/datcrawl.js";
 
 export default async function handler(req, res) {
   try {
-    const origin = req.query.origin || "";
-    const dest = req.query.dest || "";
-    const equip = (req.query.equip || "V").toUpperCase();
-    const preferFillTo10 = req.query.fill === "1";
-    if (!origin || !dest) return res.status(400).json({ error: "Query: origin=City,ST & dest=City,ST" });
+    const origin = String(req.query.origin || "");
+    const dest = String(req.query.dest || req.query.destination || "");
+    const equip = String(req.query.equip || "V").toUpperCase();
+    const fill = req.query.fill === "1";
 
-    const { baseOrigin, baseDest, pairs, allowedDuplicates, shortfallReason } =
-      await generateCrawlCities(origin, dest, { equipment: equip, preferFillTo10 });
+    if (!origin || !dest) return res.status(400).json({ error: "origin and dest required" });
 
+    const out = await generateCrawlPairs({ origin, destination: dest, equipment: equip, preferFillTo10: fill });
     return res.status(200).json({
-      baseOrigin, baseDest, allowedDuplicates, shortfallReason,
-      count: pairs.length,
-      pairs: pairs.map((p) => ({
-        pickup: { city: p.pickup.city, state: p.pickup.state, kma: p.pickup.kma },
-        delivery: { city: p.delivery.city, state: p.delivery.state, kma: p.delivery.kma },
-        reason: p.reason,
-        score: Number(p.score?.toFixed(3)),
-      })),
+      origin,
+      destination: dest,
+      equipment: equip,
+      count: out.pairs.length,
+      shortfallReason: out.shortfallReason,
+      allowedDuplicates: out.allowedDuplicates,
+      pairs: out.pairs.map((p) => ({
+        pickup: { city: p.pickup.city, state: p.pickup.state, zip: p.pickup.zip, kma: p.pickup.kma },
+        delivery: { city: p.delivery.city, state: p.delivery.state, zip: p.delivery.zip, kma: p.delivery.kma },
+        score: p.score,
+        reason: p.reason
+      }))
     });
   } catch (e) {
     return res.status(500).json({ error: e.message || "debugCrawl failed" });
