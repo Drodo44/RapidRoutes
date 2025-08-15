@@ -1,4 +1,6 @@
-// pages/api/exportDatCsv.js
+// file: pages/api/exportDatCsv.js  (REPLACE)
+// Streams CSV for Pending (default), or by ?days=7, or ?all=1.
+// Splits into 499-row parts; HEAD returns X-Total-Parts.
 import { adminSupabase as supabase } from "../../utils/supabaseClient.js";
 import {
   DAT_HEADERS,
@@ -8,97 +10,67 @@ import {
   chunkRows,
 } from "../../lib/datCsvBuilder.js";
 
-function inc(map, baseKey, kma) {
-  const byBase = map.get(baseKey) || new Map();
-  byBase.set(kma, (byBase.get(kma) || 0) + 1);
-  map.set(baseKey, byBase);
-}
-function get(map, baseKey, kma) {
-  const byBase = map.get(baseKey);
-  return byBase ? byBase.get(kma) || 0 : 0;
+function filenameBase() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  return `rapidroutes_DAT_${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`;
 }
 
-async function fetchLanes(req) {
-  const days = Number(req.query.days || 0);
-  const includeAll = req.query.all === "1";
-  let q = supabase.from("lanes").select("*");
-  if (Number.isFinite(days) && days > 0) {
-    const since = new Date(Date.now() - days * 86400000).toISOString();
-    q = q.gte("created_at", since);
+async function fetchLanes(q) {
+  let sel = supabase.from("lanes").select("*");
+  if (q.pending === "1") {
+    sel = sel.eq("status", "pending");
+  } else if (q.days) {
+    const days = Math.max(1, Math.min(90, Number(q.days) || 7));
+    sel = sel.gte("created_at", new Date(Date.now() - days * 86400_000).toISOString())
+             .neq("status", "covered");
+  } else if (q.all === "1") {
+    // export everything except covered, to be safe
+    sel = sel.neq("status", "covered");
+  } else {
+    // Default: Pending only
+    sel = sel.eq("status", "pending");
   }
-  const tryActive = includeAll ? null : await q.eq("status", "active").order("created_at", { ascending: false });
-  if (tryActive && !tryActive.error) return tryActive.data ?? [];
-  const plain = await supabase.from("lanes").select("*").order("created_at", { ascending: false });
-  if (plain.error) throw plain.error;
-  return plain.data ?? [];
-}
-
-async function buildAllRows(req) {
-  const preferFillTo10 = req.query.fill === "1";
-  const lanes = await fetchLanes(req);
-
-  const usedPickupByBase = new Map();
-  const usedDeliveryByBase = new Map();
-
-  const rows = [];
-  for (const lane of lanes) {
-    const { baseOrigin, baseDest, pairs } = await planPairsForLane(lane, { preferFillTo10 });
-
-    const baseOK = baseOrigin?.kma || `${baseOrigin.city}-${baseOrigin.state}`;
-    const baseDK = baseDest?.kma || `${baseDest.city}-${baseDest.state}`;
-    const strictCap = 0;
-    const relaxedCap = 1;
-
-    const selected = [];
-    for (const p of pairs) {
-      const pK = p.pickup.kma || `${p.pickup.city}-${p.pickup.state}`;
-      const dK = p.delivery.kma || `${p.delivery.city}-${p.delivery.state}`;
-      if (get(usedPickupByBase, baseOK, pK) <= strictCap && get(usedDeliveryByBase, baseDK, dK) <= strictCap) {
-        selected.push(p);
-        inc(usedPickupByBase, baseOK, pK);
-        inc(usedDeliveryByBase, baseDK, dK);
-      }
-      if (selected.length === 10) break;
-    }
-
-    if (selected.length < 10 && preferFillTo10) {
-      for (const p of pairs) {
-        if (selected.includes(p)) continue;
-        const pK = p.pickup.kma || `${p.pickup.city}-${p.pickup.state}`;
-        const dK = p.delivery.kma || `${p.delivery.city}-${p.delivery.state}`;
-        if (get(usedPickupByBase, baseOK, pK) <= relaxedCap && get(usedDeliveryByBase, baseDK, dK) <= relaxedCap) {
-          selected.push(p);
-          inc(usedPickupByBase, baseOK, pK);
-          inc(usedDeliveryByBase, baseDK, dK);
-        }
-        if (selected.length === 10) break;
-      }
-    }
-
-    rows.push(...rowsFromBaseAndPairs(lane, baseOrigin, baseDest, selected));
-  }
-  return rows;
+  sel = sel.order("created_at", { ascending: false }).limit(1000);
+  const { data, error } = await sel;
+  if (error) throw new Error(error.message);
+  return data || [];
 }
 
 export default async function handler(req, res) {
-  if (req.method !== "GET" && req.method !== "HEAD") {
-    res.setHeader("Allow", "GET, HEAD");
-    return res.status(405).json({ error: "Method Not Allowed" });
-  }
   try {
-    const allRows = await buildAllRows(req);
-    const chunks = chunkRows(allRows, 499);
-    const totalParts = Math.max(1, chunks.length);
-    res.setHeader("X-Total-Parts", String(totalParts));
-    if (req.method === "HEAD") return res.status(200).end();
+    const q = req.query || {};
+    const fill = q.fill === "1";
+    const lanes = await fetchLanes(q);
 
-    const part = Math.min(Math.max(1, Number(req.query.part || 1)), totalParts);
-    const csv = toCsv(DAT_HEADERS, chunks[part - 1] || []);
-    const ts = new Date().toISOString().replace(/[:.]/g, "-");
+    // Build rows by lane
+    const allRows = [];
+    for (const lane of lanes) {
+      const plan = await planPairsForLane(lane, { preferFillTo10: fill });
+      const rows = rowsFromBaseAndPairs(lane, plan.baseOrigin, plan.baseDest, plan.pairs);
+      allRows.push(...rows);
+    }
+
+    const parts = chunkRows(allRows, 499);
+    const totalParts = Math.max(1, parts.length);
+
+    // HEAD: just expose parts count
+    if (req.method === "HEAD") {
+      res.setHeader("X-Total-Parts", String(totalParts));
+      return res.status(200).end();
+    }
+
+    // GET: return specific part
+    const part = Math.max(1, Math.min(totalParts, Number(q.part) || 1));
+    const csv = toCsv(DAT_HEADERS, parts[part - 1] || []);
+
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
-    res.setHeader("Content-Disposition", `attachment; filename="rapidroutes_DAT_${ts}_part${part}.csv"`);
-    return res.status(200).send(csv);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${filenameBase()}_part${part}-of-${totalParts}.csv"`
+    );
+    res.status(200).send(csv);
   } catch (e) {
-    return res.status(500).json({ error: e.message || "Export failed" });
+    res.status(500).json({ error: e.message || "export failed" });
   }
 }
