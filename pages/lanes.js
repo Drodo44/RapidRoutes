@@ -1,6 +1,4 @@
-// file: pages/lanes.js  (REPLACE)
-// Adds Pending vs Recent tabs + status actions. New lanes default to Pending.
-// Visuals/inputs preserved from your current page.
+// pages/lanes.js
 import { useEffect, useState } from "react";
 import Head from "next/head";
 import { supabase } from "../utils/supabaseClient.js";
@@ -11,7 +9,6 @@ import ExportBar from "../components/ExportBar.js";
 import CrawlPreviewBanner from "../components/CrawlPreviewBanner.js";
 
 export default function LanesPage() {
-  // --- form state (unchanged visuals)
   const [origin, setOrigin] = useState("");
   const [destination, setDestination] = useState("");
   const [equipment, setEquipment] = useState("V");
@@ -28,28 +25,25 @@ export default function LanesPage() {
   const [comment, setComment] = useState("");
   const [msg, setMsg] = useState("");
 
-  // Auto-filled by city pickers
   const [originState, setOriginState] = useState("");
   const [originZip, setOriginZip] = useState("");
   const [destState, setDestState] = useState("");
   const [destZip, setDestZip] = useState("");
 
-  // --- lists
-  const [tab, setTab] = useState("pending"); // 'pending' | 'recent'
+  const [tab, setTab] = useState("pending");
   const [pending, setPending] = useState([]);
   const [recent, setRecent] = useState([]);
   const [loadingList, setLoadingList] = useState(false);
   const [listError, setListError] = useState("");
 
-  // helpers
   const fmtUS = (iso) => {
     if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso || "";
     const [y, m, d] = iso.split("-").map(Number);
     return `${m}/${d}/${y}`;
   };
+  const parseCity = (s) => (String(s || "").split(",")[0] || "").trim();
   const guessState = (s) => (String(s || "").split(",")[1] || "").trim();
 
-  // validate + submit
   function validate() {
     if (!origin || !destination) return "Origin and Destination are required.";
     if (!equipment) return "Equipment code is required.";
@@ -71,29 +65,24 @@ export default function LanesPage() {
     const err = validate();
     if (err) return setMsg(err);
 
-    const datePretty =
-      pickupEarliest === pickupLatest
-        ? fmtUS(pickupEarliest)
-        : `${fmtUS(pickupEarliest)}–${fmtUS(pickupLatest)}`;
-
     const row = {
-      origin, destination,
-      equipment, length: Number(length),
+      origin_city: parseCity(origin),
+      origin_state: originState || guessState(origin),
+      origin_zip: originZip || null,
+      dest_city: parseCity(destination),
+      dest_state: destState || guessState(destination),
+      dest_zip: destZip || null,
+      equipment_code: equipment,
+      length_ft: Number(length),
+      pickup_earliest: pickupEarliest,
+      pickup_latest: pickupLatest,
       randomize_weight: !!randomize,
-      weight: randomize ? null : Number(weight),
+      weight_lbs: randomize ? null : Number(weight),
       weight_min: randomize ? Number(range.min) : null,
       weight_max: randomize ? Number(range.max) : null,
       full_partial: fullPartial,
       commodity: commodity || null,
       comment: comment || null,
-      // NEW: explicit fields + default status
-      origin_state: originState || guessState(origin),
-      origin_zip: originZip || null,
-      dest_state: destState || guessState(destination),
-      dest_zip: destZip || null,
-      pickup_earliest: pickupEarliest,
-      pickup_latest: pickupLatest,
-      date: datePretty,
       status: "pending",
     };
 
@@ -102,7 +91,7 @@ export default function LanesPage() {
 
     setMsg("Lane added to Pending.");
     resetForm();
-    await loadLists(); // immediate feedback
+    await loadLists();
     setTab("pending");
   }
 
@@ -119,8 +108,8 @@ export default function LanesPage() {
     setLoadingList(true); setListError("");
     try {
       const [p, r] = await Promise.all([
-        supabase.from("lanes").select("id, origin, origin_state, origin_zip, destination, dest_state, dest_zip, equipment, length, randomize_weight, weight, weight_min, weight_max, pickup_earliest, pickup_latest, full_partial, created_at, status").eq("status", "pending").order("created_at", { ascending: false }).limit(200),
-        supabase.from("lanes").select("id, origin, origin_state, origin_zip, destination, dest_state, dest_zip, equipment, length, randomize_weight, weight, weight_min, weight_max, pickup_earliest, pickup_latest, full_partial, created_at, status").order("created_at", { ascending: false }).limit(50),
+        supabase.from("lanes").select("id, origin_city, origin_state, origin_zip, dest_city, dest_state, dest_zip, equipment_code, length_ft, randomize_weight, weight_lbs, weight_min, weight_max, pickup_earliest, pickup_latest, full_partial, created_at, status").eq("status", "pending").order("created_at", { ascending: false }).limit(200),
+        supabase.from("lanes").select("id, origin_city, origin_state, origin_zip, dest_city, dest_state, dest_zip, equipment_code, length_ft, randomize_weight, weight_lbs, weight_min, weight_max, pickup_earliest, pickup_latest, full_partial, created_at, status").order("created_at", { ascending: false }).limit(50),
       ]);
       if (p.error) throw p.error;
       if (r.error) throw r.error;
@@ -166,11 +155,12 @@ export default function LanesPage() {
   }
 
   function Row({ x, showActions }) {
-    const laneText = `${x.origin}${x.origin_state ? ", " + x.origin_state : ""}${x.origin_zip ? " " + x.origin_zip : ""} → ${x.destination}${x.dest_state ? ", " + x.dest_state : ""}${x.dest_zip ? " " + x.dest_zip : ""}`;
-    const win = x.pickup_earliest && x.pickup_latest
-      ? (x.pickup_earliest === x.pickup_latest ? fmtUS(x.pickup_earliest) : `${fmtUS(x.pickup_earliest)}–${fmtUS(x.pickup_latest)}`)
-      : "—";
-    const w = x.randomize_weight ? `${x.weight_min || "?"}–${x.weight_max || "?"}` : (x.weight ? String(x.weight) : "—");
+    const laneText = `${x.origin_city}${x.origin_state ? ", " + x.origin_state : ""}${x.origin_zip ? " " + x.origin_zip : ""} → ${x.dest_city}${x.dest_state ? ", " + x.dest_state : ""}${x.dest_zip ? " " + x.dest_zip : ""}`;
+    const win =
+      x.pickup_earliest && x.pickup_latest
+        ? (x.pickup_earliest === x.pickup_latest ? fmtUS(x.pickup_earliest) : `${fmtUS(x.pickup_earliest)}–${fmtUS(x.pickup_latest)}`)
+        : "—";
+    const w = x.randomize_weight ? `${x.weight_min || "?"}–${x.weight_max || "?"}` : (x.weight_lbs ? String(x.weight_lbs) : "—");
 
     return (
       <div className="grid grid-cols-1 gap-3 px-3 py-3 text-sm md:grid-cols-12">
@@ -179,12 +169,12 @@ export default function LanesPage() {
           <div className="text-xs text-gray-400">{x.status}</div>
         </div>
         <div className="text-gray-300 md:col-span-2">{win}</div>
-        <div className="text-gray-300 md:col-span-2">{x.equipment} / {x.length}</div>
+        <div className="text-gray-300 md:col-span-2">{x.equipment_code} / {x.length_ft}</div>
         <div className="text-gray-300 md:col-span-2">{w}</div>
         <div className="flex items-center gap-2 md:col-span-2 md:justify-end">
           <button onClick={() => exportLane(x.id, false)} className="rounded bg-gray-700 px-2 py-1 text-xs text-white hover:bg-gray-600">Export</button>
           <a
-            href={`/api/debugCrawl?origin=${encodeURIComponent(x.origin)}&dest=${encodeURIComponent(x.destination)}&equip=${encodeURIComponent(x.equipment)}&fill=0`}
+            href={`/api/debugCrawl?origin=${encodeURIComponent(`${x.origin_city}, ${x.origin_state}`)}&dest=${encodeURIComponent(`${x.dest_city}, ${x.dest_state}`)}&equip=${encodeURIComponent(x.equipment_code)}&fill=0`}
             className="rounded bg-gray-700 px-2 py-1 text-xs text-white hover:bg-gray-600"
           >
             Preview
@@ -207,7 +197,6 @@ export default function LanesPage() {
     );
   }
 
-  // --- render
   return (
     <>
       <Head><title>Lanes — RapidRoutes</title></Head>
@@ -217,7 +206,6 @@ export default function LanesPage() {
         <ExportBar />
         <CrawlPreviewBanner origin={origin} destination={destination} equipment={equipment} />
 
-        {/* Create Lane */}
         <form onSubmit={submit} className="card p-4 space-y-4">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <CityAutocomplete label="Origin (City, ST)" value={origin} onChange={setOrigin} onPick={(c) => { setOriginState(c.state); setOriginZip(c.zip); }} />
@@ -235,7 +223,6 @@ export default function LanesPage() {
             </div>
           </div>
 
-          {/* Date range */}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <label className="mb-1 block text-xs text-gray-400">Pickup Earliest</label>
@@ -247,7 +234,6 @@ export default function LanesPage() {
             </div>
           </div>
 
-          {/* Weight / randomize */}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <label className="mb-1 block text-xs text-gray-400">Weight (lbs)</label>
@@ -286,7 +272,6 @@ export default function LanesPage() {
           </div>
         </form>
 
-        {/* Pending / Recent */}
         <section className="mt-6">
           <div className="mb-2 flex items-center gap-2">
             <button onClick={() => setTab("pending")} className={`rounded px-3 py-1.5 text-sm ${tab === "pending" ? "bg-gray-700 text-white" : "bg-gray-800 text-gray-300"}`}>Pending</button>
@@ -316,7 +301,18 @@ export default function LanesPage() {
           </div>
         </section>
 
-        <RandomizeWeightPopup open={openRand} initial={range} onClose={(p) => { setOpenRand(false); if (!p) return; setRandomize(true); setRange({ min: p.min, max: p.max }); setWeight(""); if (p.applyAll) setSessionDefaultRange({ min: p.min, max: p.max }); }} />
+        <RandomizeWeightPopup
+          open={openRand}
+          initial={range}
+          onClose={(p) => {
+            setOpenRand(false);
+            if (!p) return;
+            setRandomize(true);
+            setRange({ min: p.min, max: p.max });
+            setWeight("");
+            if (p.applyAll) setSessionDefaultRange({ min: p.min, max: p.max });
+          }}
+        />
       </main>
     </>
   );
