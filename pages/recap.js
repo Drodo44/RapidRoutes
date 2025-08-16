@@ -16,7 +16,7 @@ export default function RecapPage() {
     try {
       const { data, error } = await supabase
         .from("lanes")
-        .select("id, origin, origin_state, origin_zip, destination, dest_state, dest_zip, equipment, length, randomize_weight, weight, weight_min, weight_max, pickup_earliest, pickup_latest, full_partial, commodity, comment, created_at, status")
+        .select("id, origin_city, origin_state, origin_zip, dest_city, dest_state, dest_zip, equipment_code, length_ft, randomize_weight, weight_lbs, weight_min, weight_max, pickup_earliest, pickup_latest, full_partial, commodity, comment, created_at, status")
         .in("status", ["pending", "posted"])
         .order("created_at", { ascending: false })
         .limit(500);
@@ -24,9 +24,7 @@ export default function RecapPage() {
       setLanes(data || []);
     } catch (e) {
       setErr(e.message || "Failed to load lanes");
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   }
 
   useEffect(() => {
@@ -38,14 +36,13 @@ export default function RecapPage() {
         .subscribe();
       return () => { try { supabase.removeChannel(ch); } catch {} };
     } catch {}
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const filtered = useMemo(() => {
     const t = q.trim().toLowerCase();
     if (!t) return lanes;
     return lanes.filter((x) =>
-      `${x.origin} ${x.origin_state} ${x.destination} ${x.dest_state} ${x.equipment}`.toLowerCase().includes(t)
+      `${x.origin_city} ${x.origin_state} ${x.dest_city} ${x.dest_state} ${x.equipment_code}`.toLowerCase().includes(t)
     );
   }, [lanes, q]);
 
@@ -59,30 +56,16 @@ export default function RecapPage() {
         </div>
 
         <div className="mb-4 flex items-center gap-2">
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search city, state, equipment…"
-            className="w-80 rounded-lg border border-gray-700 bg-gray-900 p-2 text-white"
-          />
-          <button
-            onClick={load}
-            className="rounded bg-gray-700 px-3 py-2 text-sm text-white hover:bg-gray-600"
-          >
-            Refresh
-          </button>
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search city, state, equipment…" className="w-80 rounded-lg border border-gray-700 bg-gray-900 p-2 text-white" />
+          <button onClick={load} className="rounded bg-gray-700 px-3 py-2 text-sm text-white hover:bg-gray-600">Refresh</button>
         </div>
 
         {loading && <div className="mb-3 text-sm text-gray-300">Loading…</div>}
         {err && <div className="mb-3 text-sm text-red-400">{err}</div>}
-        {!loading && !err && filtered.length === 0 && (
-          <div className="text-sm text-gray-300">No active lanes (pending/posted).</div>
-        )}
+        {!loading && !err && filtered.length === 0 && (<div className="text-sm text-gray-300">No active lanes (pending/posted).</div>)}
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {filtered.map((lane) => (
-            <LaneRecapCard key={lane.id} lane={lane} />
-          ))}
+          {filtered.map((lane) => (<LaneRecapCard key={lane.id} lane={lane} />))}
         </div>
       </main>
     </>
