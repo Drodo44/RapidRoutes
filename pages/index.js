@@ -1,15 +1,15 @@
 // pages/index.js
-import { createServerSupabaseClient } from "@supabase/auth-helpers-nextjs";
+import { useEffect } from "react";
+import { useRouter } from "next/router";
+import { supabase } from "../utils/supabaseClient";
 
-export const getServerSideProps = async (ctx) => {
-  const supabase = createServerSupabaseClient(ctx);
-  const { data: { session } } = await supabase.auth.getSession();
-  return {
-    redirect: {
-      destination: session ? "/dashboard" : "/login",
-      permanent: false,
-    },
-  };
-};
-
-export default function IndexRedirect() { return null; }
+export default function Index() {
+  const router = useRouter();
+  useEffect(() => {
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      router.replace(session ? "/dashboard" : "/login");
+    })();
+  }, [router]);
+  return null;
+}
