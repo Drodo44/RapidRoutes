@@ -7,7 +7,6 @@ export default function CityAutocomplete({ label, value, onChange, onPick }) {
   const [loading, setLoading] = useState(false);
   const [idx, setIdx] = useState(-1);
   const boxRef = useRef(null);
-  const listRef = useRef(null);
 
   const canQuery = (v) => (v?.trim()?.length || 0) >= 2;
 
@@ -21,15 +20,12 @@ export default function CityAutocomplete({ label, value, onChange, onPick }) {
         const r = await fetch(`/api/cities?q=${encodeURIComponent(v)}`);
         const j = await r.json();
         if (!active) return;
-        if (Array.isArray(j)) setItems(j);
-        setOpen(true);
-        setIdx(-1);
-      } catch {
-        if (active) setItems([]);
+        setItems(Array.isArray(j) ? j : []);
+        setOpen(true); setIdx(-1);
       } finally {
         if (active) setLoading(false);
       }
-    }, 150); // small debounce
+    }, 150);
     return () => { active = false; clearTimeout(t); };
   }, [value]);
 
@@ -52,13 +48,8 @@ export default function CityAutocomplete({ label, value, onChange, onPick }) {
     if (!open || !items.length) return;
     if (e.key === "ArrowDown") { e.preventDefault(); setIdx((i) => Math.min(items.length - 1, i + 1)); }
     else if (e.key === "ArrowUp") { e.preventDefault(); setIdx((i) => Math.max(0, i - 1)); }
-    else if (e.key === "Enter") {
-      e.preventDefault();
-      const it = items[idx] || items[0];
-      if (it) pick(it);
-    } else if (e.key === "Escape") {
-      setOpen(false);
-    }
+    else if (e.key === "Enter") { e.preventDefault(); pick(items[idx] || items[0]); }
+    else if (e.key === "Escape") setOpen(false);
   }
 
   const list = useMemo(() => items.slice(0, 12), [items]);
@@ -73,15 +64,10 @@ export default function CityAutocomplete({ label, value, onChange, onPick }) {
         onKeyDown={onKey}
         className="w-full rounded-lg border border-gray-700 bg-gray-900 p-2 text-white"
         placeholder="City, ST"
-        autoCapitalize="none"
-        autoCorrect="off"
-        spellCheck={false}
+        autoCapitalize="none" autoCorrect="off" spellCheck={false}
       />
       {open && list.length > 0 && (
-        <div
-          ref={listRef}
-          className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-lg border border-gray-700 bg-[#0f1115] shadow"
-        >
+        <div className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-lg border border-gray-700 bg-[#0f1115] shadow">
           {list.map((it, i) => (
             <button
               key={`${it.city}-${it.state}-${i}`}
