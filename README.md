@@ -29,6 +29,12 @@ Apply the SQL from the internal spec (cities, lanes, equipment_codes, rates_snap
 ## Cron
 `vercel.json` defines weekly Monday 06:00 ET (10:00 UTC) call to `/api/fetchDatBlog`.
 
+## GitHub Copilot Setup
+This repository includes comprehensive Copilot instructions for efficient development:
+- See `.github/copilot-instructions.md` for complete guidelines
+- Review `COPILOT.md` for quick start tips
+- Configuration in `.copilotrc.json` ensures domain-aware suggestions
+
 ## Dev / Test
 Install deps:
 ```bash
