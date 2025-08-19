@@ -1,30 +1,14 @@
-/* styles/globals.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Dark-only base (keeps UI consistent) */
-:root {
-  color-scheme: dark;
+/* Dark-only baseline */
+html, body {
+  background-color: #0b0d12;
+  color: #e5e7eb; /* gray-200 */
 }
 
-html, body, #__next {
-  height: 100%;
-}
-
-body {
-  @apply bg-[#0f1115] text-gray-100;
-}
-
-/* Form focus */
-input, textarea, select, button {
-  @apply outline-none;
-}
-:focus-visible {
-  @apply ring-2 ring-blue-600/40;
-}
-
-/* Card & border helpers */
-.card {
-  @apply rounded-xl border border-gray-700 bg-[#0f1115] shadow;
+/* Form focus ring tweak */
+:focus {
+  outline: none;
 }
