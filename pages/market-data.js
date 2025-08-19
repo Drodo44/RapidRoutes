@@ -1,155 +1,154 @@
 // pages/market-data.js
-import { useCallback, useMemo, useState } from "react";
-import Papa from "papaparse";
+// Admin upload for rate matrices. Client parses CSV via PapaParse and posts JSON to API.
+// Supports state->state or region->region matrices.
+// Options: equipment (van/reefer/flatbed), level (state|region), source (avg|spot|contract), optional denormalization.
+//
+// Install dependency if missing: `papaparse`
+// (Your repo likely already has it; if not, add it. This page imports it client-side only.)
 
-const EQUIPS = ["van", "reefer", "flatbed"];
-const LEVELS = ["state", "region"];
-const SOURCES = ["spot", "contract"];
-
-function parseMatrixFromCsv(text) {
-  const { data } = Papa.parse(text.trim());
-  if (!Array.isArray(data) || !data.length) throw new Error("Empty CSV");
-  const rows = data.map((r) => r.map((c) => String(c ?? "").trim()));
-  const headers = rows[0].slice(1).map((h) => h.toUpperCase());
-  const matrix = {};
-  for (let i = 1; i < rows.length; i++) {
-    const origin = (rows[i][0] || "").toUpperCase();
-    if (!origin) continue;
-    matrix[origin] = matrix[origin] || {};
-    for (let j = 1; j < rows[i].length; j++) {
-      const dest = headers[j - 1];
-      const val = rows[i][j];
-      const num = Number(String(val).replace(/[^0-9.]/g, ""));
-      if (Number.isFinite(num)) matrix[origin][dest] = num;
-    }
-  }
-  return matrix;
-}
+import { useEffect, useState } from 'react';
+import Papa from 'papaparse';
 
 export default function MarketDataPage() {
-  const [entries, setEntries] = useState([]);
-  const [flatten, setFlatten] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState("");
+  const [equipment, setEquipment] = useState('van');
+  const [level, setLevel] = useState('state');
+  const [source, setSource] = useState('avg');
+  const [denorm, setDenorm] = useState(true);
+  const [msg, setMsg] = useState('');
+  const [rowsPreview, setRowsPreview] = useState([]);
 
-  const addFiles = useCallback(async (files, meta) => {
-    const list = [];
-    for (const file of files) {
-      const text = await file.text();
-      const matrix = parseMatrixFromCsv(text);
-      list.push({ ...meta, name: file.name, matrix });
-    }
-    setEntries((prev) => [...prev, ...list]);
-  }, []);
+  function onFilesSelected(files) {
+    if (!files || !files.length) return;
+    const file = files[0];
+    setMsg('Parsing CSV…');
 
-  const onDrop = async (e, meta) => {
-    e.preventDefault();
-    const files = Array.from(e.dataTransfer.files || []);
-    if (!files.length) return;
-    await addFiles(files, meta);
-  };
-  const onPick = async (e, meta) => {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
-    await addFiles(files, meta);
-    e.target.value = "";
-  };
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (res) => {
+        const data = res.data || [];
+        // Normalize common header variants
+        const normalized = data.map((r) => {
+          const origin = r.origin || r.Origin || r.ORIGIN || r.state_from || r.StateFrom || r.from || r.From;
+          const destination = r.destination || r.Destination || r.DESTINATION || r.state_to || r.StateTo || r.to || r.To;
+          const rate = r.rate || r.Rate || r.RATE || r.value || r.Value || r.avg || r.Average || r.AVG;
+          return {
+            origin: String(origin || '').trim().toUpperCase(),
+            destination: String(destination || '').trim().toUpperCase(),
+            rate: Number(rate),
+          };
+        }).filter((r) => r.origin && r.destination && Number.isFinite(r.rate));
 
-  const upload = async () => {
-    if (!entries.length) return setMsg("No files queued.");
-    setBusy(true); setMsg("");
+        setRowsPreview(normalized.slice(0, 20));
+        setMsg(`Parsed ${normalized.length} matrix rows. Ready to upload.`);
+        upload(normalized);
+      },
+      error: (err) => {
+        setMsg(`CSV parse failed: ${err.message || err}`);
+      },
+    });
+  }
+
+  async function upload(matrixRows) {
+    setMsg((m) => m + ' Uploading…');
     try {
-      const r = await fetch("/api/uploadMarketData", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ entries: entries.map(({ matrix, ...m }) => ({ ...m, matrix })), flatten }),
+      const res = await fetch('/api/uploadMarketData', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          equipment,
+          level,
+          source,
+          denormalize: !!denorm,
+          matrixRows,
+        }),
       });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error || "Upload failed");
-      setMsg(`Uploaded ${j.inserted} snapshot(s).`);
-      setEntries([]);
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error || `HTTP ${res.status}`);
+      }
+      const j = await res.json();
+      setMsg(`Upload complete. Snapshot #${j.snapshot_id}. Flat rows inserted: ${j.flat_rows || 0}.`);
     } catch (e) {
-      setMsg(e.message || "Upload failed");
-    } finally {
-      setBusy(false);
+      setMsg(`Upload failed: ${e.message || e}`);
     }
-  };
+  }
 
-  const Group = ({ title, equip }) => (
-    <div className="card p-4">
-      <div className="mb-2 font-semibold">{title}</div>
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        {LEVELS.map((level) =>
-          SOURCES.map((source) => (
-            <DropPick
-              key={`${equip}-${level}-${source}`}
-              label={`${equip} • ${level} • ${source}`}
-              onDrop={(e) => onDrop(e, { equipment: equip, level, source })}
-              onPick={(e) => onPick(e, { equipment: equip, level, source })}
-            />
-          ))
+  function onDrop(e) {
+    e.preventDefault();
+    onFilesSelected(e.dataTransfer.files);
+  }
+
+  return (
+    <div className="mx-auto max-w-4xl px-4 space-y-6">
+      <h1 className="text-lg font-semibold text-gray-100">Admin Upload – Rate Matrices</h1>
+
+      <div className="rounded-xl border border-gray-800 bg-[#0f1115] p-4 space-y-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Equipment</label>
+            <select value={equipment} onChange={(e) => setEquipment(e.target.value)} className="select">
+              <option value="van">van</option>
+              <option value="reefer">reefer</option>
+              <option value="flatbed">flatbed</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Level</label>
+            <select value={level} onChange={(e) => setLevel(e.target.value)} className="select">
+              <option value="state">state</option>
+              <option value="region">region</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Source</label>
+            <select value={source} onChange={(e) => setSource(e.target.value)} className="select">
+              <option value="avg">avg</option>
+              <option value="spot">spot</option>
+              <option value="contract">contract</option>
+            </select>
+          </div>
+          <label className="inline-flex items-center gap-2 text-sm text-gray-300">
+            <input type="checkbox" checked={denorm} onChange={(e) => setDenorm(e.target.checked)} className="accent-gray-300" />
+            Denormalize to rates_flat
+          </label>
+        </div>
+
+        <div
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={onDrop}
+          className="rounded-lg border border-dashed border-gray-700 p-6 text-center text-gray-300 bg-[#0b0d12]"
+        >
+          Drag & Drop CSV here or
+          <label className="ml-2 underline cursor-pointer">
+            select a file<input type="file" accept=".csv,text/csv" className="hidden" onChange={(e) => onFilesSelected(e.target.files)} />
+          </label>
+        </div>
+
+        {msg && <div className="text-sm text-gray-300">{msg}</div>}
+
+        {rowsPreview.length > 0 && (
+          <div className="rounded-lg border border-gray-800 p-3">
+            <div className="text-xs text-gray-400 mb-2">Preview (first 20 rows)</div>
+            <div className="grid grid-cols-3 text-xs text-gray-200">
+              <div className="font-mono">Origin</div>
+              <div className="font-mono">Destination</div>
+              <div className="font-mono">Rate</div>
+            </div>
+            {rowsPreview.map((r, i) => (
+              <div key={i} className="grid grid-cols-3 text-xs text-gray-300">
+                <div>{r.origin}</div>
+                <div>{r.destination}</div>
+                <div>{r.rate}</div>
+              </div>
+            ))}
+          </div>
         )}
       </div>
+
+      <style jsx>{`
+        .select { @apply w-full rounded-lg bg-[#0b0d12] border border-gray-700 px-3 py-2 text-gray-100 outline-none focus:border-gray-500; }
+      `}</style>
     </div>
-  );
-
-  return (
-    <main className="mx-auto max-w-6xl p-6 text-gray-100">
-      <h1 className="mb-4 text-2xl font-bold">Market Data Upload</h1>
-
-      <div className="mb-3 flex items-center gap-3">
-        <label className="flex items-center gap-2 text-sm text-gray-300">
-          <input type="checkbox" checked={flatten} onChange={(e) => setFlatten(e.target.checked)} />
-          Create flattened table (faster lookups)
-        </label>
-        {msg && <div className="text-sm text-gray-300">{msg}</div>}
-      </div>
-
-      <div className="grid grid-cols-1 gap-4">
-        {EQUIPS.map((e) => (
-          <Group key={e} title={e[0].toUpperCase() + e.slice(1)} equip={e} />
-        ))}
-      </div>
-
-      <div className="mt-4 flex justify-end">
-        <button
-          disabled={busy || !entries.length}
-          onClick={upload}
-          className="rounded-lg bg-green-600 px-4 py-2 font-semibold text-white hover:bg-green-700 disabled:opacity-60"
-        >
-          {busy ? "Uploading…" : `Upload ${entries.length} file(s)`}
-        </button>
-      </div>
-
-      {entries.length > 0 && (
-        <div className="mt-4 rounded-xl border border-gray-700 bg-[#0f1115] p-4">
-          <div className="mb-2 text-sm font-semibold">Queued</div>
-          <ul className="text-sm text-gray-300">
-            {entries.map((e, i) => (
-              <li key={i}>
-                {e.name} — {e.equipment} / {e.level} / {e.source}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </main>
-  );
-}
-
-function DropPick({ label, onDrop, onPick }) {
-  const [hover, setHover] = useState(false);
-  return (
-    <label
-      onDragOver={(e) => (e.preventDefault(), setHover(true))}
-      onDragLeave={() => setHover(false)}
-      onDrop={(e) => (setHover(false), onDrop(e))}
-      className={`flex h-24 cursor-pointer items-center justify-center rounded-lg border border-dashed ${
-        hover ? "border-blue-500 bg-blue-500/10" : "border-gray-700 bg-gray-900"
-      }`}
-    >
-      <input type="file" accept=".csv,text/csv" onChange={onPick} className="hidden" />
-      <span className="text-sm text-gray-300">Drop CSV or click — {label}</span>
-    </label>
   );
 }
