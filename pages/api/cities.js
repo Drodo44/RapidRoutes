@@ -1,41 +1,59 @@
 // pages/api/cities.js
-import { adminSupabase as supabase } from "../../utils/supabaseClient.js";
+// GET /api/cities?q=City[, ST]
+// Returns up to 12 suggestions { id, city, state, zip, label }.
+// Tolerant of state_or_province|state and zip|postal_code; accepts "City, ST" or free text.
+
+import { adminSupabase } from '../../utils/supabaseClient';
 
 export default async function handler(req, res) {
+  if (req.method !== 'GET') {
+    res.setHeader('Allow', 'GET');
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const q = String(req.query.q || '').trim();
+  if (!q) return res.status(200).json([]);
+
   try {
-    const q = String(req.query.q || "").trim();
-    if (!q || q.length < 2) return res.status(200).json([]);
-
-    const [rawCity, rawState] = q.split(",").map((s) => s?.trim() || "");
-    const cityPrefix = rawCity;
-    const statePrefix = (rawState || "").toUpperCase();
-
-    let sel = supabase
-      .from("cities")
-      .select("id, city, state_or_province, state, zip, postal_code")
-      .ilike("city", `${cityPrefix}%`)
-      .order("city", { ascending: true })
-      .limit(100);
-
-    if (statePrefix) sel = sel.or(`state.ilike.${statePrefix}%,state_or_province.ilike.${statePrefix}%`);
-
-    const { data, error } = await sel;
-    if (error) throw error;
-
-    const seen = new Set();
-    const out = [];
-    for (const r of data || []) {
-      const state = r.state_or_province || r.state || "";
-      const zip = r.zip || r.postal_code || "";
-      const key = `${r.city}|${state}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      out.push({ id: r.id, city: r.city, state, zip, label: `${r.city}, ${state}` });
-      if (out.length >= 12) break;
+    // Parse "City, ST" if present
+    let cityQ = q;
+    let stateQ = null;
+    const parts = q.split(',').map((s) => s.trim()).filter(Boolean);
+    if (parts.length >= 2 && parts[1].length <= 3) {
+      cityQ = parts[0];
+      stateQ = parts[1];
     }
 
+    let query = adminSupabase
+      .from('cities')
+      .select('id, city, state_or_province, zip, postal_code')
+      .ilike('city', `${cityQ}%`)
+      .limit(50);
+
+    if (stateQ) {
+      query = query.ilike('state_or_province', `${stateQ}%`);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const out = (data || [])
+      .slice(0, 12)
+      .map((c) => {
+        const state = c.state_or_province;
+        const zip = c.zip || c.postal_code || '';
+        return {
+          id: c.id,
+          city: c.city,
+          state,
+          zip,
+          label: zip ? `${c.city}, ${state} ${zip}` : `${c.city}, ${state}`,
+        };
+      });
+
     return res.status(200).json(out);
-  } catch (e) {
-    return res.status(500).json({ error: e.message || "cities search failed" });
+  } catch (err) {
+    console.error('GET /api/cities error:', err);
+    return res.status(500).json({ error: 'Failed to search cities' });
   }
 }
