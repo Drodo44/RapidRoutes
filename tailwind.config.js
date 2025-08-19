@@ -1,5 +1,5 @@
 /** @type {import('tailwindcss').Config} */
-module.exports = {
+export default {
   darkMode: 'class', // app is dark-only; we still allow 'class' in case of future toggles
   content: [
     './pages/**/*.{js,jsx,ts,tsx}',
