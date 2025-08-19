@@ -1,0 +1,50 @@
+{
+  "name": "RapidRoutes Freight Brokerage Platform",
+  "description": "Production-grade freight brokerage automation for Total Quality Logistics brokers",
+  "language": "javascript",
+  "framework": "next.js",
+  "style_guide": {
+    "ui_theme": "dark_only",
+    "css_framework": "tailwindcss",
+    "color_palette": "professional_muted",
+    "button_style": "no_neon_colors"
+  },
+  "business_domain": "freight_brokerage",
+  "key_concepts": [
+    "DAT_loadboard",
+    "KMA_market_areas", 
+    "equipment_codes",
+    "city_crawling",
+    "weight_randomization",
+    "CSV_bulk_upload"
+  ],
+  "coding_standards": {
+    "no_placeholder_code": true,
+    "dark_theme_only": true,
+    "production_ready": true,
+    "error_handling_required": true
+  },
+  "file_patterns": {
+    "api_routes": "pages/api/*.js",
+    "components": "components/*.js",
+    "business_logic": "lib/*.js",
+    "utilities": "utils/*.js",
+    "tests": "tests/*.test.js"
+  },
+  "database": {
+    "type": "supabase_postgresql",
+    "key_tables": ["cities", "lanes", "equipment_codes", "dat_maps"],
+    "auth_pattern": "RLS_enabled"
+  },
+  "export_formats": {
+    "csv": "DAT_bulk_upload_24_headers",
+    "html": "dark_styled_recap_pages"
+  },
+  "critical_requirements": {
+    "csv_rows_per_lane": 22,
+    "csv_max_rows_per_file": 499,
+    "weight_input_manual": true,
+    "equipment_dat_codes": true,
+    "city_radius_miles": 75
+  }
+}
