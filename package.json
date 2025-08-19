@@ -8,8 +8,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start -p 3000",
-    "vercel-build": "next build",
+    "start": "next start",
     "test": "vitest run"
   },
   "dependencies": {
