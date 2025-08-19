@@ -1,56 +1,63 @@
 // pages/api/uploadMarketData.js
-import { adminSupabase as supabase } from "../../utils/supabaseClient.js";
+// Accepts JSON { equipment, level, source, denormalize, matrixRows: [{origin,destination,rate}...] }
+// Writes to rates_snapshots.matrix (JSONB) and optionally denormalizes into rates_flat.
 
-function flattenMatrix(matrix, snapshot_id, equipment, source) {
-  const rows = [];
-  for (const [origin, dests] of Object.entries(matrix || {})) {
-    for (const [destination, rate] of Object.entries(dests || {})) {
-      const num = Number(rate);
-      if (Number.isFinite(num)) rows.push({ snapshot_id, equipment, source, origin, destination, rate: num });
-    }
-  }
-  return rows;
-}
+import { adminSupabase } from '../../utils/supabaseClient';
+
+export const config = {
+  api: { bodyParser: { sizeLimit: '10mb' } },
+};
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    res.setHeader("Allow", "POST");
-    return res.status(405).json({ error: "Method Not Allowed" });
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST');
+    return res.status(405).json({ error: 'Method not allowed' });
   }
+
   try {
-    const { entries, flatten } = req.body || {};
-    if (!Array.isArray(entries) || !entries.length) return res.status(400).json({ error: "Missing entries" });
+    const { equipment, level, source, denormalize, matrixRows } = req.body || {};
+    const eq = String(equipment || '').toLowerCase();
+    const lvl = String(level || '').toLowerCase();
+    const src = String(source || '').toLowerCase();
 
-    let inserted = 0;
-    for (const e of entries) {
-      const equipment = String(e.equipment || "").toLowerCase();
-      const level = String(e.level || "").toLowerCase();
-      const source = String(e.source || "").toLowerCase();
-      if (!["van", "reefer", "flatbed"].includes(equipment)) throw new Error("Invalid equipment");
-      if (!["state", "region"].includes(level)) throw new Error("Invalid level");
-      if (!["spot", "contract"].includes(source)) throw new Error("Invalid source");
-      if (!e.matrix || typeof e.matrix !== "object") throw new Error("Invalid matrix");
+    if (!eq || !lvl || !src || !Array.isArray(matrixRows) || matrixRows.length === 0) {
+      return res.status(400).json({ error: 'Invalid payload' });
+    }
 
-      const { data: snap, error: err1 } = await supabase
-        .from("rates_snapshots")
-        .insert({ equipment, level, source, matrix: e.matrix })
-        .select("id")
-        .single();
-      if (err1) throw err1;
-      inserted++;
+    // Snapshot insert
+    const { data: snap, error: snapErr } = await adminSupabase
+      .from('rates_snapshots')
+      .insert([{ equipment: eq, level: lvl, source: src, matrix: matrixRows }])
+      .select('id')
+      .maybeSingle();
 
-      if (flatten) {
-        const rows = flattenMatrix(e.matrix, snap.id, equipment, source);
-        if (rows.length) {
-          const { error: err2 } = await supabase.from("rates_flat").insert(rows);
-          if (err2) throw err2;
-        }
+    if (snapErr) throw snapErr;
+    const snapshotId = snap?.id;
+
+    let flatInserted = 0;
+    if (denormalize) {
+      // Insert into rates_flat in batches
+      const rows = matrixRows.map((r) => ({
+        snapshot_id: snapshotId,
+        equipment: eq,
+        source: src,
+        origin: String(r.origin || '').toUpperCase(),
+        destination: String(r.destination || '').toUpperCase(),
+        rate: Number(r.rate),
+      })).filter((r) => r.origin && r.destination && Number.isFinite(r.rate));
+
+      const chunk = 1000;
+      for (let i = 0; i < rows.length; i += chunk) {
+        const slice = rows.slice(i, i + chunk);
+        const { error } = await adminSupabase.from('rates_flat').insert(slice);
+        if (error) throw error;
+        flatInserted += slice.length;
       }
     }
 
-    await supabase.from("settings").upsert({ key: "rates_last_updated", value: { ts: new Date().toISOString() } });
-    return res.status(200).json({ ok: true, inserted });
-  } catch (e) {
-    return res.status(500).json({ error: e.message || "Upload failed" });
+    return res.status(200).json({ snapshot_id: snapshotId, flat_rows: flatInserted });
+  } catch (err) {
+    console.error('POST /api/uploadMarketData error:', err);
+    return res.status(500).json({ error: err.message || 'Upload failed' });
   }
 }
