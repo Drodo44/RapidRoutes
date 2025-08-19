@@ -1,55 +1,102 @@
 // pages/api/exportDatCsv.js
-import { adminSupabase as supabase } from "../../utils/supabaseClient.js";
-import { DAT_HEADERS, planPairsForLane, rowsFromBaseAndPairs, toCsv, chunkRows } from "../../lib/datCsvBuilder.js";
+// GET /api/exportDatCsv?pending=1|&days=<n>|&all=1&fill=0|1&part=<n>
+// - Streams a CSV with exact 24 headers
+// - 22 rows per lane (base + 10 pairs, duplicated for contact methods)
+// - Splits into ≤499 rows per part; HEAD returns X-Total-Parts for pagination
+// - If part is specified for GET, returns only that part.
 
-function filenameBase() {
-  const d = new Date(), pad = (n) => String(n).padStart(2,"0");
-  return `rapidroutes_DAT_${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`;
+import { adminSupabase } from '../../utils/supabaseClient';
+import { DAT_HEADERS, planPairsForLane, rowsFromBaseAndPairs, toCsv, chunkRows } from '../../lib/datCsvBuilder';
+
+function daysAgoUTC(n) {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() - n);
+  return d.toISOString();
 }
 
-async function fetchLanes(q) {
-  const tryQuery = async (builder) => { const { data, error } = await builder; if (error) throw error; return data || []; };
-  try {
-    if (q.pending === "1")
-      return await tryQuery(supabase.from("lanes").select("*").eq("status","pending").order("created_at",{ascending:false}).limit(1000));
-    if (q.days) {
-      const days = Math.max(1, Math.min(90, Number(q.days) || 7));
-      const since = new Date(Date.now() - days * 86400_000).toISOString();
-      return await tryQuery(supabase.from("lanes").select("*").gte("created_at", since).neq("status","covered").order("created_at",{ascending:false}).limit(1000));
-    }
-    if (q.all === "1")
-      return await tryQuery(supabase.from("lanes").select("*").neq("status","covered").order("created_at",{ascending:false}).limit(1000));
-    return await tryQuery(supabase.from("lanes").select("*").eq("status","pending").order("created_at",{ascending:false}).limit(1000));
-  } catch {
-    const { data } = await supabase.from("lanes").select("*").order("created_at",{ascending:false}).limit(1000);
-    return data || [];
+async function selectLanes({ pending, days, all }) {
+  let q = adminSupabase.from('lanes').select('*').order('created_at', { ascending: false });
+
+  if (pending) {
+    q = q.eq('status', 'pending');
+  } else if (all) {
+    // no additional filters
+  } else if (days != null) {
+    const since = daysAgoUTC(Number(days));
+    q = q.gte('created_at', since);
+  } else {
+    // default: pending
+    q = q.eq('status', 'pending');
   }
+
+  const { data, error } = await q.limit(2000); // sane cap; bulk export should not exceed this
+  if (error) throw error;
+  return data || [];
+}
+
+async function buildAllRows(lanes, preferFillTo10) {
+  const allRows = [];
+  for (const lane of lanes) {
+    // Validate and build pairs per lane
+    const crawl = await planPairsForLane(lane, { preferFillTo10 });
+    const rows = rowsFromBaseAndPairs(lane, crawl.baseOrigin, crawl.baseDest, crawl.pairs);
+    allRows.push(...rows);
+  }
+  return allRows;
 }
 
 export default async function handler(req, res) {
-  try {
-    const q = req.query || {}; const fill = q.fill === "1";
-    const lanes = await fetchLanes(q);
-    const allRows = [];
-    for (const lane of lanes) {
-      const plan = await planPairsForLane(lane, { preferFillTo10: fill });
-      const rows = rowsFromBaseAndPairs(lane, plan.baseOrigin, plan.baseDest, plan.pairs);
-      allRows.push(...rows);
-    }
-    const parts = chunkRows(allRows, 499);
-    const totalParts = Math.max(1, parts.length);
+  const method = req.method;
+  if (method !== 'GET' && method !== 'HEAD') {
+    res.setHeader('Allow', 'GET, HEAD');
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
 
-    if (req.method === "HEAD") {
-      res.setHeader("X-Total-Parts", String(totalParts));
+  const preferFillTo10 = String(req.query.fill || '0') === '1';
+  const pending = String(req.query.pending || '') === '1';
+  const all = String(req.query.all || '') === '1';
+  const days = req.query.days != null ? Number(req.query.days) : null;
+  const partParam = req.query.part != null ? Number(req.query.part) : null;
+
+  try {
+    const lanes = await selectLanes({ pending, days, all });
+    // Build all rows (22/lane)
+    const allRows = await buildAllRows(lanes, preferFillTo10);
+    const chunks = chunkRows(allRows, 499);
+
+    // HEAD: return total parts
+    if (method === 'HEAD') {
+      res.setHeader('X-Total-Parts', String(chunks.length || 1));
       return res.status(200).end();
     }
 
-    const part = Math.max(1, Math.min(totalParts, Number(q.part) || 1));
-    const csv = toCsv(DAT_HEADERS, parts[part - 1] || []);
-    res.setHeader("Content-Type", "text/csv; charset=utf-8");
-    res.setHeader("Content-Disposition", `attachment; filename="${filenameBase()}_part${part}-of-${totalParts}.csv"`);
+    // GET: if part specified, stream that part; else if >1, default to part 1
+    let partIndex = 0;
+    if (Number.isFinite(partParam) && partParam > 0 && partParam <= chunks.length) {
+      partIndex = partParam - 1;
+    }
+
+    const selected = chunks[partIndex] || allRows;
+    const csv = toCsv(DAT_HEADERS, selected);
+
+    const baseName = pending ? 'DAT_Pending' : all ? 'DAT_All' : days != null ? `DAT_Last${days}d` : 'DAT_Pending';
+    const filename =
+      (chunks.length > 1)
+        ? `${baseName}_part${partIndex + 1}-of-${chunks.length}.csv`
+        : `${baseName}.csv`;
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    if (chunks.length > 1) {
+      res.setHeader('X-Total-Parts', String(chunks.length));
+    }
+
     return res.status(200).send(csv);
-  } catch (e) {
-    return res.status(500).json({ error: e.message || "export failed" });
+  } catch (err) {
+    console.error('GET/HEAD /api/exportDatCsv error:', err);
+    if (method === 'HEAD') {
+      return res.status(500).end();
+    }
+    return res.status(500).json({ error: err.message || 'Failed to export CSV' });
   }
 }
