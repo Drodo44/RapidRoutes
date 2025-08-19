@@ -1,20 +1,43 @@
 // pages/api/exportLaneCsv.js
-import { adminSupabase as supabase } from "../../utils/supabaseClient.js";
-import { DAT_HEADERS, planPairsForLane, rowsFromBaseAndPairs, toCsv } from "../../lib/datCsvBuilder.js";
+// GET /api/exportLaneCsv?id=<laneId>&fill=0|1
+// Returns a single-lane CSV (24 headers, 22 rows per lane).
+// Streams as text/csv with Content-Disposition for browser download.
+
+import { adminSupabase } from '../../utils/supabaseClient';
+import { DAT_HEADERS, planPairsForLane, rowsFromBaseAndPairs, toCsv } from '../../lib/datCsvBuilder';
 
 export default async function handler(req, res) {
+  if (req.method !== 'GET') {
+    res.setHeader('Allow', 'GET');
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const id = String(req.query.id || '').trim();
+  const preferFillTo10 = String(req.query.fill || '0') === '1';
+  if (!id) return res.status(400).json({ error: 'lane id required' });
+
   try {
-    const id = String(req.query.id || ""); const fill = req.query.fill === "1";
-    if (!id) return res.status(400).json({ error: "id required" });
-    const { data, error } = await supabase.from("lanes").select("*").eq("id", id).single();
-    if (error) throw new Error(error.message || "lane not found");
-    const plan = await planPairsForLane(data, { preferFillTo10: fill });
-    const rows = rowsFromBaseAndPairs(data, plan.baseOrigin, plan.baseDest, plan.pairs);
+    const { data: lane, error } = await adminSupabase
+      .from('lanes')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!lane) return res.status(404).json({ error: 'lane not found' });
+
+    // Build crawl plan
+    const crawl = await planPairsForLane(lane, { preferFillTo10 });
+    const rows = rowsFromBaseAndPairs(lane, crawl.baseOrigin, crawl.baseDest, crawl.pairs);
+
     const csv = toCsv(DAT_HEADERS, rows);
-    res.setHeader("Content-Type", "text/csv; charset=utf-8");
-    res.setHeader("Content-Disposition", `attachment; filename="rapidroutes_DAT_lane_${id}.csv"`);
+    const filename = `DAT_Upload_${id}.csv`;
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     return res.status(200).send(csv);
-  } catch (e) {
-    return res.status(500).json({ error: e.message || "exportLaneCsv failed" });
+  } catch (err) {
+    console.error('GET /api/exportLaneCsv error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to export lane CSV' });
   }
 }
