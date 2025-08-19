@@ -1,55 +1,66 @@
 // pages/api/cities.js
-// GET /api/cities?q=City[, ST]
-// Returns up to 12 suggestions { id, city, state, zip, label }.
-// Tolerant of state_or_province|state and zip|postal_code; accepts "City, ST" or free text.
+// GET /api/cities?q=City[, ST|ZIP]
+// - No dependency on nonexistent columns (postal_code removed)
+// - DAT-style: returns { id, city, state, zip, label } with "City, ST ZIP"
+// - Typing digits searches ZIP; "City, ST" respected; up to 12 results.
 
 import { adminSupabase } from '../../utils/supabaseClient';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
-    res.setHeader('Allow', 'GET');
-    return res.status(405).json({ error: 'Method not allowed' });
+    res.setHeader('Allow', 'GET'); return res.status(405).json({ error: 'Method not allowed' });
   }
 
   const q = String(req.query.q || '').trim();
   if (!q) return res.status(200).json([]);
 
-  try {
-    // Parse "City, ST" if present
-    let cityQ = q;
-    let stateQ = null;
-    const parts = q.split(',').map((s) => s.trim()).filter(Boolean);
-    if (parts.length >= 2 && parts[1].length <= 3) {
-      cityQ = parts[0];
-      stateQ = parts[1];
-    }
+  const looksZip = /\d/.test(q);
+  let cityQ = q, stateQ = null;
 
+  // Parse "City, ST"
+  const parts = q.split(',').map(s => s.trim()).filter(Boolean);
+  if (!looksZip && parts.length >= 2 && parts[1].length <= 3) {
+    cityQ = parts[0];
+    stateQ = parts[1];
+  }
+
+  try {
     let query = adminSupabase
       .from('cities')
-      .select('id, city, state_or_province, zip, postal_code')
-      .ilike('city', `${cityQ}%`)
-      .limit(50);
+      .select('id, city, state_or_province, zip, latitude, longitude, kma_code, is_hot, population')
+      .limit(150);
 
-    if (stateQ) {
-      query = query.ilike('state_or_province', `${stateQ}%`);
+    if (looksZip) {
+      // ZIP prefix search
+      query = query.ilike('zip', `${q.replace(/\D/g, '')}%`);
+    } else {
+      query = query.ilike('city', `${cityQ}%`);
+      if (stateQ) query = query.ilike('state_or_province', `${stateQ}%`);
     }
 
     const { data, error } = await query;
     if (error) throw error;
 
-    const out = (data || [])
-      .slice(0, 12)
-      .map((c) => {
-        const state = c.state_or_province;
-        const zip = c.zip || c.postal_code || '';
-        return {
-          id: c.id,
-          city: c.city,
-          state,
-          zip,
-          label: zip ? `${c.city}, ${state} ${zip}` : `${c.city}, ${state}`,
-        };
-      });
+    // Prioritize: exact state match > is_hot > population desc
+    const ranked = (data || []).sort((a, b) => {
+      const asa = stateQ && a.state_or_province?.toUpperCase() === stateQ.toUpperCase() ? 1 : 0;
+      const bsa = stateQ && b.state_or_province?.toUpperCase() === stateQ.toUpperCase() ? 1 : 0;
+      if (bsa !== asa) return bsa - asa;
+      if ((b.is_hot|0) !== (a.is_hot|0)) return (b.is_hot|0) - (a.is_hot|0);
+      return (b.population|0) - (a.population|0);
+    });
+
+    const out = ranked.slice(0, 12).map(c => {
+      const state = c.state_or_province;
+      const zip = c.zip || '';
+      return {
+        id: c.id,
+        city: c.city,
+        state,
+        zip,
+        label: zip ? `${c.city}, ${state} ${zip}` : `${c.city}, ${state}`
+      };
+    });
 
     return res.status(200).json(out);
   } catch (err) {
