@@ -1,6 +1,6 @@
 // utils/api.js
 
-import supabase from "./supabaseClient";
+import { supabase } from "./supabaseClient";
 
 export async function fetchRecapLanes() {
   const { data, error } = await supabase.from("lanes").select("*");

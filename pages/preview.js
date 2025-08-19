@@ -1,6 +1,6 @@
 // pages/preview.js
 import { useEffect, useState } from "react";
-import supabase from "../utils/supabaseClient";
+import { supabase } from "../utils/supabaseClient";
 import { generateDatCsvRows } from "../lib/exportDatCsv";
 
 export default function Preview() {
