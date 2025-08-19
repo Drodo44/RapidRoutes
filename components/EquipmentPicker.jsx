@@ -1,71 +1,67 @@
 // components/EquipmentPicker.jsx
-// Code-first equipment picker powered by `equipment_codes` table.
-// - Broker types DAT code (e.g., "FD"); we show label read-only.
-// - Emits onChange(code) with uppercase normalized code.
-
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../utils/supabaseClient';
 
-export default function EquipmentPicker({
-  id = 'equipment',
-  label = 'Equipment (DAT Code)',
-  code,
-  onChange, // (code) => void
-  required = true,
-}) {
+export default function EquipmentPicker({ id='equipment', label='Equipment Type', code, onChange, required=true }) {
   const [list, setList] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [q, setQ] = useState('');
+  const selected = String(code || '').toUpperCase();
 
   useEffect(() => {
     let mounted = true;
-    setLoading(true);
-    supabase
-      .from('equipment_codes')
-      .select('code,label')
-      .order('code', { ascending: true })
-      .then(({ data, error }) => {
-        if (!mounted) return;
-        if (error) {
-          console.error('equipment_codes fetch error', error);
-          setList([]);
-        } else {
-          setList(data || []);
-        }
-      })
-      .finally(() => setLoading(false));
-    return () => (mounted = false);
+
+    async function ensureSeedAndLoad() {
+      try {
+        // Self-seed (idempotent, server-side)
+        await fetch('/api/bootstrapEquipment', { method: 'POST' });
+      } catch { /* non-fatal */ }
+
+      const { data, error } = await supabase
+        .from('equipment_codes')
+        .select('code,label')
+        .order('label', { ascending: true });
+      if (!mounted) return;
+      if (error) { console.error(error); setList([]); }
+      else setList(data || []);
+    }
+
+    ensureSeedAndLoad();
+    return () => { mounted = false; };
   }, []);
 
-  const map = useMemo(() => {
-    const m = new Map();
-    for (const r of list) m.set(String(r.code).toUpperCase(), r.label);
-    return m;
-  }, [list]);
-
-  const normalized = String(code || '').toUpperCase();
-  const labelText = normalized && map.get(normalized);
+  const filtered = useMemo(() => {
+    const s = q.trim().toLowerCase();
+    if (!s) return list;
+    return list.filter(r => r.label.toLowerCase().includes(s) || String(r.code).toLowerCase().includes(s));
+  }, [list, q]);
 
   return (
     <div className="w-full">
-      <label htmlFor={id} className="block text-sm text-gray-300 mb-1">
-        {label}
-      </label>
-      <div className="flex items-center gap-3">
+      <label htmlFor={id} className="block text-sm text-gray-300 mb-1">{label}</label>
+      <div className="flex gap-2">
         <input
-          id={id}
           type="text"
-          inputMode="text"
-          maxLength={6}
-          value={normalized}
-          required={required}
-          onChange={(e) => onChange?.(e.target.value.toUpperCase())}
-          className="w-32 rounded-lg bg-[#0b0d12] border border-gray-700 px-3 py-2 text-gray-100 outline-none focus:border-gray-500"
-          placeholder="FD"
+          placeholder="Search type or code…"
+          className="w-full rounded-lg bg-[#0b0d12] border border-gray-700 px-3 py-2 text-gray-100 outline-none focus:border-gray-500"
+          value={q}
+          onChange={(e)=>setQ(e.target.value)}
         />
-        <div className="text-sm text-gray-400 min-h-[1.75rem] flex items-center">
-          {loading ? 'Loading…' : labelText ? `→ ${labelText}` : 'Type a DAT code'}
-        </div>
+        <select
+          id={id}
+          required={required}
+          value={selected}
+          onChange={(e)=>onChange?.(e.target.value)}
+          className="min-w-[16rem] rounded-lg bg-[#0b0d12] border border-gray-700 px-3 py-2 text-gray-100 outline-none focus:border-gray-500"
+        >
+          <option value="" disabled>Select equipment…</option>
+          {filtered.map(r => (
+            <option key={r.code} value={r.code}>
+              {r.label} — {r.code}
+            </option>
+          ))}
+        </select>
       </div>
+      {selected && <div className="text-xs text-gray-400 mt-1">Selected: <span className="font-mono">{selected}</span></div>}
     </div>
   );
 }
