@@ -3,7 +3,7 @@ import { DAT_HEADERS } from "../lib/datCsvBuilder.js";
 
 const EXPECT = [
   "Pickup Earliest*",
-  "Pickup Latest*",
+  "Pickup Latest",
   "Length (ft)*",
   "Weight (lbs)*",
   "Full/Partial*",
@@ -12,9 +12,9 @@ const EXPECT = [
   "Private Network Rate",
   "Allow Private Network Booking",
   "Allow Private Network Bidding",
-  "Use DAT Load Board*",
-  "DAT Load Board Rate",
-  "Allow DAT Load Board Booking",
+  "Use DAT Loadboard*",
+  "DAT Loadboard Rate",
+  "Allow DAT Loadboard Booking",
   "Use Extended Network",
   "Contact Method*",
   "Origin City*",
@@ -25,7 +25,7 @@ const EXPECT = [
   "Destination Postal Code",
   "Comment",
   "Commodity",
-  "Reference ID (unique per organization; max 8 chars)",
+  "Reference ID",
 ];
 
 describe("DAT header order", () => {
