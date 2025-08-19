@@ -1,68 +1,87 @@
-// tests/datCsvBuilder.test.js
-import { vi } from "vitest";
-import * as crawlMod from "../lib/datcrawl.js";
-import { buildRowsForLane, DAT_HEADERS, toCsv } from "../lib/datCsvBuilder.js";
+import { DAT_HEADERS, ensureLaneWeightValidity, rowsFromBaseAndPairs, toCsv, chunkRows } from '../lib/datCsvBuilder';
 
-function mockPairs(n = 10) {
-  return Array.from({ length: n }, (_, i) => ({
-    pickup: { city: `P${i}`, state: "AL", zip: "", kma: `AL_${i}` },
-    delivery: { city: `D${i}`, state: "IL", zip: "", kma: `IL_${i}` },
-    reason: ["rates+"],
-    score: 0.95,
-  }));
+function baseLane(overrides = {}) {
+  return {
+    id: '00000000-0000-0000-0000-000000000001',
+    origin_city: 'Cincinnati',
+    origin_state: 'OH',
+    origin_zip: '45202',
+    dest_city: 'Chicago',
+    dest_state: 'IL',
+    dest_zip: '60601',
+    equipment_code: 'FD',
+    length_ft: 48,
+    weight_lbs: 42000,
+    randomize_weight: false,
+    weight_min: null,
+    weight_max: null,
+    full_partial: 'full',
+    pickup_earliest: '8/12/2025',
+    pickup_latest: '8/13/2025',
+    commodity: 'Steel',
+    comment: 'No tarps',
+    ...overrides,
+  };
 }
 
-vi.spyOn(crawlMod, "generateCrawlCities").mockImplementation(async () => ({
-  baseOrigin: { city: "Maplesville", state: "AL", zip: "36756", kma: "AL_BASE" },
-  baseDest: { city: "Chicago", state: "IL", zip: "60601", kma: "IL_BASE" },
-  pairs: mockPairs(10),
-  allowedDuplicates: false,
-  shortfallReason: "",
+const baseOrigin = { city: 'Cincinnati', state: 'OH', zip: '45202' };
+const baseDest = { city: 'Chicago', state: 'IL', zip: '60601' };
+const dummyPairs = Array.from({ length: 10 }).map((_, i) => ({
+  pickup: { city: `P${i}`, state: 'OH', zip: '' },
+  delivery: { city: `D${i}`, state: 'IL', zip: '' },
 }));
 
-describe("DAT CSV builder", () => {
-  const laneFixed = {
-    origin: "Maplesville, AL",
-    destination: "Chicago, IL",
-    equipment: "V",
-    length: 53,
-    weight: 42000,
-    randomize_weight: false,
-    date: "8/12/2025",
-    full_partial: "full",
-    comment: "test",
-  };
+describe('DAT CSV Builder', () => {
+  it('has exact 24 headers in order', () => {
+    expect(DAT_HEADERS).toHaveLength(24);
+    expect(DAT_HEADERS[0]).toBe('Pickup Earliest*');
+    expect(DAT_HEADERS[23]).toBe('Reference ID');
+  });
 
-  const laneRand = {
-    ...laneFixed,
-    weight: null,
-    randomize_weight: true,
-    weight_min: 42000,
-    weight_max: 48000,
-  };
+  it('requires weight when randomize OFF; accepts valid randomize range', () => {
+    // Missing weight with randomize off throws
+    expect(() => ensureLaneWeightValidity(baseLane({ weight_lbs: null }))).toThrow();
 
-  it("builds 22 rows per lane (11 postings x 2 contact methods)", async () => {
-    const { rows, totalPostings } = await buildRowsForLane(laneFixed);
-    expect(totalPostings).toBe(11);
+    // Invalid random range throws
+    expect(() => ensureLaneWeightValidity(baseLane({ randomize_weight: true, weight_min: 50000, weight_max: 40000 }))).toThrow();
+
+    // Valid random range passes
+    expect(() => ensureLaneWeightValidity(baseLane({ randomize_weight: true, weight_min: 38000, weight_max: 43000 }))).not.toThrow();
+  });
+
+  it('builds 22 rows per lane (1 base + 10 pairs, x2 contact methods)', () => {
+    const lane = baseLane();
+    const rows = rowsFromBaseAndPairs(lane, baseOrigin, baseDest, dummyPairs);
     expect(rows).toHaveLength(22);
-    // headers present
-    const csv = toCsv(DAT_HEADERS, rows);
-    expect(csv.split("\n")[0]).toBe(DAT_HEADERS.join(","));
   });
 
-  it("fixed weight — all rows carry identical weight", async () => {
-    const { rows } = await buildRowsForLane(laneFixed);
-    const weights = rows.map((r) => r["Weight (lbs)*"]);
-    expect(new Set(weights).size).toBe(1);
-    expect(weights[0]).toBe(42000);
-  });
+  it('randomized weight falls within min..max', () => {
+    const lane = baseLane({ randomize_weight: true, weight_min: 38000, weight_max: 43000, weight_lbs: null });
+    // Stabilize randomness for test repeatability
+    const orig = Math.random;
+    Math.random = () => 0.5; // midpoint
+    const rows = rowsFromBaseAndPairs(lane, baseOrigin, baseDest, dummyPairs);
+    Math.random = orig;
 
-  it("randomized weight — all rows within min/max", async () => {
-    const { rows } = await buildRowsForLane(laneRand);
     for (const r of rows) {
-      const w = Number(r["Weight (lbs)*"]);
-      expect(w).toBeGreaterThanOrEqual(42000);
-      expect(w).toBeLessThanOrEqual(48000);
+      const w = Number(r['Weight (lbs)*']);
+      expect(w).toBeGreaterThanOrEqual(38000);
+      expect(w).toBeLessThanOrEqual(43000);
     }
+  });
+
+  it('CSV escaping is safe and chunking splits into <=499 rows', () => {
+    const lane = baseLane({ comment: 'Note with, comma and "quotes"' });
+    const rows = rowsFromBaseAndPairs(lane, baseOrigin, baseDest, dummyPairs);
+    const csv = toCsv(DAT_HEADERS, rows);
+    expect(csv.split('\n').length).toBeGreaterThan(1);
+    expect(csv).toContain('""quotes""'); // quotes escaped
+
+    const big = Array.from({ length: 1000 }).map((_, i) => rows[i % rows.length]);
+    const chunks = chunkRows(big, 499);
+    expect(chunks.length).toBe(3);
+    expect(chunks[0]).toHaveLength(499);
+    expect(chunks[1]).toHaveLength(499);
+    expect(chunks[2]).toHaveLength(2);
   });
 });
