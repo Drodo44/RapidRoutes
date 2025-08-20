@@ -1,12 +1,34 @@
 // components/EquipmentPicker.jsx
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { supabase } from '../utils/supabaseClient';
 
 export default function EquipmentPicker({ id='equipment', label='Equipment Type', code, onChange, required=true }) {
   const [list, setList] = useState([]);
-  const [q, setQ] = useState('');
-  const selected = String(code || '').toUpperCase();
+  const [inputValue, setInputValue] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const dropdownRef = useRef(null);
+  const inputRef = useRef(null);
 
+  // Initial load and when code prop changes
+  useEffect(() => {
+    if (code) {
+      const selectedCode = String(code).toUpperCase();
+      // Find the matching equipment from the list
+      const found = list.find(item => item.code === selectedCode);
+      if (found) {
+        setSelectedItem(found);
+        setInputValue(`${found.label} (${found.code})`);
+      } else {
+        setInputValue(selectedCode); // Just show the code if not found in list
+      }
+    } else {
+      setSelectedItem(null);
+      setInputValue('');
+    }
+  }, [code, list]);
+
+  // Load equipment data
   useEffect(() => {
     let mounted = true;
 
@@ -29,39 +51,117 @@ export default function EquipmentPicker({ id='equipment', label='Equipment Type'
     return () => { mounted = false; };
   }, []);
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target) &&
+          inputRef.current && !inputRef.current.contains(event.target)) {
+        setShowDropdown(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   const filtered = useMemo(() => {
-    const s = q.trim().toLowerCase();
+    const s = inputValue.trim().toLowerCase();
     if (!s) return list;
-    return list.filter(r => r.label.toLowerCase().includes(s) || String(r.code).toLowerCase().includes(s));
-  }, [list, q]);
+    return list.filter(r => 
+      r.label.toLowerCase().includes(s) || 
+      String(r.code).toLowerCase().includes(s)
+    ).slice(0, 12); // Limit results for better performance
+  }, [list, inputValue]);
+
+  const handleItemClick = (item) => {
+    setSelectedItem(item);
+    setInputValue(`${item.label} (${item.code})`);
+    setShowDropdown(false);
+    onChange?.(item.code);
+  };
+
+  const handleInputChange = (e) => {
+    const value = e.target.value;
+    setInputValue(value);
+    setShowDropdown(true);
+    
+    // If they clear the input, clear the selection
+    if (!value.trim()) {
+      setSelectedItem(null);
+      onChange?.('');
+    }
+    
+    // If they type an exact code match, auto-select it
+    const exactMatch = list.find(item => 
+      item.code.toLowerCase() === value.trim().toLowerCase() ||
+      item.label.toLowerCase() === value.trim().toLowerCase()
+    );
+    
+    if (exactMatch) {
+      setSelectedItem(exactMatch);
+      onChange?.(exactMatch.code);
+    }
+  };
 
   return (
-    <div className="w-full">
+    <div className="w-full relative">
       <label htmlFor={id} className="block text-sm text-gray-300 mb-1">{label}</label>
-      <div className="flex gap-2">
+      <div className="relative">
         <input
-          type="text"
-          placeholder="Search type or code…"
-          className="w-full rounded-lg bg-[#0b0d12] border border-gray-700 px-3 py-2 text-gray-100 outline-none focus:border-gray-500"
-          value={q}
-          onChange={(e)=>setQ(e.target.value)}
-        />
-        <select
+          ref={inputRef}
           id={id}
+          type="text"
+          placeholder="Type to search equipment..."
+          className="w-full rounded-lg bg-gray-800 border border-gray-600 px-3 py-2 text-gray-100 outline-none focus:border-gray-500"
+          value={inputValue}
+          onChange={handleInputChange}
+          onFocus={() => setShowDropdown(true)}
           required={required}
-          value={selected}
-          onChange={(e)=>onChange?.(e.target.value)}
-          className="min-w-[16rem] rounded-lg bg-[#0b0d12] border border-gray-700 px-3 py-2 text-gray-100 outline-none focus:border-gray-500"
+        />
+        {/* Dropdown arrow */}
+        <div 
+          className="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer"
+          onClick={() => {
+            setShowDropdown(!showDropdown);
+            if (!showDropdown) inputRef.current?.focus();
+          }}
         >
-          <option value="" disabled>Select equipment…</option>
-          {filtered.map(r => (
-            <option key={r.code} value={r.code}>
-              {r.label} — {r.code}
-            </option>
-          ))}
-        </select>
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
       </div>
-      {selected && <div className="text-xs text-gray-400 mt-1">Selected: <span className="font-mono">{selected}</span></div>}
+      
+      {showDropdown && filtered.length > 0 && (
+        <div 
+          ref={dropdownRef}
+          className="absolute z-10 w-full mt-1 bg-gray-800 border border-gray-600 rounded-md shadow-lg max-h-60 overflow-auto"
+        >
+          <ul className="py-1">
+            {filtered.map(item => (
+              <li 
+                key={item.code}
+                className={`px-3 py-2 text-sm cursor-pointer flex justify-between ${
+                  selectedItem?.code === item.code 
+                    ? 'bg-blue-600 text-white' 
+                    : 'text-gray-200 hover:bg-gray-700'
+                }`}
+                onClick={() => handleItemClick(item)}
+              >
+                <span>{item.label}</span>
+                <span className="text-xs text-gray-400">{item.code}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      
+      {selectedItem && (
+        <div className="text-xs text-blue-400 mt-1">
+          Selected: <span className="font-medium">{selectedItem.label}</span> <span className="font-mono">({selectedItem.code})</span>
+        </div>
+      )}
     </div>
   );
 }
