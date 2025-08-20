@@ -3,15 +3,16 @@ import { useEffect, useState } from 'react';
 import CityAutocomplete from '../components/CityAutocomplete';
 import EquipmentPicker from '../components/EquipmentPicker';
 import { supabase } from '../utils/supabaseClient';
+import Head from 'next/head';
 
 function Section({ title, children, right }) {
   return (
-    <section className="mx-auto max-w-7xl px-4">
-      <div className="flex items-center justify-between mb-3">
+    <section className="bg-gray-800 rounded-lg border border-gray-700 shadow-lg overflow-hidden mb-8">
+      <div className="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700">
         <h2 className="text-lg font-semibold text-gray-100">{title}</h2>
         {right}
       </div>
-      <div className="rounded-xl border border-gray-800 bg-[#0f1115] p-4">{children}</div>
+      <div className="p-4 bg-gray-900">{children}</div>
     </section>
   );
 }
