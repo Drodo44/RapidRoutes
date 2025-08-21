@@ -2,7 +2,10 @@
 import { useEffect, useState } from 'react';
 import CityAutocomplete from '../components/CityAutocomplete.jsx';
 import EquipmentPicker from '../components/EquipmentPicker.jsx';
+import IntermodalNudge from '../components/IntermodalNudge';
+import IntermodalEmailModal from '../components/IntermodalEmailModal';
 import { supabase } from '../utils/supabaseClient';
+import { checkIntermodalEligibility } from '../lib/intermodalAdvisor';
 import Head from 'next/head';
 
 function Section({ title, children, right, className = '' }) {
@@ -45,6 +48,11 @@ export default function LanesPage() {
   const [recent, setRecent] = useState([]);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
+
+  // Intermodal system
+  const [showIntermodalNudge, setShowIntermodalNudge] = useState(false);
+  const [showIntermodalEmail, setShowIntermodalEmail] = useState(false);
+  const [intermodalLane, setIntermodalLane] = useState(null);
 
   function onPickOrigin(it){ setOrigin(`${it.city}, ${it.state}`); setOriginZip(it.zip || ''); }
   function onPickDest(it){ setDest(`${it.city}, ${it.state}`); setDestZip(it.zip || ''); }
@@ -124,6 +132,27 @@ export default function LanesPage() {
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to save lane');
+      }
+
+      const newLane = await response.json();
+      
+      // Check for intermodal eligibility after successful lane creation
+      if (newLane.data) {
+        const laneData = {
+          origin_city: oc,
+          origin_state: os,
+          dest_city: dc,
+          dest_state: ds,
+          equipment_code: equipment.toUpperCase(),
+          length_ft: Number(lengthFt),
+          weight_lbs: randomize ? null : Number(weight)
+        };
+        
+        const isEligible = await checkIntermodalEligibility(laneData);
+        if (isEligible.eligible) {
+          setIntermodalLane(newLane.data);
+          setShowIntermodalNudge(true);
+        }
       }
 
       setMsg('Lane added.');
@@ -515,6 +544,26 @@ export default function LanesPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Intermodal Nudge Modal */}
+      {showIntermodalNudge && (
+        <IntermodalNudge
+          lane={intermodalLane}
+          onClose={() => setShowIntermodalNudge(false)}
+          onEmail={(lane) => {
+            setShowIntermodalNudge(false);
+            setShowIntermodalEmail(true);
+          }}
+        />
+      )}
+
+      {/* Intermodal Email Modal */}
+      {showIntermodalEmail && (
+        <IntermodalEmailModal
+          lane={intermodalLane}
+          onClose={() => setShowIntermodalEmail(false)}
+        />
       )}
 
       <style jsx>{`
