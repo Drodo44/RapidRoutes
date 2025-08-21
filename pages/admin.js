@@ -2,10 +2,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { supabase } from "../utils/supabaseClient";
-import Head from 'next/head';ages/admin.js
-import { useEffect, useState } from "react";
-import { useRouter } from "next/router";
-import { supabase } from "../utils/supabaseClient";
 import Head from 'next/head';
 
 function Section({ title, children, right, className = '' }) {
