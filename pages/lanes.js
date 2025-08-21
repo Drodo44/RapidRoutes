@@ -136,38 +136,86 @@ export default function LanesPage() {
     } finally { setBusy(false); }
   }
 
-  function openCrawlPreview(l){
-    const o = `${l.origin_city},${l.origin_state}`;
-    const d = `${l.dest_city},${l.dest_state}`;
-    const url = `/api/debugCrawl?origin=${encodeURIComponent(o)}&dest=${encodeURIComponent(d)}&equip=${encodeURIComponent(l.equipment_code)}&fill=0`;
-    window.open(url, '_blank');
+  async function openCrawlPreview(l){
+    try {
+      const o = `${l.origin_city},${l.origin_state}`;
+      const d = `${l.dest_city},${l.dest_state}`;
+      const url = `/api/debugCrawl?origin=${encodeURIComponent(o)}&dest=${encodeURIComponent(d)}&equip=${encodeURIComponent(l.equipment_code)}&fill=0`;
+      
+      // Test the API first
+      const response = await fetch(url);
+      if (!response.ok) {
+        const errorText = await response.text();
+        setMsg(`Preview failed: ${response.status} - ${errorText}`);
+        return;
+      }
+      
+      // If successful, open in new window
+      window.open(url, '_blank');
+    } catch (error) {
+      console.error('Preview error:', error);
+      setMsg(`Preview failed: ${error.message}`);
+    }
   }
-  function perLaneExport(l, fill=false){
-    window.open(`/api/exportLaneCsv?id=${encodeURIComponent(l.id)}&fill=${fill?'1':'0'}`, '_blank');
+  
+  async function perLaneExport(l, fill=false){
+    try {
+      const url = `/api/exportLaneCsv?id=${encodeURIComponent(l.id)}&fill=${fill?'1':'0'}`;
+      
+      // Test the API first
+      const response = await fetch(url);
+      if (!response.ok) {
+        const errorText = await response.text();
+        setMsg(`Export failed: ${response.status} - ${errorText}`);
+        return;
+      }
+      
+      // If successful, trigger download
+      window.open(url, '_blank');
+    } catch (error) {
+      console.error('Export error:', error);
+      setMsg(`Export failed: ${error.message}`);
+    }
   }
 
-  function check(origin, dest, equip) {
+  async function check(origin, dest, equip) {
     if (!origin || !dest || !equip) {
       setMsg('Please complete origin, destination and equipment to preview');
       return;
     }
     
-    // Parse origin and destination
-    const originParts = origin.split(',');
-    const destParts = dest.split(',');
-    
-    const originFormatted = originParts.length >= 2 ? 
-      `${originParts[0].trim()},${originParts[1].trim()}` : origin;
-    const destFormatted = destParts.length >= 2 ? 
-      `${destParts[0].trim()},${destParts[1].trim()}` : dest;
-    
-    const params = new URLSearchParams({
-      origin: originFormatted,
-      dest: destFormatted,
-      equip: equip
-    });
-    
-    window.open(`/api/debugCrawl?${params.toString()}`, '_blank');
+    try {
+      // Parse origin and destination
+      const originParts = origin.split(',');
+      const destParts = dest.split(',');
+      
+      const originFormatted = originParts.length >= 2 ? 
+        `${originParts[0].trim()},${originParts[1].trim()}` : origin;
+      const destFormatted = destParts.length >= 2 ? 
+        `${destParts[0].trim()},${destParts[1].trim()}` : dest;
+      
+      const params = new URLSearchParams({
+        origin: originFormatted,
+        dest: destFormatted,
+        equip: equip
+      });
+      
+      const url = `/api/debugCrawl?${params.toString()}`;
+      
+      // Test the API first
+      const response = await fetch(url);
+      if (!response.ok) {
+        const errorText = await response.text();
+        setMsg(`Preview failed: ${response.status} - ${errorText}`);
+        return;
+      }
+      
+      // If successful, open in new window
+      window.open(url, '_blank');
+    } catch (error) {
+      console.error('Preview error:', error);
+      setMsg(`Preview failed: ${error.message}`);
+    }
   }
 
   async function bulkExport({ fill }){
