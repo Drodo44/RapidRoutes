@@ -159,7 +159,7 @@ export default function LanesPage() {
     const originFormatted = originParts.length >= 2 ? 
       `${originParts[0].trim()},${originParts[1].trim()}` : origin;
     const destFormatted = destParts.length >= 2 ? 
-      `${destParts[0].trim()},${destParts[1].trim()}` : destination;
+      `${destParts[0].trim()},${destParts[1].trim()}` : dest;
     
     const params = new URLSearchParams({
       origin: originFormatted,
@@ -241,7 +241,7 @@ export default function LanesPage() {
               <button onClick={() => bulkExport({ fill:true })} className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition">Export DAT CSV (Fill)</button>
             </div>
           </div>
-          <div className="p-4 bg-gray-900">
+          <div className="p-4 bg-gray-900 space-y-4">
         <form onSubmit={submitLane} className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <CityAutocomplete id="origin" label="Origin (City, ST)" value={origin} onChange={setOrigin} onPick={onPickOrigin} />
           <CityAutocomplete id="dest"   label="Destination (City, ST)" value={dest}   onChange={setDest}   onPick={onPickDest} />
@@ -309,7 +309,7 @@ export default function LanesPage() {
 
           <div className="col-span-full flex items-center gap-4">
             <button type="submit" disabled={busy} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition">{busy ? 'Saving…' : 'Add Lane'}</button>
-            {!busy && <button type="button" onClick={() => check(origin, dest, equipment)} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition">Preview</button>}
+            {!busy && <button type="button" onClick={() => check(origin, dest, equipment)} className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition">Preview</button>}
           </div>
         </form>
       </div>
@@ -341,13 +341,13 @@ export default function LanesPage() {
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
-                <button onClick={()=>openCrawlPreview(l)} className="btn-secondary">Preview</button>
-                <button onClick={()=>perLaneExport(l,false)} className="btn-secondary">Export</button>
-                <button onClick={()=>perLaneExport(l,true)} className="btn-secondary">Export (Fill-to-10)</button>
-                {l.status!=='posted' && <button onClick={()=>updateStatus(l,'posted')} className="btn-primary">Mark Posted</button>}
-                {l.status==='posted' && <button onClick={()=>updateStatus(l,'pending')} className="btn-secondary">Unpost</button>}
-                {l.status!=='covered' && <button onClick={()=>updateStatus(l,'covered')} className="btn-secondary">Mark Covered</button>}
-                <button onClick={()=>delLane(l)} className="btn-danger">Delete</button>
+                <button onClick={()=>openCrawlPreview(l)} className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-sm rounded-lg">Preview</button>
+                <button onClick={()=>perLaneExport(l,false)} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg">Export</button>
+                <button onClick={()=>perLaneExport(l,true)} className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded-lg">Export (Fill-to-10)</button>
+                {l.status!=='posted' && <button onClick={()=>updateStatus(l,'posted')} className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg">Mark Posted</button>}
+                {l.status==='posted' && <button onClick={()=>updateStatus(l,'pending')} className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-sm rounded-lg">Unpost</button>}
+                {l.status!=='covered' && <button onClick={()=>updateStatus(l,'covered')} className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-sm rounded-lg">Mark Covered</button>}
+                <button onClick={()=>delLane(l)} className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg">Delete</button>
               </div>
             </div>
           ))}
