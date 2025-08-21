@@ -27,7 +27,7 @@ export default async function handler(req, res) {
   try {
     let query = adminSupabase
       .from('cities')
-      .select('id, city, state_or_province, zip, latitude, longitude, kma_code, is_hot, population')
+      .select('id, city, state_or_province, zip, latitude, longitude, kma_code')
       .limit(150);
 
     if (looksZip) {
@@ -41,13 +41,13 @@ export default async function handler(req, res) {
     const { data, error } = await query;
     if (error) throw error;
 
-    // Prioritize: exact state match > is_hot > population desc
+    // Prioritize exact state match
     const ranked = (data || []).sort((a, b) => {
       const asa = stateQ && a.state_or_province?.toUpperCase() === stateQ.toUpperCase() ? 1 : 0;
       const bsa = stateQ && b.state_or_province?.toUpperCase() === stateQ.toUpperCase() ? 1 : 0;
       if (bsa !== asa) return bsa - asa;
-      if ((b.is_hot|0) !== (a.is_hot|0)) return (b.is_hot|0) - (a.is_hot|0);
-      return (b.population|0) - (a.population|0);
+      // Alphabetical sorting as fallback
+      return a.city.localeCompare(b.city);
     });
 
     const out = ranked.slice(0, 12).map(c => {

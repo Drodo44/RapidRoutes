@@ -196,16 +196,26 @@ export default function LanesPage() {
   }
 
   return (
-    <div className="space-y-8">
-      <Section
-        title="New Lane"
-        right={
-          <div className="flex gap-2">
-            <button onClick={() => bulkExport({ fill:false })} className="btn-secondary">Export DAT CSV (Pending)</button>
-            <button onClick={() => bulkExport({ fill:true })} className="btn-secondary">Export DAT CSV (Pending, Fill-to-10)</button>
-          </div>
-        }
-      >
+    <>
+      <Head>
+        <title>Lane Management | RapidRoutes</title>
+      </Head>
+      
+      <div className="container mx-auto max-w-7xl px-4">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-gray-100 mb-2">Lane Management</h1>
+          <p className="text-gray-400">Create and manage freight lanes for DAT posting</p>
+        </div>
+
+        <Section
+          title="New Lane"
+          right={
+            <div className="flex gap-2">
+              <button onClick={() => bulkExport({ fill:false })} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium">Export DAT CSV</button>
+              <button onClick={() => bulkExport({ fill:true })} className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm font-medium">Export DAT CSV (Fill)</button>
+            </div>
+          }
+        >
         <form onSubmit={submitLane} className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <CityAutocomplete id="origin" label="Origin (City, ST)" value={origin} onChange={setOrigin} onPick={onPickOrigin} />
           <CityAutocomplete id="dest"   label="Destination (City, ST)" value={dest}   onChange={setDest}   onPick={onPickDest} />
@@ -362,5 +372,6 @@ export default function LanesPage() {
         .tab-active { @apply bg-gray-800 text-white; }
       `}</style>
     </div>
+    </>
   );
 }
