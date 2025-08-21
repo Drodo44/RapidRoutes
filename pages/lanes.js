@@ -249,6 +249,77 @@ export default function LanesPage() {
       alert(error.message);
     }
   }
+
+  // INTELLIGENT FREIGHT REPOSTING - Create new lane based on successful one
+  async function postAgain(lane){
+    try {
+      setMsg('Creating new lane based on successful posting...');
+      
+      const payload = {
+        origin_city: lane.origin_city,
+        origin_state: lane.origin_state,
+        origin_zip: lane.origin_zip,
+        dest_city: lane.dest_city,
+        dest_state: lane.dest_state,
+        dest_zip: lane.dest_zip,
+        equipment_code: lane.equipment_code,
+        length_ft: lane.length_ft,
+        full_partial: lane.full_partial,
+        pickup_earliest: lane.pickup_earliest,
+        pickup_latest: lane.pickup_latest,
+        randomize_weight: lane.randomize_weight,
+        weight_lbs: lane.weight_lbs,
+        weight_min: lane.weight_min,
+        weight_max: lane.weight_max,
+        comment: lane.comment,
+        commodity: lane.commodity,
+        status: 'pending',
+      };
+      
+      const response = await fetch('/api/lanes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create new lane');
+      }
+      
+      const newLane = await response.json();
+      setMsg(`✅ Successfully created new lane: ${lane.origin_city}, ${lane.origin_state} → ${lane.dest_city}, ${lane.dest_state}`);
+      await loadLists();
+      
+      // Track intelligence: this route was successful before
+      try {
+        await fetch('/api/lane-performance', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            lane_id: newLane.data.id,
+            equipment_code: lane.equipment_code,
+            origin_city: lane.origin_city,
+            origin_state: lane.origin_state,
+            dest_city: lane.dest_city,
+            dest_state: lane.dest_state,
+            crawl_cities: [],
+            intelligence_metadata: {
+              repost_of_successful_lane: lane.id,
+              original_success_date: lane.updated_at,
+              intelligence_level: 'successful_repost'
+            }
+          })
+        });
+      } catch (trackingError) {
+        console.warn('Failed to track repost intelligence:', trackingError);
+        // Don't fail the main operation for tracking
+      }
+      
+    } catch (error) {
+      setMsg(`❌ Failed to create new lane: ${error.message}`);
+    }
+  }
   
   async function delLane(lane){ 
     if (!confirm('Delete this lane?')) return; 
@@ -391,10 +462,11 @@ export default function LanesPage() {
               <div className="flex flex-wrap gap-2">
                 <button onClick={()=>openCrawlPreview(l)} className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-sm rounded-lg">Preview</button>
                 <button onClick={()=>perLaneExport(l,false)} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg">Export</button>
-                <button onClick={()=>perLaneExport(l,true)} className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded-lg">Export (Fill-to-10)</button>
+                <button onClick={()=>perLaneExport(l,true)} className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded-lg">Export (Fill-to-5)</button>
                 {l.status!=='posted' && <button onClick={()=>updateStatus(l,'posted')} className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg">Mark Posted</button>}
                 {l.status==='posted' && <button onClick={()=>updateStatus(l,'pending')} className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-sm rounded-lg">Unpost</button>}
                 {l.status!=='covered' && <button onClick={()=>updateStatus(l,'covered')} className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-sm rounded-lg">Mark Covered</button>}
+                {l.status==='covered' && <button onClick={()=>postAgain(l)} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm rounded-lg">🚀 Post Again</button>}
                 <button onClick={()=>delLane(l)} className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg">Delete</button>
               </div>
             </div>
