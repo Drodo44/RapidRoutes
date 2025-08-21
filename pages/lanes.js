@@ -1,7 +1,7 @@
 // pages/lanes.js
 import { useEffect, useState } from 'react';
-import CityAutocomplete from '../components/CityAutocomplete';
-import EquipmentPicker from '../components/EquipmentPicker';
+import CityAutocomplete from '../components/CityAutocomplete.jsx';
+import EquipmentPicker from '../components/EquipmentPicker.jsx';
 import { supabase } from '../utils/supabaseClient';
 import Head from 'next/head';
 
@@ -207,8 +207,8 @@ export default function LanesPage() {
         }
       >
         <form onSubmit={submitLane} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <CityAutocomplete id="origin" label="Origin (City, ST)" value={origin} onChange={setOrigin} onPick={(it)=>{ setOrigin(`${it.city}, ${it.state}`); setOriginZip(it.zip||''); }} />
-          <CityAutocomplete id="dest"   label="Destination (City, ST)" value={dest}   onChange={setDest}   onPick={(it)=>{ setDest(`${it.city}, ${it.state}`);   setDestZip(it.zip||''); }} />
+          <CityAutocomplete id="origin" label="Origin (City, ST)" value={origin} onChange={setOrigin} onPick={onPickOrigin} />
+          <CityAutocomplete id="dest"   label="Destination (City, ST)" value={dest}   onChange={setDest}   onPick={onPickDest} />
           <EquipmentPicker code={equipment} onChange={setEquipment} />
 
           <div>
