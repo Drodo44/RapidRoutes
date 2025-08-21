@@ -169,18 +169,25 @@ export default function LanesPage() {
     try {
       const o = `${l.origin_city},${l.origin_state}`;
       const d = `${l.dest_city},${l.dest_state}`;
-      const url = `/api/debugCrawl?origin=${encodeURIComponent(o)}&dest=${encodeURIComponent(d)}&equip=${encodeURIComponent(l.equipment_code)}&fill=0`;
       
-      // Test the API first
-      const response = await fetch(url);
+      // Test the API first to make sure it works
+      const testUrl = `/api/debugCrawl?origin=${encodeURIComponent(o)}&dest=${encodeURIComponent(d)}&equip=${encodeURIComponent(l.equipment_code)}&fill=0`;
+      const response = await fetch(testUrl);
       if (!response.ok) {
         const errorText = await response.text();
         setMsg(`Preview failed: ${response.status} - ${errorText}`);
         return;
       }
       
-      // If successful, open in new window
-      window.open(url, '_blank');
+      // If API works, open formatted preview page
+      const previewParams = new URLSearchParams({
+        origin: o,
+        dest: d,
+        equip: l.equipment_code
+      });
+      
+      const previewUrl = `/crawl-preview?${previewParams.toString()}`;
+      window.open(previewUrl, '_blank', 'width=1200,height=800,scrollbars=yes');
     } catch (error) {
       console.error('Preview error:', error);
       setMsg(`Preview failed: ${error.message}`);
