@@ -8,7 +8,7 @@ const links = [
   { href: '/dashboard', label: 'Dashboard', icon: '📊' },
   { href: '/lanes', label: 'Lanes', icon: '🛣️' },
   { href: '/recap', label: 'Recap', icon: '📋' },
-  { href: '/market-data', label: 'Market Data', icon: '📈' },
+  { href: '/admin', label: 'Admin', icon: '⚙️', adminOnly: true },
   { href: '/admin/equipment', label: 'Equipment', icon: '🚚' },
   { href: '/profile', label: 'Profile', icon: '👤' },
 ];
@@ -17,6 +17,7 @@ export default function NavBar() {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [user, setUser] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   useEffect(() => {
@@ -24,6 +25,15 @@ export default function NavBar() {
       const { data } = await supabase.auth.getUser();
       if (data?.user) {
         setUser(data.user);
+        
+        // Check if user is an admin
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", data.user.id)
+          .single();
+          
+        setIsAdmin(profile?.role === "Admin");
       }
     };
     
@@ -51,7 +61,7 @@ export default function NavBar() {
           
           {/* Desktop navigation */}
           <ul className="hidden md:flex items-center gap-6">
-            {links.map((l) => {
+            {links.filter(l => !l.adminOnly || isAdmin).map((l) => {
               const active = router.pathname === l.href || 
                             (l.href !== '/dashboard' && router.pathname.startsWith(l.href));
               return (
@@ -63,7 +73,7 @@ export default function NavBar() {
                       ? 'bg-gray-800 text-white font-medium' 
                       : 'text-gray-300 hover:text-white hover:bg-gray-800/60'}`}
                   >
-                    <span className="hidden xl:inline text-sm">{l.icon}</span>
+                    <span className="inline-block text-sm mr-1">{l.icon}</span>
                     <span>{l.label}</span>
                   </Link>
                 </li>

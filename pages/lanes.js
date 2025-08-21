@@ -207,14 +207,15 @@ export default function LanesPage() {
           <p className="text-gray-400">Create and manage freight lanes for DAT posting</p>
         </div>
 
-        <Section
-          title="New Lane"
-          right={
+        <div className="bg-gray-800 rounded-lg border border-gray-700 shadow-lg overflow-hidden mb-8">
+          <div className="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700">
+            <h2 className="text-lg font-semibold text-gray-100">New Lane</h2>
             <div className="flex gap-2">
-              <button onClick={() => bulkExport({ fill:false })} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium">Export DAT CSV</button>
-              <button onClick={() => bulkExport({ fill:true })} className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm font-medium">Export DAT CSV (Fill)</button>
+              <button onClick={() => bulkExport({ fill:false })} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition">Export DAT CSV</button>
+              <button onClick={() => bulkExport({ fill:true })} className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm font-medium transition">Export DAT CSV (Fill)</button>
             </div>
-          }
+          </div>
+          <div className="p-4 bg-gray-900"
         >
         <form onSubmit={submitLane} className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <CityAutocomplete id="origin" label="Origin (City, ST)" value={origin} onChange={setOrigin} onPick={onPickOrigin} />
@@ -282,10 +283,11 @@ export default function LanesPage() {
           {msg && <div className="col-span-full text-sm text-gray-300">{msg}</div>}
 
           <div className="col-span-full">
-            <button type="submit" disabled={busy} className="btn-primary">{busy ? 'Saving…' : 'Add Lane'}</button>
+            <button type="submit" disabled={busy} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition">{busy ? 'Saving…' : 'Add Lane'}</button>
           </div>
         </form>
-      </Section>
+      </div>
+    </div>
 
       <Section
         title="Lanes"
