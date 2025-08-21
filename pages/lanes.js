@@ -194,24 +194,30 @@ export default function LanesPage() {
       const destFormatted = destParts.length >= 2 ? 
         `${destParts[0].trim()},${destParts[1].trim()}` : dest;
       
-      const params = new URLSearchParams({
+      // Test the API first to make sure it works
+      const testParams = new URLSearchParams({
         origin: originFormatted,
         dest: destFormatted,
         equip: equip
       });
       
-      const url = `/api/debugCrawl?${params.toString()}`;
-      
-      // Test the API first
-      const response = await fetch(url);
+      const testUrl = `/api/debugCrawl?${testParams.toString()}`;
+      const response = await fetch(testUrl);
       if (!response.ok) {
         const errorText = await response.text();
         setMsg(`Preview failed: ${response.status} - ${errorText}`);
         return;
       }
       
-      // If successful, open in new window
-      window.open(url, '_blank');
+      // If API works, open formatted preview page
+      const previewParams = new URLSearchParams({
+        origin: originFormatted,
+        dest: destFormatted,
+        equip: equip
+      });
+      
+      const previewUrl = `/crawl-preview?${previewParams.toString()}`;
+      window.open(previewUrl, '_blank', 'width=1200,height=800,scrollbars=yes');
     } catch (error) {
       console.error('Preview error:', error);
       setMsg(`Preview failed: ${error.message}`);
