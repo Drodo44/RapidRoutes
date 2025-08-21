@@ -38,17 +38,27 @@ export default function App({ Component, pageProps }) {
       if (!mounted) return;
       const path = router.asPath.split('?')[0];
       
+      // Always redirect root path
+      if (path === '/') {
+        if (currentSession) {
+          router.replace('/dashboard');
+        } else {
+          router.replace('/login');
+        }
+        return;
+      }
+      
       // Force login for protected routes
       if (!currentSession && !PUBLIC_ROUTES.has(path)) {
         console.log('No active session, redirecting to login');
-        router.replace('/login');
+        router.push('/login'); // Using push instead of replace for better history
         return;
       }
       
       // Redirect logged-in users away from login/signup
       if (currentSession && PUBLIC_ROUTES.has(path)) {
         console.log('User already logged in, redirecting to dashboard');
-        router.replace('/dashboard');
+        router.push('/dashboard');
       }
     };
 

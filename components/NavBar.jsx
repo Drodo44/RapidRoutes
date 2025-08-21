@@ -9,8 +9,6 @@ const links = [
   { href: '/lanes', label: 'Lanes', icon: '🛣️' },
   { href: '/recap', label: 'Recap', icon: '📋' },
   { href: '/admin', label: 'Admin', icon: '⚙️', adminOnly: true },
-  { href: '/admin/equipment', label: 'Equipment', icon: '🚚' },
-  { href: '/profile', label: 'Profile', icon: '👤' },
 ];
 
 export default function NavBar() {

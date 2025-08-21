@@ -5,9 +5,9 @@ import EquipmentPicker from '../components/EquipmentPicker.jsx';
 import { supabase } from '../utils/supabaseClient';
 import Head from 'next/head';
 
-function Section({ title, children, right }) {
+function Section({ title, children, right, className = '' }) {
   return (
-    <section className="bg-gray-800 rounded-lg border border-gray-700 shadow-lg overflow-hidden mb-8">
+    <section className={`bg-gray-800 rounded-lg border border-gray-700 shadow-lg overflow-hidden ${className}`}>
       <div className="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700">
         <h2 className="text-lg font-semibold text-gray-100">{title}</h2>
         {right}
@@ -146,6 +146,30 @@ export default function LanesPage() {
     window.open(`/api/exportLaneCsv?id=${encodeURIComponent(l.id)}&fill=${fill?'1':'0'}`, '_blank');
   }
 
+  function check(origin, dest, equip) {
+    if (!origin || !dest || !equip) {
+      setMsg('Please complete origin, destination and equipment to preview');
+      return;
+    }
+    
+    // Parse origin and destination
+    const originParts = origin.split(',');
+    const destParts = dest.split(',');
+    
+    const originFormatted = originParts.length >= 2 ? 
+      `${originParts[0].trim()},${originParts[1].trim()}` : origin;
+    const destFormatted = destParts.length >= 2 ? 
+      `${destParts[0].trim()},${destParts[1].trim()}` : destination;
+    
+    const params = new URLSearchParams({
+      origin: originFormatted,
+      dest: destFormatted,
+      equip: equip
+    });
+    
+    window.open(`/api/debugCrawl?${params.toString()}`, '_blank');
+  }
+
   async function bulkExport({ fill }){
     try {
       const head = await fetch(`/api/exportDatCsv?pending=1&fill=${fill?'1':'0'}`, { method:'HEAD' });
@@ -153,6 +177,8 @@ export default function LanesPage() {
       for (let i=1;i<=total;i++){
         const url = `/api/exportDatCsv?pending=1&fill=${fill?'1':'0'}&part=${i}`;
         const a = document.createElement('a'); a.href = url; a.download = ''; document.body.appendChild(a); a.click(); a.remove();
+        // Slight delay to avoid popup blocking
+        if (i < total) await new Promise(r => setTimeout(r, 200));
       }
     } catch (e) { alert('Bulk export failed. ' + (e.message||'')); }
   }
@@ -201,8 +227,8 @@ export default function LanesPage() {
         <title>Lane Management | RapidRoutes</title>
       </Head>
       
-      <div className="container mx-auto max-w-7xl px-4">
-        <div className="mb-8">
+      <div className="mx-auto max-w-7xl px-4 py-6">
+        <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-100 mb-2">Lane Management</h1>
           <p className="text-gray-400">Create and manage freight lanes for DAT posting</p>
         </div>
@@ -212,11 +238,10 @@ export default function LanesPage() {
             <h2 className="text-lg font-semibold text-gray-100">New Lane</h2>
             <div className="flex gap-2">
               <button onClick={() => bulkExport({ fill:false })} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition">Export DAT CSV</button>
-              <button onClick={() => bulkExport({ fill:true })} className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm font-medium transition">Export DAT CSV (Fill)</button>
+              <button onClick={() => bulkExport({ fill:true })} className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition">Export DAT CSV (Fill)</button>
             </div>
           </div>
-          <div className="p-4 bg-gray-900"
-        >
+          <div className="p-4 bg-gray-900">
         <form onSubmit={submitLane} className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <CityAutocomplete id="origin" label="Origin (City, ST)" value={origin} onChange={setOrigin} onPick={onPickOrigin} />
           <CityAutocomplete id="dest"   label="Destination (City, ST)" value={dest}   onChange={setDest}   onPick={onPickDest} />
@@ -282,8 +307,9 @@ export default function LanesPage() {
 
           {msg && <div className="col-span-full text-sm text-gray-300">{msg}</div>}
 
-          <div className="col-span-full">
+          <div className="col-span-full flex items-center gap-4">
             <button type="submit" disabled={busy} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition">{busy ? 'Saving…' : 'Add Lane'}</button>
+            {!busy && <button type="button" onClick={() => check(origin, dest, equipment)} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition">Preview</button>}
           </div>
         </form>
       </div>
@@ -293,8 +319,8 @@ export default function LanesPage() {
         title="Lanes"
         right={
           <div className="flex gap-2">
-            <button className={`tab ${tab==='pending'?'tab-active':''}`} onClick={()=>setTab('pending')}>Pending</button>
-            <button className={`tab ${tab==='recent'?'tab-active':''}`}  onClick={()=>setTab('recent')}>Recent</button>
+            <button className={`px-3 py-1 rounded-md ${tab==='pending' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white'}`} onClick={()=>setTab('pending')}>Pending</button>
+            <button className={`px-3 py-1 rounded-md ${tab==='recent' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white'}`} onClick={()=>setTab('recent')}>Recent</button>
           </div>
         }
       >

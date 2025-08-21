@@ -1,7 +1,20 @@
 // pages/admin.js
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
-import supabase from "../utils/supabaseClient";
+import { supabase } from "../utils/supabaseClient";
+import Head from 'next/head';
+
+function Section({ title, children, right, className = '' }) {
+  return (
+    <section className={`bg-gray-800 rounded-lg border border-gray-700 shadow-lg overflow-hidden ${className}`}>
+      <div className="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700">
+        <h2 className="text-lg font-semibold text-gray-100">{title}</h2>
+        {right}
+      </div>
+      <div className="p-4 bg-gray-900">{children}</div>
+    </section>
+  );
+}
 
 export default function Admin() {
   const [user, setUser] = useState(null);
