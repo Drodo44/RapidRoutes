@@ -1,6 +1,6 @@
 // pages/api/generateRecap.js
 import { adminSupabase } from '../../utils/supabaseClient';
-import { generateRecapHTML } from '../../lib/recap';
+import { generateRecapHTML } from '../../lib/recapUtils';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
