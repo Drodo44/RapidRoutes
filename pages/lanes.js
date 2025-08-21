@@ -105,8 +105,26 @@ export default function LanesPage() {
         commodity: commodity || null,
         status: 'pending',
       };
-      const { error } = await supabase.from('lanes').insert([payload]);
-      if (error) throw error;
+      
+      // Save weight randomization settings if requested
+      if (randomize && rememberSession) {
+        sessionStorage.setItem('rr_rand_min', randMin);
+        sessionStorage.setItem('rr_rand_max', randMax);
+      }
+      
+      // Use the API endpoint for better validation and error handling
+      const response = await fetch('/api/lanes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save lane');
+      }
 
       setMsg('Lane added.');
       setOrigin(''); setOriginZip(''); setDest(''); setDestZip('');
@@ -139,8 +157,43 @@ export default function LanesPage() {
     } catch (e) { alert('Bulk export failed. ' + (e.message||'')); }
   }
 
-  async function updateStatus(lane, status){ const { error } = await supabase.from('lanes').update({ status }).eq('id', lane.id); if (error) alert(error.message); else loadLists(); }
-  async function delLane(lane){ if (!confirm('Delete this lane?')) return; const { error } = await supabase.from('lanes').delete().eq('id', lane.id); if (error) alert(error.message); else loadLists(); }
+  async function updateStatus(lane, status){
+    try {
+      const response = await fetch('/api/lanes', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: lane.id, status }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update status');
+      }
+      
+      await loadLists();
+    } catch (error) {
+      alert(error.message);
+    }
+  }
+  
+  async function delLane(lane){ 
+    if (!confirm('Delete this lane?')) return; 
+    
+    try {
+      const response = await fetch(`/api/lanes?id=${lane.id}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to delete lane');
+      }
+      
+      await loadLists();
+    } catch (error) {
+      alert(error.message);
+    }
+  }
 
   return (
     <div className="space-y-8">

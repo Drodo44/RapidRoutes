@@ -30,33 +30,40 @@ export default function App({ Component, pageProps }) {
     };
   }, [router]);
 
-  // Initial session + auth listener
+  // Initial session + auth listener with enforced protection
   useEffect(() => {
     let mounted = true;
 
+    const checkAndRedirect = (currentSession) => {
+      if (!mounted) return;
+      const path = router.asPath.split('?')[0];
+      
+      // Force login for protected routes
+      if (!currentSession && !PUBLIC_ROUTES.has(path)) {
+        console.log('No active session, redirecting to login');
+        router.replace('/login');
+        return;
+      }
+      
+      // Redirect logged-in users away from login/signup
+      if (currentSession && PUBLIC_ROUTES.has(path)) {
+        console.log('User already logged in, redirecting to dashboard');
+        router.replace('/dashboard');
+      }
+    };
+
+    // Initial check
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!mounted) return;
       setSession(session);
       setHydrated(true);
-      const path = router.asPath.split('?')[0];
-
-      if (!session && !PUBLIC_ROUTES.has(path)) {
-        router.replace('/login');
-      }
-      if (session && PUBLIC_ROUTES.has(path)) {
-        router.replace('/dashboard');
-      }
+      checkAndRedirect(session);
     });
 
+    // Listen for auth changes
     const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
-      const path = router.asPath.split('?')[0];
-      if (!newSession && !PUBLIC_ROUTES.has(path)) {
-        router.replace('/login');
-      }
-      if (newSession && PUBLIC_ROUTES.has(path)) {
-        router.replace('/dashboard');
-      }
+      checkAndRedirect(newSession);
     });
 
     return () => {

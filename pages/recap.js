@@ -137,7 +137,7 @@ export default function RecapPage() {
     setGeneratingIds(prev => new Set([...prev, laneId]));
     
     try {
-      const response = await fetch('/api/ai/recap', {
+      const response = await fetch('/api/generateRecap', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
