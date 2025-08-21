@@ -195,19 +195,28 @@ export default function LanesPage() {
   }
   
   async function perLaneExport(l, fill=false){
+    console.log('Export button clicked:', { lane: l.id, fill });
+    setMsg('Starting export...');
+    
     try {
       const url = `/api/exportLaneCsv?id=${encodeURIComponent(l.id)}&fill=${fill?'1':'0'}`;
+      console.log('Export URL:', url);
       
       // Test the API first
       const response = await fetch(url);
+      console.log('API response:', response.status, response.statusText);
+      
       if (!response.ok) {
         const errorText = await response.text();
+        console.error('Export failed:', response.status, errorText);
         setMsg(`Export failed: ${response.status} - ${errorText}`);
         return;
       }
       
       // If successful, trigger download
+      console.log('Opening download window...');
       window.open(url, '_blank');
+      setMsg('Export successful!');
     } catch (error) {
       console.error('Export error:', error);
       setMsg(`Export failed: ${error.message}`);
@@ -261,16 +270,34 @@ export default function LanesPage() {
   }
 
   async function bulkExport({ fill }){
+    console.log('Bulk export clicked:', { fill });
+    setMsg('Starting bulk export...');
+    
     try {
       const head = await fetch(`/api/exportDatCsv?pending=1&fill=${fill?'1':'0'}`, { method:'HEAD' });
+      console.log('Bulk export HEAD response:', head.status);
+      
+      if (!head.ok) {
+        const errorText = await head.text();
+        setMsg(`Bulk export failed: ${head.status} - ${errorText}`);
+        return;
+      }
+      
       const total = Number(head.headers.get('X-Total-Parts') || '1');
+      console.log('Total parts to download:', total);
+      
       for (let i=1;i<=total;i++){
         const url = `/api/exportDatCsv?pending=1&fill=${fill?'1':'0'}&part=${i}`;
+        console.log(`Downloading part ${i}/${total}:`, url);
         const a = document.createElement('a'); a.href = url; a.download = ''; document.body.appendChild(a); a.click(); a.remove();
         // Slight delay to avoid popup blocking
         if (i < total) await new Promise(r => setTimeout(r, 200));
       }
-    } catch (e) { alert('Bulk export failed. ' + (e.message||'')); }
+      setMsg(`Bulk export completed! Downloaded ${total} files.`);
+    } catch (e) { 
+      console.error('Bulk export error:', e);
+      setMsg('Bulk export failed: ' + (e.message || ''));
+    }
   }
 
   async function updateStatus(lane, status){
