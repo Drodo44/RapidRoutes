@@ -2,6 +2,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { supabase } from "../utils/supabaseClient";
+import Head from 'next/head';ages/admin.js
+import { useEffect, useState } from "react";
+import { useRouter } from "next/router";
+import { supabase } from "../utils/supabaseClient";
 import Head from 'next/head';
 
 function Section({ title, children, right, className = '' }) {
@@ -76,66 +80,80 @@ export default function Admin() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white p-10">
-      <h1 className="text-4xl font-bold mb-6 text-cyan-400 text-center">Admin Dashboard</h1>
+    <div className="mx-auto max-w-7xl px-4 py-6">
+      <Head>
+        <title>Admin Dashboard | RapidRoutes</title>
+      </Head>
+      
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-100 mb-2">Admin Dashboard</h1>
+        <p className="text-gray-400">Manage user accounts and permissions</p>
+      </div>
 
       {loading ? (
-        <p className="text-center text-gray-400">Loading users...</p>
+        <div className="bg-gray-800 rounded-lg border border-gray-700 shadow-lg p-6">
+          <p className="text-center text-gray-400">Loading users...</p>
+        </div>
       ) : (
-        <div className="overflow-x-auto bg-[#1a2236] p-6 rounded-2xl shadow-2xl max-w-5xl mx-auto">
-          <table className="w-full border-collapse text-left text-white">
-            <thead>
-              <tr className="bg-gray-800 text-cyan-400">
-                <th className="p-3">Name</th>
-                <th className="p-3">Email</th>
-                <th className="p-3">Role</th>
-                <th className="p-3">Status</th>
-                <th className="p-3">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((u) => (
-                <tr key={u.id} className="even:bg-[#202b42] odd:bg-[#1a2437]">
-                  <td className="p-3">{u.name || "—"}</td>
-                  <td className="p-3">{u.email}</td>
-                  <td className="p-3">{u.role}</td>
-                  <td className="p-3">
-                    {u.status === "Blocked" ? (
-                      <span className="text-red-400 font-semibold">Blocked</span>
-                    ) : u.status === "Approved" ? (
-                      <span className="text-green-400 font-semibold">Approved</span>
-                    ) : (
-                      <span className="text-yellow-300 font-semibold">Pending</span>
-                    )}
-                  </td>
-                  <td className="p-3 space-x-2">
-                    {u.status !== "Approved" && (
-                      <button
-                        onClick={() => handleApproval(u.id, "Approved")}
-                        className="bg-green-600 hover:bg-green-700 px-3 py-1 rounded font-semibold"
-                      >
-                        Approve
-                      </button>
-                    )}
-                    {u.status !== "Blocked" && (
-                      <button
-                        onClick={() => handleApproval(u.id, "Blocked")}
-                        className="bg-red-600 hover:bg-red-700 px-3 py-1 rounded font-semibold"
-                      >
-                        Block
-                      </button>
-                    )}
-                    <button
-                      onClick={() => handleDelete(u.id)}
-                      className="bg-gray-700 hover:bg-gray-800 px-3 py-1 rounded font-semibold"
-                    >
-                      Delete
-                    </button>
-                  </td>
+        <div className="bg-gray-800 rounded-lg border border-gray-700 shadow-lg overflow-hidden">
+          <div className="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700">
+            <h2 className="text-lg font-semibold text-gray-100">User Management</h2>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-900">
+                <tr>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">Name</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">Email</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">Role</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">Status</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-700">
+                {users.map((u) => (
+                  <tr key={u.id} className="bg-gray-900">
+                    <td className="px-4 py-3 text-sm text-gray-100">{u.name || "—"}</td>
+                    <td className="px-4 py-3 text-sm text-gray-100">{u.email}</td>
+                    <td className="px-4 py-3 text-sm text-gray-100">{u.role}</td>
+                    <td className="px-4 py-3 text-sm">
+                      {u.status === "Blocked" ? (
+                        <span className="px-2 py-1 text-xs font-medium bg-red-900 text-red-300 rounded-full">Blocked</span>
+                      ) : u.status === "Approved" ? (
+                        <span className="px-2 py-1 text-xs font-medium bg-green-900 text-green-300 rounded-full">Approved</span>
+                      ) : (
+                        <span className="px-2 py-1 text-xs font-medium bg-yellow-900 text-yellow-300 rounded-full">Pending</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 space-x-2">
+                      {u.status !== "Approved" && (
+                        <button
+                          onClick={() => handleApproval(u.id, "Approved")}
+                          className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg font-medium"
+                        >
+                          Approve
+                        </button>
+                      )}
+                      {u.status !== "Blocked" && (
+                        <button
+                          onClick={() => handleApproval(u.id, "Blocked")}
+                          className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg font-medium"
+                        >
+                          Block
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleDelete(u.id)}
+                        className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-sm rounded-lg font-medium"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

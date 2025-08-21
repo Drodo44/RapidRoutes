@@ -6,7 +6,7 @@ import { supabase } from '../utils/supabaseClient';
 import NavBar from '../components/NavBar';
 import Head from 'next/head';
 
-const PUBLIC_ROUTES = new Set(['/login', '/signup']);
+const PUBLIC_ROUTES = new Set(['/login', '/signup', '/']);
 
 export default function App({ Component, pageProps }) {
   const router = useRouter();

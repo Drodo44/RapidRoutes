@@ -261,11 +261,11 @@ export default function LanesPage() {
 
           <div>
             <label className="block text-sm text-gray-300 mb-1">Pickup Earliest</label>
-            <input type="text" placeholder="8/19/2025" value={pickupEarliest} onChange={(e)=>setPickupEarliest(e.target.value)} className="inp" />
+            <input type="date" value={pickupEarliest} onChange={(e)=>setPickupEarliest(e.target.value)} className="inp" />
           </div>
           <div>
             <label className="block text-sm text-gray-300 mb-1">Pickup Latest</label>
-            <input type="text" placeholder="8/21/2025" value={pickupLatest} onChange={(e)=>setPickupLatest(e.target.value)} className="inp" />
+            <input type="date" value={pickupLatest} onChange={(e)=>setPickupLatest(e.target.value)} className="inp" />
           </div>
 
           {!randomize && (

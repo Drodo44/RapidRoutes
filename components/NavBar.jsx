@@ -52,9 +52,12 @@ export default function NavBar() {
     <header className="fixed top-0 left-0 right-0 z-40 border-b border-gray-700 bg-gray-900/95 backdrop-blur">
       <nav className="mx-auto max-w-7xl px-4 h-16 flex items-center justify-between">
         <div className="flex items-center gap-6">
-          <Link href="/dashboard" className="flex items-center">
-            <span className="font-bold text-xl tracking-wide text-blue-400">Rapid</span>
-            <span className="font-bold text-xl tracking-wide text-gray-100">Routes</span>
+          <Link href="/dashboard" className="flex items-center gap-2">
+            <img src="/logo.png" alt="RapidRoutes" className="h-8 w-8" />
+            <div>
+              <span className="font-bold text-xl tracking-wide text-blue-400">Rapid</span>
+              <span className="font-bold text-xl tracking-wide text-gray-100">Routes</span>
+            </div>
           </Link>
           
           {/* Desktop navigation */}

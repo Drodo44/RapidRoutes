@@ -148,7 +148,8 @@ export default function RecapPage() {
       });
       
       if (!response.ok) {
-        throw new Error('Failed to generate recap');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}: Failed to generate recap`);
       }
       
       const data = await response.json();
@@ -158,9 +159,12 @@ export default function RecapPage() {
           ...prev,
           [laneId]: data.results[0]
         }));
+      } else {
+        throw new Error('No recap data returned');
       }
     } catch (error) {
       console.error('Error generating recap:', error);
+      alert(`Failed to generate AI insights: ${error.message}`);
     } finally {
       setGeneratingIds(prev => {
         const updated = new Set([...prev]);
