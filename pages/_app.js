@@ -127,7 +127,7 @@ export default function App({ Component, pageProps }) {
         {showNav && (
           <footer className="border-t border-gray-800 py-4 bg-gray-900">
             <div className="container mx-auto px-4 text-center text-xs text-gray-500">
-              © {new Date().getFullYear()} RapidRoutes • Production-Grade Freight Brokerage Automation
+              © 2025 RapidRoutes | Created by Andrew Connellan - Logistics Account Executive at Total Quality Logistics
             </div>
           </footer>
         )}
