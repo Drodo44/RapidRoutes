@@ -154,6 +154,7 @@ async function buildAllRows(lanes, preferFillTo10) {
       if (preferFillTo10) {
         // EMERGENCY MODE: Use simple pair generation
         console.log(`BULK EXPORT: Using EMERGENCY mode for lane ${i+1}`);
+        console.log(`🚨🚨🚨 EMERGENCY MODE ACTIVATED FOR LANE ${i+1} 🚨🚨🚨`);
         crawl = await emergencyPairs(
           { city: lane.origin_city, state: lane.origin_state },
           { city: lane.dest_city, state: lane.dest_state }
