@@ -274,6 +274,9 @@ export default async function handler(req, res) {
   console.log(`🔍 QUERY PARAMS:`, req.query);
   
   if (!['GET', 'HEAD'].includes(method)) {
+    res.setHeader('Allow', 'GET, HEAD');
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
 
   const preferFillTo10 = String(req.query.fill || '0') === '1';
   const pending = String(req.query.pending || '') === '1';
