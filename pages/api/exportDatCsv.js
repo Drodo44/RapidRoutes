@@ -36,12 +36,27 @@ async function selectLanes({ pending, days, all }) {
 
 async function buildAllRows(lanes, preferFillTo10) {
   const allRows = [];
-  for (const lane of lanes) {
-    // Validate and build pairs per lane
-    const crawl = await planPairsForLane(lane, { preferFillTo10 });
-    const rows = rowsFromBaseAndPairs(lane, crawl.baseOrigin, crawl.baseDest, crawl.pairs, preferFillTo10);
-    allRows.push(...rows);
+  console.log(`BULK EXPORT: Processing ${lanes.length} lanes with preferFillTo10=${preferFillTo10}`);
+  
+  for (let i = 0; i < lanes.length; i++) {
+    const lane = lanes[i];
+    try {
+      console.log(`BULK EXPORT: Processing lane ${i+1}/${lanes.length}: ${lane.origin_city}, ${lane.origin_state} -> ${lane.dest_city}, ${lane.dest_state}`);
+      
+      // Validate and build pairs per lane
+      const crawl = await planPairsForLane(lane, { preferFillTo10 });
+      const rows = rowsFromBaseAndPairs(lane, crawl.baseOrigin, crawl.baseDest, crawl.pairs, preferFillTo10);
+      
+      console.log(`BULK EXPORT: Lane ${i+1} generated ${rows.length} rows`);
+      allRows.push(...rows);
+    } catch (laneError) {
+      console.error(`BULK EXPORT: Error processing lane ${i+1} (${lane.id}):`, laneError);
+      // Skip this lane but continue with others
+      continue;
+    }
   }
+  
+  console.log(`BULK EXPORT: Total rows generated: ${allRows.length}`);
   return allRows;
 }
 
