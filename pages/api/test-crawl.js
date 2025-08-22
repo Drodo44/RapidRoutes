@@ -1,9 +1,40 @@
 // pages/api/test-crawl.js
 import { generateCrawlPairs } from '../../lib/datcrawl.js';
+import { adminSupabase } from '../../utils/supabaseClient';
 
 export default async function handler(req, res) {
   try {
     console.log('=== CRAWL TEST START ===');
+    
+    // First, check if the cities exist in the database
+    const { data: belvidere } = await adminSupabase
+      .from('cities')
+      .select('*')
+      .ilike('city', 'Belvidere')
+      .ilike('state_or_province', 'IL')
+      .limit(1);
+    
+    const { data: schofield } = await adminSupabase
+      .from('cities')
+      .select('*')
+      .ilike('city', 'Schofield')
+      .ilike('state_or_province', 'WI')
+      .limit(1);
+    
+    console.log('Belvidere found:', belvidere?.length > 0, belvidere?.[0]);
+    console.log('Schofield found:', schofield?.length > 0, schofield?.[0]);
+    
+    // Test nearby cities for Belvidere
+    const { data: nearbyBelvidere } = await adminSupabase
+      .from('cities')
+      .select('city, state_or_province, latitude, longitude')
+      .gte('latitude', (belvidere?.[0]?.latitude || 42.264) - 1)
+      .lte('latitude', (belvidere?.[0]?.latitude || 42.264) + 1)
+      .gte('longitude', (belvidere?.[0]?.longitude || -88.844) - 1)
+      .lte('longitude', (belvidere?.[0]?.longitude || -88.844) + 1)
+      .limit(10);
+    
+    console.log('Nearby Belvidere cities:', nearbyBelvidere?.length || 0);
     
     const result = await generateCrawlPairs({
       origin: { city: 'Belvidere', state: 'IL' },
@@ -19,6 +50,11 @@ export default async function handler(req, res) {
     
     res.status(200).json({
       success: true,
+      cityCheck: {
+        belvidereFound: belvidere?.length > 0,
+        schofieldFound: schofield?.length > 0,
+        nearbyCities: nearbyBelvidere?.length || 0
+      },
       pairs: result.pairs.length,
       shortfall: result.shortfallReason,
       samplePairs: result.pairs.slice(0, 3).map(p => `${p.pickup.city}, ${p.pickup.state} -> ${p.delivery.city}, ${p.delivery.state}`)
@@ -26,6 +62,6 @@ export default async function handler(req, res) {
     
   } catch (error) {
     console.error('CRAWL TEST ERROR:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: error.message, stack: error.stack });
   }
 }
