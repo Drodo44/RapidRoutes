@@ -8,65 +8,59 @@
 import { adminSupabase } from '../../utils/supabaseClient';
 import { planPairsForLane, rowsFromBaseAndPairs, DAT_HEADERS, toCsv, chunkRows } from '../../lib/datCsvBuilder';
 
-// EMERGENCY SIMPLE PAIR GENERATOR - ULTRA SIMPLE VERSION
+// EMERGENCY SIMPLE PAIR GENERATOR - GUARANTEED DIVERSITY VERSION
 async function emergencyPairs(origin, dest) {
   try {
     console.log(`EMERGENCY: Generating pairs for ${origin.city}, ${origin.state} -> ${dest.city}, ${dest.state}`);
     
-    // Get a variety of cities from different states
-    const { data: allCities } = await adminSupabase
-      .from('cities')
-      .select('city, state_or_province, zip')
-      .not('state_or_province', 'eq', origin.state)
-      .not('state_or_province', 'eq', dest.state)
-      .limit(200);
+    // Hardcoded diverse cities to guarantee variety (using major freight hubs)
+    const diverseCities = [
+      { city: 'Atlanta', state: 'GA', zip: '30303' },
+      { city: 'Chicago', state: 'IL', zip: '60601' },
+      { city: 'Dallas', state: 'TX', zip: '75201' },
+      { city: 'Los Angeles', state: 'CA', zip: '90001' },
+      { city: 'Phoenix', state: 'AZ', zip: '85001' },
+      { city: 'Denver', state: 'CO', zip: '80201' },
+      { city: 'Miami', state: 'FL', zip: '33101' },
+      { city: 'Seattle', state: 'WA', zip: '98101' },
+      { city: 'Boston', state: 'MA', zip: '02101' },
+      { city: 'Detroit', state: 'MI', zip: '48201' },
+      { city: 'Las Vegas', state: 'NV', zip: '89101' },
+      { city: 'Memphis', state: 'TN', zip: '38101' },
+      { city: 'Kansas City', state: 'MO', zip: '64101' },
+      { city: 'Columbus', state: 'OH', zip: '43201' },
+      { city: 'Portland', state: 'OR', zip: '97201' }
+    ];
     
-    if (!allCities || allCities.length < 10) {
-      console.error('EMERGENCY: Not enough cities found');
-      return { 
-        pairs: [], 
-        baseOrigin: { city: origin.city, state: origin.state, zip: '' }, 
-        baseDest: { city: dest.city, state: dest.state, zip: '' } 
-      };
+    // Filter out origin and destination states
+    const availableCities = diverseCities.filter(city => 
+      city.state !== origin.state && city.state !== dest.state
+    );
+    
+    console.log(`EMERGENCY: Using ${availableCities.length} diverse cities (excluding ${origin.state} and ${dest.state})`);
+    
+    if (availableCities.length < 10) {
+      console.warn('EMERGENCY: Not enough diverse cities, using all available');
     }
     
-    console.log(`EMERGENCY: Found ${allCities.length} cities from other states`);
-    
-    // Create exactly 5 pairs using random cities from different states
+    // Create exactly 5 pairs using different major freight hubs
     const pairs = [];
-    const usedStates = new Set([origin.state, dest.state]);
-    
     for (let i = 0; i < 5; i++) {
-      // Pick origin city from different state
-      let originCity = null;
-      for (const city of allCities) {
-        if (!usedStates.has(city.state_or_province)) {
-          originCity = city;
-          break;
-        }
-      }
-      if (!originCity) originCity = allCities[i % allCities.length];
+      const originIdx = (i * 2) % availableCities.length;
+      const destIdx = (i * 2 + 1) % availableCities.length;
       
-      // Pick dest city from different state
-      let destCity = null;
-      for (const city of allCities) {
-        if (city.state_or_province !== originCity.state_or_province && !usedStates.has(city.state_or_province)) {
-          destCity = city;
-          break;
-        }
-      }
-      if (!destCity) destCity = allCities[(i + 10) % allCities.length];
+      const originCity = availableCities[originIdx];
+      const destCity = availableCities[destIdx];
       
       pairs.push({
-        pickup: { city: originCity.city, state: originCity.state_or_province, zip: originCity.zip || '' },
-        delivery: { city: destCity.city, state: destCity.state_or_province, zip: destCity.zip || '' }
+        pickup: { city: originCity.city, state: originCity.state, zip: originCity.zip },
+        delivery: { city: destCity.city, state: destCity.state, zip: destCity.zip }
       });
-      
-      usedStates.add(originCity.state_or_province);
-      usedStates.add(destCity.state_or_province);
     }
     
-    console.log(`EMERGENCY: Generated ${pairs.length} pairs:`, pairs.map(p => `${p.pickup.city},${p.pickup.state} -> ${p.delivery.city},${p.delivery.state}`));
+    console.log(`EMERGENCY: Generated ${pairs.length} pairs using major freight hubs:`, 
+      pairs.map(p => `${p.pickup.city},${p.pickup.state} -> ${p.delivery.city},${p.delivery.state}`)
+    );
     
     return {
       pairs,
