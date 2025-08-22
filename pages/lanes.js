@@ -282,6 +282,18 @@ export default function LanesPage() {
     console.log('Bulk export clicked:', { fill });
     setMsg('Starting bulk export...');
     
+    // QUICK CRAWL TEST - Let's see what's happening
+    if (fill) {
+      try {
+        console.log('=== TESTING CRAWL GENERATION ===');
+        const testResponse = await fetch('/api/test-crawl');
+        const testResult = await testResponse.json();
+        console.log('CRAWL TEST RESULT:', testResult);
+      } catch (e) {
+        console.log('Crawl test failed:', e);
+      }
+    }
+    
     try {
       const head = await fetch(`/api/exportDatCsv?pending=1&fill=${fill?'1':'0'}`, { method:'HEAD' });
       console.log('Bulk export HEAD response:', head.status);
