@@ -54,6 +54,9 @@ export default function LanesPage() {
   const [showIntermodalEmail, setShowIntermodalEmail] = useState(false);
   const [intermodalLane, setIntermodalLane] = useState(null);
 
+  // Edit functionality
+  const [editingLane, setEditingLane] = useState(null);
+
   function onPickOrigin(it){ setOrigin(`${it.city}, ${it.state}`); setOriginZip(it.zip || ''); }
   function onPickDest(it){ setDest(`${it.city}, ${it.state}`); setDestZip(it.zip || ''); }
 
@@ -409,6 +412,55 @@ export default function LanesPage() {
     }
   }
 
+  function startEdit(lane) {
+    setEditingLane({ ...lane });
+  }
+
+  function cancelEdit() {
+    setEditingLane(null);
+  }
+
+  async function saveEdit() {
+    if (!editingLane) return;
+    
+    try {
+      const response = await fetch(`/api/lanes?id=${editingLane.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          origin_city: editingLane.origin_city,
+          origin_state: editingLane.origin_state,
+          origin_zip: editingLane.origin_zip,
+          dest_city: editingLane.dest_city,
+          dest_state: editingLane.dest_state,
+          dest_zip: editingLane.dest_zip,
+          equipment_code: editingLane.equipment_code,
+          length_ft: editingLane.length_ft,
+          weight_lbs: editingLane.weight_lbs,
+          randomize_weight: editingLane.randomize_weight,
+          weight_min: editingLane.weight_min,
+          weight_max: editingLane.weight_max,
+          full_partial: editingLane.full_partial,
+          pickup_earliest: editingLane.pickup_earliest,
+          pickup_latest: editingLane.pickup_latest,
+          commodity: editingLane.commodity,
+          comment: editingLane.comment
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update lane');
+      }
+
+      setMsg('✅ Lane updated successfully');
+      setEditingLane(null);
+      await loadLists();
+    } catch (error) {
+      setMsg(`❌ Failed to update lane: ${error.message}`);
+    }
+  }
+
   return (
     <>
       <Head>
@@ -532,6 +584,7 @@ export default function LanesPage() {
                 <button onClick={()=>openCrawlPreview(l)} className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-sm rounded-lg">Preview</button>
                 <button onClick={()=>perLaneExport(l,false)} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg">Export</button>
                 <button onClick={()=>perLaneExport(l,true)} className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded-lg">Export (Fill-to-5)</button>
+                <button onClick={()=>startEdit(l)} className="px-3 py-1.5 bg-yellow-600 hover:bg-yellow-700 text-white text-sm rounded-lg">Edit</button>
                 {l.status!=='posted' && <button onClick={()=>updateStatus(l,'posted')} className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg">Mark Posted</button>}
                 {l.status==='posted' && <button onClick={()=>updateStatus(l,'pending')} className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-sm rounded-lg">Unpost</button>}
                 {l.status!=='covered' && <button onClick={()=>updateStatus(l,'covered')} className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-sm rounded-lg">Mark Covered</button>}
@@ -598,6 +651,151 @@ export default function LanesPage() {
           lane={intermodalLane}
           onClose={() => setShowIntermodalEmail(false)}
         />
+      )}
+
+      {/* Edit Lane Modal */}
+      {editingLane && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="w-full max-w-2xl rounded-xl border border-gray-700 bg-[#0f1115] p-6 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-gray-100 font-semibold mb-4">Edit Lane</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">Origin City, State</label>
+                <input 
+                  value={`${editingLane.origin_city}, ${editingLane.origin_state}`}
+                  onChange={(e) => {
+                    const [city, state] = e.target.value.split(',').map(s => s.trim());
+                    setEditingLane({...editingLane, origin_city: city || '', origin_state: state || ''});
+                  }}
+                  className="inp" 
+                  placeholder="City, State"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">Origin ZIP</label>
+                <input 
+                  value={editingLane.origin_zip || ''}
+                  onChange={(e) => setEditingLane({...editingLane, origin_zip: e.target.value})}
+                  className="inp" 
+                  placeholder="ZIP code"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">Destination City, State</label>
+                <input 
+                  value={`${editingLane.dest_city}, ${editingLane.dest_state}`}
+                  onChange={(e) => {
+                    const [city, state] = e.target.value.split(',').map(s => s.trim());
+                    setEditingLane({...editingLane, dest_city: city || '', dest_state: state || ''});
+                  }}
+                  className="inp" 
+                  placeholder="City, State"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">Destination ZIP</label>
+                <input 
+                  value={editingLane.dest_zip || ''}
+                  onChange={(e) => setEditingLane({...editingLane, dest_zip: e.target.value})}
+                  className="inp" 
+                  placeholder="ZIP code"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">Equipment Code</label>
+                <input 
+                  value={editingLane.equipment_code || ''}
+                  onChange={(e) => setEditingLane({...editingLane, equipment_code: e.target.value.toUpperCase()})}
+                  className="inp" 
+                  placeholder="e.g., FD, V, R"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">Length (ft)</label>
+                <input 
+                  type="number"
+                  value={editingLane.length_ft || 48}
+                  onChange={(e) => setEditingLane({...editingLane, length_ft: parseInt(e.target.value) || 48})}
+                  className="inp"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">Weight (lbs)</label>
+                <input 
+                  type="number"
+                  value={editingLane.weight_lbs || ''}
+                  onChange={(e) => setEditingLane({...editingLane, weight_lbs: parseInt(e.target.value) || null})}
+                  className="inp"
+                  placeholder="Weight in pounds"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">Pickup Earliest</label>
+                <input 
+                  type="date"
+                  value={editingLane.pickup_earliest || ''}
+                  onChange={(e) => setEditingLane({...editingLane, pickup_earliest: e.target.value})}
+                  className="inp"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">Pickup Latest</label>
+                <input 
+                  type="date"
+                  value={editingLane.pickup_latest || ''}
+                  onChange={(e) => setEditingLane({...editingLane, pickup_latest: e.target.value})}
+                  className="inp"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">Commodity</label>
+                <input 
+                  value={editingLane.commodity || ''}
+                  onChange={(e) => setEditingLane({...editingLane, commodity: e.target.value})}
+                  className="inp"
+                  placeholder="What you're shipping"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">Full/Partial</label>
+                <select 
+                  value={editingLane.full_partial || 'full'}
+                  onChange={(e) => setEditingLane({...editingLane, full_partial: e.target.value})}
+                  className="inp"
+                >
+                  <option value="full">Full Load</option>
+                  <option value="partial">Partial Load</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm text-gray-300 mb-1">Comments</label>
+              <textarea 
+                value={editingLane.comment || ''}
+                onChange={(e) => setEditingLane({...editingLane, comment: e.target.value})}
+                className="inp"
+                rows={3}
+                placeholder="Additional notes or requirements"
+              />
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button onClick={cancelEdit} className="btn-secondary">Cancel</button>
+              <button onClick={saveEdit} className="btn-primary">Save Changes</button>
+            </div>
+          </div>
+        </div>
       )}
 
       <style jsx>{`
