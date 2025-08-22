@@ -288,7 +288,7 @@ export default function LanesPage() {
         console.log('=== TESTING CRAWL GENERATION ===');
         const testResponse = await fetch(`/api/test-crawl?t=${Date.now()}`); // Cache bust
         const testResult = await testResponse.json();
-        console.log('CRAWL TEST RESULT:', testResult);
+        console.log('CRAWL TEST RESULT (detailed):', JSON.stringify(testResult, null, 2));
       } catch (e) {
         console.log('Crawl test failed:', e);
       }
