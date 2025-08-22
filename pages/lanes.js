@@ -456,11 +456,14 @@ export default function LanesPage() {
   async function saveEdit() {
     if (!editingLane) return;
     
+    console.log('Saving lane edit...', editingLane);
+    
     try {
-      const response = await fetch(`/api/lanes?id=${editingLane.id}`, {
+      const response = await fetch('/api/lanes', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          id: editingLane.id,
           origin_city: editingLane.origin_city,
           origin_state: editingLane.origin_state,
           origin_zip: editingLane.origin_zip,
@@ -480,16 +483,23 @@ export default function LanesPage() {
           comment: editingLane.comment
         })
       });
+      
+      console.log('Save response status:', response.status);
 
       if (!response.ok) {
         const errorData = await response.json();
+        console.error('Save error:', errorData);
         throw new Error(errorData.error || 'Failed to update lane');
       }
+
+      const result = await response.json();
+      console.log('Save successful:', result);
 
       setMsg('✅ Lane updated successfully');
       setEditingLane(null);
       await loadLists();
     } catch (error) {
+      console.error('Save edit error:', error);
       setMsg(`❌ Failed to update lane: ${error.message}`);
     }
   }
