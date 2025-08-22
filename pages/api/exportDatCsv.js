@@ -143,11 +143,13 @@ async function selectLanes({ pending, days, all }) {
 async function buildAllRows(lanes, preferFillTo10) {
   const allRows = [];
   console.log(`BULK EXPORT: Processing ${lanes.length} lanes with preferFillTo10=${preferFillTo10}`);
+  console.log(`🔍 PARAMETER CHECK: preferFillTo10 type: ${typeof preferFillTo10}, value: ${preferFillTo10}, strict boolean: ${preferFillTo10 === true}`);
   
   for (let i = 0; i < lanes.length; i++) {
     const lane = lanes[i];
     try {
       console.log(`BULK EXPORT: Processing lane ${i+1}/${lanes.length}: ${lane.origin_city}, ${lane.origin_state} -> ${lane.dest_city}, ${lane.dest_state}`);
+      console.log(`🔍 LANE ${i+1} CHECK: Will use emergency mode? ${preferFillTo10 ? 'YES' : 'NO'}`);
       
       let crawl, rows;
       
