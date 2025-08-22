@@ -30,9 +30,21 @@ export default async function handler(req, res) {
     const crawl = await planPairsForLane(lane, { preferFillTo10 });
     const rows = rowsFromBaseAndPairs(lane, crawl.baseOrigin, crawl.baseDest, crawl.pairs, preferFillTo10);
 
+    // Enhanced debug info
+    console.log(`FILL-TO-5 EXPORT DEBUG:`);
+    console.log(`  preferFillTo10: ${preferFillTo10}`);
+    console.log(`  Generated pairs: ${crawl.pairs?.length || 0}`);
+    console.log(`  Total rows: ${rows.length} (expected: ${preferFillTo10 ? 12 : 8})`);
+    console.log(`  Shortfall reason: ${crawl.shortfallReason || 'none'}`);
+    console.log(`  Pairs details:`, crawl.pairs?.map(p => `${p.pickup?.city}, ${p.pickup?.state} -> ${p.delivery?.city}, ${p.delivery?.state}`));
+    
     const csv = toCsv(DAT_HEADERS, rows);
     const filename = `DAT_Upload_${id}.csv`;
 
+    // Add debug headers
+    res.setHeader('X-Debug-Pairs', String(crawl.pairs.length));
+    res.setHeader('X-Debug-Rows', String(rows.length));
+    res.setHeader('X-Debug-FillTo10', String(preferFillTo10));
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     return res.status(200).send(csv);

@@ -209,6 +209,12 @@ export default function LanesPage() {
       const response = await fetch(url);
       console.log('API response:', response.status, response.statusText);
       
+      // Log debug headers
+      const debugPairs = response.headers.get('X-Debug-Pairs');
+      const debugRows = response.headers.get('X-Debug-Rows');
+      const debugFillTo10 = response.headers.get('X-Debug-FillTo10');
+      console.log('FILL-TO-5 DEBUG:', { pairs: debugPairs, rows: debugRows, fillTo10: debugFillTo10 });
+      
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Export failed:', response.status, errorText);
