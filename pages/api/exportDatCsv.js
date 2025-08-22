@@ -180,6 +180,8 @@ async function buildAllRows(lanes, preferFillTo10) {
             rowWeight = lane.weight_lbs || 45000; // Use actual weight or sensible default
           }
           
+          console.log(`EMERGENCY DEBUG: Adding posting ${posting.pickup.city},${posting.pickup.state} -> ${posting.delivery.city},${posting.delivery.state}`);
+          
           // Email contact
           rows.push({
             'Pickup Earliest*': lane.pickup_earliest,
@@ -234,6 +236,8 @@ async function buildAllRows(lanes, preferFillTo10) {
             'Commodity': lane.commodity || ''
           });
         }
+        
+        console.log(`EMERGENCY DEBUG: Lane ${i+1} generated ${rows.length} rows from ${postings.length} postings`);
         
       } else {
         // Normal mode
