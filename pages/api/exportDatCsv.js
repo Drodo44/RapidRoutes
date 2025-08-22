@@ -49,14 +49,18 @@ async function emergencyPairs(origin, dest) {
       .from('cities')
       .select('city, state_or_province, zip, kma_code')
       .neq('city', originCity.city)
-      .limit(50);
+      .neq('state_or_province', originCity.state_or_province) // Different state for diversity
+      .not('latitude', 'is', null) // Only cities with coordinates
+      .limit(100);
     
     // Get nearby cities for destination
     const { data: nearDests } = await adminSupabase
       .from('cities')
       .select('city, state_or_province, zip, kma_code')
       .neq('city', destCity.city)
-      .limit(50);
+      .neq('state_or_province', destCity.state_or_province) // Different state for diversity
+      .not('latitude', 'is', null) // Only cities with coordinates
+      .limit(100);
     
     console.log(`EMERGENCY: Found ${nearOrigins?.length || 0} potential origin alternatives`);
     console.log(`EMERGENCY: Found ${nearDests?.length || 0} potential dest alternatives`);
