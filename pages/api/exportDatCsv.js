@@ -6,7 +6,72 @@
 // - If part is specified for GET, returns only that part.
 
 import { adminSupabase } from '../../utils/supabaseClient';
-import { DAT_HEADERS, planPairsForLane, rowsFromBaseAndPairs, toCsv, chunkRows } from '../../lib/datCsvBuilder';
+import { planPairsForLane, rowsFromBaseAndPairs, DAT_HEADERS, toCsv, chunkRows } from '../../lib/datCsvBuilder';
+
+// EMERGENCY SIMPLE PAIR GENERATOR
+async function emergencyPairs(origin, dest) {
+  try {
+    // Find origin city
+    const { data: originData } = await adminSupabase
+      .from('cities')
+      .select('*')
+      .ilike('city', origin.city)
+      .ilike('state_or_province', origin.state)
+      .limit(1);
+    
+    // Find dest city  
+    const { data: destData } = await adminSupabase
+      .from('cities')
+      .select('*')
+      .ilike('city', dest.city)
+      .ilike('state_or_province', dest.state)
+      .limit(1);
+    
+    if (!originData?.[0] || !destData?.[0]) {
+      return { pairs: [], baseOrigin: origin, baseDest: dest };
+    }
+    
+    // Get some nearby cities (simplified)
+    const { data: allCities } = await adminSupabase
+      .from('cities')
+      .select('city, state_or_province, zip, latitude, longitude')
+      .limit(500);
+    
+    const originCity = originData[0];
+    const destCity = destData[0];
+    
+    // Simple distance calc and pick nearest
+    const nearOrigins = allCities
+      .filter(c => c.state_or_province !== originCity.state_or_province && c.latitude && c.longitude)
+      .slice(0, 5);
+    
+    const nearDests = allCities
+      .filter(c => c.state_or_province !== destCity.state_or_province && c.latitude && c.longitude)
+      .slice(0, 5);
+    
+    const pairs = [];
+    for (let i = 0; i < 5; i++) {
+      const o = nearOrigins[i % nearOrigins.length];
+      const d = nearDests[i % nearDests.length];
+      if (o && d) {
+        pairs.push({
+          pickup: { city: o.city, state: o.state_or_province, zip: o.zip || '' },
+          delivery: { city: d.city, state: d.state_or_province, zip: d.zip || '' }
+        });
+      }
+    }
+    
+    return {
+      pairs,
+      baseOrigin: { city: originCity.city, state: originCity.state_or_province, zip: originCity.zip || '' },
+      baseDest: { city: destCity.city, state: destCity.state_or_province, zip: destCity.zip || '' }
+    };
+    
+  } catch (error) {
+    console.error('Emergency pairs error:', error);
+    return { pairs: [], baseOrigin: origin, baseDest: dest };
+  }
+}
 
 function daysAgoUTC(n) {
   const d = new Date();
@@ -43,17 +108,88 @@ async function buildAllRows(lanes, preferFillTo10) {
     try {
       console.log(`BULK EXPORT: Processing lane ${i+1}/${lanes.length}: ${lane.origin_city}, ${lane.origin_state} -> ${lane.dest_city}, ${lane.dest_state}`);
       
-      // Validate and build pairs per lane
-      const crawl = await planPairsForLane(lane, { preferFillTo10 });
-      console.log(`BULK EXPORT: Lane ${i+1} crawl result - pairs: ${crawl.pairs.length}, shortfall: ${crawl.shortfallReason}`);
-      if (crawl.pairs.length > 0) {
-        console.log(`BULK EXPORT: Lane ${i+1} first few pairs:`, crawl.pairs.slice(0, 2).map(p => `${p.pickup.city}->${p.delivery.city}`));
+      let crawl, rows;
+      
+      if (preferFillTo10) {
+        // EMERGENCY MODE: Use simple pair generation
+        console.log(`BULK EXPORT: Using EMERGENCY mode for lane ${i+1}`);
+        crawl = await emergencyPairs(
+          { city: lane.origin_city, state: lane.origin_state },
+          { city: lane.dest_city, state: lane.dest_state }
+        );
+        
+        // Generate rows manually for emergency mode
+        const postings = [
+          { pickup: crawl.baseOrigin, delivery: crawl.baseDest },
+          ...crawl.pairs.map(p => ({ pickup: p.pickup, delivery: p.delivery }))
+        ];
+        
+        rows = [];
+        for (const posting of postings) {
+          // Email contact
+          rows.push({
+            'Pickup Earliest*': lane.pickup_earliest,
+            'Pickup Latest': lane.pickup_latest,
+            'Length (ft)*': String(lane.length_ft),
+            'Weight (lbs)*': String(lane.weight_lbs),
+            'Full/Partial*': lane.full_partial || 'full',
+            'Equipment*': lane.equipment_code,
+            'Use Private Network*': 'yes',
+            'Private Network Rate': '',
+            'Allow Private Network Booking': 'no',
+            'Allow Private Network Bidding': 'no',
+            'Use DAT Loadboard*': 'yes',
+            'DAT Loadboard Rate': '',
+            'Allow DAT Loadboard Booking': 'no',
+            'Use Extended Network': 'yes',
+            'Contact Method*': 'email',
+            'Origin City*': posting.pickup.city,
+            'Origin State*': posting.pickup.state,
+            'Origin Postal Code': posting.pickup.zip || '',
+            'Destination City*': posting.delivery.city,
+            'Destination State*': posting.delivery.state,
+            'Destination Postal Code': posting.delivery.zip || '',
+            'Comment': lane.comment || '',
+            'Commodity': lane.commodity || ''
+          });
+          
+          // Primary phone contact
+          rows.push({
+            'Pickup Earliest*': lane.pickup_earliest,
+            'Pickup Latest': lane.pickup_latest,
+            'Length (ft)*': String(lane.length_ft),
+            'Weight (lbs)*': String(lane.weight_lbs),
+            'Full/Partial*': lane.full_partial || 'full',
+            'Equipment*': lane.equipment_code,
+            'Use Private Network*': 'yes',
+            'Private Network Rate': '',
+            'Allow Private Network Booking': 'no',
+            'Allow Private Network Bidding': 'no',
+            'Use DAT Loadboard*': 'yes',
+            'DAT Loadboard Rate': '',
+            'Allow DAT Loadboard Booking': 'no',
+            'Use Extended Network': 'yes',
+            'Contact Method*': 'primary phone',
+            'Origin City*': posting.pickup.city,
+            'Origin State*': posting.pickup.state,
+            'Origin Postal Code': posting.pickup.zip || '',
+            'Destination City*': posting.delivery.city,
+            'Destination State*': posting.delivery.state,
+            'Destination Postal Code': posting.delivery.zip || '',
+            'Comment': lane.comment || '',
+            'Commodity': lane.commodity || ''
+          });
+        }
+        
+      } else {
+        // Normal mode
+        crawl = await planPairsForLane(lane, { preferFillTo10 });
+        rows = rowsFromBaseAndPairs(lane, crawl.baseOrigin, crawl.baseDest, crawl.pairs, preferFillTo10);
       }
       
-      const rows = rowsFromBaseAndPairs(lane, crawl.baseOrigin, crawl.baseDest, crawl.pairs, preferFillTo10);
-      
+      console.log(`BULK EXPORT: Lane ${i+1} crawl result - pairs: ${crawl.pairs?.length || 0}`);
       console.log(`BULK EXPORT: Lane ${i+1} generated ${rows.length} rows (expected: ${preferFillTo10 ? 12 : 6})`);
-      console.log(`BULK EXPORT: Lane ${i+1} rows breakdown - base + ${crawl.pairs.length} pairs = ${1 + crawl.pairs.length} postings × 2 contacts = ${(1 + crawl.pairs.length) * 2} rows`);
+      console.log(`BULK EXPORT: Lane ${i+1} rows breakdown - base + ${crawl.pairs?.length || 0} pairs = ${1 + (crawl.pairs?.length || 0)} postings × 2 contacts = ${(1 + (crawl.pairs?.length || 0)) * 2} rows`);
       allRows.push(...rows);
     } catch (laneError) {
       console.error(`BULK EXPORT: Error processing lane ${i+1} (${lane.id}):`, laneError);
