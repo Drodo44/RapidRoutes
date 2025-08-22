@@ -28,7 +28,7 @@ export default async function handler(req, res) {
 
     // Build crawl plan
     const crawl = await planPairsForLane(lane, { preferFillTo10 });
-    const rows = rowsFromBaseAndPairs(lane, crawl.baseOrigin, crawl.baseDest, crawl.pairs);
+    const rows = rowsFromBaseAndPairs(lane, crawl.baseOrigin, crawl.baseDest, crawl.pairs, preferFillTo10);
 
     const csv = toCsv(DAT_HEADERS, rows);
     const filename = `DAT_Upload_${id}.csv`;

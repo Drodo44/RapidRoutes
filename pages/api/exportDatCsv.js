@@ -39,7 +39,7 @@ async function buildAllRows(lanes, preferFillTo10) {
   for (const lane of lanes) {
     // Validate and build pairs per lane
     const crawl = await planPairsForLane(lane, { preferFillTo10 });
-    const rows = rowsFromBaseAndPairs(lane, crawl.baseOrigin, crawl.baseDest, crawl.pairs);
+    const rows = rowsFromBaseAndPairs(lane, crawl.baseOrigin, crawl.baseDest, crawl.pairs, preferFillTo10);
     allRows.push(...rows);
   }
   return allRows;
