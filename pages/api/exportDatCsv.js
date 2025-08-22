@@ -268,11 +268,12 @@ async function buildAllRows(lanes, preferFillTo10) {
 }
 
 export default async function handler(req, res) {
-  const method = req.method;
-  if (method !== 'GET' && method !== 'HEAD') {
-    res.setHeader('Allow', 'GET, HEAD');
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  const { method } = req;
+  
+  console.log(`🕐 API CALL TIMESTAMP: ${new Date().toISOString()} - Method: ${method}`);
+  console.log(`🔍 QUERY PARAMS:`, req.query);
+  
+  if (!['GET', 'HEAD'].includes(method)) {
 
   const preferFillTo10 = String(req.query.fill || '0') === '1';
   const pending = String(req.query.pending || '') === '1';
