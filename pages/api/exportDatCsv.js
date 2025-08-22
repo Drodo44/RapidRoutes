@@ -8,118 +8,79 @@
 import { adminSupabase } from '../../utils/supabaseClient';
 import { planPairsForLane, rowsFromBaseAndPairs, DAT_HEADERS, toCsv, chunkRows } from '../../lib/datCsvBuilder';
 
-// EMERGENCY SIMPLE PAIR GENERATOR - FIXED VERSION
+// EMERGENCY SIMPLE PAIR GENERATOR - ULTRA SIMPLE VERSION
 async function emergencyPairs(origin, dest) {
   try {
-    // Find origin city exactly
-    const { data: originData } = await adminSupabase
-      .from('cities')
-      .select('*')
-      .ilike('city', origin.city)
-      .ilike('state_or_province', origin.state)
-      .limit(1);
+    console.log(`EMERGENCY: Generating pairs for ${origin.city}, ${origin.state} -> ${dest.city}, ${dest.state}`);
     
-    // Find dest city exactly
-    const { data: destData } = await adminSupabase
-      .from('cities')
-      .select('*')
-      .ilike('city', dest.city)
-      .ilike('state_or_province', dest.state)
-      .limit(1);
-    
-    if (!originData?.[0] || !destData?.[0]) {
-      console.error('EMERGENCY: Cities not found', origin, dest);
-      return { pairs: [], baseOrigin: origin, baseDest: dest };
-    }
-    
-    const originCity = originData[0];
-    const destCity = destData[0];
-    
-    console.log('EMERGENCY: Found cities', originCity.city, destCity.city);
-    
-    console.log('EMERGENCY: Origin coordinates:', originCity.latitude, originCity.longitude);
-    console.log('EMERGENCY: Dest coordinates:', destCity.latitude, destCity.longitude);
-    
-    // Get actual nearby cities using proper distance calculation
+    // Get a variety of cities from different states
     const { data: allCities } = await adminSupabase
       .from('cities')
-      .select('city, state_or_province, zip, latitude, longitude')
-      .not('latitude', 'is', null)
-      .not('longitude', 'is', null)
-      .limit(2000);
+      .select('city, state_or_province, zip')
+      .not('state_or_province', 'eq', origin.state)
+      .not('state_or_province', 'eq', dest.state)
+      .limit(200);
     
-    if (!allCities || allCities.length === 0) {
-      console.error('EMERGENCY: No cities with coordinates found');
-      return { pairs: [], baseOrigin: { city: originCity.city, state: originCity.state_or_province, zip: originCity.zip || '' }, baseDest: { city: destCity.city, state: destCity.state_or_province, zip: destCity.zip || '' } };
+    if (!allCities || allCities.length < 10) {
+      console.error('EMERGENCY: Not enough cities found');
+      return { 
+        pairs: [], 
+        baseOrigin: { city: origin.city, state: origin.state, zip: '' }, 
+        baseDest: { city: dest.city, state: dest.state, zip: '' } 
+      };
     }
     
-    console.log(`EMERGENCY: Retrieved ${allCities.length} cities for distance calculation`);
+    console.log(`EMERGENCY: Found ${allCities.length} cities from other states`);
     
-    // Calculate actual distances and find nearby cities
-    function distance(lat1, lon1, lat2, lon2) {
-      const R = 3959; // Earth's radius in miles
-      const dLat = (lat2 - lat1) * Math.PI / 180;
-      const dLon = (lon2 - lon1) * Math.PI / 180;
-      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                Math.sin(dLon/2) * Math.sin(dLon/2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-      return R * c;
-    }
-    
-    // Find cities within 100 miles of origin
-    const nearOrigins = [];
-    if (originCity.latitude && originCity.longitude) {
-      for (const city of allCities) {
-        if (!city.latitude || !city.longitude) continue;
-        const dist = distance(originCity.latitude, originCity.longitude, city.latitude, city.longitude);
-        if (dist > 0 && dist <= 100 && city.state_or_province !== originCity.state_or_province) {
-          nearOrigins.push({ ...city, distance: dist });
-        }
-      }
-    }
-    
-    // Find cities within 100 miles of destination
-    const nearDests = [];
-    if (destCity.latitude && destCity.longitude) {
-      for (const city of allCities) {
-        if (!city.latitude || !city.longitude) continue;
-        const dist = distance(destCity.latitude, destCity.longitude, city.latitude, city.longitude);
-        if (dist > 0 && dist <= 100 && city.state_or_province !== destCity.state_or_province) {
-          nearDests.push({ ...city, distance: dist });
-        }
-      }
-    }
-    
-    console.log(`EMERGENCY: Found ${nearOrigins.length} near origins, ${nearDests.length} near dests`);
-    
-    // Sort by distance and take closest
-    nearOrigins.sort((a, b) => a.distance - b.distance);
-    nearDests.sort((a, b) => a.distance - b.distance);
-    
-    // Generate exactly 5 pairs
+    // Create exactly 5 pairs using random cities from different states
     const pairs = [];
+    const usedStates = new Set([origin.state, dest.state]);
+    
     for (let i = 0; i < 5; i++) {
-      const o = nearOrigins[i] || nearOrigins[i % nearOrigins.length] || originCity;
-      const d = nearDests[i] || nearDests[i % nearDests.length] || destCity;
+      // Pick origin city from different state
+      let originCity = null;
+      for (const city of allCities) {
+        if (!usedStates.has(city.state_or_province)) {
+          originCity = city;
+          break;
+        }
+      }
+      if (!originCity) originCity = allCities[i % allCities.length];
+      
+      // Pick dest city from different state
+      let destCity = null;
+      for (const city of allCities) {
+        if (city.state_or_province !== originCity.state_or_province && !usedStates.has(city.state_or_province)) {
+          destCity = city;
+          break;
+        }
+      }
+      if (!destCity) destCity = allCities[(i + 10) % allCities.length];
       
       pairs.push({
-        pickup: { city: o.city, state: o.state_or_province, zip: o.zip || '' },
-        delivery: { city: d.city, state: d.state_or_province, zip: d.zip || '' }
+        pickup: { city: originCity.city, state: originCity.state_or_province, zip: originCity.zip || '' },
+        delivery: { city: destCity.city, state: destCity.state_or_province, zip: destCity.zip || '' }
       });
+      
+      usedStates.add(originCity.state_or_province);
+      usedStates.add(destCity.state_or_province);
     }
     
-    console.log('EMERGENCY: Generated pairs:', pairs.map(p => `${p.pickup.city},${p.pickup.state} -> ${p.delivery.city},${p.delivery.state}`));
+    console.log(`EMERGENCY: Generated ${pairs.length} pairs:`, pairs.map(p => `${p.pickup.city},${p.pickup.state} -> ${p.delivery.city},${p.delivery.state}`));
     
     return {
       pairs,
-      baseOrigin: { city: originCity.city, state: originCity.state_or_province, zip: originCity.zip || '' },
-      baseDest: { city: destCity.city, state: destCity.state_or_province, zip: destCity.zip || '' }
+      baseOrigin: { city: origin.city, state: origin.state, zip: '' },
+      baseDest: { city: dest.city, state: dest.state, zip: '' }
     };
     
   } catch (error) {
     console.error('Emergency pairs error:', error);
-    return { pairs: [], baseOrigin: origin, baseDest: dest };
+    return { 
+      pairs: [], 
+      baseOrigin: { city: origin.city, state: origin.state, zip: '' }, 
+      baseDest: { city: dest.city, state: dest.state, zip: '' } 
+    };
   }
 }
 
