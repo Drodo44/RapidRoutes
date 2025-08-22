@@ -68,10 +68,31 @@ export default function EquipmentPicker({ id='equipment', label='Equipment Type'
   const filtered = useMemo(() => {
     const s = inputValue.trim().toLowerCase();
     if (!s) return list;
-    return list.filter(r => 
-      r.label.toLowerCase().includes(s) || 
-      String(r.code).toLowerCase().includes(s)
-    ).slice(0, 12); // Limit results for better performance
+    
+    // Prioritize exact code matches first, then partial matches
+    const exactCodeMatches = list.filter(r => 
+      String(r.code).toLowerCase() === s
+    );
+    
+    const codeStartsWithMatches = list.filter(r => 
+      String(r.code).toLowerCase().startsWith(s) && 
+      !exactCodeMatches.includes(r)
+    );
+    
+    const labelMatches = list.filter(r => 
+      r.label.toLowerCase().includes(s) && 
+      !exactCodeMatches.includes(r) && 
+      !codeStartsWithMatches.includes(r)
+    );
+    
+    const otherCodeMatches = list.filter(r => 
+      String(r.code).toLowerCase().includes(s) && 
+      !exactCodeMatches.includes(r) && 
+      !codeStartsWithMatches.includes(r) && 
+      !labelMatches.includes(r)
+    );
+    
+    return [...exactCodeMatches, ...codeStartsWithMatches, ...labelMatches, ...otherCodeMatches].slice(0, 12);
   }, [list, inputValue]);
 
   const handleItemClick = (item) => {
@@ -90,17 +111,27 @@ export default function EquipmentPicker({ id='equipment', label='Equipment Type'
     if (!value.trim()) {
       setSelectedItem(null);
       onChange?.('');
+      return;
     }
     
-    // If they type an exact code match, auto-select it
-    const exactMatch = list.find(item => 
-      item.code.toLowerCase() === value.trim().toLowerCase() ||
-      item.label.toLowerCase() === value.trim().toLowerCase()
+    // Prioritize exact code matches for auto-selection
+    const trimmedValue = value.trim().toUpperCase();
+    const exactCodeMatch = list.find(item => 
+      item.code === trimmedValue
     );
     
-    if (exactMatch) {
-      setSelectedItem(exactMatch);
-      onChange?.(exactMatch.code);
+    if (exactCodeMatch) {
+      setSelectedItem(exactCodeMatch);
+      onChange?.(exactCodeMatch.code);
+      return;
+    }
+    
+    // If typing just the code (like "FD"), don't auto-select partial matches
+    // Let them finish typing or click from dropdown
+    if (/^[A-Z]{1,4}$/.test(trimmedValue)) {
+      // Reset selection until they complete or click
+      setSelectedItem(null);
+      onChange?.(trimmedValue); // Pass through the raw code
     }
   };
 
