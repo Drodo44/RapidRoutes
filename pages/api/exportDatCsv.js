@@ -45,9 +45,15 @@ async function buildAllRows(lanes, preferFillTo10) {
       
       // Validate and build pairs per lane
       const crawl = await planPairsForLane(lane, { preferFillTo10 });
+      console.log(`BULK EXPORT: Lane ${i+1} crawl result - pairs: ${crawl.pairs.length}, shortfall: ${crawl.shortfallReason}`);
+      if (crawl.pairs.length > 0) {
+        console.log(`BULK EXPORT: Lane ${i+1} first few pairs:`, crawl.pairs.slice(0, 2).map(p => `${p.pickup.city}->${p.delivery.city}`));
+      }
+      
       const rows = rowsFromBaseAndPairs(lane, crawl.baseOrigin, crawl.baseDest, crawl.pairs, preferFillTo10);
       
-      console.log(`BULK EXPORT: Lane ${i+1} generated ${rows.length} rows`);
+      console.log(`BULK EXPORT: Lane ${i+1} generated ${rows.length} rows (expected: ${preferFillTo10 ? 12 : 6})`);
+      console.log(`BULK EXPORT: Lane ${i+1} rows breakdown - base + ${crawl.pairs.length} pairs = ${1 + crawl.pairs.length} postings × 2 contacts = ${(1 + crawl.pairs.length) * 2} rows`);
       allRows.push(...rows);
     } catch (laneError) {
       console.error(`BULK EXPORT: Error processing lane ${i+1} (${lane.id}):`, laneError);
