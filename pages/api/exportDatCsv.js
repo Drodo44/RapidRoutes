@@ -8,10 +8,10 @@
 import { adminSupabase } from '../../utils/supabaseClient';
 import { planPairsForLane, rowsFromBaseAndPairs, DAT_HEADERS, toCsv, chunkRows } from '../../lib/datCsvBuilder';
 
-// EMERGENCY SIMPLE PAIR GENERATOR
+// EMERGENCY SIMPLE PAIR GENERATOR - FIXED VERSION
 async function emergencyPairs(origin, dest) {
   try {
-    // Find origin city
+    // Find origin city exactly
     const { data: originData } = await adminSupabase
       .from('cities')
       .select('*')
@@ -19,7 +19,7 @@ async function emergencyPairs(origin, dest) {
       .ilike('state_or_province', origin.state)
       .limit(1);
     
-    // Find dest city  
+    // Find dest city exactly
     const { data: destData } = await adminSupabase
       .from('cities')
       .select('*')
@@ -28,38 +28,83 @@ async function emergencyPairs(origin, dest) {
       .limit(1);
     
     if (!originData?.[0] || !destData?.[0]) {
+      console.error('EMERGENCY: Cities not found', origin, dest);
       return { pairs: [], baseOrigin: origin, baseDest: dest };
     }
-    
-    // Get some nearby cities (simplified)
-    const { data: allCities } = await adminSupabase
-      .from('cities')
-      .select('city, state_or_province, zip, latitude, longitude')
-      .limit(500);
     
     const originCity = originData[0];
     const destCity = destData[0];
     
-    // Simple distance calc and pick nearest
-    const nearOrigins = allCities
-      .filter(c => c.state_or_province !== originCity.state_or_province && c.latitude && c.longitude)
-      .slice(0, 5);
+    console.log('EMERGENCY: Found cities', originCity.city, destCity.city);
     
-    const nearDests = allCities
-      .filter(c => c.state_or_province !== destCity.state_or_province && c.latitude && c.longitude)
-      .slice(0, 5);
+    // Get actual nearby cities using proper distance calculation
+    const { data: allCities } = await adminSupabase
+      .from('cities')
+      .select('city, state_or_province, zip, latitude, longitude')
+      .not('latitude', 'is', null)
+      .not('longitude', 'is', null)
+      .limit(2000);
     
-    const pairs = [];
-    for (let i = 0; i < 5; i++) {
-      const o = nearOrigins[i % nearOrigins.length];
-      const d = nearDests[i % nearDests.length];
-      if (o && d) {
-        pairs.push({
-          pickup: { city: o.city, state: o.state_or_province, zip: o.zip || '' },
-          delivery: { city: d.city, state: d.state_or_province, zip: d.zip || '' }
-        });
+    if (!allCities || allCities.length === 0) {
+      console.error('EMERGENCY: No cities with coordinates found');
+      return { pairs: [], baseOrigin: { city: originCity.city, state: originCity.state_or_province, zip: originCity.zip || '' }, baseDest: { city: destCity.city, state: destCity.state_or_province, zip: destCity.zip || '' } };
+    }
+    
+    // Calculate actual distances and find nearby cities
+    function distance(lat1, lon1, lat2, lon2) {
+      const R = 3959; // Earth's radius in miles
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c;
+    }
+    
+    // Find cities within 100 miles of origin
+    const nearOrigins = [];
+    if (originCity.latitude && originCity.longitude) {
+      for (const city of allCities) {
+        if (!city.latitude || !city.longitude) continue;
+        const dist = distance(originCity.latitude, originCity.longitude, city.latitude, city.longitude);
+        if (dist > 0 && dist <= 100 && city.state_or_province !== originCity.state_or_province) {
+          nearOrigins.push({ ...city, distance: dist });
+        }
       }
     }
+    
+    // Find cities within 100 miles of destination
+    const nearDests = [];
+    if (destCity.latitude && destCity.longitude) {
+      for (const city of allCities) {
+        if (!city.latitude || !city.longitude) continue;
+        const dist = distance(destCity.latitude, destCity.longitude, city.latitude, city.longitude);
+        if (dist > 0 && dist <= 100 && city.state_or_province !== destCity.state_or_province) {
+          nearDests.push({ ...city, distance: dist });
+        }
+      }
+    }
+    
+    console.log(`EMERGENCY: Found ${nearOrigins.length} near origins, ${nearDests.length} near dests`);
+    
+    // Sort by distance and take closest
+    nearOrigins.sort((a, b) => a.distance - b.distance);
+    nearDests.sort((a, b) => a.distance - b.distance);
+    
+    // Generate exactly 5 pairs
+    const pairs = [];
+    for (let i = 0; i < 5; i++) {
+      const o = nearOrigins[i] || nearOrigins[i % nearOrigins.length] || originCity;
+      const d = nearDests[i] || nearDests[i % nearDests.length] || destCity;
+      
+      pairs.push({
+        pickup: { city: o.city, state: o.state_or_province, zip: o.zip || '' },
+        delivery: { city: d.city, state: d.state_or_province, zip: d.zip || '' }
+      });
+    }
+    
+    console.log('EMERGENCY: Generated pairs:', pairs.map(p => `${p.pickup.city},${p.pickup.state} -> ${p.delivery.city},${p.delivery.state}`));
     
     return {
       pairs,
@@ -126,12 +171,20 @@ async function buildAllRows(lanes, preferFillTo10) {
         
         rows = [];
         for (const posting of postings) {
+          // Calculate weight for this row
+          let rowWeight;
+          if (lane.randomize_weight && lane.weight_min && lane.weight_max) {
+            rowWeight = Math.floor(Math.random() * (lane.weight_max - lane.weight_min + 1)) + lane.weight_min;
+          } else {
+            rowWeight = lane.weight_lbs || 45000; // Use actual weight or sensible default
+          }
+          
           // Email contact
           rows.push({
             'Pickup Earliest*': lane.pickup_earliest,
             'Pickup Latest': lane.pickup_latest,
             'Length (ft)*': String(lane.length_ft),
-            'Weight (lbs)*': String(lane.weight_lbs),
+            'Weight (lbs)*': String(rowWeight),
             'Full/Partial*': lane.full_partial || 'full',
             'Equipment*': lane.equipment_code,
             'Use Private Network*': 'yes',
@@ -158,7 +211,7 @@ async function buildAllRows(lanes, preferFillTo10) {
             'Pickup Earliest*': lane.pickup_earliest,
             'Pickup Latest': lane.pickup_latest,
             'Length (ft)*': String(lane.length_ft),
-            'Weight (lbs)*': String(lane.weight_lbs),
+            'Weight (lbs)*': String(rowWeight),
             'Full/Partial*': lane.full_partial || 'full',
             'Equipment*': lane.equipment_code,
             'Use Private Network*': 'yes',
