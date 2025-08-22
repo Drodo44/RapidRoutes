@@ -706,12 +706,10 @@ export default function LanesPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div>
-                <label className="block text-sm text-gray-300 mb-1">Equipment Code</label>
-                <input 
-                  value={editingLane.equipment_code || ''}
-                  onChange={(e) => setEditingLane({...editingLane, equipment_code: e.target.value.toUpperCase()})}
-                  className="inp" 
-                  placeholder="e.g., FD, V, R"
+                <EquipmentPicker 
+                  label="Equipment Code"
+                  code={editingLane.equipment_code || ''}
+                  onChange={(code) => setEditingLane({...editingLane, equipment_code: code})}
                 />
               </div>
               <div>
