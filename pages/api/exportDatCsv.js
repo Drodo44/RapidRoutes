@@ -37,6 +37,9 @@ async function emergencyPairs(origin, dest) {
     
     console.log('EMERGENCY: Found cities', originCity.city, destCity.city);
     
+    console.log('EMERGENCY: Origin coordinates:', originCity.latitude, originCity.longitude);
+    console.log('EMERGENCY: Dest coordinates:', destCity.latitude, destCity.longitude);
+    
     // Get actual nearby cities using proper distance calculation
     const { data: allCities } = await adminSupabase
       .from('cities')
@@ -49,6 +52,8 @@ async function emergencyPairs(origin, dest) {
       console.error('EMERGENCY: No cities with coordinates found');
       return { pairs: [], baseOrigin: { city: originCity.city, state: originCity.state_or_province, zip: originCity.zip || '' }, baseDest: { city: destCity.city, state: destCity.state_or_province, zip: destCity.zip || '' } };
     }
+    
+    console.log(`EMERGENCY: Retrieved ${allCities.length} cities for distance calculation`);
     
     // Calculate actual distances and find nearby cities
     function distance(lat1, lon1, lat2, lon2) {
@@ -163,11 +168,20 @@ async function buildAllRows(lanes, preferFillTo10) {
           { city: lane.dest_city, state: lane.dest_state }
         );
         
+        console.log(`EMERGENCY DEBUG: Lane ${i+1} crawl result:`, {
+          baseOrigin: crawl.baseOrigin,
+          baseDest: crawl.baseDest,
+          pairsCount: crawl.pairs.length,
+          pairs: crawl.pairs
+        });
+        
         // Generate rows manually for emergency mode
         const postings = [
           { pickup: crawl.baseOrigin, delivery: crawl.baseDest },
           ...crawl.pairs.map(p => ({ pickup: p.pickup, delivery: p.delivery }))
         ];
+        
+        console.log(`EMERGENCY DEBUG: Lane ${i+1} will generate ${postings.length} postings (should be 6)`);
         
         rows = [];
         for (const posting of postings) {
