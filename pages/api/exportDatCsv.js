@@ -8,68 +8,100 @@
 import { adminSupabase } from '../../utils/supabaseClient';
 import { planPairsForLane, rowsFromBaseAndPairs, DAT_HEADERS, toCsv, chunkRows } from '../../lib/datCsvBuilder';
 
-// EMERGENCY SIMPLE PAIR GENERATOR - GUARANTEED DIVERSITY VERSION
+// EMERGENCY PAIR GENERATOR - USING YOUR ACTUAL DATABASE
 async function emergencyPairs(origin, dest) {
   try {
     console.log(`EMERGENCY: Generating pairs for ${origin.city}, ${origin.state} -> ${dest.city}, ${dest.state}`);
     
-    // Hardcoded diverse cities to guarantee variety (using major freight hubs)
-    const diverseCities = [
-      { city: 'Atlanta', state: 'GA', zip: '30303' },
-      { city: 'Chicago', state: 'IL', zip: '60601' },
-      { city: 'Dallas', state: 'TX', zip: '75201' },
-      { city: 'Los Angeles', state: 'CA', zip: '90001' },
-      { city: 'Phoenix', state: 'AZ', zip: '85001' },
-      { city: 'Denver', state: 'CO', zip: '80201' },
-      { city: 'Miami', state: 'FL', zip: '33101' },
-      { city: 'Seattle', state: 'WA', zip: '98101' },
-      { city: 'Boston', state: 'MA', zip: '02101' },
-      { city: 'Detroit', state: 'MI', zip: '48201' },
-      { city: 'Las Vegas', state: 'NV', zip: '89101' },
-      { city: 'Memphis', state: 'TN', zip: '38101' },
-      { city: 'Kansas City', state: 'MO', zip: '64101' },
-      { city: 'Columbus', state: 'OH', zip: '43201' },
-      { city: 'Portland', state: 'OR', zip: '97201' }
-    ];
+    // Find origin city in YOUR database
+    const { data: originCities } = await adminSupabase
+      .from('cities')
+      .select('*')
+      .ilike('city', origin.city)
+      .ilike('state_or_province', origin.state)
+      .limit(1);
     
-    // Filter out origin and destination states
-    const availableCities = diverseCities.filter(city => 
-      city.state !== origin.state && city.state !== dest.state
-    );
+    // Find destination city in YOUR database  
+    const { data: destCities } = await adminSupabase
+      .from('cities')
+      .select('*')
+      .ilike('city', dest.city)
+      .ilike('state_or_province', dest.state)
+      .limit(1);
     
-    console.log(`EMERGENCY: Using ${availableCities.length} diverse cities (excluding ${origin.state} and ${dest.state})`);
-    
-    if (availableCities.length < 10) {
-      console.warn('EMERGENCY: Not enough diverse cities, using all available');
+    if (!originCities?.[0] || !destCities?.[0]) {
+      console.error('EMERGENCY: Origin or dest city not found in database');
+      return { 
+        pairs: [], 
+        baseOrigin: { city: origin.city, state: origin.state, zip: '' }, 
+        baseDest: { city: dest.city, state: dest.state, zip: '' } 
+      };
     }
     
-    // Create exactly 5 pairs using different major freight hubs
+    const originCity = originCities[0];
+    const destCity = destCities[0];
+    
+    console.log(`EMERGENCY: Found origin: ${originCity.city}, ${originCity.state_or_province}, KMA: ${originCity.kma_code}`);
+    console.log(`EMERGENCY: Found dest: ${destCity.city}, ${destCity.state_or_province}, KMA: ${destCity.kma_code}`);
+    
+    // Get nearby cities for origin (within same KMA or adjacent KMAs)
+    const { data: nearOrigins } = await adminSupabase
+      .from('cities')
+      .select('city, state_or_province, zip, kma_code')
+      .neq('city', originCity.city)
+      .limit(50);
+    
+    // Get nearby cities for destination
+    const { data: nearDests } = await adminSupabase
+      .from('cities')
+      .select('city, state_or_province, zip, kma_code')
+      .neq('city', destCity.city)
+      .limit(50);
+    
+    console.log(`EMERGENCY: Found ${nearOrigins?.length || 0} potential origin alternatives`);
+    console.log(`EMERGENCY: Found ${nearDests?.length || 0} potential dest alternatives`);
+    
+    if (!nearOrigins?.length || !nearDests?.length) {
+      console.error('EMERGENCY: No alternative cities found');
+      return { 
+        pairs: [], 
+        baseOrigin: { city: originCity.city, state: originCity.state_or_province, zip: originCity.zip || '' }, 
+        baseDest: { city: destCity.city, state: destCity.state_or_province, zip: destCity.zip || '' } 
+      };
+    }
+    
+    // Create 5 pairs using actual nearby cities from YOUR database
     const pairs = [];
     for (let i = 0; i < 5; i++) {
-      const originIdx = (i * 2) % availableCities.length;
-      const destIdx = (i * 2 + 1) % availableCities.length;
-      
-      const originCity = availableCities[originIdx];
-      const destCity = availableCities[destIdx];
+      const originAlt = nearOrigins[i % nearOrigins.length];
+      const destAlt = nearDests[i % nearDests.length];
       
       pairs.push({
-        pickup: { city: originCity.city, state: originCity.state, zip: originCity.zip },
-        delivery: { city: destCity.city, state: destCity.state, zip: destCity.zip }
+        pickup: { 
+          city: originAlt.city, 
+          state: originAlt.state_or_province, 
+          zip: originAlt.zip || '' 
+        },
+        delivery: { 
+          city: destAlt.city, 
+          state: destAlt.state_or_province, 
+          zip: destAlt.zip || '' 
+        }
       });
     }
     
-    console.log(`EMERGENCY: Generated ${pairs.length} pairs using major freight hubs:`, 
+    console.log(`EMERGENCY: Generated ${pairs.length} pairs using YOUR database:`, 
       pairs.map(p => `${p.pickup.city},${p.pickup.state} -> ${p.delivery.city},${p.delivery.state}`)
     );
     
     return {
       pairs,
-      baseOrigin: { city: origin.city, state: origin.state, zip: '' },
-      baseDest: { city: dest.city, state: dest.state, zip: '' }
+      baseOrigin: { city: originCity.city, state: originCity.state_or_province, zip: originCity.zip || '' },
+      baseDest: { city: destCity.city, state: destCity.state_or_province, zip: destCity.zip || '' }
     };
     
   } catch (error) {
-    console.error('Emergency pairs error:', error);
+    console.error('Emergency pairs database error:', error);
     return { 
       pairs: [], 
       baseOrigin: { city: origin.city, state: origin.state, zip: '' }, 
