@@ -94,6 +94,12 @@ export default async function handler(req, res) {
     const selected = chunks[partIndex] || allRows;
     const csv = toCsv(DAT_HEADERS, selected);
 
+    // Debug headers for client inspection
+    res.setHeader('X-Debug-Lanes-Processed', String(lanes.length));
+    res.setHeader('X-Debug-Total-Rows', String(allRows.length));
+    res.setHeader('X-Debug-Fill-Mode', String(preferFillTo10));
+    res.setHeader('X-Debug-Selected-Rows', String(selected.length));
+
     const baseName = pending ? 'DAT_Pending' : all ? 'DAT_All' : days != null ? `DAT_Last${days}d` : 'DAT_Pending';
     const filename =
       (chunks.length > 1)

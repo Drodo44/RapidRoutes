@@ -298,7 +298,34 @@ export default function LanesPage() {
       for (let i=1;i<=total;i++){
         const url = `/api/exportDatCsv?pending=1&fill=${fill?'1':'0'}&part=${i}`;
         console.log(`Downloading part ${i}/${total}:`, url);
-        const a = document.createElement('a'); a.href = url; a.download = ''; document.body.appendChild(a); a.click(); a.remove();
+        
+        // First, test the response to see what we're getting
+        const testResponse = await fetch(url);
+        const csvContent = await testResponse.text();
+        const rowCount = csvContent.split('\n').length - 1; // Subtract 1 for header
+        
+        // Log debug headers
+        const debugLanes = testResponse.headers.get('X-Debug-Lanes-Processed');
+        const debugTotalRows = testResponse.headers.get('X-Debug-Total-Rows');
+        const debugFillMode = testResponse.headers.get('X-Debug-Fill-Mode');
+        const debugSelectedRows = testResponse.headers.get('X-Debug-Selected-Rows');
+        
+        console.log(`BULK EXPORT DEBUG: Part ${i}/${total}`);
+        console.log(`  Lanes processed: ${debugLanes}`);
+        console.log(`  Total rows generated: ${debugTotalRows}`);
+        console.log(`  Fill-to-5 mode: ${debugFillMode}`);
+        console.log(`  Selected rows for this part: ${debugSelectedRows}`);
+        console.log(`  Actual CSV rows: ${rowCount}`);
+        console.log(`  First few lines:`, csvContent.split('\n').slice(0, 3));
+        
+        // Now trigger the download
+        const a = document.createElement('a'); 
+        a.href = URL.createObjectURL(new Blob([csvContent], { type: 'text/csv' }));
+        a.download = `DAT_Pending_part${i}-of-${total}.csv`;
+        document.body.appendChild(a); 
+        a.click(); 
+        a.remove();
+        
         // Slight delay to avoid popup blocking
         if (i < total) await new Promise(r => setTimeout(r, 200));
       }
