@@ -247,13 +247,15 @@ async function buildAllRows(lanes, preferFillTo10) {
         console.log(`EMERGENCY DEBUG: Lane ${i+1} generated ${rows.length} rows from ${postings.length} postings`);
         
       } else {
-        // Normal mode - DETAILED DEBUG
-        console.log(`🔍 NORMAL MODE: Lane ${i+1} starting pair generation`);
+        // Normal mode - PRODUCTION READY
         crawl = await planPairsForLane(lane, { preferFillTo10 });
-        console.log(`🔍 NORMAL MODE: Lane ${i+1} planPairsForLane returned ${crawl.pairs?.length || 0} pairs`);
-        console.log(`🔍 NORMAL MODE: Lane ${i+1} calling rowsFromBaseAndPairs with preferFillTo10=${preferFillTo10}`);
         rows = rowsFromBaseAndPairs(lane, crawl.baseOrigin, crawl.baseDest, crawl.pairs, preferFillTo10);
-        console.log(`🔍 NORMAL MODE: Lane ${i+1} rowsFromBaseAndPairs returned ${rows.length} rows`);
+        
+        // GUARANTEE CHECK: When preferFillTo10=true, every lane MUST generate exactly 12 rows
+        if (preferFillTo10 && rows.length !== 12) {
+          console.error(`� CRITICAL ERROR: Lane ${i+1} generated ${rows.length} rows instead of required 12!`);
+          throw new Error(`Row count guarantee failed for lane ${i+1}: got ${rows.length}, expected 12`);
+        }
       }
       
       console.log(`BULK EXPORT: Lane ${i+1} crawl result - pairs: ${crawl.pairs?.length || 0}`);
