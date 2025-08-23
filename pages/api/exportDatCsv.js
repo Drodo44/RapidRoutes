@@ -247,9 +247,13 @@ async function buildAllRows(lanes, preferFillTo10) {
         console.log(`EMERGENCY DEBUG: Lane ${i+1} generated ${rows.length} rows from ${postings.length} postings`);
         
       } else {
-        // Normal mode
+        // Normal mode - DETAILED DEBUG
+        console.log(`🔍 NORMAL MODE: Lane ${i+1} starting pair generation`);
         crawl = await planPairsForLane(lane, { preferFillTo10 });
+        console.log(`🔍 NORMAL MODE: Lane ${i+1} planPairsForLane returned ${crawl.pairs?.length || 0} pairs`);
+        console.log(`🔍 NORMAL MODE: Lane ${i+1} calling rowsFromBaseAndPairs with preferFillTo10=${preferFillTo10}`);
         rows = rowsFromBaseAndPairs(lane, crawl.baseOrigin, crawl.baseDest, crawl.pairs, preferFillTo10);
+        console.log(`🔍 NORMAL MODE: Lane ${i+1} rowsFromBaseAndPairs returned ${rows.length} rows`);
       }
       
       console.log(`BULK EXPORT: Lane ${i+1} crawl result - pairs: ${crawl.pairs?.length || 0}`);
