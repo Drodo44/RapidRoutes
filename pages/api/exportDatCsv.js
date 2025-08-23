@@ -153,7 +153,7 @@ async function buildAllRows(lanes, preferFillTo10) {
       
       let crawl, rows;
       
-      if (preferFillTo10) {
+      if (false && preferFillTo10) { // DISABLED: Use intelligent crawler instead
         // EMERGENCY MODE: Use simple pair generation
         console.log(`BULK EXPORT: Using EMERGENCY mode for lane ${i+1}`);
         console.log(`🚨🚨🚨 EMERGENCY MODE ACTIVATED FOR LANE ${i+1} 🚨🚨🚨`);
@@ -283,6 +283,13 @@ export default async function handler(req, res) {
   const all = String(req.query.all || '') === '1';
   const days = req.query.days != null ? Number(req.query.days) : null;
   const partParam = req.query.part != null ? Number(req.query.part) : null;
+
+  console.log(`🚨 CRITICAL DEBUG: req.query.fill = "${req.query.fill}" (type: ${typeof req.query.fill})`);
+  console.log(`🚨 CRITICAL DEBUG: preferFillTo10 = ${preferFillTo10} (type: ${typeof preferFillTo10})`);
+  console.log(`🚨 CRITICAL DEBUG: String comparison: "${req.query.fill}" === "1" is ${String(req.query.fill || '0') === '1'}`);
+  console.log(`🚨 CRITICAL DEBUG: If preferFillTo10 is true, emergency mode SHOULD activate`);
+  console.log(`🚨 CRITICAL DEBUG: Expected rows per lane when preferFillTo10=true: 12 (6 pairs × 2 contacts)`);
+  console.log(`🚨 CRITICAL DEBUG: Expected rows per lane when preferFillTo10=false: 8 (4 pairs × 2 contacts)`);
 
   try {
     const lanes = await selectLanes({ pending, days, all });

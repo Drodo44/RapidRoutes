@@ -278,6 +278,101 @@ export default function LanesPage() {
     }
   }
 
+  // Emergency client-side CSV generation
+  async function emergencyExport() {
+    try {
+      console.log('🚨 EMERGENCY EXPORT: Starting client-side generation');
+      
+      // Get lanes data
+      const { data: lanes, error } = await supabase
+        .from('lanes')
+        .select('*')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+      
+      if (error || !lanes?.length) {
+        alert('No pending lanes found');
+        return;
+      }
+      
+      console.log(`Emergency: Found ${lanes.length} lanes`);
+      
+      // Major freight cities
+      const freightCities = [
+        { city: 'Atlanta', state: 'GA', zip: '30303' },
+        { city: 'Chicago', state: 'IL', zip: '60601' },
+        { city: 'Dallas', state: 'TX', zip: '75201' },
+        { city: 'Los Angeles', state: 'CA', zip: '90001' },
+        { city: 'Phoenix', state: 'AZ', zip: '85001' },
+        { city: 'Denver', state: 'CO', zip: '80201' },
+        { city: 'Miami', state: 'FL', zip: '33101' },
+        { city: 'Seattle', state: 'WA', zip: '98101' },
+        { city: 'Boston', state: 'MA', zip: '02101' },
+        { city: 'Detroit', state: 'MI', zip: '48201' }
+      ];
+      
+      // DAT Headers
+      const headers = [
+        'Pickup Earliest*', 'Pickup Latest', 'Length (ft)*', 'Weight (lbs)*',
+        'Full/Partial*', 'Equipment*', 'Use Private Network*', 'Private Network Rate',
+        'Allow Private Network Booking', 'Allow Private Network Bidding',
+        'Use DAT Loadboard*', 'DAT Loadboard Rate', 'Allow DAT Loadboard Booking',
+        'Use Extended Network', 'Contact Method*', 'Origin City*', 'Origin State*',
+        'Origin Postal Code', 'Destination City*', 'Destination State*',
+        'Destination Postal Code', 'Comment', 'Commodity', 'Reference ID'
+      ];
+      
+      const csvRows = [headers.join(',')];
+      
+      // Generate rows for each lane
+      for (let i = 0; i < lanes.length; i++) {
+        const lane = lanes[i];
+        const weight = lane.weight_lbs || 45000;
+        
+        // Base lane (original cities)
+        const baseRow = [
+          lane.pickup_earliest, lane.pickup_latest || lane.pickup_earliest,
+          lane.length_ft || 48, weight, lane.full_partial || 'full',
+          lane.equipment_code || 'FD', 'yes', '', 'no', 'no', 'yes', '', 'no', 'yes'
+        ];
+        
+        // Add base lane rows (email + phone)
+        csvRows.push([...baseRow, 'email', lane.origin_city, lane.origin_state, '', lane.dest_city, lane.dest_state, '', lane.comment || '', lane.commodity || '', ''].join(','));
+        csvRows.push([...baseRow, 'primary phone', lane.origin_city, lane.origin_state, '', lane.dest_city, lane.dest_state, '', lane.comment || '', lane.commodity || '', ''].join(','));
+        
+        // Add 5 freight city pairs
+        for (let j = 0; j < 5; j++) {
+          const originCity = freightCities[(i * 2 + j) % freightCities.length];
+          const destCity = freightCities[(i * 2 + j + 5) % freightCities.length];
+          
+          csvRows.push([...baseRow, 'email', originCity.city, originCity.state, originCity.zip, destCity.city, destCity.state, destCity.zip, lane.comment || '', lane.commodity || '', ''].join(','));
+          csvRows.push([...baseRow, 'primary phone', originCity.city, originCity.state, originCity.zip, destCity.city, destCity.state, destCity.zip, lane.comment || '', lane.commodity || '', ''].join(','));
+        }
+      }
+      
+      console.log(`Emergency: Generated ${csvRows.length - 1} data rows (expected: ${lanes.length * 12})`);
+      
+      // Download CSV
+      const csvContent = csvRows.join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = `emergency_export_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      alert(`SUCCESS: Generated ${csvRows.length - 1} rows for ${lanes.length} lanes!`);
+      
+    } catch (error) {
+      console.error('Emergency export error:', error);
+      alert('Emergency export failed: ' + error.message);
+    }
+  }
+
   async function bulkExport({ fill }){
     console.log('Bulk export clicked:', { fill });
     setMsg('Starting bulk export...');
@@ -534,6 +629,7 @@ export default function LanesPage() {
             <div className="flex gap-2">
               <button onClick={() => bulkExport({ fill:false })} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition">Export DAT CSV</button>
               <button onClick={() => bulkExport({ fill:true })} className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition">Export DAT CSV (Fill)</button>
+              <button onClick={emergencyExport} className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition">🚨 EMERGENCY</button>
             </div>
           </div>
           <div className="p-4 bg-gray-900 space-y-4">

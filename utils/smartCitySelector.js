@@ -69,29 +69,11 @@ async function fetchCityRecord(city, state) {
 }
 
 async function queryNearby(base, radius) {
-  // Preferred: RPC (fast)
-  const { data, error } = await supabase.rpc("fetch_nearby_cities", {
-    lat: base.lat, lon: base.lon, radius_miles: radius,
-  });
-  if (!error && Array.isArray(data)) {
-    return data.map((c) => ({
-      id: c.id,
-      city: c.city,
-      state: c.state_or_province,
-      zip: c.postal_code || c.zip || "",
-      lat: c.latitude ?? c.lat,
-      lon: c.longitude ?? c.lon,
-      kma: c.kma,
-      population: c.population,
-      equipment_bias: c.equipment_bias || [],
-      is_hot: !!c.is_hot,
-    }));
-  }
-
-  // Fallback: bounding box + client filter
+  // Use bounding box + client filter (reliable fallback)
   const latDelta = radius / 69;
   const lonDelta = radius / (Math.cos((base.lat * Math.PI) / 180) * 69);
-  const { data: approx } = await supabase
+  
+  const { data: approx, error } = await supabase
     .from("cities")
     .select("id, city, state_or_province, postal_code, latitude, longitude, kma, population, equipment_bias, is_hot")
     .gt("latitude", base.lat - latDelta)
@@ -99,6 +81,11 @@ async function queryNearby(base, radius) {
     .gt("longitude", base.lon - lonDelta)
     .lt("longitude", base.lon + lonDelta)
     .limit(2000);
+
+  if (error) {
+    console.error("Error fetching nearby cities:", error);
+    return [];
+  }
 
   return (approx || [])
     .map((c) => ({
@@ -113,7 +100,8 @@ async function queryNearby(base, radius) {
       equipment_bias: c.equipment_bias || [],
       is_hot: !!c.is_hot,
     }))
-    .filter((c) => distanceInMiles(base, c) <= radius);
+    .filter((c) => distanceInMiles(base, c) <= radius)
+    .sort((a, b) => distanceInMiles(base, a) - distanceInMiles(base, b));
 }
 
 function scoreCity({ baseOrigin, baseDest, cand, side, equip, rates }) {

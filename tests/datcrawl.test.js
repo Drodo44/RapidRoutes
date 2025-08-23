@@ -2,6 +2,7 @@
 // Verifies: no duplicate KMAs, respects 75/100/125 tiers (125mi candidates excluded unless very strong),
 // and returns a shortfall reason when fewer than 10 unique KMA pairs exist.
 
+import { vi } from 'vitest';
 import { generateCrawlPairs } from '../lib/datcrawl';
 
 // Mock Supabase admin client used inside lib/datcrawl
