@@ -149,118 +149,18 @@ async function buildAllRows(lanes, preferFillTo10) {
     const lane = lanes[i];
     try {
       console.log(`BULK EXPORT: Processing lane ${i+1}/${lanes.length}: ${lane.origin_city}, ${lane.origin_state} -> ${lane.dest_city}, ${lane.dest_state}`);
-      console.log(`🔍 LANE ${i+1} CHECK: Will use emergency mode? ${preferFillTo10 ? 'YES' : 'NO'}`);
       
-      let crawl, rows;
+      // PRODUCTION MODE: Use intelligent crawler with guaranteed row counts
+      const crawl = await planPairsForLane(lane, { preferFillTo10 });
+      const rows = rowsFromBaseAndPairs(lane, crawl.baseOrigin, crawl.baseDest, crawl.pairs, preferFillTo10);
       
-      if (false && preferFillTo10) { // DISABLED: Use intelligent crawler instead
-        // EMERGENCY MODE: Use simple pair generation
-        console.log(`BULK EXPORT: Using EMERGENCY mode for lane ${i+1}`);
-        console.log(`🚨🚨🚨 EMERGENCY MODE ACTIVATED FOR LANE ${i+1} 🚨🚨🚨`);
-        crawl = await emergencyPairs(
-          { city: lane.origin_city, state: lane.origin_state },
-          { city: lane.dest_city, state: lane.dest_state }
-        );
-        
-        console.log(`EMERGENCY DEBUG: Lane ${i+1} crawl result:`, {
-          baseOrigin: crawl.baseOrigin,
-          baseDest: crawl.baseDest,
-          pairsCount: crawl.pairs.length,
-          pairs: crawl.pairs
-        });
-        
-        // Generate rows manually for emergency mode
-        const postings = [
-          { pickup: crawl.baseOrigin, delivery: crawl.baseDest },
-          ...crawl.pairs.map(p => ({ pickup: p.pickup, delivery: p.delivery }))
-        ];
-        
-        console.log(`EMERGENCY DEBUG: Lane ${i+1} will generate ${postings.length} postings (should be 6)`);
-        
-        rows = [];
-        for (const posting of postings) {
-          // Calculate weight for this row
-          let rowWeight;
-          if (lane.randomize_weight && lane.weight_min && lane.weight_max) {
-            rowWeight = Math.floor(Math.random() * (lane.weight_max - lane.weight_min + 1)) + lane.weight_min;
-          } else {
-            rowWeight = lane.weight_lbs || 45000; // Use actual weight or sensible default
-          }
-          
-          console.log(`EMERGENCY DEBUG: Adding posting ${posting.pickup.city},${posting.pickup.state} -> ${posting.delivery.city},${posting.delivery.state}`);
-          
-          // Email contact
-          rows.push({
-            'Pickup Earliest*': lane.pickup_earliest,
-            'Pickup Latest': lane.pickup_latest,
-            'Length (ft)*': String(lane.length_ft),
-            'Weight (lbs)*': String(rowWeight),
-            'Full/Partial*': lane.full_partial || 'full',
-            'Equipment*': lane.equipment_code,
-            'Use Private Network*': 'yes',
-            'Private Network Rate': '',
-            'Allow Private Network Booking': 'no',
-            'Allow Private Network Bidding': 'no',
-            'Use DAT Loadboard*': 'yes',
-            'DAT Loadboard Rate': '',
-            'Allow DAT Loadboard Booking': 'no',
-            'Use Extended Network': 'yes',
-            'Contact Method*': 'email',
-            'Origin City*': posting.pickup.city,
-            'Origin State*': posting.pickup.state,
-            'Origin Postal Code': posting.pickup.zip || '',
-            'Destination City*': posting.delivery.city,
-            'Destination State*': posting.delivery.state,
-            'Destination Postal Code': posting.delivery.zip || '',
-            'Comment': lane.comment || '',
-            'Commodity': lane.commodity || ''
-          });
-          
-          // Primary phone contact
-          rows.push({
-            'Pickup Earliest*': lane.pickup_earliest,
-            'Pickup Latest': lane.pickup_latest,
-            'Length (ft)*': String(lane.length_ft),
-            'Weight (lbs)*': String(rowWeight),
-            'Full/Partial*': lane.full_partial || 'full',
-            'Equipment*': lane.equipment_code,
-            'Use Private Network*': 'yes',
-            'Private Network Rate': '',
-            'Allow Private Network Booking': 'no',
-            'Allow Private Network Bidding': 'no',
-            'Use DAT Loadboard*': 'yes',
-            'DAT Loadboard Rate': '',
-            'Allow DAT Loadboard Booking': 'no',
-            'Use Extended Network': 'yes',
-            'Contact Method*': 'primary phone',
-            'Origin City*': posting.pickup.city,
-            'Origin State*': posting.pickup.state,
-            'Origin Postal Code': posting.pickup.zip || '',
-            'Destination City*': posting.delivery.city,
-            'Destination State*': posting.delivery.state,
-            'Destination Postal Code': posting.delivery.zip || '',
-            'Comment': lane.comment || '',
-            'Commodity': lane.commodity || ''
-          });
-        }
-        
-        console.log(`EMERGENCY DEBUG: Lane ${i+1} generated ${rows.length} rows from ${postings.length} postings`);
-        
-      } else {
-        // Normal mode - PRODUCTION READY
-        crawl = await planPairsForLane(lane, { preferFillTo10 });
-        rows = rowsFromBaseAndPairs(lane, crawl.baseOrigin, crawl.baseDest, crawl.pairs, preferFillTo10);
-        
-        // GUARANTEE CHECK: When preferFillTo10=true, every lane MUST generate exactly 12 rows
-        if (preferFillTo10 && rows.length !== 12) {
-          console.error(`� CRITICAL ERROR: Lane ${i+1} generated ${rows.length} rows instead of required 12!`);
-          throw new Error(`Row count guarantee failed for lane ${i+1}: got ${rows.length}, expected 12`);
-        }
+      // GUARANTEE CHECK: When preferFillTo10=true, every lane MUST generate exactly 12 rows
+      if (preferFillTo10 && rows.length !== 12) {
+        console.error(`Critical error: Lane ${i+1} generated ${rows.length} rows instead of required 12`);
+        throw new Error(`Row count guarantee failed for lane ${i+1}: got ${rows.length}, expected 12`);
       }
       
-      console.log(`BULK EXPORT: Lane ${i+1} crawl result - pairs: ${crawl.pairs?.length || 0}`);
       console.log(`BULK EXPORT: Lane ${i+1} generated ${rows.length} rows (expected: ${preferFillTo10 ? 12 : 6})`);
-      console.log(`BULK EXPORT: Lane ${i+1} rows breakdown - base + ${crawl.pairs?.length || 0} pairs = ${1 + (crawl.pairs?.length || 0)} postings × 2 contacts = ${(1 + (crawl.pairs?.length || 0)) * 2} rows`);
       allRows.push(...rows);
     } catch (laneError) {
       console.error(`BULK EXPORT: Error processing lane ${i+1} (${lane.id}):`, laneError);

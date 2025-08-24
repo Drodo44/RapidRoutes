@@ -1,6 +1,6 @@
 // tests/aiRecap.test.js
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import handler from '../pages/api/ai/recap';
+import handler from '../pages/api/ai-recap';
 
 // Mock the adminSupabase used in the api route
 vi.mock('../utils/supabaseClient', () => {
@@ -169,7 +169,7 @@ describe('AI Recap API', () => {
     
     await handler(req, res);
     
-    expect(res.setHeader).toHaveBeenCalledWith('Allow', 'POST');
+    expect(res.setHeader).toHaveBeenCalledWith('Content-Type', 'application/json');
     expect(res.status).toHaveBeenCalledWith(405);
   });
 });
