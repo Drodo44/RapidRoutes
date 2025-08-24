@@ -35,7 +35,7 @@ describe('DAT CSV Builder', () => {
   it('has exact 24 headers in order', () => {
     expect(DAT_HEADERS).toHaveLength(24);
     expect(DAT_HEADERS[0]).toBe('Pickup Earliest*');
-    expect(DAT_HEADERS[23]).toBe('Reference ID');
+    expect(DAT_HEADERS[23]).toBe('Reference ID (unique per organization; max 8 chars)');
   });
 
   it('requires weight when randomize OFF; accepts valid randomize range', () => {

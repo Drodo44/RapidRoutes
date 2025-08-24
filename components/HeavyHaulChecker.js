@@ -1,41 +1,28 @@
 // components/HeavyHaulChecker.js
 import { useState, useEffect } from "react";
-
-// Define state permit offices and special requirements
-const statePermitInfo = {
-  "AL": { office: "Alabama DOT Permit Office", email: "permits@dot.alabama.gov", phone: "(334) 244-6385" },
-  "AZ": { office: "Arizona DOT Overdimensional Permits", email: "permits@azdot.gov", phone: "(602) 712-8160" },
-  "CA": { office: "Caltrans Transportation Permits", email: "oversize@dot.ca.gov", phone: "(916) 322-1297", specialReq: "Escort vehicles required for loads exceeding 14' wide" },
-  "FL": { office: "Florida DOT Permit Office", email: "permits@fdot.gov", phone: "(850) 410-5777", specialReq: "Nighttime travel restrictions for loads over 12' wide" },
-  "IL": { office: "Illinois DOT Permits Section", email: "dot.permits@illinois.gov", phone: "(217) 782-6271" },
-  "NY": { office: "NYSDOT Oversize/Overweight Permits", email: "permits@dot.ny.gov", phone: "(518) 485-2999", specialReq: "NYC has separate permit requirements" },
-  "OH": { office: "Ohio DOT Special Hauling Permits", email: "permits@dot.ohio.gov", phone: "(614) 351-2300" },
-  "PA": { office: "PennDOT Central Permits Office", email: "penndotpermits@pa.gov", phone: "(717) 783-5102" },
-  "TX": { office: "TxDOT Motor Carrier Division", email: "mcd-permits@txdot.gov", phone: "(800) 299-1700", specialReq: "Front and rear escort vehicles for loads over 16' wide" },
-  "I-5": { office: "Multi-State Corridor Permits", specialReq: "Check with each state DOT along I-5" },
-  "I-95": { office: "Eastern Seaboard Corridor", specialReq: "Coordinate with USDOT for multi-state travel" },
-};
+import { STATE_PERMIT_REQUIREMENTS, getRoutePermitRequirements } from "../lib/comprehensiveStatePermits";
 
 export default function HeavyHaulChecker() {
-  const [stateRoute, setStateRoute] = useState("");
+  const [originState, setOriginState] = useState("");
+  const [destState, setDestState] = useState("");
   const [dimensions, setDimensions] = useState({ length: "", width: "", height: "" });
   const [weight, setWeight] = useState("");
   const [commodity, setCommodity] = useState("");
   const [value, setValue] = useState("");
   const [pickup, setPickup] = useState("");
   const [delivery, setDelivery] = useState("");
-  const [showEmail, setShowEmail] = useState(false);
-  const [permitInfo, setPermitInfo] = useState(null);
+  const [carrier, setCarrier] = useState("");
+  const [showResults, setShowResults] = useState(false);
+  const [routeAnalysis, setRouteAnalysis] = useState(null);
   const [isOversize, setIsOversize] = useState(false);
   const [isOverweight, setIsOverweight] = useState(false);
 
   // Check for oversize/overweight conditions
   useEffect(() => {
-    // Standard limits (generalized)
     const standardLimits = {
       width: 102, // 8'6" in inches
       height: 162, // 13'6" in inches
-      length: 576, // 48' in inches
+      length: 636, // 53' in inches
       weight: 80000 // 80,000 lbs
     };
 
@@ -48,191 +35,355 @@ export default function HeavyHaulChecker() {
     setIsOverweight(weight && Number(weight) > standardLimits.weight);
   }, [dimensions, weight]);
 
-  const checkPermitRequirements = () => {
-    // Find permit info for the entered state/route
-    const stateCode = stateRoute.toUpperCase();
-    const info = statePermitInfo[stateCode] || {
-      office: `${stateRoute} DOT Permit Office`,
-      email: `permits@${stateRoute.toLowerCase()}.gov`,
-      phone: "Contact local DOT"
-    };
-    
-    setPermitInfo(info);
-    setShowEmail(true);
+  const analyzeRoute = () => {
+    if (!originState || !destState) {
+      alert("Please select both origin and destination states");
+      return;
+    }
+
+    const analysis = getRoutePermitRequirements(
+      originState,
+      destState,
+      {
+        width: Number(dimensions.width) || 0,
+        height: Number(dimensions.height) || 0,
+        length: Number(dimensions.length) || 0
+      },
+      Number(weight) || 0
+    );
+
+    setRouteAnalysis(analysis);
+    setShowResults(true);
   };
 
-  // Generate email template with permit information
-  const template = `
-Subject: ${isOversize ? "Oversize" : ""}${isOversize && isOverweight ? "/" : ""}${isOverweight ? "Overweight" : ""} Load Permit Request – ${stateRoute}
+  const generateComprehensiveEmail = (stateInfo) => {
+    return `Subject: Oversize/Overweight Load Permit Request - ${stateInfo.name}
 
-Hello${permitInfo?.office ? ` ${permitInfo.office}` : ''},
+Dear ${stateInfo.office},
 
-I am requesting routing and permit information for a ${isOversize ? "oversize" : ""}${isOversize && isOverweight ? "/" : ""}${isOverweight ? "overweight" : ""} load through ${stateRoute}.
+I am requesting permit information for an oversize/overweight load traveling through ${stateInfo.name}.
 
-Load Details:
-- Commodity: ${commodity}
-- Dimensions: ${dimensions.length}"L x ${dimensions.width}"W x ${dimensions.height}"H
-- Weight: ${weight} lbs
-- Value: $${value}
-- Pickup Date: ${pickup}
-- Delivery Date: ${delivery}
+LOAD DETAILS:
+• Commodity: ${commodity || 'Not specified'}
+• Dimensions: ${dimensions.length || '0'}"L x ${dimensions.width || '0'}"W x ${dimensions.height || '0'}"H
+• Weight: ${weight || '0'} lbs
+• Load Value: $${value || 'Not specified'}
+• Carrier: ${carrier || 'Not specified'}
 
-Please advise on permit requirements, fees, and any special handling or escort vehicle requirements for this shipment.
+TRAVEL DATES:
+• Pickup Date: ${pickup || 'TBD'}
+• Delivery Date: ${delivery || 'TBD'}
 
-Thank you,
+PERMIT REQUIREMENTS NEEDED:
+${stateInfo.permitNeeded?.required ? 
+  `• Permit required due to: ${stateInfo.permitNeeded.reasons.join(', ')}` : 
+  '• Standard permit may not be required, but confirming compliance'}
+
+SPECIFIC QUESTIONS:
+1. What permits are required for this load?
+2. What are the permit fees?
+3. Are escort vehicles required?
+4. What are the travel time restrictions?
+5. Are there specific route requirements?
+6. What is the processing time for permits?
+
+Please provide routing guidance and any special requirements for this shipment.
+
+Contact Information:
 [Your Name]
 [Your Company]
-[Your Contact Information]
-`;
+[Phone Number]
+[Email Address]
+
+Thank you for your assistance.
+
+Best regards,
+[Your Signature]`;
+  };
+
+  const stateOptions = Object.keys(STATE_PERMIT_REQUIREMENTS).sort();
 
   return (
-    <div className="bg-[#1a2236] p-6 rounded-2xl shadow-xl max-w-3xl mx-auto mt-10 text-white">
-      <h2 className="text-2xl font-bold text-cyan-400 mb-4">Heavy Haul Compliance Checker</h2>
+    <div className="bg-[#1a2236] p-6 rounded-2xl shadow-xl max-w-5xl mx-auto mt-10 text-white">
+      <h2 className="text-3xl font-bold text-cyan-400 mb-6">Professional Heavy Haul Route Analyzer</h2>
       
       <div className="mb-6 p-4 bg-blue-900/20 border border-blue-800 rounded-lg">
-        <p className="text-sm">Enter load details below to check permit requirements and generate an email template for contacting the appropriate DOT office.</p>
+        <p className="text-sm">Comprehensive permit analysis for oversize/overweight loads across state lines. Get detailed permit requirements, contact information, and professional email templates.</p>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-xs mb-1 text-gray-300">State Code or Route (e.g. TX, I-5)</label>
-          <input
-            type="text"
-            value={stateRoute}
-            onChange={(e) => setStateRoute(e.target.value)}
-            className="p-2 rounded bg-gray-800 border border-gray-600 w-full"
-          />
+      {/* Route Selection */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div className="bg-gray-800/50 p-4 rounded-lg">
+          <h3 className="text-lg font-semibold mb-3 text-green-400">Route Information</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs mb-1 text-gray-300">Origin State</label>
+              <select
+                value={originState}
+                onChange={(e) => setOriginState(e.target.value)}
+                className="p-2 rounded bg-gray-800 border border-gray-600 w-full"
+              >
+                <option value="">Select State</option>
+                {stateOptions.map(state => (
+                  <option key={state} value={state}>{state} - {STATE_PERMIT_REQUIREMENTS[state].name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs mb-1 text-gray-300">Destination State</label>
+              <select
+                value={destState}
+                onChange={(e) => setDestState(e.target.value)}
+                className="p-2 rounded bg-gray-800 border border-gray-600 w-full"
+              >
+                <option value="">Select State</option>
+                {stateOptions.map(state => (
+                  <option key={state} value={state}>{state} - {STATE_PERMIT_REQUIREMENTS[state].name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
-        
-        <div>
-          <label className="block text-xs mb-1 text-gray-300">Commodity</label>
-          <input
-            type="text"
-            value={commodity}
-            onChange={(e) => setCommodity(e.target.value)}
-            className="p-2 rounded bg-gray-800 border border-gray-600 w-full"
-          />
+
+        <div className="bg-gray-800/50 p-4 rounded-lg">
+          <h3 className="text-lg font-semibold mb-3 text-orange-400">Load Details</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs mb-1 text-gray-300">Weight (lbs)</label>
+              <input
+                type="number"
+                value={weight}
+                onChange={(e) => setWeight(e.target.value)}
+                className="p-2 rounded bg-gray-800 border border-gray-600 w-full"
+                placeholder="80000"
+              />
+            </div>
+            <div>
+              <label className="block text-xs mb-1 text-gray-300">Commodity</label>
+              <input
+                type="text"
+                value={commodity}
+                onChange={(e) => setCommodity(e.target.value)}
+                className="p-2 rounded bg-gray-800 border border-gray-600 w-full"
+                placeholder="Construction Equipment"
+              />
+            </div>
+          </div>
         </div>
-        
-        <div className="md:col-span-2 grid grid-cols-3 gap-4">
+      </div>
+
+      {/* Dimensions */}
+      <div className="bg-gray-800/50 p-4 rounded-lg mb-6">
+        <h3 className="text-lg font-semibold mb-3 text-purple-400">Dimensions (inches)</h3>
+        <div className="grid grid-cols-3 gap-4">
           <div>
-            <label className="block text-xs mb-1 text-gray-300">Length (inches)</label>
+            <label className="block text-xs mb-1 text-gray-300">Length</label>
             <input
               type="number"
               value={dimensions.length}
               onChange={(e) => setDimensions({...dimensions, length: e.target.value})}
               className="p-2 rounded bg-gray-800 border border-gray-600 w-full"
+              placeholder="636 (53 ft)"
             />
           </div>
           <div>
-            <label className="block text-xs mb-1 text-gray-300">Width (inches)</label>
+            <label className="block text-xs mb-1 text-gray-300">Width</label>
             <input
               type="number"
               value={dimensions.width}
               onChange={(e) => setDimensions({...dimensions, width: e.target.value})}
               className="p-2 rounded bg-gray-800 border border-gray-600 w-full"
+              placeholder="102 (8'6&quot;)"
             />
           </div>
           <div>
-            <label className="block text-xs mb-1 text-gray-300">Height (inches)</label>
+            <label className="block text-xs mb-1 text-gray-300">Height</label>
             <input
               type="number"
               value={dimensions.height}
               onChange={(e) => setDimensions({...dimensions, height: e.target.value})}
               className="p-2 rounded bg-gray-800 border border-gray-600 w-full"
+              placeholder="162 (13'6&quot;)"
             />
           </div>
         </div>
-        
-        <div>
-          <label className="block text-xs mb-1 text-gray-300">Weight (lbs)</label>
-          <input
-            type="number"
-            value={weight}
-            onChange={(e) => setWeight(e.target.value)}
-            className="p-2 rounded bg-gray-800 border border-gray-600 w-full"
-          />
+      </div>
+
+      {/* Additional Details */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div className="bg-gray-800/50 p-4 rounded-lg">
+          <h3 className="text-lg font-semibold mb-3 text-yellow-400">Shipment Details</h3>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs mb-1 text-gray-300">Load Value ($)</label>
+              <input
+                type="number"
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                className="p-2 rounded bg-gray-800 border border-gray-600 w-full"
+                placeholder="250000"
+              />
+            </div>
+            <div>
+              <label className="block text-xs mb-1 text-gray-300">Carrier/Company</label>
+              <input
+                type="text"
+                value={carrier}
+                onChange={(e) => setCarrier(e.target.value)}
+                className="p-2 rounded bg-gray-800 border border-gray-600 w-full"
+                placeholder="ABC Transport Inc."
+              />
+            </div>
+          </div>
         </div>
-        
-        <div>
-          <label className="block text-xs mb-1 text-gray-300">Load Value ($)</label>
-          <input
-            type="number"
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            className="p-2 rounded bg-gray-800 border border-gray-600 w-full"
-          />
-        </div>
-        
-        <div>
-          <label className="block text-xs mb-1 text-gray-300">Pickup Date</label>
-          <input
-            type="date"
-            value={pickup}
-            onChange={(e) => setPickup(e.target.value)}
-            className="p-2 rounded bg-gray-800 border border-gray-600 w-full"
-          />
-        </div>
-        
-        <div>
-          <label className="block text-xs mb-1 text-gray-300">Delivery Date</label>
-          <input
-            type="date"
-            value={delivery}
-            onChange={(e) => setDelivery(e.target.value)}
-            className="p-2 rounded bg-gray-800 border border-gray-600 w-full"
-          />
+
+        <div className="bg-gray-800/50 p-4 rounded-lg">
+          <h3 className="text-lg font-semibold mb-3 text-cyan-400">Travel Dates</h3>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs mb-1 text-gray-300">Pickup Date</label>
+              <input
+                type="date"
+                value={pickup}
+                onChange={(e) => setPickup(e.target.value)}
+                className="p-2 rounded bg-gray-800 border border-gray-600 w-full"
+              />
+            </div>
+            <div>
+              <label className="block text-xs mb-1 text-gray-300">Delivery Date</label>
+              <input
+                type="date"
+                value={delivery}
+                onChange={(e) => setDelivery(e.target.value)}
+                className="p-2 rounded bg-gray-800 border border-gray-600 w-full"
+              />
+            </div>
+          </div>
         </div>
       </div>
-      
-      <div className="mt-2 flex flex-wrap gap-2">
+
+      {/* Status Indicators */}
+      <div className="mb-6 flex flex-wrap gap-2">
         {isOversize && (
-          <span className="px-2 py-1 bg-amber-900/50 border border-amber-700 rounded text-amber-300 text-xs">
-            Oversize Load
+          <span className="px-3 py-1 bg-amber-900/50 border border-amber-700 rounded-full text-amber-300 text-sm">
+            ⚠️ Oversize Load
           </span>
         )}
         {isOverweight && (
-          <span className="px-2 py-1 bg-red-900/50 border border-red-700 rounded text-red-300 text-xs">
-            Overweight Load
+          <span className="px-3 py-1 bg-red-900/50 border border-red-700 rounded-full text-red-300 text-sm">
+            🚨 Overweight Load
+          </span>
+        )}
+        {!isOversize && !isOverweight && (dimensions.width || dimensions.height || dimensions.length || weight) && (
+          <span className="px-3 py-1 bg-green-900/50 border border-green-700 rounded-full text-green-300 text-sm">
+            ✅ Within Standard Limits
           </span>
         )}
       </div>
       
       <button
-        onClick={checkPermitRequirements}
-        className="mt-6 w-full bg-red-600 hover:bg-red-700 py-2 px-4 rounded-xl font-semibold"
+        onClick={analyzeRoute}
+        className="w-full bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 py-3 px-6 rounded-xl font-semibold text-lg transition-all duration-200"
       >
-        Check Permit Requirements & Generate Email
+        Analyze Route & Generate Permit Requirements
       </button>
 
-      {showEmail && (
-        <div className="mt-6">
-          {permitInfo && (
-            <div className="mb-4 p-4 bg-gray-800 rounded-lg">
-              <h3 className="font-semibold mb-2">Permit Office Information:</h3>
-              <p><span className="text-gray-400">Office:</span> {permitInfo.office}</p>
-              {permitInfo.email && <p><span className="text-gray-400">Email:</span> {permitInfo.email}</p>}
-              {permitInfo.phone && <p><span className="text-gray-400">Phone:</span> {permitInfo.phone}</p>}
-              {permitInfo.specialReq && (
-                <p className="mt-2 text-amber-300 text-sm">{permitInfo.specialReq}</p>
-              )}
+      {/* Results Section */}
+      {showResults && routeAnalysis && (
+        <div className="mt-8 space-y-6">
+          <h3 className="text-2xl font-bold text-cyan-400">Route Analysis Results</h3>
+          
+          {routeAnalysis.requirements.map((stateInfo, index) => (
+            <div key={stateInfo.state} className="bg-gray-800/70 p-6 rounded-lg">
+              <h4 className="text-xl font-semibold mb-4 text-green-400">
+                {stateInfo.name} ({stateInfo.state}) Requirements
+              </h4>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h5 className="font-semibold mb-2 text-gray-300">Contact Information</h5>
+                  <div className="space-y-1 text-sm">
+                    <p><span className="text-gray-400">Office:</span> {stateInfo.office}</p>
+                    <p><span className="text-gray-400">Phone:</span> {stateInfo.phone}</p>
+                    <p><span className="text-gray-400">Email:</span> {stateInfo.email}</p>
+                    <p><span className="text-gray-400">Website:</span> {stateInfo.website}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <h5 className="font-semibold mb-2 text-gray-300">Permit Status</h5>
+                  {stateInfo.permitNeeded?.required ? (
+                    <div className="space-y-2">
+                      <p className="text-red-300 font-semibold">🚨 PERMIT REQUIRED</p>
+                      <div className="text-sm">
+                        <p className="text-gray-400">Reasons:</p>
+                        <ul className="list-disc list-inside ml-2">
+                          {stateInfo.permitNeeded.reasons.map((reason, i) => (
+                            <li key={i} className="text-red-300">{reason}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-green-300 font-semibold">✅ Standard limits compliant</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h5 className="font-semibold mb-2 text-gray-300">Special Requirements</h5>
+                  <div className="space-y-1 text-sm">
+                    <p><span className="text-gray-400">Escorts:</span> {stateInfo.specialRequirements.escortRequired}</p>
+                    <p><span className="text-gray-400">Time Restrictions:</span> {stateInfo.specialRequirements.timeRestrictions}</p>
+                    <p><span className="text-gray-400">Route Restrictions:</span> {stateInfo.specialRequirements.routeRestrictions}</p>
+                    <p><span className="text-gray-400">Fees:</span> {stateInfo.specialRequirements.fees}</p>
+                  </div>
+                </div>
+
+                <div>
+                  <h5 className="font-semibold mb-2 text-gray-300">Processing Info</h5>
+                  <div className="space-y-1 text-sm">
+                    <p><span className="text-gray-400">Processing Time:</span> {stateInfo.processingTime}</p>
+                    <p><span className="text-gray-400">Notes:</span> {stateInfo.notes}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <button
+                  onClick={() => {
+                    const emailContent = generateComprehensiveEmail(stateInfo);
+                    navigator.clipboard.writeText(emailContent);
+                    alert(`Email template for ${stateInfo.name} copied to clipboard!`);
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded text-sm font-semibold"
+                >
+                  📧 Generate & Copy Email Template
+                </button>
+              </div>
+            </div>
+          ))}
+
+          {routeAnalysis.multiStateConsiderations && (
+            <div className="bg-purple-900/30 border border-purple-700 p-6 rounded-lg">
+              <h4 className="text-xl font-semibold mb-4 text-purple-400">
+                Multi-State Corridor: {routeAnalysis.multiStateConsiderations.name}
+              </h4>
+              <div className="space-y-2">
+                <p><span className="text-gray-400">Coordinator:</span> {routeAnalysis.multiStateConsiderations.coordinator}</p>
+                <p><span className="text-gray-400">Phone:</span> {routeAnalysis.multiStateConsiderations.phone}</p>
+                <div>
+                  <p className="text-gray-400 mb-2">Special Considerations:</p>
+                  <ul className="list-disc list-inside ml-4 space-y-1">
+                    {routeAnalysis.multiStateConsiderations.specialConsiderations.map((consideration, i) => (
+                      <li key={i} className="text-yellow-300">{consideration}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
             </div>
           )}
-          
-          <h3 className="text-lg font-semibold mb-2">Email Template</h3>
-          <textarea
-            readOnly
-            value={template.trim()}
-            className="w-full h-64 p-3 rounded bg-gray-900 border border-gray-700 text-white font-mono"
-          />
-          <div className="mt-2 text-right">
-            <button 
-              onClick={() => navigator.clipboard.writeText(template.trim())}
-              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm"
-            >
-              Copy to Clipboard
-            </button>
-          </div>
         </div>
       )}
     </div>
