@@ -16,19 +16,23 @@ export default function SmartRecap() {
   }, []);
 
   const fetchLanes = async () => {
+    console.log('🔍 Fetching lanes...');
     try {
       const response = await fetch('/api/lanes');
       if (!response.ok) throw new Error('Failed to fetch lanes');
       const data = await response.json();
-      console.log('Fetched lanes:', data); // Debug log
+      console.log('📋 Raw lanes fetched:', data.length, data); 
       
       // Filter out covered lanes - only show pending and posted lanes
       const activeLanes = data.filter(lane => 
         lane.status === 'pending' || lane.status === 'posted'
       );
       
+      console.log('✅ Active lanes after filter:', activeLanes.length, activeLanes);
+      
       if (activeLanes.length > 0) {
         setLanes(activeLanes);
+        console.log('✅ Lanes set to state:', activeLanes.length);
       } else {
         // Force test lanes for demonstration
         setLanes([
@@ -204,8 +208,14 @@ export default function SmartRecap() {
           {/* Lane Selection */}
           <div className="bg-gray-800 rounded-lg border border-gray-700 p-6 mb-8">
             <label className="block text-sm font-medium text-gray-300 mb-3">
-              Select Lane to Recap:
+              Select Lane to Recap: ({lanes.length} lanes available)
             </label>
+            
+            {/* Debug Info */}
+            <div className="mb-4 p-3 bg-gray-900 rounded text-xs text-gray-400">
+              Debug: Lanes loaded: {lanes.length} | States: loading={loading.toString()}
+            </div>
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <select
                 value={selectedLane?.id || ''}
