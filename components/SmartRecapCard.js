@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 
-const SmartRecapCard = ({ lane, postedPairs = [] }) => {
+const SmartRecapCard = ({ lane, postedPairs = [], onTrackPerformance }) => {
   const [selectedPosting, setSelectedPosting] = useState(null);
   const [distances, setDistances] = useState({ pickup: null, delivery: null });
   const [trackingData, setTrackingData] = useState({});

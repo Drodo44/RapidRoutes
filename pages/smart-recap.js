@@ -22,11 +22,13 @@ export default function SmartRecap() {
       const data = await response.json();
       console.log('Fetched lanes:', data); // Debug log
       
-      // If we have real lanes, use them, otherwise use test data
-      const realLanes = data.filter(lane => lane.status === 'active');
+      // Filter out covered lanes - only show pending and posted lanes
+      const activeLanes = data.filter(lane => 
+        lane.status === 'pending' || lane.status === 'posted'
+      );
       
-      if (realLanes.length > 0) {
-        setLanes(realLanes);
+      if (activeLanes.length > 0) {
+        setLanes(activeLanes);
       } else {
         // Force test lanes for demonstration
         setLanes([
@@ -125,6 +127,67 @@ export default function SmartRecap() {
     window.open(downloadUrl, '_blank');
   };
 
+  const markAsCovered = async (laneId) => {
+    if (!laneId) return;
+    
+    try {
+      const response = await fetch('/api/laneStatus', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: laneId,
+          status: 'covered'
+        }),
+      });
+
+      if (response.ok) {
+        // Remove from lanes list and reset selection
+        setLanes(lanes.filter(lane => lane.id !== laneId));
+        if (selectedLane && selectedLane.id === laneId) {
+          setSelectedLane(null);
+          setPostedPairs([]);
+        }
+        alert('Lane marked as covered!');
+      } else {
+        alert('Failed to mark lane as covered');
+      }
+    } catch (error) {
+      console.error('Error marking lane as covered:', error);
+      alert('Error marking lane as covered');
+    }
+  };
+
+  const trackPerformance = async (action, cityPair = null) => {
+    if (!selectedLane) return;
+    
+    try {
+      const response = await fetch('/api/trackRecapAction', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          laneId: selectedLane.id,
+          action: action,
+          cityPair: cityPair,
+          originCity: selectedLane.origin_city,
+          originState: selectedLane.origin_state,
+          destCity: selectedLane.dest_city,
+          destState: selectedLane.dest_state,
+          equipment: selectedLane.equipment_code
+        }),
+      });
+
+      if (response.ok) {
+        console.log(`Tracked ${action} for lane ${selectedLane.id}`);
+      }
+    } catch (error) {
+      console.error('Error tracking performance:', error);
+    }
+  };
+
   return (
     <Layout>
       <div className="min-h-screen bg-gray-900 p-6">
@@ -167,22 +230,64 @@ export default function SmartRecap() {
               )}
               
               {selectedLane && (
-                <button
-                  onClick={handleDownloadRecap}
-                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium flex items-center"
-                >
-                  📥 Download HTML Recap
-                </button>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={handleDownloadRecap}
+                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium flex items-center"
+                  >
+                    📥 Download HTML Recap
+                  </button>
+                  <button
+                    onClick={() => markAsCovered(selectedLane.id)}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium flex items-center"
+                  >
+                    ✅ Mark as Covered
+                  </button>
+                </div>
               )}
             </div>
           </div>
 
           {/* Smart Recap Card */}
           {selectedLane && (
-            <SmartRecapCard
-              lane={selectedLane}
-              postedPairs={postedPairs}
-            />
+            <div className="space-y-6">
+              <SmartRecapCard
+                lane={selectedLane}
+                postedPairs={postedPairs}
+                onTrackPerformance={trackPerformance}
+              />
+              
+              {/* Performance Tracking Buttons */}
+              <div className="bg-gray-800 rounded-lg border border-gray-700 p-6">
+                <h3 className="text-lg font-semibold text-gray-100 mb-4">Track Performance</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <button
+                    onClick={() => trackPerformance('email_sent')}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium flex items-center justify-center"
+                  >
+                    📧 Email Sent
+                  </button>
+                  <button
+                    onClick={() => trackPerformance('call_received')}
+                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium flex items-center justify-center"
+                  >
+                    📞 Call Received
+                  </button>
+                  <button
+                    onClick={() => trackPerformance('quote_requested')}
+                    className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg text-sm font-medium flex items-center justify-center"
+                  >
+                    💰 Quote Requested
+                  </button>
+                  <button
+                    onClick={() => trackPerformance('load_booked')}
+                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium flex items-center justify-center"
+                  >
+                    🚛 Load Booked
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
 
           {/* Help Section */}
