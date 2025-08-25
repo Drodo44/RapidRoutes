@@ -7,6 +7,8 @@ const DatMarketMaps = () => {
   const [selectedEquipment, setSelectedEquipment] = useState('dry-van');
   const [mapData, setMapData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [uploadedImage, setUploadedImage] = useState(null);
 
   const equipmentTypes = [
     { value: 'dry-van', label: 'Dry Van', url: 'https://www.dat.com/blog/dry-van-report-truckload-sector-rides-inventory-wave-as-small-firms-power-logistics-growth' },
@@ -30,6 +32,38 @@ const DatMarketMaps = () => {
       console.error('Error fetching DAT map data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleImageUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('mapImage', file);
+      formData.append('equipment', selectedEquipment);
+
+      const response = await fetch('/api/uploadMapImage', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setUploadedImage(result.imageUrl);
+        console.log('✅ Image uploaded successfully:', result.imageUrl);
+      } else {
+        const error = await response.json();
+        console.error('❌ Upload failed:', error);
+        alert('Upload failed: ' + error.error);
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert('Upload failed: ' + error.message);
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -130,6 +164,45 @@ const DatMarketMaps = () => {
                       <span className="text-red-400 font-medium">-1.2%</span>
                     </div>
                   </div>
+                </div>
+              </div>
+
+              {/* Upload Section */}
+              <div className="bg-gray-900 rounded p-4">
+                <h4 className="font-semibold text-gray-100 mb-2">Upload Heat Map 📤</h4>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Upload PNG Heat Map for {equipmentTypes.find(e => e.value === selectedEquipment)?.label}
+                    </label>
+                    <input
+                      type="file"
+                      accept=".png,.jpg,.jpeg,.gif"
+                      onChange={handleImageUpload}
+                      disabled={uploading}
+                      className="block w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 file:disabled:opacity-50"
+                    />
+                  </div>
+                  
+                  {uploading && (
+                    <div className="flex items-center text-blue-400">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
+                      Uploading...
+                    </div>
+                  )}
+                  
+                  {uploadedImage && (
+                    <div className="text-green-400 text-sm">
+                      ✅ Image uploaded successfully!
+                      <div className="mt-2 max-w-full">
+                        <img 
+                          src={uploadedImage} 
+                          alt="Uploaded heat map" 
+                          className="rounded border border-gray-600 max-h-32 object-contain"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
