@@ -66,20 +66,37 @@ vi.mock('../utils/supabaseClient', () => {
       limit: () => api,
       maybeSingle: async () => {
         if (state.table === 'cities') {
-          const cityF = state.filters.find(f => f.type === 'ilike' && f.col === 'city')?.val?.replace('%','').toLowerCase();
-          const stF = state.filters.find(f => f.type === 'ilike' && f.col === 'state_or_province')?.val?.replace('%','').toUpperCase();
-          const rec = DB.cities.find(c => c.city.toLowerCase() === cityF && c.state_or_province.toUpperCase() === stF);
+          const cityF = state.filters.find(f => f.type === 'ilike' && f.col === 'city')?.val?.toLowerCase();
+          const stF = state.filters.find(f => f.type === 'ilike' && f.col === 'state_or_province')?.val?.toUpperCase();
+          const rec = DB.cities.find(c => 
+            c.city.toLowerCase() === cityF && c.state_or_province.toUpperCase() === stF
+          );
           return { data: rec || null, error: null };
         }
         if (state.table === 'rates_snapshots') {
-          return { data: DB.rates_snapshots, error: null };
+          return { data: DB.rates_snapshots[0] || null, error: null };
         }
         return { data: null, error: null };
       },
+      // For Supabase promise-based queries, we need to make the entire chain awaitable
       then: async (resolve) => {
-        // For list queries (e.g., candidates near), just return all cities; the library filters by true distance.
+        // For list queries (e.g., candidates near or getCityExact), filter by applied filters
         if (state.table === 'cities') {
-          return resolve({ data: DB.cities, error: null });
+          let cities = [...DB.cities]; // Create a copy
+          
+          // Apply ilike filters
+          for (const filter of state.filters) {
+            if (filter.type === 'ilike' && filter.col === 'city') {
+              const cityMatch = filter.val?.toLowerCase();
+              cities = cities.filter(c => c.city.toLowerCase() === cityMatch);
+            }
+            if (filter.type === 'ilike' && filter.col === 'state_or_province') {
+              const stateMatch = filter.val?.toUpperCase();
+              cities = cities.filter(c => c.state_or_province.toUpperCase() === stateMatch);
+            }
+          }
+          
+          return resolve({ data: cities, error: null });
         }
         if (state.table === 'rates_flat') {
           return resolve({ data: DB.rates_flat, error: null });
@@ -98,8 +115,8 @@ vi.mock('../utils/supabaseClient', () => {
 describe('Crawl generation rules', () => {
   it('returns pairs with unique KMAs per side and excludes weak 125-mile candidates', async () => {
     const res = await generateCrawlPairs({
-      origin: { city: 'PO75', state: 'ST' }, // Use valid test city
-      destination: { city: 'DO75', state: 'DS' }, // Use valid test city
+      origin: { city: 'BaseO', state: 'ST' }, // Use valid test city
+      destination: { city: 'BaseD', state: 'DS' }, // Use valid test city
       equipment: 'FD',
       preferFillTo10: false,
     });
