@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { supabase } from "../utils/supabaseClient";
 import Head from 'next/head';
+import PreferredPickupsManager from '../components/PreferredPickupsManager';
 
 function Section({ title, children, right, className = '' }) {
   return (
@@ -291,6 +292,11 @@ export default function Admin() {
             </table>
           </div>
         </div>
+
+        {/* Preferred Pickup Locations */}
+        <Section title="Preferred Pickup Locations" className="mt-6">
+          <PreferredPickupsManager />
+        </Section>
       )}
     </div>
   );
