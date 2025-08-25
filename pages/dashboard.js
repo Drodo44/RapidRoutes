@@ -129,36 +129,11 @@ function formatDate(dateString) {
 
 export default function Dashboard() {
   const [tab, setTab] = useState('van');
-  const [testDataLoading, setTestDataLoading] = useState(false);
   const maps = useLatestMaps();
   const rec = maps[tab];
   const mapUrl = rec ? publicUrl(rec.image_path) : null;
   const mapDate = rec ? formatDate(rec.effective_date) : 'Not available';
   const stats = useBrokerStats();
-
-  const createTestData = async () => {
-    setTestDataLoading(true);
-    try {
-      const response = await fetch('/api/createTestLanes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        alert(`✅ Created ${result.lanesCreated} test lanes and ${result.recapEntriesCreated} recap entries!`);
-        // Refresh the page to show updated stats
-        window.location.reload();
-      } else {
-        const error = await response.json();
-        alert('❌ Failed to create test data: ' + error.error);
-      }
-    } catch (error) {
-      alert('❌ Error creating test data: ' + error.message);
-    } finally {
-      setTestDataLoading(false);
-    }
-  };
 
   // Floor-space calculator
   const [pLen, setPLen] = useState(48);  // in
@@ -227,26 +202,6 @@ export default function Dashboard() {
             icon="📋" 
             color="blue" 
           />
-        </div>
-        
-        {/* Test Data Button */}
-        <div className="flex justify-center">
-          <button
-            onClick={createTestData}
-            disabled={testDataLoading}
-            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg font-medium flex items-center"
-          >
-            {testDataLoading ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Creating Test Data...
-              </>
-            ) : (
-              <>
-                🧪 Create Test Lanes & Stats
-              </>
-            )}
-          </button>
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
