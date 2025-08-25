@@ -18,10 +18,18 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Create upload directory if it doesn't exist - use absolute path
+    // Create upload directory if it doesn't exist - more robust path handling
     const uploadDir = path.join(process.cwd(), 'public', 'uploads');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
+    
+    // Ensure directory exists
+    try {
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+        console.log('Created upload directory:', uploadDir);
+      }
+    } catch (dirError) {
+      console.error('Directory creation error:', dirError);
+      // Continue anyway - might be permissions issue but formidable might still work
     }
 
     const form = formidable({
