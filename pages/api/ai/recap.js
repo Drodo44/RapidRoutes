@@ -89,9 +89,11 @@ function generateFallbackRecap(laneContext) {
     ? `on ${lane.pickup_earliest}`
     : `between ${lane.pickup_earliest} and ${lane.pickup_latest}`;
   
-  // Create a deterministic seed based on lane properties for consistency
-  const laneHash = lane.id.slice(-8); // Use last 8 chars of lane ID for uniqueness
-  const hashNum = parseInt(laneHash, 16) || 12345;
+  // Create a more varied seed based on lane properties + current time for better variety
+  const timeSeed = Math.floor(Date.now() / (1000 * 60 * 30)); // Changes every 30 minutes
+  const laneHash = lane.id.toString(); 
+  const hashNum = (parseInt(laneHash.slice(-4), 10) + timeSeed) || 12345;
+  const altHash = (parseInt(laneHash.slice(-6, -2), 10) + timeSeed * 2) || 67890;
   
   // Standard bullets based on equipment type
   const bullets = [];
@@ -101,23 +103,43 @@ function generateFallbackRecap(laneContext) {
   const refDisplay = lane.reference_id ? ` (Ref #${lane.reference_id})` : '';
   bullets.push(`${origin} to ${dest} ${lane.length_ft}' ${equipCode} ${pickupDateRange}${refDisplay}`);
   
-  // Equipment-specific bullets with variation
+  // Equipment-specific bullets with more variation
   if (['V', 'VA'].includes(equipCode)) {
     const vanOptions = [
       'Standard dry van with dock-level loading capabilities',
       'Dry van freight with standard loading/unloading requirements', 
-      'Van transportation with flexible pickup/delivery windows'
+      'Van transportation with flexible pickup/delivery windows',
+      'Enclosed van transport protecting cargo from weather exposure',
+      'Standard van equipment suitable for palletized freight',
+      'Dry van service with reliable carrier network coverage'
     ];
     bullets.push(vanOptions[hashNum % vanOptions.length]);
+    
+    const vanDetails = [
+      'Open deck transportation with proper securement required',
+      'Specialized document equipment needed for safe transport',
+      'Strategic location provides multiple routing options',
+      'Established trade lane with consistent carrier availability',
+      'Flexible weight range accommodates various shipment sizes'
+    ];
+    bullets.push(vanDetails[altHash % vanDetails.length]);
   }
   else if (['R', 'RH'].includes(equipCode)) {
-    bullets.push('Temperature-controlled transportation required');
+    const reeferOptions = [
+      'Temperature-controlled transportation maintaining cold chain integrity',
+      'Refrigerated transport with continuous monitoring capabilities',
+      'Reefer service ensuring product quality throughout transit'
+    ];
+    bullets.push(reeferOptions[hashNum % reeferOptions.length]);
+    
     const reeferRisks = [
       'Temperature excursions could impact product quality',
       'Reefer unit monitoring required throughout transit',
-      'Cold chain integrity must be maintained'
+      'Cold chain integrity must be maintained',
+      'Power outages or equipment failure could affect cargo',
+      'Temperature-sensitive cargo requires experienced carrier'
     ];
-    risks.push(reeferRisks[hashNum % reeferRisks.length]);
+    risks.push(reeferRisks[altHash % reeferRisks.length]);
   }
   else if (['F', 'FD', 'SD', 'DD', 'RGN', 'LB'].includes(equipCode)) {
     bullets.push('Open deck transportation with proper securement required');

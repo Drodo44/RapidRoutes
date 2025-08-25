@@ -8,13 +8,14 @@ ALTER TABLE lanes ADD COLUMN reference_id VARCHAR(8);
 CREATE OR REPLACE FUNCTION generate_lane_reference_id()
 RETURNS TRIGGER AS $$
 BEGIN
-    -- Generate a 5-digit reference ID based on timestamp and randomness
-    -- Format: RR + 5 digits (e.g., RR12345)
+    -- Generate a 5-digit reference ID - PURE NUMERIC ONLY
+    -- Format: RR + 5 digits (e.g., RR12345, RR00001, RR99999)
     NEW.reference_id = 'RR' || LPAD((EXTRACT(EPOCH FROM NOW())::BIGINT % 100000)::TEXT, 5, '0');
     
     -- Ensure uniqueness by checking for conflicts
     WHILE EXISTS (SELECT 1 FROM lanes WHERE reference_id = NEW.reference_id) LOOP
-        NEW.reference_id = 'RR' || LPAD((EXTRACT(EPOCH FROM NOW())::BIGINT % 100000 + (RANDOM() * 99999)::INT)::TEXT, 5, '0');
+        -- Use pure random numeric approach for conflicts
+        NEW.reference_id = 'RR' || LPAD((RANDOM() * 99999 + 1)::INT::TEXT, 5, '0');
     END LOOP;
     
     RETURN NEW;

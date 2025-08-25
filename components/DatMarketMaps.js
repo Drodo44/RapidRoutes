@@ -132,22 +132,35 @@ const DatMarketMaps = () => {
                   </div>
                 </div>
                 
-                {/* Heat Map Placeholder */}
+                {/* DAT Market Heat Map Display */}
                 <div className="bg-gray-800 rounded h-64 flex items-center justify-center relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-br from-red-500/20 via-yellow-500/20 to-green-500/20 opacity-50"></div>
-                  <div className="relative z-10 text-center">
-                    <div className="text-4xl mb-2">🗺️</div>
-                    <div className="text-gray-300">Interactive Heat Map</div>
-                    <div className="text-sm text-gray-500 mt-1">
-                      Market Activity - {equipmentTypes.find(e => e.value === selectedEquipment)?.label}
-                    </div>
-                  </div>
-                  
-                  {/* Sample heat spots */}
-                  <div className="absolute top-16 left-20 w-4 h-4 bg-red-500 rounded-full opacity-60 animate-pulse"></div>
-                  <div className="absolute top-24 right-32 w-3 h-3 bg-yellow-500 rounded-full opacity-60 animate-pulse delay-300"></div>
-                  <div className="absolute bottom-20 left-32 w-5 h-5 bg-green-500 rounded-full opacity-60 animate-pulse delay-700"></div>
-                  <div className="absolute bottom-32 right-20 w-3 h-3 bg-orange-500 rounded-full opacity-60 animate-pulse delay-500"></div>
+                  {uploadedImage ? (
+                    <img 
+                      src={uploadedImage} 
+                      alt={`${equipmentTypes.find(e => e.value === selectedEquipment)?.label} Heat Map`}
+                      className="w-full h-full object-cover rounded"
+                    />
+                  ) : (
+                    <>
+                      <div className="absolute inset-0 bg-gradient-to-br from-red-500/20 via-yellow-500/20 to-green-500/20 opacity-50"></div>
+                      <div className="relative z-10 text-center">
+                        <div className="text-4xl mb-2">🗺️</div>
+                        <div className="text-gray-300">DAT Market Heat Map</div>
+                        <div className="text-sm text-gray-500 mt-1">
+                          {equipmentTypes.find(e => e.value === selectedEquipment)?.label} Market Activity
+                        </div>
+                        <div className="text-xs text-gray-600 mt-2">
+                          Upload heat map in Admin panel to display here
+                        </div>
+                      </div>
+                      
+                      {/* Sample heat spots */}
+                      <div className="absolute top-16 left-20 w-4 h-4 bg-red-500 rounded-full opacity-60 animate-pulse"></div>
+                      <div className="absolute top-24 right-32 w-3 h-3 bg-yellow-500 rounded-full opacity-60 animate-pulse delay-300"></div>
+                      <div className="absolute bottom-20 left-32 w-5 h-5 bg-green-500 rounded-full opacity-60 animate-pulse delay-700"></div>
+                      <div className="absolute bottom-32 right-20 w-3 h-3 bg-orange-500 rounded-full opacity-60 animate-pulse delay-500"></div>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -180,52 +193,6 @@ const DatMarketMaps = () => {
                       <span className="text-red-400 font-medium">-1.2%</span>
                     </div>
                   </div>
-                </div>
-              </div>
-
-              {/* Upload Section */}
-              <div className="bg-gray-900 rounded p-4">
-                <h4 className="font-semibold text-gray-100 mb-2">Upload Heat Map 📤</h4>
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Upload PNG Heat Map for {equipmentTypes.find(e => e.value === selectedEquipment)?.label}
-                    </label>
-                    <input
-                      type="file"
-                      accept="image/*,.png,.jpg,.jpeg,.gif,.webp"
-                      onChange={handleImageUpload}
-                      disabled={uploading}
-                      className="block w-full text-sm text-gray-300 
-                        file:mr-4 file:py-2 file:px-4 
-                        file:rounded file:border-0 
-                        file:text-sm file:font-semibold 
-                        file:bg-blue-600 file:text-white 
-                        hover:file:bg-blue-700 
-                        file:disabled:opacity-50
-                        border border-gray-600 rounded-lg p-2 bg-gray-800"
-                    />
-                  </div>
-                  
-                  {uploading && (
-                    <div className="flex items-center text-blue-400">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
-                      Uploading...
-                    </div>
-                  )}
-                  
-                  {uploadedImage && (
-                    <div className="text-green-400 text-sm">
-                      ✅ Image uploaded successfully!
-                      <div className="mt-2 max-w-full">
-                        <img 
-                          src={uploadedImage} 
-                          alt="Uploaded heat map" 
-                          className="rounded border border-gray-600 max-h-32 object-contain"
-                        />
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
 
