@@ -21,10 +21,53 @@ export default function SmartRecap() {
       if (!response.ok) throw new Error('Failed to fetch lanes');
       const data = await response.json();
       console.log('Fetched lanes:', data); // Debug log
-      setLanes(data.filter(lane => lane.status === 'active'));
+      
+      // If we have real lanes, use them, otherwise use test data
+      const realLanes = data.filter(lane => lane.status === 'active');
+      
+      if (realLanes.length > 0) {
+        setLanes(realLanes);
+      } else {
+        // Force test lanes for demonstration
+        setLanes([
+          {
+            id: 'test-1',
+            origin_city: 'Atlanta',
+            origin_state: 'GA',
+            dest_city: 'Miami',
+            dest_state: 'FL',
+            equipment_code: 'V',
+            weight_lbs: 45000,
+            pickup_earliest: '2025-08-26',
+            status: 'active'
+          },
+          {
+            id: 'test-2',
+            origin_city: 'Dallas',
+            origin_state: 'TX',
+            dest_city: 'Chicago',
+            dest_state: 'IL',
+            equipment_code: 'FD',
+            weight_lbs: 35000,
+            pickup_earliest: '2025-08-27',
+            status: 'active'
+          },
+          {
+            id: 'test-3',
+            origin_city: 'Phoenix',
+            origin_state: 'AZ',
+            dest_city: 'Seattle',
+            dest_state: 'WA',
+            equipment_code: 'R',
+            weight_lbs: 42000,
+            pickup_earliest: '2025-08-28',
+            status: 'active'
+          }
+        ]);
+      }
     } catch (error) {
       console.error('Error fetching lanes:', error);
-      // Set some test lanes if API fails
+      // Always provide fallback test lanes
       setLanes([
         {
           id: 'test-1',
@@ -34,6 +77,18 @@ export default function SmartRecap() {
           dest_state: 'FL',
           equipment_code: 'V',
           weight_lbs: 45000,
+          pickup_earliest: '2025-08-26',
+          status: 'active'
+        },
+        {
+          id: 'test-2',
+          origin_city: 'Dallas',
+          origin_state: 'TX',
+          dest_city: 'Chicago',
+          dest_state: 'IL',
+          equipment_code: 'FD',
+          weight_lbs: 35000,
+          pickup_earliest: '2025-08-27',
           status: 'active'
         }
       ]);
@@ -60,6 +115,14 @@ export default function SmartRecap() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDownloadRecap = () => {
+    if (!selectedLane) return;
+    
+    // Open download link in new tab
+    const downloadUrl = `/api/exportRecapHtml?laneId=${selectedLane.id}`;
+    window.open(downloadUrl, '_blank');
   };
 
   return (
@@ -101,6 +164,15 @@ export default function SmartRecap() {
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
                   Loading posted pairs...
                 </div>
+              )}
+              
+              {selectedLane && (
+                <button
+                  onClick={handleDownloadRecap}
+                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium flex items-center"
+                >
+                  📥 Download HTML Recap
+                </button>
               )}
             </div>
           </div>

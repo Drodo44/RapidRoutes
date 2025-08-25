@@ -39,31 +39,47 @@ const DatMarketMaps = () => {
     const file = event.target.files[0];
     if (!file) return;
 
+    console.log('Selected file:', file.name, file.type, file.size);
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file (PNG, JPG, GIF, etc.)');
+      event.target.value = ''; // Clear the input
+      return;
+    }
+
     setUploading(true);
     try {
       const formData = new FormData();
       formData.append('mapImage', file);
       formData.append('equipment', selectedEquipment);
 
+      console.log('Uploading file...', file.name);
+
       const response = await fetch('/api/uploadMapImage', {
         method: 'POST',
         body: formData,
       });
 
+      console.log('Upload response status:', response.status);
+
       if (response.ok) {
         const result = await response.json();
         setUploadedImage(result.imageUrl);
         console.log('✅ Image uploaded successfully:', result.imageUrl);
+        alert('Image uploaded successfully!');
       } else {
         const error = await response.json();
         console.error('❌ Upload failed:', error);
-        alert('Upload failed: ' + error.error);
+        alert('Upload failed: ' + (error.error || 'Unknown error'));
       }
     } catch (error) {
       console.error('Upload error:', error);
       alert('Upload failed: ' + error.message);
     } finally {
       setUploading(false);
+      // Clear the input
+      event.target.value = '';
     }
   };
 
@@ -177,10 +193,17 @@ const DatMarketMaps = () => {
                     </label>
                     <input
                       type="file"
-                      accept=".png,.jpg,.jpeg,.gif"
+                      accept="image/*,.png,.jpg,.jpeg,.gif,.webp"
                       onChange={handleImageUpload}
                       disabled={uploading}
-                      className="block w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 file:disabled:opacity-50"
+                      className="block w-full text-sm text-gray-300 
+                        file:mr-4 file:py-2 file:px-4 
+                        file:rounded file:border-0 
+                        file:text-sm file:font-semibold 
+                        file:bg-blue-600 file:text-white 
+                        hover:file:bg-blue-700 
+                        file:disabled:opacity-50
+                        border border-gray-600 rounded-lg p-2 bg-gray-800"
                     />
                   </div>
                   

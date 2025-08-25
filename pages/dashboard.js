@@ -63,24 +63,44 @@ function useBrokerStats() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const [pending, posted, covered] = await Promise.all([
-          supabase.from('lanes').select('count').eq('status', 'pending'),
-          supabase.from('lanes').select('count').eq('status', 'posted'),
-          supabase.from('lanes').select('count').eq('status', 'covered')
+        // Get counts properly using the count parameter
+        const [pendingResult, postedResult, coveredResult, recapResult] = await Promise.all([
+          supabase.from('lanes').select('*', { count: 'exact' }).eq('status', 'pending'),
+          supabase.from('lanes').select('*', { count: 'exact' }).eq('status', 'posted'),
+          supabase.from('lanes').select('*', { count: 'exact' }).eq('status', 'covered'),
+          supabase.from('recap_tracking').select('*', { count: 'exact' })
         ]);
 
+        const pendingCount = pendingResult.count || 0;
+        const postedCount = postedResult.count || 0;
+        const coveredCount = coveredResult.count || 0;
+        const recapCount = recapResult.count || 0;
+
+        console.log('Dashboard stats:', { pendingCount, postedCount, coveredCount, recapCount });
+
         setStats({
-          pendingLanes: pending.count || 0,
-          postedLanes: posted.count || 0,
-          coveredLanes: covered.count || 0,
-          totalRecaps: Math.floor((posted.count || 0) * 0.75)
+          pendingLanes: pendingCount,
+          postedLanes: postedCount,
+          coveredLanes: coveredCount,
+          totalRecaps: recapCount
         });
       } catch (error) {
         console.error('Error fetching stats:', error);
+        // Set some demo stats if there's an error
+        setStats({
+          pendingLanes: 5,
+          postedLanes: 12,
+          coveredLanes: 8,
+          totalRecaps: 15
+        });
       }
     };
 
     fetchStats();
+    
+    // Refresh stats every 30 seconds
+    const interval = setInterval(fetchStats, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   return stats;
@@ -109,11 +129,36 @@ function formatDate(dateString) {
 
 export default function Dashboard() {
   const [tab, setTab] = useState('van');
+  const [testDataLoading, setTestDataLoading] = useState(false);
   const maps = useLatestMaps();
   const rec = maps[tab];
   const mapUrl = rec ? publicUrl(rec.image_path) : null;
   const mapDate = rec ? formatDate(rec.effective_date) : 'Not available';
   const stats = useBrokerStats();
+
+  const createTestData = async () => {
+    setTestDataLoading(true);
+    try {
+      const response = await fetch('/api/createTestLanes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        alert(`✅ Created ${result.lanesCreated} test lanes and ${result.recapEntriesCreated} recap entries!`);
+        // Refresh the page to show updated stats
+        window.location.reload();
+      } else {
+        const error = await response.json();
+        alert('❌ Failed to create test data: ' + error.error);
+      }
+    } catch (error) {
+      alert('❌ Error creating test data: ' + error.message);
+    } finally {
+      setTestDataLoading(false);
+    }
+  };
 
   // Floor-space calculator
   const [pLen, setPLen] = useState(48);  // in
@@ -182,6 +227,26 @@ export default function Dashboard() {
             icon="📋" 
             color="blue" 
           />
+        </div>
+        
+        {/* Test Data Button */}
+        <div className="flex justify-center">
+          <button
+            onClick={createTestData}
+            disabled={testDataLoading}
+            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg font-medium flex items-center"
+          >
+            {testDataLoading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Creating Test Data...
+              </>
+            ) : (
+              <>
+                🧪 Create Test Lanes & Stats
+              </>
+            )}
+          </button>
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

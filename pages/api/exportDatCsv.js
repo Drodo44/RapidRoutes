@@ -218,6 +218,21 @@ export default async function handler(req, res) {
     const selected = chunks[partIndex] || allRows;
     const csv = toCsv(DAT_HEADERS, selected);
 
+    // Update lane statuses to 'posted' after successful CSV generation
+    try {
+      const laneIds = lanes.map(lane => lane.id);
+      if (laneIds.length > 0) {
+        await adminSupabase
+          .from('lanes')
+          .update({ status: 'posted', posted_at: new Date().toISOString() })
+          .in('id', laneIds);
+        console.log(`✅ Updated ${laneIds.length} lanes to 'posted' status`);
+      }
+    } catch (updateError) {
+      console.error('Failed to update lane statuses:', updateError);
+      // Don't fail the export if status update fails
+    }
+
     // Debug headers for client inspection
     res.setHeader('X-Debug-Lanes-Processed', String(lanes.length));
     res.setHeader('X-Debug-Total-Rows', String(allRows.length));
