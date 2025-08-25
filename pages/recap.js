@@ -3,12 +3,18 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import Head from 'next/head';
 
+function cleanReferenceId(refId) {
+  if (!refId) return '';
+  // Remove Excel text formatting like ="RR12345"
+  return String(refId).replace(/^="?|"?$/g, '');
+}
+
 function matches(q, l) {
   if (!q) return true;
   const s = q.toLowerCase().trim();
   
   // Check reference ID (exact match or partial)
-  const refId = String(l.reference_id || '').toLowerCase();
+  const refId = cleanReferenceId(l.reference_id).toLowerCase();
   if (refId && s.startsWith('rr') && refId.includes(s)) {
     return true;
   }
@@ -34,7 +40,7 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating }) {
           <div className="flex items-center gap-2">
             {lane.reference_id && (
               <div className="text-xs px-2 py-1 rounded font-mono font-bold bg-green-900/60 text-green-200">
-                REF #{lane.reference_id}
+                REF #{cleanReferenceId(lane.reference_id)}
               </div>
             )}
             <div className="text-xs px-2 py-1 rounded-full font-medium bg-blue-900/60 text-blue-200">{lane.status}</div>
@@ -114,12 +120,14 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating }) {
 export default function RecapPage() {
   const [q, setQ] = useState('');
   const [lanes, setLanes] = useState([]);
+  const [crawlData, setCrawlData] = useState([]);
   const [recaps, setRecaps] = useState({});
   const [generatingIds, setGeneratingIds] = useState(new Set());
   const [showAIOnly, setShowAIOnly] = useState(false);
   const [sortOrder, setSortOrder] = useState('date');
   
   useEffect(() => {
+    // Load lanes
     supabase
       .from('lanes')
       .select('*')
@@ -127,6 +135,16 @@ export default function RecapPage() {
       .order('created_at', { ascending: false })
       .limit(200)
       .then(({ data }) => setLanes(data || []));
+    
+    // Load crawl cities for dropdown
+    fetch('/api/lanes/crawl-cities')
+      .then(res => res.json())
+      .then(data => {
+        if (data.crawlData) {
+          setCrawlData(data.crawlData);
+        }
+      })
+      .catch(error => console.error('Error loading crawl cities:', error));
   }, []);
   
   const filtered = useMemo(() => {
@@ -304,9 +322,11 @@ export default function RecapPage() {
                   className="w-full bg-gray-900 border border-gray-600 rounded-md text-gray-200 py-2 px-3 appearance-none"
                 >
                   <option value="">📍 Jump to lane...</option>
-                  {lanes.map(lane => (
-                    <option key={lane.id} value={lane.id}>
-                      {lane.reference_id ? `${lane.reference_id} - ` : ''}{lane.origin_city}, {lane.origin_state} → {lane.dest_city}, {lane.dest_state}
+                  {crawlData
+                    .filter(item => !item.isOriginal) // Show only generated crawl cities
+                    .map((item, index) => (
+                    <option key={`${item.laneId}-${index}`} value={item.laneId}>
+                      {item.displayName} → {item.referenceId}
                     </option>
                   ))}
                 </select>

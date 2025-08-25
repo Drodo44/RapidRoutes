@@ -20,6 +20,7 @@ export default function Admin() {
   const [user, setUser] = useState(null);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [uploadMessage, setUploadMessage] = useState('');
   const router = useRouter();
 
   useEffect(() => {
@@ -75,6 +76,38 @@ export default function Admin() {
     setUsers((prev) => prev.filter((u) => u.id !== id));
   };
 
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (!file.type.includes('image/png')) {
+      setUploadMessage('Error: Only PNG files are allowed');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      setUploadMessage('Uploading...');
+      const response = await fetch('/api/admin/upload-market-map', {
+        method: 'POST',
+        body: formData
+      });
+
+      const result = await response.json();
+      
+      if (response.ok) {
+        setUploadMessage(`Success: ${result.filename} uploaded`);
+        setTimeout(() => setUploadMessage(''), 3000);
+      } else {
+        setUploadMessage(`Error: ${result.error}`);
+      }
+    } catch (error) {
+      setUploadMessage(`Error: ${error.message}`);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-6">
       <Head>
@@ -83,7 +116,43 @@ export default function Admin() {
       
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-100 mb-2">Admin Dashboard</h1>
-        <p className="text-gray-400">Manage user accounts and permissions</p>
+        <p className="text-gray-400">Manage user accounts and market heat map uploads</p>
+      </div>
+
+      {/* Market Heat Map Upload Section */}
+      <div className="bg-gray-800 rounded-lg border border-gray-700 shadow-lg overflow-hidden mb-6">
+        <div className="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700">
+          <h2 className="text-lg font-semibold text-gray-100">Market Heat Map Upload</h2>
+        </div>
+        <div className="p-4 bg-gray-900">
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Upload PNG Heat Map
+              </label>
+              <input
+                type="file"
+                accept=".png"
+                onChange={handleFileUpload}
+                className="block w-full text-sm text-gray-300 bg-gray-800 border border-gray-600 rounded-lg cursor-pointer focus:outline-none"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Upload weekly market heat map PNG files for DAT market analysis
+              </p>
+            </div>
+            {uploadMessage && (
+              <div className={`p-3 rounded-lg text-sm ${
+                uploadMessage.startsWith('Error') 
+                  ? 'bg-red-900/20 border border-red-700 text-red-300'
+                  : uploadMessage.startsWith('Success')
+                  ? 'bg-green-900/20 border border-green-700 text-green-300'
+                  : 'bg-blue-900/20 border border-blue-700 text-blue-300'
+              }`}>
+                {uploadMessage}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {loading ? (
@@ -107,7 +176,10 @@ export default function Admin() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-700">
-                {users.map((u) => (
+                {users
+                  .filter(u => u.id !== user?.id) // Hide current admin's own account
+                  .filter(u => u.status !== 'Approved' || u.role !== 'Admin') // Hide other approved admins
+                  .map((u) => (
                   <tr key={u.id} className="bg-gray-900">
                     <td className="px-4 py-3 text-sm text-gray-100">{u.name || "—"}</td>
                     <td className="px-4 py-3 text-sm text-gray-100">{u.email}</td>
@@ -147,6 +219,13 @@ export default function Admin() {
                     </td>
                   </tr>
                 ))}
+                {users.filter(u => u.id !== user?.id).filter(u => u.status !== 'Approved' || u.role !== 'Admin').length === 0 && (
+                  <tr className="bg-gray-900">
+                    <td colSpan="5" className="px-4 py-8 text-center text-gray-400">
+                      No pending user actions required
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

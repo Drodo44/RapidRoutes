@@ -6,8 +6,15 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import Head from 'next/head';
 
+function cleanReferenceId(refId) {
+  if (!refId) return '';
+  // Remove Excel text formatting like ="RR12345"
+  return String(refId).replace(/^="?|"?$/g, '');
+}
+
 export default function RecapExport() {
   const [lanes, setLanes] = useState([]);
+  const [crawlData, setCrawlData] = useState([]);
   const [recaps, setRecaps] = useState({});
   const [loading, setLoading] = useState(true);
   const [aiLoading, setAiLoading] = useState(false);
@@ -47,6 +54,17 @@ export default function RecapExport() {
       const lanesData = await fetchLanes();
       if (lanesData.length > 0) {
         await fetchAIRecaps(lanesData.map(l => l.id));
+      }
+      
+      // Load crawl cities for dropdown
+      try {
+        const response = await fetch('/api/lanes/crawl-cities');
+        const data = await response.json();
+        if (data.crawlData) {
+          setCrawlData(data.crawlData);
+        }
+      } catch (error) {
+        console.error('Error loading crawl cities:', error);
       }
     }
     
@@ -90,7 +108,7 @@ export default function RecapExport() {
     const q = query.toLowerCase().trim();
     
     // Check reference ID (format: RR12345)
-    const refId = `RR${String(lane.id).slice(-5)}`;
+    const refId = cleanReferenceId(lane.reference_id) || `RR${String(lane.id).slice(-5)}`;
     if (refId.toLowerCase().includes(q)) return true;
     
     // Check origin and destination
@@ -188,14 +206,13 @@ export default function RecapExport() {
               className="px-3 py-2 border border-gray-300 rounded-lg text-sm max-w-64"
             >
               <option value="">Jump to lane...</option>
-              {(searchQuery ? filteredLanes : lanes).map((lane) => {
-                const refId = `RR${String(lane.id).slice(-5)}`;
-                return (
-                  <option key={lane.id} value={lane.id}>
-                    {refId} - {lane.origin_city}, {lane.origin_state} → {lane.dest_city}, {lane.dest_state}
-                  </option>
-                );
-              })}
+              {crawlData
+                .filter(item => !item.isOriginal) // Show only generated crawl cities
+                .map((item, index) => (
+                <option key={`${item.laneId}-${index}`} value={item.laneId}>
+                  {item.displayName} → {cleanReferenceId(item.referenceId)}
+                </option>
+              ))}
             </select>
 
             {aiLoading && <div className="text-sm text-gray-500">Loading AI insights...</div>}
