@@ -30,9 +30,19 @@ CREATE TRIGGER trigger_generate_lane_reference_id
     EXECUTE FUNCTION generate_lane_reference_id();
 
 -- Update existing lanes to have reference IDs
+-- Fix any broken reference IDs (RR00NaN, etc.)
+UPDATE lanes 
+SET reference_id = 'RR' || LPAD((EXTRACT(EPOCH FROM created_at)::BIGINT % 100000)::TEXT, 5, '0')
+WHERE reference_id IS NULL 
+   OR reference_id = '' 
+   OR reference_id LIKE '%NaN%'
+   OR reference_id NOT SIMILAR TO 'RR[0-9]{5}';
+
+-- For any remaining conflicts, add uniqueness
 UPDATE lanes 
 SET reference_id = 'RR' || LPAD((id % 100000)::TEXT, 5, '0')
-WHERE reference_id IS NULL;
+WHERE reference_id IS NULL 
+   OR reference_id = '';
 
 -- Create index for fast reference ID lookups
 CREATE INDEX idx_lanes_reference_id ON lanes(reference_id);
