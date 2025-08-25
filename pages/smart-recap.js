@@ -3,119 +3,60 @@
 
 import { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
-import SmartRecapCard from '../components/SmartRecapCard';
 
 export default function SmartRecap() {
   const [lanes, setLanes] = useState([]);
-  const [selectedLane, setSelectedLane] = useState(null);
-  const [postedPairs, setPostedPairs] = useState([]);
+  const [allPostedPairs, setAllPostedPairs] = useState([]);
+  const [selectedPair, setSelectedPair] = useState(null);
+  const [originalLane, setOriginalLane] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [distance, setDistance] = useState(null);
 
   useEffect(() => {
-    fetchLanes();
+    fetchAllPostedPairs();
   }, []);
 
-  const fetchLanes = async () => {
-    console.log('🔍 Fetching lanes...');
+  const fetchAllPostedPairs = async () => {
+    console.log('🔍 Fetching all posted city pairs...');
+    setLoading(true);
     try {
-      const response = await fetch('/api/lanes');
-      if (!response.ok) throw new Error('Failed to fetch lanes');
-      const data = await response.json();
-      console.log('📋 Raw lanes fetched:', data.length, data); 
+      // Get all active lanes first
+      const lanesResponse = await fetch('/api/lanes');
+      if (!lanesResponse.ok) throw new Error('Failed to fetch lanes');
+      const lanesData = await lanesResponse.json();
       
-      // Filter out covered lanes - only show pending and posted lanes
-      const activeLanes = data.filter(lane => 
+      const activeLanes = lanesData.filter(lane => 
         lane.status === 'pending' || lane.status === 'posted'
       );
       
-      console.log('✅ Active lanes after filter:', activeLanes.length, activeLanes);
-      
-      if (activeLanes.length > 0) {
-        setLanes(activeLanes);
-        console.log('✅ Lanes set to state:', activeLanes.length);
-      } else {
-        // Force test lanes for demonstration
-        setLanes([
-          {
-            id: 'test-1',
-            origin_city: 'Atlanta',
-            origin_state: 'GA',
-            dest_city: 'Miami',
-            dest_state: 'FL',
-            equipment_code: 'V',
-            weight_lbs: 45000,
-            pickup_earliest: '2025-08-26',
-            status: 'active'
-          },
-          {
-            id: 'test-2',
-            origin_city: 'Dallas',
-            origin_state: 'TX',
-            dest_city: 'Chicago',
-            dest_state: 'IL',
-            equipment_code: 'FD',
-            weight_lbs: 35000,
-            pickup_earliest: '2025-08-27',
-            status: 'active'
-          },
-          {
-            id: 'test-3',
-            origin_city: 'Phoenix',
-            origin_state: 'AZ',
-            dest_city: 'Seattle',
-            dest_state: 'WA',
-            equipment_code: 'R',
-            weight_lbs: 42000,
-            pickup_earliest: '2025-08-28',
-            status: 'active'
+      setLanes(activeLanes);
+      console.log('📋 Active lanes loaded:', activeLanes.length);
+
+      // Get all posted pairs for all lanes
+      const allPairs = [];
+      for (const lane of activeLanes) {
+        try {
+          const response = await fetch(`/api/getPostedPairs?laneId=${lane.id}`);
+          if (response.ok) {
+            const data = await response.json();
+            // Add each posted pair with reference to original lane
+            data.postedPairs.forEach(pair => {
+              allPairs.push({
+                ...pair,
+                originalLane: lane,
+                displayText: `${pair.pickup.city}, ${pair.pickup.state} → ${pair.delivery.city}, ${pair.delivery.state}`,
+                laneInfo: `${lane.origin_city}, ${lane.origin_state} → ${lane.dest_city}, ${lane.dest_state}`
+              });
+            });
           }
-        ]);
-      }
-    } catch (error) {
-      console.error('Error fetching lanes:', error);
-      // Always provide fallback test lanes
-      setLanes([
-        {
-          id: 'test-1',
-          origin_city: 'Atlanta',
-          origin_state: 'GA',
-          dest_city: 'Miami',
-          dest_state: 'FL',
-          equipment_code: 'V',
-          weight_lbs: 45000,
-          pickup_earliest: '2025-08-26',
-          status: 'active'
-        },
-        {
-          id: 'test-2',
-          origin_city: 'Dallas',
-          origin_state: 'TX',
-          dest_city: 'Chicago',
-          dest_state: 'IL',
-          equipment_code: 'FD',
-          weight_lbs: 35000,
-          pickup_earliest: '2025-08-27',
-          status: 'active'
+        } catch (error) {
+          console.error(`Error fetching pairs for lane ${lane.id}:`, error);
         }
-      ]);
-    }
-  };
-
-  const handleLaneSelect = async (laneId) => {
-    if (!laneId) {
-      setSelectedLane(null);
-      setPostedPairs([]);
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const response = await fetch(`/api/getPostedPairs?laneId=${laneId}`);
-      if (!response.ok) throw new Error('Failed to fetch posted pairs');
+      }
       
-      const data = await response.json();
-      setSelectedLane(data.lane);
-      setPostedPairs(data.postedPairs);
+      console.log('✅ All posted pairs loaded:', allPairs.length);
+      setAllPostedPairs(allPairs);
+      
     } catch (error) {
       console.error('Error fetching posted pairs:', error);
     } finally {
@@ -123,16 +64,75 @@ export default function SmartRecap() {
     }
   };
 
-  const handleDownloadRecap = () => {
-    if (!selectedLane) return;
-    
-    // Open download link in new tab
-    const downloadUrl = `/api/exportRecapHtml?laneId=${selectedLane.id}`;
-    window.open(downloadUrl, '_blank');
+  const handlePairSelect = async (pairId) => {
+    if (!pairId) {
+      setSelectedPair(null);
+      setOriginalLane(null);
+      setDistance(null);
+      return;
+    }
+
+    const pair = allPostedPairs.find(p => p.id === pairId);
+    if (!pair) return;
+
+    setSelectedPair(pair);
+    setOriginalLane(pair.originalLane);
+
+    // Calculate distance between posted pair and original lane
+    try {
+      setLoading(true);
+      const [pickupResponse, deliveryResponse] = await Promise.all([
+        fetch(`/api/calculateDistance?city1=${encodeURIComponent(pair.originalLane.origin_city)}&state1=${encodeURIComponent(pair.originalLane.origin_state)}&city2=${encodeURIComponent(pair.pickup.city)}&state2=${encodeURIComponent(pair.pickup.state)}`),
+        fetch(`/api/calculateDistance?city1=${encodeURIComponent(pair.originalLane.dest_city)}&state1=${encodeURIComponent(pair.originalLane.dest_state)}&city2=${encodeURIComponent(pair.delivery.city)}&state2=${encodeURIComponent(pair.delivery.state)}`)
+      ]);
+
+      const pickupData = await pickupResponse.json();
+      const deliveryData = await deliveryResponse.json();
+
+      setDistance({
+        pickup: pickupResponse.ok ? pickupData.distance : null,
+        delivery: deliveryResponse.ok ? deliveryData.distance : null
+      });
+    } catch (error) {
+      console.error('Distance calculation error:', error);
+      setDistance({ pickup: null, delivery: null });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const markAsCovered = async (laneId) => {
-    if (!laneId) return;
+  const trackPerformance = async (action) => {
+    if (!selectedPair || !originalLane) return;
+    
+    try {
+      const response = await fetch('/api/trackRecapAction', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          laneId: originalLane.id,
+          action: action,
+          cityPair: selectedPair.displayText,
+          originCity: originalLane.origin_city,
+          originState: originalLane.origin_state,
+          destCity: originalLane.dest_city,
+          destState: originalLane.dest_state,
+          equipment: originalLane.equipment_code
+        }),
+      });
+
+      if (response.ok) {
+        console.log(`✅ Tracked ${action} for ${selectedPair.displayText}`);
+        alert(`${action.replace('_', ' ')} tracked successfully!`);
+      }
+    } catch (error) {
+      console.error('Error tracking performance:', error);
+    }
+  };
+
+  const markAsCovered = async () => {
+    if (!originalLane) return;
     
     try {
       const response = await fetch('/api/laneStatus', {
@@ -141,19 +141,18 @@ export default function SmartRecap() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          id: laneId,
+          id: originalLane.id,
           status: 'covered'
         }),
       });
 
       if (response.ok) {
-        // Remove from lanes list and reset selection
-        setLanes(lanes.filter(lane => lane.id !== laneId));
-        if (selectedLane && selectedLane.id === laneId) {
-          setSelectedLane(null);
-          setPostedPairs([]);
-        }
         alert('Lane marked as covered!');
+        // Refresh the data
+        fetchAllPostedPairs();
+        setSelectedPair(null);
+        setOriginalLane(null);
+        setDistance(null);
       } else {
         alert('Failed to mark lane as covered');
       }
@@ -163,33 +162,11 @@ export default function SmartRecap() {
     }
   };
 
-  const trackPerformance = async (action, cityPair = null) => {
-    if (!selectedLane) return;
-    
-    try {
-      const response = await fetch('/api/trackRecapAction', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          laneId: selectedLane.id,
-          action: action,
-          cityPair: cityPair,
-          originCity: selectedLane.origin_city,
-          originState: selectedLane.origin_state,
-          destCity: selectedLane.dest_city,
-          destState: selectedLane.dest_state,
-          equipment: selectedLane.equipment_code
-        }),
-      });
-
-      if (response.ok) {
-        console.log(`Tracked ${action} for lane ${selectedLane.id}`);
-      }
-    } catch (error) {
-      console.error('Error tracking performance:', error);
-    }
+  const getDistanceColor = (dist) => {
+    if (!dist) return 'text-gray-400';
+    if (dist < 25) return 'text-green-400';
+    if (dist < 75) return 'text-yellow-400';
+    return 'text-red-400';
   };
 
   return (
@@ -198,103 +175,175 @@ export default function SmartRecap() {
         <div className="max-w-6xl mx-auto">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-100 mb-2">
-              Smart Recap System
+              🚛 Smart Recap System
             </h1>
             <p className="text-gray-400">
-              Match carrier calls to posted lanes and track performance
+              Find generated lanes when carriers call in
             </p>
           </div>
 
-          {/* Lane Selection */}
-          <div className="bg-gray-800 rounded-lg border border-gray-700 p-6 mb-8">
-            <label className="block text-sm font-medium text-gray-300 mb-3">
-              Select Lane to Recap: ({lanes.length} lanes available)
-            </label>
-            
-            {/* Debug Info */}
-            <div className="mb-4 p-3 bg-gray-900 rounded text-xs text-gray-400">
-              Debug: Lanes loaded: {lanes.length} | States: loading={loading.toString()}
+          {/* Statistics */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <div className="bg-gray-800 rounded-lg p-4 text-center border border-gray-700">
+              <div className="text-2xl font-bold text-blue-400">{lanes.length}</div>
+              <div className="text-sm text-gray-400">Active Lanes</div>
             </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <select
-                value={selectedLane?.id || ''}
-                onChange={(e) => handleLaneSelect(e.target.value)}
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-gray-100 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                disabled={loading}
-              >
-                <option value="">Choose a lane...</option>
-                {lanes.map((lane) => (
-                  <option key={lane.id} value={lane.id}>
-                    {lane.origin_city}, {lane.origin_state} → {lane.dest_city}, {lane.dest_state} 
-                    ({lane.equipment_code} - {lane.weight_lbs?.toLocaleString()} lbs)
-                  </option>
-                ))}
-              </select>
-              
-              {loading && (
-                <div className="flex items-center text-gray-400">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
-                  Loading posted pairs...
-                </div>
-              )}
-              
-              {selectedLane && (
-                <div className="flex space-x-2">
-                  <button
-                    onClick={handleDownloadRecap}
-                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium flex items-center"
-                  >
-                    📥 Download HTML Recap
-                  </button>
-                  <button
-                    onClick={() => markAsCovered(selectedLane.id)}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium flex items-center"
-                  >
-                    ✅ Mark as Covered
-                  </button>
-                </div>
-              )}
+            <div className="bg-gray-800 rounded-lg p-4 text-center border border-gray-700">
+              <div className="text-2xl font-bold text-green-400">{allPostedPairs.length}</div>
+              <div className="text-sm text-gray-400">Posted Pairs</div>
+            </div>
+            <div className="bg-gray-800 rounded-lg p-4 text-center border border-gray-700">
+              <div className="text-2xl font-bold text-yellow-400">{allPostedPairs.length * 2}</div>
+              <div className="text-sm text-gray-400">Total Postings</div>
+            </div>
+            <div className="bg-gray-800 rounded-lg p-4 text-center border border-gray-700">
+              <div className="text-2xl font-bold text-purple-400">DAT</div>
+              <div className="text-sm text-gray-400">Platform</div>
             </div>
           </div>
 
-          {/* Smart Recap Card */}
-          {selectedLane && (
+          {/* Dropdown Section */}
+          <div className="bg-gray-800 rounded-lg border border-gray-700 p-6 mb-8">
+            <label className="block text-lg font-medium text-blue-400 mb-4">
+              🔍 Find Generated Lane (for incoming calls):
+            </label>
+            
+            {loading && (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mr-3"></div>
+                <span className="text-gray-300">Loading posted pairs...</span>
+              </div>
+            )}
+            
+            {!loading && (
+              <div className="space-y-4">
+                <select
+                  value={selectedPair?.id || ''}
+                  onChange={(e) => handlePairSelect(e.target.value)}
+                  className="w-full bg-gray-700 border-2 border-blue-500 rounded-lg px-4 py-3 text-gray-100 text-lg focus:border-blue-400 focus:ring-2 focus:ring-blue-400 focus:outline-none"
+                  disabled={loading}
+                >
+                  <option value="">Select a posted lane to find...</option>
+                  {allPostedPairs.map((pair) => (
+                    <option key={pair.id} value={pair.id}>
+                      {pair.displayText}
+                    </option>
+                  ))}
+                </select>
+                
+                {allPostedPairs.length === 0 && !loading && (
+                  <div className="text-center py-8 text-gray-400">
+                    <div className="text-4xl mb-4">📭</div>
+                    <div>No posted pairs found</div>
+                    <div className="text-sm mt-2">Generate some lanes first to see options here</div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Selected Pair Information */}
+          {selectedPair && originalLane && (
             <div className="space-y-6">
-              <SmartRecapCard
-                lane={selectedLane}
-                postedPairs={postedPairs}
-                onTrackPerformance={trackPerformance}
-              />
-              
-              {/* Performance Tracking Buttons */}
-              <div className="bg-gray-800 rounded-lg border border-gray-700 p-6">
-                <h3 className="text-lg font-semibold text-gray-100 mb-4">Track Performance</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <button
-                    onClick={() => trackPerformance('email_sent')}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium flex items-center justify-center"
-                  >
-                    📧 Email Sent
-                  </button>
-                  <button
-                    onClick={() => trackPerformance('call_received')}
-                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium flex items-center justify-center"
-                  >
-                    📞 Call Received
-                  </button>
-                  <button
-                    onClick={() => trackPerformance('quote_requested')}
-                    className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg text-sm font-medium flex items-center justify-center"
-                  >
-                    💰 Quote Requested
-                  </button>
-                  <button
-                    onClick={() => trackPerformance('load_booked')}
-                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium flex items-center justify-center"
-                  >
-                    🚛 Load Booked
-                  </button>
+              {/* Matching Information */}
+              <div className="bg-gray-800 rounded-lg border-2 border-blue-500 p-6">
+                <h2 className="text-xl font-bold text-blue-400 mb-4">
+                  📍 Lane Match Details
+                </h2>
+                
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div>
+                    <h3 className="font-semibold text-gray-300 mb-2">Original Lane:</h3>
+                    <div className="bg-gray-900 rounded p-4">
+                      <div className="text-gray-100">
+                        {originalLane.origin_city}, {originalLane.origin_state} → {originalLane.dest_city}, {originalLane.dest_state}
+                      </div>
+                      <div className="text-sm text-gray-400 mt-1">
+                        {originalLane.equipment_code} • {originalLane.weight_lbs?.toLocaleString()} lbs
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h3 className="font-semibold text-gray-300 mb-2">Posted Pair (Carrier Called About):</h3>
+                    <div className="bg-gray-900 rounded p-4">
+                      <div className="text-gray-100">
+                        {selectedPair.pickup.city}, {selectedPair.pickup.state} → {selectedPair.delivery.city}, {selectedPair.delivery.state}
+                      </div>
+                      <div className="text-sm text-gray-400 mt-1">
+                        Generated variation
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Distance Information */}
+                {distance && (
+                  <div className="mt-6 grid md:grid-cols-2 gap-4">
+                    <div className="bg-gray-900 rounded p-4">
+                      <h4 className="font-semibold text-gray-300 mb-2">Pickup Distance:</h4>
+                      <div className={`text-2xl font-bold ${getDistanceColor(distance.pickup)}`}>
+                        {distance.pickup ? `${distance.pickup.toFixed(1)} miles` : 'Unknown'}
+                      </div>
+                    </div>
+                    <div className="bg-gray-900 rounded p-4">
+                      <h4 className="font-semibold text-gray-300 mb-2">Delivery Distance:</h4>
+                      <div className={`text-2xl font-bold ${getDistanceColor(distance.delivery)}`}>
+                        {distance.delivery ? `${distance.delivery.toFixed(1)} miles` : 'Unknown'}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="bg-gray-800 rounded-lg border border-gray-700 p-6">
+                  <h3 className="text-lg font-semibold text-gray-100 mb-4">Track Performance</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => trackPerformance('email_sent')}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium"
+                    >
+                      📧 Email Sent
+                    </button>
+                    <button
+                      onClick={() => trackPerformance('call_received')}
+                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium"
+                    >
+                      📞 Call Received
+                    </button>
+                    <button
+                      onClick={() => trackPerformance('quote_requested')}
+                      className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg text-sm font-medium"
+                    >
+                      💰 Quote Requested
+                    </button>
+                    <button
+                      onClick={() => trackPerformance('load_booked')}
+                      className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium"
+                    >
+                      🚛 Load Booked
+                    </button>
+                  </div>
+                </div>
+
+                <div className="bg-gray-800 rounded-lg border border-gray-700 p-6">
+                  <h3 className="text-lg font-semibold text-gray-100 mb-4">Lane Actions</h3>
+                  <div className="space-y-3">
+                    <button
+                      onClick={markAsCovered}
+                      className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"
+                    >
+                      ✅ Mark Lane as Covered
+                    </button>
+                    <button
+                      onClick={() => window.open(`/api/exportRecapHtml?laneId=${originalLane.id}`, '_blank')}
+                      className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium"
+                    >
+                      � Download HTML Recap
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -307,16 +356,19 @@ export default function SmartRecap() {
             </h3>
             <div className="space-y-2 text-blue-200 text-sm">
               <p>
-                <strong>1. Select Lane:</strong> Choose the original lane you posted to DAT
+                <strong>1. Carrier Calls:</strong> When a carrier calls about a specific city pair
               </p>
               <p>
-                <strong>2. Match Posting:</strong> When a carrier calls, select which posted city pair they're calling about
+                <strong>2. Find the Lane:</strong> Use the dropdown to find which posted pair they're calling about
               </p>
               <p>
-                <strong>3. Track Performance:</strong> Use the action buttons to track emails, calls, and covered loads
+                <strong>3. View Match:</strong> See the distance between posted pair and your original lane
               </p>
               <p>
-                <strong>4. View Insights:</strong> Monitor performance metrics to optimize future postings
+                <strong>4. Track Performance:</strong> Record emails, calls, quotes, and bookings
+              </p>
+              <p>
+                <strong>5. Mark Covered:</strong> Remove completed lanes from active list
               </p>
             </div>
           </div>
