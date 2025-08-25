@@ -4,7 +4,8 @@
 // Streams as text/csv with Content-Disposition for browser download.
 
 import { adminSupabase } from '../../utils/supabaseClient';
-import { DAT_HEADERS, planPairsForLane, rowsFromBaseAndPairs, toCsv } from '../../lib/datCsvBuilder';
+import { DAT_HEADERS } from '../../lib/datHeaders.js';
+import { planPairsForLane, rowsFromBaseAndPairs, toCsv } from '../../lib/datCsvBuilder';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {

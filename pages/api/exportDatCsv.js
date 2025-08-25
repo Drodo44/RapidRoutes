@@ -6,7 +6,10 @@
 // - If part is specified for GET, returns only that part.
 
 import { adminSupabase } from '../../utils/supabaseClient';
-import { planPairsForLane, rowsFromBaseAndPairs, DAT_HEADERS, toCsv, chunkRows } from '../../lib/datCsvBuilder';
+import { generateAllPairs } from '../../lib/datcrawl.js';
+import { chunkRows } from '../../lib/csvChunker.js';
+import { DAT_HEADERS } from '../../lib/datHeaders.js';
+import { planPairsForLane, rowsFromBaseAndPairs, toCsv } from '../../lib/datCsvBuilder';
 
 // EMERGENCY PAIR GENERATOR - USING YOUR ACTUAL DATABASE
 async function emergencyPairs(origin, dest) {

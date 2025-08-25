@@ -1,4 +1,5 @@
-import { DAT_HEADERS, ensureLaneWeightValidity, rowsFromBaseAndPairs, toCsv, chunkRows } from '../lib/datCsvBuilder';
+import { DAT_HEADERS } from '../lib/datHeaders.js';
+import { ensureLaneWeightValidity, rowsFromBaseAndPairs, toCsv, chunkRows } from '../lib/datCsvBuilder';
 
 function baseLane(overrides = {}) {
   return {

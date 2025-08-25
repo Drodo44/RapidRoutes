@@ -1,5 +1,5 @@
 // tests/datHeaders.test.js
-import { DAT_HEADERS } from "../lib/datCsvBuilder.js";
+import { DAT_HEADERS } from "../lib/datHeaders.js";
 
 const EXPECT = [
   "Pickup Earliest*",
