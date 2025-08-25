@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import Link from 'next/link';
 import Head from 'next/head';
+import DatMarketMaps from '../components/DatMarketMaps';
 
 function Section({ title, right, children, className = '' }) {
   return (
@@ -184,29 +185,26 @@ export default function Dashboard() {
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    {/* DAT Market Heat Maps - NEW FEATURE */}
+          <DatMarketMaps />
+
           <Section
-            title="DAT Market Map"
-            className="lg:col-span-2"
+            title="Market Maps"
             right={
-              <div className="flex items-center gap-2">
-                <div className="text-xs text-gray-400">
-                  {mapDate}
-                </div>
-                <div className="flex gap-1">
-                  {['van','reefer','flatbed'].map(k=>(
-                    <button 
-                      key={k} 
-                      onClick={()=>setTab(k)} 
-                      className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
-                        tab===k
-                          ? 'bg-blue-600 text-white border-blue-700'
-                          : 'border-gray-700 text-gray-300 hover:bg-gray-700'
-                      }`}
-                    >
-                      {k[0].toUpperCase()+k.slice(1)}
-                    </button>
-                  ))}
-                </div>
+              <div className="flex space-x-2">
+                {Object.keys(mapData).map(k => (
+                  <button
+                    key={k}
+                    onClick={() => setTab(k)}
+                    className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
+                      tab===k
+                        ? 'bg-blue-600 text-white border-blue-700'
+                        : 'border-gray-700 text-gray-300 hover:bg-gray-700'
+                    }`}
+                  >
+                    {k[0].toUpperCase()+k.slice(1)}
+                  </button>
+                ))}
               </div>
             }
           >
