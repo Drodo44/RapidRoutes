@@ -22,7 +22,7 @@ export default function PreferredPickupsManager() {
 
   const loadPickups = async () => {
     try {
-      const response = await fetch('/api/admin/preferred-pickups');
+      const response = await fetch('/api/preferred-pickups');
       const data = await response.json();
       setPickups(data);
     } catch (error) {
@@ -35,7 +35,7 @@ export default function PreferredPickupsManager() {
   const addPickup = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch('/api/admin/preferred-pickups', {
+      const response = await fetch('/api/preferred-pickups', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -60,7 +60,7 @@ export default function PreferredPickupsManager() {
 
   const updateFrequency = async (id, newScore) => {
     try {
-      const response = await fetch('/api/admin/preferred-pickups', {
+      const response = await fetch('/api/preferred-pickups', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, frequency_score: newScore })
@@ -77,7 +77,7 @@ export default function PreferredPickupsManager() {
   const deletePickup = async (id) => {
     if (confirm('Delete this preferred pickup location?')) {
       try {
-        const response = await fetch(`/api/admin/preferred-pickups?id=${id}`, {
+        const response = await fetch(`/api/preferred-pickups?id=${id}`, {
           method: 'DELETE'
         });
         

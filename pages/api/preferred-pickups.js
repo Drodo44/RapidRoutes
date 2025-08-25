@@ -1,15 +1,24 @@
-// pages/api/admin/preferred-pickups.js
-// API for managing broker's preferred pickup locations
+// pages/api/preferred-pickups.js
+// API for managing user's personal preferred pickup locations
 
-import { adminSupabase } from '../../../utils/supabaseClient';
+import { adminSupabase, supabase } from '../../../utils/supabaseClient';
 
 export default async function handler(req, res) {
   try {
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const userId = user.id;
+
     if (req.method === 'GET') {
-      // Get all preferred pickups
+      // Get user's preferred pickups only
       const { data, error } = await adminSupabase
         .from('preferred_pickups')
         .select('*')
+        .eq('user_id', userId)
         .order('frequency_score', { ascending: false });
       
       if (error) throw error;
@@ -17,7 +26,7 @@ export default async function handler(req, res) {
       res.status(200).json(data);
       
     } else if (req.method === 'POST') {
-      // Add new preferred pickup
+      // Add new preferred pickup for current user
       const { city, state, zip, frequency_score, equipment_preference, notes } = req.body;
       
       // Look up KMA info from cities table
@@ -34,6 +43,7 @@ export default async function handler(req, res) {
       const { data, error } = await adminSupabase
         .from('preferred_pickups')
         .insert([{
+          user_id: userId,
           city,
           state_or_province: state,
           zip,
@@ -51,13 +61,15 @@ export default async function handler(req, res) {
       res.status(201).json(data);
       
     } else if (req.method === 'PUT') {
-      // Update preferred pickup
+      // Update user's preferred pickup
       const { id, ...updates } = req.body;
       
+      // Ensure user can only update their own pickups
       const { data, error } = await adminSupabase
         .from('preferred_pickups')
         .update({ ...updates, updated_at: new Date().toISOString() })
         .eq('id', id)
+        .eq('user_id', userId)
         .select()
         .single();
       
@@ -66,13 +78,15 @@ export default async function handler(req, res) {
       res.status(200).json(data);
       
     } else if (req.method === 'DELETE') {
-      // Delete preferred pickup
+      // Delete user's preferred pickup
       const { id } = req.query;
       
+      // Ensure user can only delete their own pickups
       const { error } = await adminSupabase
         .from('preferred_pickups')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .eq('user_id', userId);
       
       if (error) throw error;
       

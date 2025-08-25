@@ -1,8 +1,9 @@
--- Create preferred pickup locations table for broker intelligence
--- This stores the broker's most common pickup cities/KMAs for optimized posting
+-- Create preferred pickup locations table for individual broker intelligence
+-- Each broker manages their own pickup preferences
 
 CREATE TABLE IF NOT EXISTS preferred_pickups (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     city TEXT NOT NULL,
     state_or_province TEXT NOT NULL,
     zip TEXT,
@@ -16,30 +17,19 @@ CREATE TABLE IF NOT EXISTS preferred_pickups (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Index for fast lookups by city/state
+-- Index for fast lookups by user and location
+CREATE INDEX IF NOT EXISTS idx_preferred_pickups_user ON preferred_pickups(user_id);
 CREATE INDEX IF NOT EXISTS idx_preferred_pickups_location ON preferred_pickups(city, state_or_province);
 CREATE INDEX IF NOT EXISTS idx_preferred_pickups_kma ON preferred_pickups(kma_code);
 CREATE INDEX IF NOT EXISTS idx_preferred_pickups_frequency ON preferred_pickups(frequency_score DESC);
 
--- RLS for security
+-- RLS for security - users can only see their own pickups
 ALTER TABLE preferred_pickups ENABLE ROW LEVEL SECURITY;
 
--- Policy to allow all operations for authenticated users
-CREATE POLICY "Enable all operations for authenticated users" ON preferred_pickups
-    FOR ALL TO authenticated USING (true) WITH CHECK (true);
+-- Policy for users to manage their own pickups
+CREATE POLICY "Users can manage their own pickups" ON preferred_pickups
+    FOR ALL TO authenticated 
+    USING (auth.uid() = user_id) 
+    WITH CHECK (auth.uid() = user_id);
 
--- Sample data - add your most common pickup cities
-INSERT INTO preferred_pickups (city, state_or_province, zip, frequency_score, equipment_preference, notes) VALUES
-('Atlanta', 'GA', '30309', 10, ARRAY['V', 'R', 'FD'], 'Major hub - high frequency'),
-('Chicago', 'IL', '60601', 9, ARRAY['V', 'FD'], 'Midwest distribution center'),
-('Dallas', 'TX', '75201', 9, ARRAY['V', 'FD', 'R'], 'Texas freight hub'),
-('Los Angeles', 'CA', '90210', 8, ARRAY['V', 'R'], 'West coast gateway'),
-('Charlotte', 'NC', '28202', 7, ARRAY['V', 'FD'], 'Southeast distribution'),
-('Memphis', 'TN', '38101', 8, ARRAY['V'], 'Logistics hub'),
-('Jacksonville', 'FL', '32099', 6, ARRAY['V', 'R'], 'Florida freight'),
-('Phoenix', 'AZ', '85001', 6, ARRAY['V', 'FD'], 'Southwest hub'),
-('Columbus', 'OH', '43215', 5, ARRAY['V'], 'Ohio logistics'),
-('Kansas City', 'MO', '64108', 7, ARRAY['V', 'FD'], 'Central US hub')
-ON CONFLICT DO NOTHING;
-
-COMMENT ON TABLE preferred_pickups IS 'Broker preferred pickup locations for intelligent posting optimization';
+COMMENT ON TABLE preferred_pickups IS 'Individual broker preferred pickup locations for intelligent posting optimization';

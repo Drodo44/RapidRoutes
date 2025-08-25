@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import Head from 'next/head';
+import PreferredPickupsManager from '../components/PreferredPickupsManager';
 
 export default function Profile() {
   const [prefs, setPrefs] = useState(null);
@@ -89,6 +90,17 @@ export default function Profile() {
             <button onClick={save} className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2">Save</button>
             {msg && <span className="ml-3 text-sm text-gray-300">{msg}</span>}
           </div>
+        </div>
+      </div>
+
+      {/* Preferred Pickup Locations */}
+      <div className="rounded-lg border border-gray-700 shadow-lg overflow-hidden">
+        <div className="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700">
+          <h2 className="text-lg font-semibold text-gray-100">My Preferred Pickup Locations</h2>
+          <span className="text-sm text-gray-400">Your most common pickup cities</span>
+        </div>
+        <div className="p-4 bg-gray-900">
+          <PreferredPickupsManager />
         </div>
       </div>
     </div>
