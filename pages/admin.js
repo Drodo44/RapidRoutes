@@ -178,6 +178,16 @@ export default function Admin() {
             </div>
             
             <div className="border-t border-gray-700 pt-4">
+              <h3 className="text-sm font-medium text-gray-300 mb-2">🗑️ Database Maintenance</h3>
+              <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-3 mb-3">
+                <p className="text-xs text-yellow-300 mb-2">
+                  <strong>What this does:</strong> Removes duplicate lanes that have the same origin, destination, and equipment type. 
+                  Duplicate lanes cause CSV exports to have repeated rows, violating DAT's 499-row limit.
+                </p>
+                <p className="text-xs text-yellow-300">
+                  <strong>Safe to use:</strong> Only removes exact duplicates, keeps the original (oldest) lane.
+                </p>
+              </div>
               <div className="flex gap-3">
                 <button
                   onClick={removeDuplicates}
@@ -187,7 +197,7 @@ export default function Admin() {
                 </button>
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                Remove duplicate lanes that may cause CSV export issues
+                <strong>Recommended:</strong> Run this before generating CSV exports to ensure data quality
               </p>
             </div>
             
