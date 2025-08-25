@@ -192,7 +192,7 @@ export default function Dashboard() {
             title="Market Maps"
             right={
               <div className="flex space-x-2">
-                {Object.keys(mapData).map(k => (
+                {Object.keys(maps).map(k => (
                   <button
                     key={k}
                     onClick={() => setTab(k)}

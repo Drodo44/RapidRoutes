@@ -1,11 +1,15 @@
 // components/CityAutocomplete.js
 import { useEffect, useMemo, useRef, useState } from "react";
+import CityNotFoundModal from './CityNotFoundModal';
 
 export default function CityAutocomplete({ label, value, onChange, onPick }) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [idx, setIdx] = useState(-1);
+  const [showModal, setShowModal] = useState(false);
+  const [modalCity, setModalCity] = useState(null);
+  const [modalState, setModalState] = useState(null);
   const boxRef = useRef(null);
 
   const canQuery = (v) => (v?.trim()?.length || 0) >= 2;
@@ -20,8 +24,22 @@ export default function CityAutocomplete({ label, value, onChange, onPick }) {
         const r = await fetch(`/api/cities?q=${encodeURIComponent(v)}`);
         const j = await r.json();
         if (!active) return;
-        setItems(Array.isArray(j) ? j : []);
-        setOpen(true); setIdx(-1);
+        
+        const results = Array.isArray(j) ? j : [];
+        setItems(results);
+        
+        // If no results found and input looks like "City, ST" format, show modal
+        if (results.length === 0 && v.includes(',')) {
+          const parts = v.split(',').map(p => p.trim());
+          if (parts.length === 2 && parts[0] && parts[1].length === 2) {
+            setModalCity(parts[0]);
+            setModalState(parts[1].toUpperCase());
+            setShowModal(true);
+          }
+        }
+        
+        setOpen(results.length > 0); 
+        setIdx(-1);
       } finally {
         if (active) setLoading(false);
       }
@@ -51,6 +69,24 @@ export default function CityAutocomplete({ label, value, onChange, onPick }) {
     else if (e.key === "Enter") { e.preventDefault(); pick(items[idx] || items[0]); }
     else if (e.key === "Escape") setOpen(false);
   }
+
+  const handleCityAdded = (newCity) => {
+    // Create the autocomplete item format
+    const newItem = {
+      city: newCity.city,
+      state: newCity.state_or_province,
+      zip: newCity.zip,
+      label: `${newCity.city}, ${newCity.state_or_province}`
+    };
+    
+    // Update the input and trigger onPick
+    onChange?.(newItem.label);
+    onPick?.(newItem);
+    
+    // Reset modal state
+    setModalCity(null);
+    setModalState(null);
+  };
 
   const list = useMemo(() => items.slice(0, 12), [items]);
 
@@ -85,6 +121,18 @@ export default function CityAutocomplete({ label, value, onChange, onPick }) {
           {loading && <div className="px-3 py-2 text-sm text-gray-400">Searching…</div>}
         </div>
       )}
+      
+      <CityNotFoundModal
+        isOpen={showModal}
+        onClose={() => {
+          setShowModal(false);
+          setModalCity(null);
+          setModalState(null);
+        }}
+        city={modalCity}
+        state={modalState}
+        onCityAdded={handleCityAdded}
+      />
     </div>
   );
 }

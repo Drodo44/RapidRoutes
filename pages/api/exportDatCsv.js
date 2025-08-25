@@ -184,7 +184,8 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const preferFillTo10 = String(req.query.fill || '0') === '1';
+  // DEFAULT TO FILL MODE for production unless explicitly set to 0
+  const preferFillTo10 = String(req.query.fill || '1') !== '0';
   const pending = String(req.query.pending || '') === '1';
   const all = String(req.query.all || '') === '1';
   const days = req.query.days != null ? Number(req.query.days) : null;
@@ -192,8 +193,7 @@ export default async function handler(req, res) {
 
   console.log(`🚨 CRITICAL DEBUG: req.query.fill = "${req.query.fill}" (type: ${typeof req.query.fill})`);
   console.log(`🚨 CRITICAL DEBUG: preferFillTo10 = ${preferFillTo10} (type: ${typeof preferFillTo10})`);
-  console.log(`🚨 CRITICAL DEBUG: String comparison: "${req.query.fill}" === "1" is ${String(req.query.fill || '0') === '1'}`);
-  console.log(`🚨 CRITICAL DEBUG: If preferFillTo10 is true, emergency mode SHOULD activate`);
+  console.log(`🚨 CRITICAL DEBUG: DEFAULTING TO FILL MODE - only disabled with explicit fill=0`);
   console.log(`🚨 CRITICAL DEBUG: Expected rows per lane when preferFillTo10=true: 12 (6 pairs × 2 contacts)`);
   console.log(`🚨 CRITICAL DEBUG: Expected rows per lane when preferFillTo10=false: 8 (4 pairs × 2 contacts)`);
 
