@@ -720,6 +720,11 @@ export default function LanesPage() {
             <div key={l.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 py-3">
               <div className="text-sm">
                 <div className="text-gray-100">
+                  {l.reference_id && (
+                    <span className="inline-block mr-3 px-2 py-0.5 text-xs font-mono font-bold rounded bg-green-900/60 text-green-200">
+                      REF #{l.reference_id}
+                    </span>
+                  )}
                   <span className="font-medium">{l.origin_city}, {l.origin_state}</span>
                   <span className="mx-2 text-gray-500">→</span>
                   <span className="font-medium">{l.dest_city}, {l.dest_state}</span>

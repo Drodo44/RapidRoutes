@@ -8,7 +8,8 @@ function matches(q, l) {
   const s = q.toLowerCase();
   return `${l.origin_city}, ${l.origin_state}`.toLowerCase().includes(s)
     || `${l.dest_city}, ${l.dest_state}`.toLowerCase().includes(s)
-    || String(l.equipment_code).toLowerCase().includes(s);
+    || String(l.equipment_code).toLowerCase().includes(s)
+    || String(l.reference_id || '').toLowerCase().includes(s);
 }
 
 function LaneCard({ lane, recapData, onGenerateRecap, isGenerating }) {
@@ -21,7 +22,14 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating }) {
             <span className="text-gray-400 mx-2">→</span> 
             {lane.dest_city}, {lane.dest_state}
           </div>
-          <div className="text-xs px-2 py-1 rounded-full font-medium bg-blue-900/60 text-blue-200">{lane.status}</div>
+          <div className="flex items-center gap-2">
+            {lane.reference_id && (
+              <div className="text-xs px-2 py-1 rounded font-mono font-bold bg-green-900/60 text-green-200">
+                REF #{lane.reference_id}
+              </div>
+            )}
+            <div className="text-xs px-2 py-1 rounded-full font-medium bg-blue-900/60 text-blue-200">{lane.status}</div>
+          </div>
         </div>
         <div className="text-xs text-gray-300 mt-1">
           <span className="inline-block px-2 py-0.5 rounded bg-gray-700 text-xs font-medium">
@@ -244,7 +252,7 @@ export default function RecapPage() {
       
       <div className="container mx-auto max-w-7xl px-4 space-y-6">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-100 mb-2">Shipper Recaps</h1>
+          <h1 className="text-2xl font-bold text-gray-100 mb-2">Active Lane Postings</h1>
           <p className="text-gray-400">Generate AI-powered talking points for client conversations</p>
         </div>
         
@@ -255,7 +263,7 @@ export default function RecapPage() {
                 type="text" 
                 value={q} 
                 onChange={(e) => setQ(e.target.value)}
-                placeholder="Search city, state, or equipment"
+                placeholder="Search reference ID, city, state, or equipment"
                 className="w-full pl-9 pr-3 py-2 bg-gray-900 border border-gray-600 rounded-md text-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               />
               <span className="absolute left-3 top-2.5 text-gray-500">
