@@ -6,6 +6,7 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/lanes", label: "New Lane" },
   { href: "/recap", label: "Recap" },
+  { href: "/smart-recap", label: "Smart Recap" },
   { href: "/settings", label: "Settings" },
   { href: "/profile", label: "Profile" },
   { href: "/admin", label: "Admin" },
