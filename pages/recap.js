@@ -5,16 +5,25 @@ import Head from 'next/head';
 
 function matches(q, l) {
   if (!q) return true;
-  const s = q.toLowerCase();
-  return `${l.origin_city}, ${l.origin_state}`.toLowerCase().includes(s)
-    || `${l.dest_city}, ${l.dest_state}`.toLowerCase().includes(s)
-    || String(l.equipment_code).toLowerCase().includes(s)
-    || String(l.reference_id || '').toLowerCase().includes(s);
+  const s = q.toLowerCase().trim();
+  
+  // Check reference ID (exact match or partial)
+  const refId = String(l.reference_id || '').toLowerCase();
+  if (refId && s.startsWith('rr') && refId.includes(s)) {
+    return true;
+  }
+  
+  // Check origin/destination
+  const origin = `${l.origin_city}, ${l.origin_state}`.toLowerCase();
+  const dest = `${l.dest_city}, ${l.dest_state}`.toLowerCase();
+  const equipment = String(l.equipment_code || '').toLowerCase();
+  
+  return origin.includes(s) || dest.includes(s) || equipment.includes(s) || refId.includes(s);
 }
 
 function LaneCard({ lane, recapData, onGenerateRecap, isGenerating }) {
   return (
-    <article className="rounded-xl border border-gray-700 bg-gray-800 overflow-hidden">
+    <article id={`lane-${lane.id}`} className="rounded-xl border border-gray-700 bg-gray-800 overflow-hidden transition-all duration-300">
       <div className="p-4">
         <div className="flex items-center justify-between">
           <div className="font-medium text-gray-100">
@@ -258,19 +267,50 @@ export default function RecapPage() {
         
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-gray-800 rounded-lg p-4 border border-gray-700">
           <div className="flex flex-wrap gap-3 items-center">
-            <div className="relative w-64">
-              <input 
-                type="text" 
-                value={q} 
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="Search reference ID, city, state, or equipment"
-                className="w-full pl-9 pr-3 py-2 bg-gray-900 border border-gray-600 rounded-md text-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-              />
-              <span className="absolute left-3 top-2.5 text-gray-500">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </span>
+            <div className="flex items-center space-x-4">
+              <div className="relative w-64">
+                <input 
+                  type="text" 
+                  value={q} 
+                  onChange={(e) => setQ(e.target.value)}
+                  placeholder="Search reference ID, city, state, or equipment"
+                  className="w-full pl-9 pr-3 py-2 bg-gray-900 border border-gray-600 rounded-md text-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
+                <span className="absolute left-3 top-2.5 text-gray-500">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </span>
+              </div>
+              
+              <div className="relative w-64">
+                <select 
+                  value=""
+                  onChange={(e) => {
+                    const selectedLane = lanes.find(l => l.id === parseInt(e.target.value));
+                    if (selectedLane) {
+                      setQ(`${selectedLane.origin_city} ${selectedLane.dest_city}`);
+                      // Scroll to the lane
+                      setTimeout(() => {
+                        const element = document.getElementById(`lane-${selectedLane.id}`);
+                        if (element) {
+                          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                          element.style.border = '2px solid #3B82F6';
+                          setTimeout(() => { element.style.border = ''; }, 3000);
+                        }
+                      }, 100);
+                    }
+                  }}
+                  className="w-full bg-gray-900 border border-gray-600 rounded-md text-gray-200 py-2 px-3 appearance-none"
+                >
+                  <option value="">📍 Jump to lane...</option>
+                  {lanes.map(lane => (
+                    <option key={lane.id} value={lane.id}>
+                      {lane.reference_id ? `${lane.reference_id} - ` : ''}{lane.origin_city}, {lane.origin_state} → {lane.dest_city}, {lane.dest_state}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
             
             <div className="flex items-center">

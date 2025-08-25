@@ -27,9 +27,10 @@ export default async function handler(req, res) {
     if (error) throw error;
     if (!lane) return res.status(404).json({ error: 'lane not found' });
 
-    // Build crawl plan
+    // Build crawl plan with unique reference IDs
+    const usedRefIds = new Set();
     const crawl = await planPairsForLane(lane, { preferFillTo10 });
-    const rows = rowsFromBaseAndPairs(lane, crawl.baseOrigin, crawl.baseDest, crawl.pairs, preferFillTo10);
+    const rows = rowsFromBaseAndPairs(lane, crawl.baseOrigin, crawl.baseDest, crawl.pairs, preferFillTo10, usedRefIds);
 
     // Enhanced debug info
     console.log(`FILL-TO-5 EXPORT DEBUG:`);

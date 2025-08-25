@@ -11,6 +11,8 @@ export default function RecapExport() {
   const [recaps, setRecaps] = useState({});
   const [loading, setLoading] = useState(true);
   const [aiLoading, setAiLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filteredLanes, setFilteredLanes] = useState([]);
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -81,16 +83,60 @@ export default function RecapExport() {
 
   const printNow = () => window.print();
 
+  // Search functionality
+  const matches = (lane, query) => {
+    if (!query) return true;
+    
+    const q = query.toLowerCase().trim();
+    
+    // Check reference ID (format: RR12345)
+    const refId = `RR${String(lane.id).slice(-5)}`;
+    if (refId.toLowerCase().includes(q)) return true;
+    
+    // Check origin and destination
+    const origin = `${lane.origin_city}, ${lane.origin_state}`.toLowerCase();
+    const dest = `${lane.dest_city}, ${lane.dest_state}`.toLowerCase();
+    
+    if (origin.includes(q) || dest.includes(q)) return true;
+    
+    // Check equipment
+    const equipment = lane.equipment_code?.toLowerCase() || '';
+    if (equipment.includes(q)) return true;
+    
+    // Check commodity
+    const commodity = lane.commodity?.toLowerCase() || '';
+    if (commodity.includes(q)) return true;
+    
+    return false;
+  };
+
+  // Update filtered lanes when search changes
+  useEffect(() => {
+    setFilteredLanes(lanes.filter(lane => matches(lane, searchQuery)));
+  }, [lanes, searchQuery]);
+
+  const scrollToLane = (laneId) => {
+    const element = document.getElementById(`lane-${laneId}`);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      element.style.backgroundColor = '#fef3c7';
+      setTimeout(() => {
+        element.style.backgroundColor = '';
+      }, 2000);
+    }
+  };
+
   const groups = useMemo(() => {
     // group by equipment to provide a little structure
+    const lanesToGroup = searchQuery ? filteredLanes : lanes;
     const m = new Map();
-    for (const l of lanes) {
+    for (const l of lanesToGroup) {
       const k = (l.equipment_code || 'Other').toUpperCase();
       if (!m.has(k)) m.set(k, []);
       m.get(k).push(l);
     }
     return Array.from(m.entries());
-  }, [lanes]);
+  }, [lanes, filteredLanes, searchQuery]);
 
   const formatDate = () => {
     const now = new Date();
@@ -111,7 +157,47 @@ export default function RecapExport() {
             <p className="text-sm text-gray-500">Generated on {formatDate()}</p>
           </div>
           
-          <div className="flex gap-3">
+          <div className="flex gap-3 items-center">
+            {/* Search Bar */}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Search reference ID, city, equipment..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm w-64"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="px-3 py-2 text-gray-500 hover:text-gray-700"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+
+            {/* Lane Dropdown */}
+            <select
+              onChange={(e) => {
+                if (e.target.value) {
+                  scrollToLane(e.target.value);
+                  e.target.value = '';
+                }
+              }}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm max-w-64"
+            >
+              <option value="">Jump to lane...</option>
+              {(searchQuery ? filteredLanes : lanes).map((lane) => {
+                const refId = `RR${String(lane.id).slice(-5)}`;
+                return (
+                  <option key={lane.id} value={lane.id}>
+                    {refId} - {lane.origin_city}, {lane.origin_state} → {lane.dest_city}, {lane.dest_state}
+                  </option>
+                );
+              })}
+            </select>
+
             {aiLoading && <div className="text-sm text-gray-500">Loading AI insights...</div>}
             <button 
               onClick={printNow} 
@@ -123,6 +209,15 @@ export default function RecapExport() {
         </div>
 
         {loading && <div className="text-sm text-gray-400">Loading lanes...</div>}
+
+        {/* Search Results Info */}
+        {!loading && searchQuery && (
+          <div className="no-print mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="text-sm text-blue-700">
+              Found {filteredLanes.length} lane{filteredLanes.length !== 1 ? 's' : ''} matching "{searchQuery}"
+            </div>
+          </div>
+        )}
 
         <div className="print-header no-screen">
           <div className="flex items-center justify-between border-b border-gray-300 pb-4 mb-6">
@@ -148,14 +243,22 @@ export default function RecapExport() {
             <div className="grid md:grid-cols-2 gap-4">
               {arr.map((lane) => {
                 const recap = recaps[lane.id];
+                const refId = `RR${String(lane.id).slice(-5)}`;
                 return (
-                  <article key={lane.id} className="rounded-lg border border-gray-300 overflow-hidden print-break-inside-avoid">
+                  <article 
+                    key={lane.id} 
+                    id={`lane-${lane.id}`}
+                    className="rounded-lg border border-gray-300 overflow-hidden print-break-inside-avoid"
+                  >
                     <div className="bg-gray-100 p-3">
                       <div className="flex items-center justify-between">
                         <div className="font-medium text-lg">
                           {lane.origin_city}, {lane.origin_state} 
                           <span className="text-gray-500 mx-2">→</span> 
                           {lane.dest_city}, {lane.dest_state}
+                        </div>
+                        <div className="text-sm font-mono text-gray-600 bg-white px-2 py-1 rounded">
+                          {refId}
                         </div>
                       </div>
                       <div className="text-xs text-gray-600 mt-1">

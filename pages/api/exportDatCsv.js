@@ -144,6 +144,8 @@ async function selectLanes({ pending, days, all }) {
 
 async function buildAllRows(lanes, preferFillTo10) {
   const allRows = [];
+  const usedRefIds = new Set(); // Track reference IDs across entire CSV export
+  const usedCities = new Set(); // Track cities across entire CSV export for diversity
   console.log(`BULK EXPORT: Processing ${lanes.length} lanes with preferFillTo10=${preferFillTo10}`);
   console.log(`🔍 PARAMETER CHECK: preferFillTo10 type: ${typeof preferFillTo10}, value: ${preferFillTo10}, strict boolean: ${preferFillTo10 === true}`);
   
@@ -152,9 +154,9 @@ async function buildAllRows(lanes, preferFillTo10) {
     try {
       console.log(`BULK EXPORT: Processing lane ${i+1}/${lanes.length}: ${lane.origin_city}, ${lane.origin_state} -> ${lane.dest_city}, ${lane.dest_state}`);
       
-      // Use intelligent crawler with guaranteed row counts
-      const crawl = await planPairsForLane(lane, { preferFillTo10 });
-      const rows = rowsFromBaseAndPairs(lane, crawl.baseOrigin, crawl.baseDest, crawl.pairs, preferFillTo10);
+      // Use intelligent crawler with guaranteed row counts and city diversity
+      const crawl = await planPairsForLane(lane, { preferFillTo10, usedCities });
+      const rows = rowsFromBaseAndPairs(lane, crawl.baseOrigin, crawl.baseDest, crawl.pairs, preferFillTo10, usedRefIds);
       
       // GUARANTEE CHECK: When preferFillTo10=true, every lane MUST generate exactly 12 rows
       if (preferFillTo10 && rows.length !== 12) {
@@ -163,6 +165,7 @@ async function buildAllRows(lanes, preferFillTo10) {
       }
       
       console.log(`BULK EXPORT: Lane ${i+1} generated ${rows.length} rows (expected: ${preferFillTo10 ? 12 : 6})`);
+      console.log(`🌍 DIVERSITY TRACKER: ${usedCities.size} unique cities used so far`);
       allRows.push(...rows);
     } catch (laneError) {
       console.error(`BULK EXPORT: Error processing lane ${i+1} (${lane.id}):`, laneError);
