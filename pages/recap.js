@@ -305,16 +305,21 @@ export default function RecapPage() {
                 <select 
                   value=""
                   onChange={(e) => {
-                    const selectedLane = lanes.find(l => l.id === parseInt(e.target.value));
-                    if (selectedLane) {
-                      setQ(`${selectedLane.origin_city} ${selectedLane.dest_city}`);
-                      // Scroll to the lane
+                    const laneId = parseInt(e.target.value);
+                    if (laneId) {
+                      // Clear search to show all lanes
+                      setQ('');
+                      // Scroll to the lane immediately
                       setTimeout(() => {
-                        const element = document.getElementById(`lane-${selectedLane.id}`);
+                        const element = document.getElementById(`lane-${laneId}`);
                         if (element) {
                           element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                          element.style.border = '2px solid #3B82F6';
-                          setTimeout(() => { element.style.border = ''; }, 3000);
+                          element.style.border = '3px solid #3B82F6';
+                          element.style.backgroundColor = '#1E3A8A20';
+                          setTimeout(() => { 
+                            element.style.border = ''; 
+                            element.style.backgroundColor = '';
+                          }, 4000);
                         }
                       }, 100);
                     }

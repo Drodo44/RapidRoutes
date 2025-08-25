@@ -85,8 +85,21 @@ export default function Admin() {
       return;
     }
 
+    // Get equipment type from filename
+    const filename = file.name.toLowerCase();
+    let equipmentType = 'general';
+    
+    if (filename.includes('dv_') || filename.includes('dry_van') || filename.includes('van')) {
+      equipmentType = 'dry_van';
+    } else if (filename.includes('f_') || filename.includes('flatbed') || filename.includes('flat')) {
+      equipmentType = 'flatbed';
+    } else if (filename.includes('r_') || filename.includes('reefer') || filename.includes('refrigerated')) {
+      equipmentType = 'reefer';
+    }
+
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('equipmentType', equipmentType);
 
     try {
       setUploadMessage('Uploading...');
@@ -98,8 +111,8 @@ export default function Admin() {
       const result = await response.json();
       
       if (response.ok) {
-        setUploadMessage(`Success: ${result.filename} uploaded`);
-        setTimeout(() => setUploadMessage(''), 3000);
+        setUploadMessage(`Success: ${result.filename} uploaded as ${equipmentType.replace('_', ' ').toUpperCase()}`);
+        setTimeout(() => setUploadMessage(''), 5000);
       } else {
         setUploadMessage(`Error: ${result.error}`);
       }
@@ -137,7 +150,8 @@ export default function Admin() {
                 className="block w-full text-sm text-gray-300 bg-gray-800 border border-gray-600 rounded-lg cursor-pointer focus:outline-none"
               />
               <p className="text-xs text-gray-500 mt-1">
-                Upload weekly market heat map PNG files for DAT market analysis
+                Upload weekly market heat map PNG files for DAT market analysis<br/>
+                <strong>Naming:</strong> DV_825 (Dry Van), F_825 (Flatbed), R_825 (Reefer)
               </p>
             </div>
             {uploadMessage && (
