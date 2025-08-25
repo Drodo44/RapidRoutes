@@ -121,6 +121,28 @@ export default function Admin() {
     }
   };
 
+  const removeDuplicates = async () => {
+    if (!confirm('Remove duplicate lanes? This cannot be undone.')) return;
+    
+    try {
+      setUploadMessage('Removing duplicates...');
+      const response = await fetch('/api/admin/remove-duplicates', {
+        method: 'POST'
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok) {
+        setUploadMessage(`Success: ${result.message}`);
+        setTimeout(() => setUploadMessage(''), 5000);
+      } else {
+        setUploadMessage(`Error: ${result.error}`);
+      }
+    } catch (error) {
+      setUploadMessage(`Error: ${error.message}`);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-6">
       <Head>
@@ -154,6 +176,21 @@ export default function Admin() {
                 <strong>Naming:</strong> DV_825 (Dry Van), F_825 (Flatbed), R_825 (Reefer)
               </p>
             </div>
+            
+            <div className="border-t border-gray-700 pt-4">
+              <div className="flex gap-3">
+                <button
+                  onClick={removeDuplicates}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg font-medium"
+                >
+                  🗑️ Remove Duplicate Lanes
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Remove duplicate lanes that may cause CSV export issues
+              </p>
+            </div>
+            
             {uploadMessage && (
               <div className={`p-3 rounded-lg text-sm ${
                 uploadMessage.startsWith('Error') 
