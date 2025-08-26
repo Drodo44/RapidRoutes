@@ -138,13 +138,16 @@ export default function Dashboard() {
   // Floor-space calculator
   const [pLen, setPLen] = useState(48);  // in
   const [pWid, setPWid] = useState(40);
+  const [pHei, setPHei] = useState(60);
   const [count, setCount] = useState(26);
-  const truck = { w: 100, len26: 312, len53: 636 }; // usable width ~100"
+  const [stackable, setStackable] = useState(false);
+  const truck = { w: 100, len26: 312, len53: 636, height: 102 }; // usable dimensions
   const across = Math.max(1, Math.floor(truck.w / Math.max(1, Number(pWid))));
   const rows26 = Math.floor(truck.len26 / Math.max(1, Number(pLen)));
   const rows53 = Math.floor(truck.len53 / Math.max(1, Number(pLen)));
-  const cap26 = across * rows26;
-  const cap53 = across * rows53;
+  const stackLevels = stackable ? Math.floor(truck.height / Math.max(1, Number(pHei))) : 1;
+  const cap26 = across * rows26 * stackLevels;
+  const cap53 = across * rows53 * stackLevels;
   const fits26 = Number(count) <= cap26;
   const fits53 = Number(count) <= cap53;
 
@@ -247,7 +250,7 @@ export default function Dashboard() {
           <div className="space-y-8">
             <Section title="Floor Space Calculator">
               <div className="space-y-4">
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-4 gap-3">
                   <div>
                     <label className="block text-sm text-gray-300 mb-1">Length (in)</label>
                     <input 
@@ -267,6 +270,15 @@ export default function Dashboard() {
                     />
                   </div>
                   <div>
+                    <label className="block text-sm text-gray-300 mb-1">Height (in)</label>
+                    <input 
+                      className="w-full rounded-lg bg-gray-800 border border-gray-600 px-3 py-2 text-gray-100" 
+                      type="number" 
+                      value={pHei} 
+                      onChange={e=>setPHei(e.target.value)} 
+                    />
+                  </div>
+                  <div>
                     <label className="block text-sm text-gray-300 mb-1">Count</label>
                     <input 
                       className="w-full rounded-lg bg-gray-800 border border-gray-600 px-3 py-2 text-gray-100" 
@@ -277,10 +289,22 @@ export default function Dashboard() {
                   </div>
                 </div>
                 
+                <div className="mb-3">
+                  <label className="flex items-center space-x-2 text-sm text-gray-300">
+                    <input
+                      type="checkbox"
+                      checked={stackable}
+                      onChange={e=>setStackable(e.target.checked)}
+                      className="rounded bg-gray-800 border-gray-600 text-blue-600"
+                    />
+                    <span>Stackable freight (can stack multiple high)</span>
+                  </label>
+                </div>
+                
                 <div className="grid grid-cols-2 gap-4 text-sm text-gray-300">
                   <div className="bg-gray-800 rounded p-2 border border-gray-700">
                     <span className="block">Pallets Per Row: <span className="font-mono font-medium">{across}</span></span>
-                    <span className="block mt-1">Total Rows (53′): <span className="font-mono font-medium">{rows53}</span></span>
+                    <span className="block mt-1">Stack Levels: <span className="font-mono font-medium">{stackLevels}</span></span>
                   </div>
                   <div className="bg-gray-800 rounded p-2 border border-gray-700">
                     <span className="block">26′ Capacity: <span className="font-mono font-medium">{cap26}</span></span>
