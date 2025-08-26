@@ -199,8 +199,10 @@ export default async function handler(req, res) {
   console.log(`🚨 CRITICAL DEBUG: req.query.fill = "${req.query.fill}" (type: ${typeof req.query.fill})`);
   console.log(`🚨 CRITICAL DEBUG: preferFillTo10 = ${preferFillTo10} (type: ${typeof preferFillTo10})`);
   console.log(`🚨 CRITICAL DEBUG: DEFAULTING TO FILL MODE - only disabled with explicit fill=0`);
-  console.log(`🚨 CRITICAL DEBUG: Expected rows per lane when preferFillTo10=true: 12 (6 pairs × 2 contacts)`);
-  console.log(`🚨 CRITICAL DEBUG: Expected rows per lane when preferFillTo10=false: 8 (4 pairs × 2 contacts)`);
+  console.log(`🚨 CRITICAL DEBUG: Expected rows per lane when preferFillTo10=true: 12 (6 postings × 2 contacts)`);
+  console.log(`🚨 CRITICAL DEBUG: Expected rows per lane when preferFillTo10=false: 8 (4 postings × 2 contacts)`);
+  console.log(`🔥 DEPLOYMENT TIMESTAMP: ${new Date().toISOString()} - NEW DEBUG CODE ACTIVE`);
+  console.log(`🔥 ROW COUNT FIX: This should generate 144 rows for 12 lanes, not 120!`);
 
   try {
     const lanes = await selectLanes({ pending, days, all });
