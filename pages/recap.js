@@ -328,11 +328,10 @@ export default function RecapPage() {
                   className="w-full bg-gray-900 border border-gray-600 rounded-md text-gray-200 py-2 px-3 appearance-none"
                 >
                   <option value="">📍 Jump to lane...</option>
-                  {crawlData
-                    .filter(item => !item.isOriginal) // Show only generated crawl cities
-                    .map((item, index) => (
-                    <option key={`${item.laneId}-${index}`} value={item.laneId}>
-                      {item.displayName} → {item.referenceId}
+                  {filtered.map((lane) => (
+                    <option key={lane.id} value={lane.id}>
+                      {lane.origin_city}, {lane.origin_state} → {lane.dest_city}, {lane.dest_state} 
+                      {lane.reference_id && ` • REF #${cleanReferenceId(lane.reference_id)}`}
                     </option>
                   ))}
                 </select>
