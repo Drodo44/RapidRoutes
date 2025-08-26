@@ -641,15 +641,64 @@ export default function LanesPage() {
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
-                <button onClick={()=>openCrawlPreview(l)} className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-sm rounded-lg">Preview</button>
-                <button onClick={()=>perLaneExport(l,false)} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg">Export</button>
-                <button onClick={()=>perLaneExport(l,true)} className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded-lg">Export (Fill-to-5)</button>
+                {/* Primary Actions */}
                 <button onClick={()=>startEdit(l)} className="px-3 py-1.5 bg-yellow-600 hover:bg-yellow-700 text-white text-sm rounded-lg">Edit</button>
                 {l.status!=='posted' && <button onClick={()=>updateStatus(l,'posted')} className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg">Mark Posted</button>}
                 {l.status==='posted' && <button onClick={()=>updateStatus(l,'pending')} className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-sm rounded-lg">Unpost</button>}
                 {l.status!=='covered' && <button onClick={()=>updateStatus(l,'covered')} className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-sm rounded-lg">Mark Covered</button>}
                 {l.status==='covered' && <button onClick={()=>postAgain(l)} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm rounded-lg">🚀 Post Again</button>}
-                <button onClick={()=>delLane(l)} className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg">Delete</button>
+                
+                {/* Actions Dropdown */}
+                <div className="relative">
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const dropdown = e.currentTarget.nextElementSibling;
+                      dropdown.classList.toggle('hidden');
+                      // Close when clicking outside
+                      const closeDropdown = (evt) => {
+                        if (!e.currentTarget.contains(evt.target) && !dropdown.contains(evt.target)) {
+                          dropdown.classList.add('hidden');
+                          document.removeEventListener('click', closeDropdown);
+                        }
+                      };
+                      setTimeout(() => document.addEventListener('click', closeDropdown), 0);
+                    }}
+                    className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded-lg flex items-center gap-1"
+                  >
+                    Actions
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  <div className="absolute right-0 mt-1 w-48 bg-gray-800 rounded-lg shadow-lg border border-gray-700 z-10 hidden">
+                    <button 
+                      onClick={() => openCrawlPreview(l)}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 rounded-t-lg"
+                    >
+                      👁️ Preview Crawl Cities
+                    </button>
+                    <button 
+                      onClick={() => perLaneExport(l, false)}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700"
+                    >
+                      📤 Export CSV
+                    </button>
+                    <button 
+                      onClick={() => perLaneExport(l, true)}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700"
+                    >
+                      🎯 Export (Fill-to-5)
+                    </button>
+                    <hr className="border-gray-700 my-1" />
+                    <button 
+                      onClick={() => delLane(l)}
+                      className="w-full text-left px-4 py-2 text-sm text-red-300 hover:bg-red-900/30 rounded-b-lg"
+                    >
+                      🗑️ Delete Lane
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           ))}
