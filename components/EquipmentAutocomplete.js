@@ -28,7 +28,13 @@ export default function EquipmentAutocomplete({ value, onChange }) {
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
     if (!s) return all;
-    return all.filter(({ code, label }) => code.toLowerCase().includes(s) || label.toLowerCase().includes(s));
+    
+    // Prioritize exact code matches first, then label matches
+    const exactMatches = all.filter(({ code }) => code.toLowerCase() === s);
+    const codeMatches = all.filter(({ code }) => code.toLowerCase() !== s && code.toLowerCase().includes(s));
+    const labelMatches = all.filter(({ code, label }) => !code.toLowerCase().includes(s) && label.toLowerCase().includes(s));
+    
+    return [...exactMatches, ...codeMatches, ...labelMatches];
   }, [all, q]);
 
   return (

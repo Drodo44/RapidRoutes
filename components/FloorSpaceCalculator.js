@@ -5,6 +5,7 @@ export default function FloorSpaceCalculator() {
   const [length, setLength] = useState("");
   const [width, setWidth] = useState("");
   const [height, setHeight] = useState("");
+  const [stackable, setStackable] = useState(false);
   const [result, setResult] = useState("");
   const [squareFeet, setSquareFeet] = useState(null);
   const [totalPallets, setTotalPallets] = useState(null);
@@ -15,7 +16,7 @@ export default function FloorSpaceCalculator() {
     if (length && width && height) {
       calculateFit();
     }
-  }, [length, width, height]);
+  }, [length, width, height, stackable]);
 
   const calculateFit = () => {
     const inchesPerFoot = 12;
@@ -58,13 +59,23 @@ export default function FloorSpaceCalculator() {
     });
 
     // Determine what truck it fits in
+    let truckRecommendation;
     if (totalLengthFt <= 26) {
-      setResult("✅ Fits in 26ft Box Truck or Larger");
+      truckRecommendation = "✅ Fits in 26ft Box Truck or Larger";
     } else if (totalLengthFt <= 53) {
-      setResult("✅ Fits in 53ft Dry Van Only");
+      truckRecommendation = "✅ Fits in 53ft Dry Van Only";
     } else {
-      setResult("❌ Load Exceeds Dry Van Size — Oversize or Permit Required");
+      truckRecommendation = "❌ Load Exceeds Dry Van Size — Oversize or Permit Required";
     }
+    
+    // Add stackable analysis
+    if (stackable) {
+      const maxStackHeight = 102; // Standard trailer height in inches
+      const stackLevels = Math.floor(maxStackHeight / palletHeight);
+      truckRecommendation += ` | 📚 Can stack ${stackLevels} levels high`;
+    }
+    
+    setResult(truckRecommendation);
   };
 
   return (
@@ -98,6 +109,18 @@ export default function FloorSpaceCalculator() {
             className="p-2 rounded bg-gray-800 border border-gray-600 w-full"
           />
         </div>
+      </div>
+      
+      <div className="mb-4">
+        <label className="flex items-center space-x-2 text-sm text-gray-300">
+          <input
+            type="checkbox"
+            checked={stackable}
+            onChange={(e) => setStackable(e.target.checked)}
+            className="rounded bg-gray-800 border-gray-600 text-blue-600"
+          />
+          <span>Stackable freight (can stack multiple pallets high)</span>
+        </label>
       </div>
       
       <button
