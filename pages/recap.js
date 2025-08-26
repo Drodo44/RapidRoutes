@@ -13,9 +13,9 @@ function matches(q, l) {
   if (!q) return true;
   const s = q.toLowerCase().trim();
   
-  // Check reference ID (exact match or partial)
+  // Check reference ID (partial match, with or without RR prefix)
   const refId = cleanReferenceId(l.reference_id).toLowerCase();
-  if (refId && s.startsWith('rr') && refId.includes(s)) {
+  if (refId && refId.includes(s)) {
     return true;
   }
   
@@ -24,7 +24,7 @@ function matches(q, l) {
   const dest = `${l.dest_city}, ${l.dest_state}`.toLowerCase();
   const equipment = String(l.equipment_code || '').toLowerCase();
   
-  return origin.includes(s) || dest.includes(s) || equipment.includes(s) || refId.includes(s);
+  return origin.includes(s) || dest.includes(s) || equipment.includes(s);
 }
 
 function LaneCard({ lane, recapData, onGenerateRecap, isGenerating }) {
@@ -315,11 +315,12 @@ export default function RecapPage() {
                         if (element) {
                           element.scrollIntoView({ behavior: 'smooth', block: 'center' });
                           element.style.border = '3px solid #3B82F6';
-                          element.style.backgroundColor = '#1E3A8A20';
+                          element.style.backgroundColor = '#1E3A8A40';
+                          element.style.transition = 'all 0.3s ease';
                           setTimeout(() => { 
                             element.style.border = ''; 
                             element.style.backgroundColor = '';
-                          }, 4000);
+                          }, 8000); // Longer highlight duration
                         }
                       }, 100);
                     }
