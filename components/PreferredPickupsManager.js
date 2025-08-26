@@ -23,10 +23,16 @@ export default function PreferredPickupsManager() {
   const loadPickups = async () => {
     try {
       const response = await fetch('/api/preferred-pickups');
-      const data = await response.json();
-      setPickups(data);
+      if (response.ok) {
+        const data = await response.json();
+        setPickups(Array.isArray(data) ? data : []);
+      } else {
+        console.warn('Preferred pickups API failed:', response.status);
+        setPickups([]);
+      }
     } catch (error) {
       console.error('Error loading preferred pickups:', error);
+      setPickups([]);
     } finally {
       setLoading(false);
     }

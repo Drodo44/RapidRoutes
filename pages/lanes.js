@@ -197,7 +197,7 @@ export default function LanesPage() {
     }
   }
   
-  async function perLaneExport(l, fill=false){
+  async function perLaneExport(l, fill=true){
     console.log('Export button clicked:', { lane: l.id, fill });
     setMsg('Starting export...');
     
@@ -532,8 +532,8 @@ export default function LanesPage() {
           <div className="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700">
             <h2 className="text-lg font-semibold text-gray-100">New Lane</h2>
             <div className="flex gap-2">
-              <button onClick={() => bulkExport({ fill:false })} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition">Export DAT CSV</button>
-              <button onClick={() => bulkExport({ fill:true })} className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition">Export DAT CSV (Fill)</button>
+              <button onClick={() => bulkExport({ fill:true })} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition">Export DAT CSV (120 rows)</button>
+              <button onClick={() => bulkExport({ fill:false })} className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-sm font-medium transition">Export DAT CSV (Minimal)</button>
             </div>
           </div>
           <div className="p-4 bg-gray-900 space-y-4">
