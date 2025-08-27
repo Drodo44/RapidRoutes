@@ -157,22 +157,16 @@ async function buildAllRows(lanes, preferFillTo10) {
       // Use intelligent crawler with guaranteed row counts and city diversity
       const crawl = await planPairsForLane(lane, { preferFillTo10, usedCities });
       
-      let rows;
-      // If crawl is insufficient, use emergency fallback and add a warning header
       if (crawl.insufficient) {
-        console.warn(`⚠️ LANE ${lane.id} INSUFFICIENT: ${crawl.message}. Using emergency pair generator.`);
-        res.setHeader('X-Debug-Warning', `Lane ${lane.id} required emergency fallback: ${crawl.message}`);
-        const emergencyCrawl = await emergencyPairs({city: lane.origin_city, state: lane.origin_state}, {city: lane.dest_city, state: lane.dest_state});
-        rows = rowsFromBaseAndPairs(lane, emergencyCrawl.baseOrigin, emergencyCrawl.baseDest, emergencyCrawl.pairs, preferFillTo10, usedRefIds);
-      } else {
-        rows = rowsFromBaseAndPairs(lane, crawl.baseOrigin, crawl.baseDest, crawl.pairs, preferFillTo10, usedRefIds);
+        console.warn(`⚠️ LANE ${lane.id} INSUFFICIENT: ${crawl.message}. Using the ${crawl.pairs?.length || 0} legit pairs found.`);
+        res.setHeader('X-Debug-Warning', `Lane ${lane.id} had insufficient pairs: ${crawl.message}`);
       }
+
+      const rows = rowsFromBaseAndPairs(lane, crawl.baseOrigin, crawl.baseDest, crawl.pairs, preferFillTo10, usedRefIds);
       
-      // GUARANTEE CHECK: When preferFillTo10=true, every lane MUST generate exactly 12 rows
+      // This check is now informational; the builder will no longer throw an error for this.
       if (preferFillTo10 && rows.length !== 12) {
-        console.error(`Critical error: Lane ${i+1} generated ${rows.length} rows instead of required 12`);
-        // Do not throw, but log and skip this lane to prevent total failure
-        continue;
+        console.warn(`Lane ${i+1} generated ${rows.length} rows instead of the ideal 12 due to insufficient pairs.`);
       }
       
       console.log(`BULK EXPORT: Lane ${i+1} generated ${rows.length} rows (expected: ${preferFillTo10 ? 12 : 6})`);
