@@ -39,6 +39,15 @@ BEGIN
   ELSE
     RAISE NOTICE 'Centerville, IN already exists';
   END IF;
+
+  -- Add Mount Holly, NJ (Philadelphia market freight hub)
+  IF NOT EXISTS (SELECT 1 FROM cities WHERE city = 'Mount Holly' AND state_or_province = 'NJ' AND zip = '08060') THEN
+    INSERT INTO cities (city, state_or_province, zip, latitude, longitude, kma_code, kma_name) VALUES
+      ('Mount Holly', 'NJ', '08060', 39.9926, -74.7879, 'PHL', 'Philadelphia Market');
+    RAISE NOTICE 'Added Mount Holly, NJ';
+  ELSE
+    RAISE NOTICE 'Mount Holly, NJ already exists';
+  END IF;
 END $$;
 
 -- Verify all cities were added successfully
