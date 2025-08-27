@@ -656,7 +656,7 @@ export default function LanesPage() {
                       dropdown.classList.toggle('hidden');
                       // Close when clicking outside
                       const closeDropdown = (evt) => {
-                        if (!e.currentTarget.contains(evt.target) && !dropdown.contains(evt.target)) {
+                        if (e.currentTarget && dropdown && !e.currentTarget.contains(evt.target) && !dropdown.contains(evt.target)) {
                           dropdown.classList.add('hidden');
                           document.removeEventListener('click', closeDropdown);
                         }
