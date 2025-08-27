@@ -156,6 +156,7 @@ async function buildAllRows(lanes, preferFillTo10) {
       
       // Use intelligent crawler with guaranteed row counts and city diversity
       const crawl = await planPairsForLane(lane, { preferFillTo10, usedCities });
+      console.log(`🔍 CRAWL RESULT for lane ${i+1}: pairs=${crawl.pairs?.length || 0}, preferFillTo10=${preferFillTo10}`);
       const rows = rowsFromBaseAndPairs(lane, crawl.baseOrigin, crawl.baseDest, crawl.pairs, preferFillTo10, usedRefIds);
       
       // GUARANTEE CHECK: When preferFillTo10=true, every lane MUST generate exactly 12 rows
