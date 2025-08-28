@@ -1,4 +1,4 @@
-// Complete DAT Equipment Types - ALL equipment types from DAT specification  
+// Complete DAT Equipment Types - ALL equipment types from DAT specification
 export const equipmentOptions = [
   // Auto Carriers
   { label: "Auto Carrier", value: "AC" },
@@ -6,6 +6,7 @@ export const equipmentOptions = [
 
   // B-Trains
   { label: "B-Train", value: "BT" },
+  { label: "B-Train", value: "B" },
 
   // Conestoga
   { label: "Conestoga", value: "CN" },
@@ -80,6 +81,14 @@ export const equipmentOptions = [
   { label: "Reefer Pallet Exchange", value: "RP" },
   { label: "Reefer w/Team", value: "RM" },
   { label: "Reefer HazMat", value: "RZ" },
+  { label: "Reefer Curtain", value: "RC" },
+  { label: "Reefer Dock", value: "RD" },
+  { label: "Reefer Fast", value: "RF" },
+  { label: "Reefer Hot", value: "RH" },
+  { label: "Reefer King", value: "RK" },
+  { label: "Reefer Unit", value: "RU" },
+  { label: "Reefer Wide", value: "RW" },
+  { label: "Reefer Extended", value: "RX" },
 
   // Removable Gooseneck
   { label: "Removable Gooseneck", value: "RG" },
@@ -107,6 +116,17 @@ export const equipmentOptions = [
   { label: "Tanker Aluminum", value: "TA" },
   { label: "Tanker Intermodal", value: "TN" },
   { label: "Tanker Steel", value: "TS" },
+  { label: "Tanker Dry", value: "TD" },
+  { label: "Tanker Food", value: "TF" },
+  { label: "Tanker Heated", value: "TH" },
+  { label: "Tanker Insulated", value: "TI" },
+  { label: "Tanker Chemical", value: "TK" },
+  { label: "Tanker Liquid", value: "TL" },
+  { label: "Tanker Multi", value: "TM" },
+  { label: "Tanker Pneumatic", value: "TP" },
+  { label: "Tanker Rubber", value: "TR" },
+  { label: "Tanker Unit", value: "TU" },
+  { label: "Tanker Extended", value: "TX" },
 
   // Truck and Trailer
   { label: "Truck and Trailer", value: "TT" },
@@ -132,5 +152,12 @@ export const equipmentOptions = [
   { label: "Van Triple", value: "V3" },
   { label: "Van Vented", value: "VV" },
   { label: "Van w/Curtains", value: "VC" },
-  { label: "Van w/Team", value: "VM" }
+  { label: "Van w/Team", value: "VM" },
+  { label: "Van Dock", value: "VD" },
+  { label: "Van Extended", value: "VE" },
+  { label: "Van King", value: "VK" },
+  { label: "Van Extended", value: "VX" },
+
+  // Walking Beam
+  { label: "Walking Beam", value: "WB" }
 ];
