@@ -47,13 +47,14 @@ export default async function handler(req, res) {
 
     const origin = originData[0];
     
-    // Get nearby cities within 100 miles for testing
+    // Get nearby cities from the same state and adjacent states for testing
     const { data: nearbyCities } = await supabase
       .from('cities')
       .select('city, state_or_province, zip, latitude, longitude, kma_code')
       .not('latitude', 'is', null)
       .not('kma_code', 'is', null)
-      .limit(100); // Sample of cities
+      .in('state_or_province', ['AL', 'GA', 'FL', 'TN', 'MS']) // States around Alabama
+      .limit(500); // More cities from relevant geographic area
     
     console.log(`Found ${nearbyCities?.length || 0} cities to test distance against`);
     
