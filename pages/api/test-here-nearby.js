@@ -19,7 +19,7 @@ export default async function handler(req, res) {
     const radiusMiles = 75;
     const radiusMeters = radiusMiles * 1609.34;
     
-    const url = `https://browse.search.hereapi.com/v1/browse?at=${lat},${lng}&categories=city&in=circle:${lat},${lng};r=${radiusMeters}&limit=20&apiKey=${HERE_API_KEY}`;
+    const url = `https://browse.search.hereapi.com/v1/browse?at=${lat},${lng}&in=circle:${lat},${lng};r=${radiusMeters}&limit=20&apiKey=${HERE_API_KEY}`;
     
     console.log('HERE API URL:', url.replace(HERE_API_KEY, 'HIDDEN'));
     
