@@ -16,11 +16,12 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 
 export default async function handler(req, res) {
   try {
-    // Get a sample lane
+    // Get a specific lane we know exists - Opelika, AL
     const { data: lanes } = await supabase
       .from('lanes')
       .select('origin_city, origin_state, dest_city, dest_state')
-      .eq('status', 'pending')
+      .eq('origin_city', 'Opelika')
+      .eq('origin_state', 'AL')
       .limit(1);
 
     if (!lanes?.[0]) {
