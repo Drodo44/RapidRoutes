@@ -9,6 +9,7 @@ import { adminSupabase } from '../../utils/supabaseClient';
 import { generateAllPairs } from '../../lib/datcrawl.js';
 import { DAT_HEADERS } from '../../lib/datHeaders.js';
 import { planPairsForLane, rowsFromBaseAndPairs, toCsv, chunkRows } from '../../lib/datCsvBuilder';
+import { emergencyRowGuarantee } from '../../lib/emergencyRowGuarantee';
 
 // EMERGENCY PAIR GENERATOR - USING YOUR ACTUAL DATABASE
 async function emergencyPairs(origin, dest) {
