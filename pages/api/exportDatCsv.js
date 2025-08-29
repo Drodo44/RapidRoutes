@@ -231,6 +231,11 @@ export default async function handler(req, res) {
 
   try {
     const lanes = await selectLanes({ pending, days, all });
+    console.log(`🚨 EXPORT DEBUG: Found ${lanes.length} lanes to process`);
+    
+    // Add debug header for lanes found
+    res.setHeader('X-Debug-Lanes-Found', String(lanes.length));
+    
     // Build all rows (dynamic scaling based on market density)
     const allRows = await buildAllRows(lanes, preferFillTo10);
     const chunks = chunkRows(allRows, 499);
