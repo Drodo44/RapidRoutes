@@ -1,12 +1,17 @@
 // pages/api/debug-intelligent-crawl.js
-import { adminSupabase } from '../../utils/supabaseClient.js';
-import { generateIntelligentCrawlPairs } from '../../lib/intelligentCrawl.js';
+import { createClient } from '@supabase/supabase-js';
 
 export default async function handler(req, res) {
   try {
+    // Initialize Supabase client
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+
     // Test database connection
     console.log('🔍 Testing database connection...');
-    const { data: testData, error: testError } = await adminSupabase
+    const { data: testData, error: testError } = await supabase
       .from('cities')
       .select('city, state_or_province, latitude, longitude, kma_code')
       .limit(3);
@@ -22,44 +27,49 @@ export default async function handler(req, res) {
     console.log('✅ Database connection successful');
     console.log('Sample data:', testData);
 
-    // Test with specific origin/destination that should work
-    const origin = { city: 'New York', state: 'NY' };
-    const destination = { city: 'Los Angeles', state: 'CA' };
-    
-    console.log('🔍 Testing intelligent crawl generation...');
-    const result = await generateIntelligentCrawlPairs({
-      origin,
-      destination,
-      equipment: 'V',
-      preferFillTo10: true,
-      usedCities: new Set(),
-      userId: 'debug_test'
-    });
+    // Check environment variables
+    const envCheck = {
+      hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+      hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+      supabaseUrlLength: process.env.NEXT_PUBLIC_SUPABASE_URL?.length || 0,
+      serviceKeyLength: process.env.SUPABASE_SERVICE_ROLE_KEY?.length || 0
+    };
 
-    // Check each step
-    console.log('Result structure:', {
-      hasBaseOrigin: !!result.baseOrigin,
-      hasBaseDest: !!result.baseDest,
-      pairsCount: result.pairs ? result.pairs.length : 0,
-      usedCitiesCount: result.usedCities ? result.usedCities.size : 0
-    });
+    // Simple test without complex imports
+    const { data: originData, error: originError } = await supabase
+      .from('cities')
+      .select('*')
+      .ilike('city', 'New York')
+      .ilike('state_or_province', 'NY')
+      .not('latitude', 'is', null)
+      .not('kma_code', 'is', null)
+      .limit(1);
+
+    const { data: destData, error: destError } = await supabase
+      .from('cities')
+      .select('*')
+      .ilike('city', 'Los Angeles')
+      .ilike('state_or_province', 'CA')  
+      .not('latitude', 'is', null)
+      .not('kma_code', 'is', null)
+      .limit(1);
 
     return res.json({
       success: true,
+      environment: envCheck,
       database: {
         connected: true,
         sampleData: testData
       },
-      crawlTest: {
-        origin,
-        destination,
-        result: {
-          baseOrigin: result.baseOrigin,
-          baseDest: result.baseDest,
-          pairsGenerated: result.pairs ? result.pairs.length : 0,
-          pairs: result.pairs || [],
-          usedCitiesCount: result.usedCities ? result.usedCities.size : 0
-        }
+      originTest: {
+        found: originData?.length > 0,
+        data: originData?.[0],
+        error: originError
+      },
+      destTest: {
+        found: destData?.length > 0,
+        data: destData?.[0], 
+        error: destError
       }
     });
 
