@@ -19,8 +19,8 @@ export default async function handler(req, res) {
     const radiusMiles = 75;
     const radiusMeters = Math.round(radiusMiles * 1609.34); // Round to integer
     
-    // Use HERE's geocode API instead of browse API
-    const url = `https://geocode.search.hereapi.com/v1/geocode?q=Opelika+AL&apiKey=${HERE_API_KEY}`;
+    // Test the discover API that the fixed code should use
+    const url = `https://discover.search.hereapi.com/v1/discover?at=${lat},${lng}&in=circle:${lat},${lng};r=${radiusMeters}&q=city&limit=20&apiKey=${HERE_API_KEY}`;
     
     console.log('HERE API URL:', url.replace(HERE_API_KEY, 'HIDDEN'));
     
