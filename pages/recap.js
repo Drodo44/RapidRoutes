@@ -320,7 +320,7 @@ export default function RecapPage() {
                           setTimeout(() => { 
                             element.style.border = ''; 
                             element.style.backgroundColor = '';
-                          }, 8000); // Longer highlight duration
+                          }, 15000); // Much longer highlight duration for better visibility
                         }
                       }, 100);
                     }
@@ -328,7 +328,11 @@ export default function RecapPage() {
                   className="w-full bg-gray-900 border border-gray-600 rounded-md text-gray-200 py-2 px-3 appearance-none"
                 >
                   <option value="">📍 Jump to lane...</option>
-                  {filtered.map((lane) => (
+                  {filtered.sort((a, b) => {
+                    const aDisplay = `${a.origin_city}, ${a.origin_state} → ${a.dest_city}, ${a.dest_state}`;
+                    const bDisplay = `${b.origin_city}, ${b.origin_state} → ${b.dest_city}, ${b.dest_state}`;
+                    return aDisplay.localeCompare(bDisplay);
+                  }).map((lane) => (
                     <option key={lane.id} value={lane.id}>
                       {lane.origin_city}, {lane.origin_state} → {lane.dest_city}, {lane.dest_state} 
                       {lane.reference_id && ` • REF #${cleanReferenceId(lane.reference_id)}`}

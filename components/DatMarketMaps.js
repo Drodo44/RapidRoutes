@@ -27,9 +27,23 @@ const DatMarketMaps = () => {
       if (response.ok) {
         const data = await response.json();
         setMapData(data);
+        
+        // Also try to fetch any uploaded image for this equipment type
+        const imageResponse = await fetch(`/api/getMapImage?equipment=${selectedEquipment}`);
+        if (imageResponse.ok) {
+          const imageData = await imageResponse.json();
+          if (imageData.imageUrl) {
+            setUploadedImage(imageData.imageUrl);
+          } else {
+            setUploadedImage(null);
+          }
+        } else {
+          setUploadedImage(null);
+        }
       }
     } catch (error) {
       console.error('Error fetching DAT map data:', error);
+      setUploadedImage(null);
     } finally {
       setLoading(false);
     }

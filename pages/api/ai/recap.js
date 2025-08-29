@@ -116,11 +116,11 @@ function generateFallbackRecap(laneContext) {
     bullets.push(vanOptions[hashNum % vanOptions.length]);
     
     const vanDetails = [
-      'Open deck transportation with proper securement required',
-      'Specialized document equipment needed for safe transport',
-      'Strategic location provides multiple routing options',
-      'Established trade lane with consistent carrier availability',
-      'Flexible weight range accommodates various shipment sizes'
+      'Strategic freight corridor with established carrier network coverage',  
+      'Consistent demand pattern provides reliable rate stability',
+      'Multiple routing options available for optimized transit times',
+      'High-volume trade lane with competitive carrier availability',
+      'Flexible pickup/delivery scheduling accommodates customer needs'
     ];
     bullets.push(vanDetails[altHash % vanDetails.length]);
   }
@@ -142,14 +142,20 @@ function generateFallbackRecap(laneContext) {
     risks.push(reeferRisks[altHash % reeferRisks.length]);
   }
   else if (['F', 'FD', 'SD', 'DD', 'RGN', 'LB'].includes(equipCode)) {
-    bullets.push('Open deck transportation with proper securement required');
     const flatbedOptions = [
-      'Tarping may be required depending on commodity sensitivity',
-      'Specialized securement equipment needed for safe transport',
-      'Weather protection considerations for exposed freight'
+      'Flatbed equipment with professional securement capabilities required',
+      'Open deck transport allows for oversized or irregularly shaped cargo',
+      'Specialized carriers experienced with flatbed loading and securement'
     ];
     bullets.push(flatbedOptions[hashNum % flatbedOptions.length]);
-    risks.push('Weather exposure could impact unprotected freight');
+    
+    const flatbedDetails = [
+      'Tarping available for weather-sensitive freight protection',
+      'Experienced flatbed carriers with proper securement equipment',
+      'Multiple tie-down options for various cargo configurations'
+    ];
+    bullets.push(flatbedDetails[altHash % flatbedDetails.length]);
+    risks.push('Weather exposure considerations for unprotected freight');
   }
   
   // Weight-specific bullets

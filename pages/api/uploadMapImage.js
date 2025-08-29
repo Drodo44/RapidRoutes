@@ -80,7 +80,29 @@ export default async function handler(req, res) {
 
     console.log('File moved successfully');
 
-    // For now, just return success without database save since the table might not exist
+    // Save reference to database
+    try {
+      const { data, error } = await adminSupabase
+        .from('dat_market_images')
+        .insert({
+          equipment_type: equipment || 'unknown',
+          image_url: publicPath,
+          filename: filename,
+          file_size: file.size,
+          mime_type: file.mimetype
+        });
+
+      if (error) {
+        console.warn('Database save failed (table might not exist):', error);
+        // Continue anyway - file is saved to filesystem
+      } else {
+        console.log('Image reference saved to database');
+      }
+    } catch (dbError) {
+      console.warn('Database operation failed:', dbError);
+      // Continue anyway - file is saved to filesystem
+    }
+
     return res.status(200).json({
       success: true,
       imageUrl: publicPath,
