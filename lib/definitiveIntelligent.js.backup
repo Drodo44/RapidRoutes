@@ -513,10 +513,7 @@ export async function generateDefinitiveIntelligentPairs({ origin, destination, 
         intelligence: 'freight_optimized'
       });
 
-            console.log(`  ${i+1}. ${pickup.city}, ${pickup.state_or_province} (${pickup.kma_code}) → ${delivery.city}, ${delivery.state_or_province} (${delivery.kma_code}) - Score: ${((pickup.intelligenceScore + delivery.intelligenceScore) / 2).toFixed(2)}`);
-    }
-
-    // STEP 6: GUARANTEE CHECK - Ensure we meet minimum requirements
+      console.log(`  ${i+1}. ${pickup.city}, ${pickup.state_or_province} (${pickup.kma_code}) → ${delivery.city}, ${delivery.state_or_province} (${delivery.kma_code}) - Score: ${((pickup.intelligenceScore + delivery.intelligenceScore) / 2).toFixed(2)}`);
     }
 
     // STEP 6: GUARANTEE CHECK - Ensure we meet minimum requirements

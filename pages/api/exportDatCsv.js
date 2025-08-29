@@ -1,7 +1,7 @@
 // pages/api/exportDatCsv.js
 // GET /api/exportDatCsv?pending=1|&days=<n>|&all=1&fill=0|1&part=<n>
 // - Streams a CSV with exact 24 headers
-// - 22 rows per lane (base + 10 pairs, duplicated for contact methods)
+// - Minimum 12 rows per lane (1 base + 5 minimum pairs × 2 contact methods), scales dynamically with market density
 // - Splits into ≤499 rows per part; HEAD returns X-Total-Parts for pagination
 // - If part is specified for GET, returns only that part.
 
@@ -164,12 +164,15 @@ async function buildAllRows(lanes, preferFillTo10) {
 
       const rows = rowsFromBaseAndPairs(lane, crawl.baseOrigin, crawl.baseDest, crawl.pairs, preferFillTo10, usedRefIds);
       
-      // This check is now informational; the builder will no longer throw an error for this.
-      if (preferFillTo10 && rows.length !== 12) {
-        console.warn(`Lane ${i+1} generated ${rows.length} rows instead of the ideal 12 due to insufficient pairs.`);
+      // Dynamic row count - minimum 12 rows, no maximum
+      const minExpected = 12; // 6 minimum postings × 2 contacts
+      if (rows.length < minExpected) {
+        console.warn(`Lane ${i+1} generated ${rows.length} rows (below minimum ${minExpected}) due to insufficient pairs.`);
+      } else {
+        console.log(`Lane ${i+1} generated ${rows.length} rows (minimum: ${minExpected}, actual: dynamic based on market density)`);
       }
       
-      console.log(`BULK EXPORT: Lane ${i+1} generated ${rows.length} rows (expected: ${preferFillTo10 ? 12 : 6})`);
+      console.log(`BULK EXPORT: Lane ${i+1} processed successfully - ${rows.length} rows generated`);
       console.log(`🌍 DIVERSITY TRACKER: ${usedCities.size} unique cities used so far`);
       allRows.push(...rows);
     } catch (laneError) {
@@ -204,14 +207,17 @@ export default async function handler(req, res) {
   console.log(`🚨 CRITICAL DEBUG: req.query.fill = "${req.query.fill}" (type: ${typeof req.query.fill})`);
   console.log(`🚨 CRITICAL DEBUG: preferFillTo10 = ${preferFillTo10} (type: ${typeof preferFillTo10})`);
   console.log(`🚨 CRITICAL DEBUG: DEFAULTING TO FILL MODE - only disabled with explicit fill=0`);
-  console.log(`🚨 CRITICAL DEBUG: Expected rows per lane when preferFillTo10=true: 12 (6 postings × 2 contacts)`);
-  console.log(`🚨 CRITICAL DEBUG: Expected rows per lane when preferFillTo10=false: 8 (4 postings × 2 contacts)`);
-  console.log(`🔥 DEPLOYMENT TIMESTAMP: ${new Date().toISOString()} - NEW DEBUG CODE ACTIVE`);
-  console.log(`🔥 ROW COUNT FIX: This should generate 144 rows for 12 lanes, not 120!`);
+  console.log(`🚨 CRITICAL DEBUG: req.query.fill = "${req.query.fill}" (type: ${typeof req.query.fill})`);
+  console.log(`🚨 CRITICAL DEBUG: preferFillTo10 = ${preferFillTo10} (type: ${typeof preferFillTo10})`);
+  console.log(`🚨 CRITICAL DEBUG: DEFAULTING TO FILL MODE - only disabled with explicit fill=0`);
+  console.log(`🚨 CRITICAL DEBUG: Expected minimum rows per lane: 12 (6 minimum postings × 2 contacts)`);
+  console.log(`🚨 CRITICAL DEBUG: Actual rows per lane: DYNAMIC (no maximum, scales with market density)`);
+  console.log(`🔥 DEPLOYMENT TIMESTAMP: ${new Date().toISOString()} - CORRECTED LOGIC ACTIVE`);
+  console.log(`🔥 ROW COUNT: Minimum 12 rows per lane, scales up with market opportunities`);
 
   try {
     const lanes = await selectLanes({ pending, days, all });
-    // Build all rows (22/lane)
+    // Build all rows (dynamic scaling based on market density)
     const allRows = await buildAllRows(lanes, preferFillTo10);
     const chunks = chunkRows(allRows, 499);
 

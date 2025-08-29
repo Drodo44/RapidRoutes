@@ -99,7 +99,7 @@ async function buildAllRows(lanes, preferFillTo10) {
         throw new Error(`Row count guarantee failed for lane ${i+1}: got ${rows.length}, expected 12`);
       }
       
-      console.log(`BULK EXPORT: Lane ${i+1} generated ${rows.length} rows (expected: ${preferFillTo10 ? 12 : 6})`);
+      console.log(`BULK EXPORT: Lane ${i+1} generated ${rows.length} rows (minimum: 12, actual: dynamic based on market density)`);
       allRows.push(...rows);
     } catch (laneError) {
       console.error(`BULK EXPORT: Error processing lane ${i+1} (${lane.id}):`, laneError);

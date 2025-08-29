@@ -3,7 +3,7 @@
 
 import { adminSupabase as supabase } from '../../utils/supabaseClient.js';
 
-async function getCitiesInRadius(city, state, zip, maxMiles = 125) {
+async function getCitiesInRadius(city, state, zip, maxMiles = 100) {
   try {
     // Get the base city coordinates
     const { data: baseCity, error: baseCityError } = await supabase

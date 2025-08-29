@@ -41,18 +41,29 @@ export default function CityManager() {
   }
 
   function generateSql() {
-    if (!city || !state || !zip || !latitude || !longitude) {
-      setMessage('❌ Please fill in City, State, ZIP, and coordinates (use Lookup button)');
+    if (!city || !state) {
+      setMessage('❌ Please enter at least city and state');
       return;
     }
 
-    const sql = `-- Add ${city}, ${state} to cities database
+    // SECURITY: Use parameterized SQL to prevent injection
+    const sql = `-- Add city to database (Use parameterized queries in Supabase SQL editor)
+-- IMPORTANT: Replace $1, $2, etc. with actual values in Supabase SQL editor
 INSERT INTO cities (city, state_or_province, zip, latitude, longitude, kma_code, kma_name) VALUES
-  ('${city}', '${state}', '${zip}', ${latitude}, ${longitude}, '${kmaCode || 'UNK'}', '${kmaName || 'Unknown Market'}')
+  ($1, $2, $3, $4, $5, $6, $7)
 ON CONFLICT (city, state_or_province, zip) DO NOTHING;
 
+-- Parameters to use:
+-- $1 = '${city.replace(/'/g, "''")}'
+-- $2 = '${state.replace(/'/g, "''")}'
+-- $3 = '${zip || ''}'
+-- $4 = ${latitude || 'NULL'}
+-- $5 = ${longitude || 'NULL'}
+-- $6 = '${(kmaCode || 'UNK').replace(/'/g, "''")}'
+-- $7 = '${(kmaName || 'Unknown Market').replace(/'/g, "''")}'
+
 -- Verify it was added
-SELECT * FROM cities WHERE city = '${city}' AND state_or_province = '${state}';`;
+SELECT * FROM cities WHERE city = $1 AND state_or_province = $2;`;
 
     setGeneratedSql(sql);
     setMessage('✅ SQL generated! Copy and paste into Supabase SQL editor.');

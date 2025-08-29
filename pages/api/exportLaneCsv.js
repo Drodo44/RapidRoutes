@@ -1,6 +1,6 @@
 // pages/api/exportLaneCsv.js
 // GET /api/exportLaneCsv?id=<laneId>&fill=0|1
-// Returns a single-lane CSV (24 headers, 22 rows per lane).
+// Returns a single-lane CSV (24 headers, minimum 12 rows per lane, scales with market density).
 // Streams as text/csv with Content-Disposition for browser download.
 
 import { adminSupabase } from '../../utils/supabaseClient';
@@ -36,7 +36,7 @@ export default async function handler(req, res) {
     console.log(`FILL-TO-5 EXPORT DEBUG:`);
     console.log(`  preferFillTo10: ${preferFillTo10}`);
     console.log(`  Generated pairs: ${crawl.pairs?.length || 0}`);
-    console.log(`  Total rows: ${rows.length} (expected: ${preferFillTo10 ? 12 : 8})`);
+    console.log(`  Total rows: ${rows.length} (minimum: ${preferFillTo10 ? 12 : 8}, scales with market density)`);
     console.log(`  Shortfall reason: ${crawl.shortfallReason || 'none'}`);
     console.log(`  Pairs details:`, crawl.pairs?.map(p => `${p.pickup?.city}, ${p.pickup?.state} -> ${p.delivery?.city}, ${p.delivery?.state}`));
     
