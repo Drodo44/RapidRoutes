@@ -17,7 +17,7 @@ export default async function handler(req, res) {
     const lat = 32.6612;
     const lng = -85.3769; 
     const radiusMiles = 75;
-    const radiusMeters = radiusMiles * 1609.34;
+    const radiusMeters = Math.round(radiusMiles * 1609.34); // Round to integer
     
     const url = `https://browse.search.hereapi.com/v1/browse?at=${lat},${lng}&in=circle:${lat},${lng};r=${radiusMeters}&limit=20&apiKey=${HERE_API_KEY}`;
     
