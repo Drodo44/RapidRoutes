@@ -158,6 +158,16 @@ async function buildAllRows(lanes, preferFillTo10) {
       // Use intelligent crawler with guaranteed row counts and city diversity
       const crawl = await planPairsForLane(lane, { preferFillTo10, usedCities });
       
+      // EMERGENCY DEBUG: Log what planPairsForLane actually returns
+      console.log(`🚨 DEBUG Lane ${lane.id}:`, {
+        crawlReceived: !!crawl,
+        hasPairs: !!crawl?.pairs,
+        pairsCount: crawl?.pairs?.length || 0,
+        hasBaseOrigin: !!crawl?.baseOrigin,
+        hasBaseDest: !!crawl?.baseDest,
+        crawlError: crawl?.error || 'none'
+      });
+      
       if (crawl.insufficient) {
         console.warn(`⚠️ LANE ${lane.id} INSUFFICIENT: ${crawl.message}. Using the ${crawl.pairs?.length || 0} legit pairs found.`);
         res.setHeader('X-Debug-Warning', `Lane ${lane.id} had insufficient pairs: ${crawl.message}`);
