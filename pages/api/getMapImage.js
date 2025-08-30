@@ -52,7 +52,14 @@ export default async function handler(req, res) {
       }
     }
 
-    return res.status(404).json({ error: 'No image found for this equipment type' });
+    // No image found in either location - return helpful response instead of 404
+    console.log(`ℹ️ No market image found for equipment: ${equipment} - returning placeholder info`);
+    return res.status(200).json({ 
+      imageUrl: null,
+      equipment: equipment,
+      message: 'No heat map image available yet',
+      suggestion: 'Upload an image via the admin panel to display DAT market heat maps'
+    });
 
   } catch (error) {
     console.error('Error fetching map image:', error);
