@@ -6,9 +6,8 @@
 // - If part is specified for GET, returns only that part.
 
 import { adminSupabase } from '../../utils/supabaseClient';
-import { generateSimplePairs } from '../../lib/simplePairGenerator.js';
 import { DAT_HEADERS } from '../../lib/datHeaders.js';
-import { rowsFromBaseAndPairs, toCsv, chunkRows } from '../../lib/datCsvBuilder';
+import { planPairsForLane, rowsFromBaseAndPairs, toCsv, chunkRows } from '../../lib/datCsvBuilder';
 
 // EMERGENCY PAIR GENERATOR - USING YOUR ACTUAL DATABASE
 async function emergencyPairs(origin, dest) {
@@ -154,69 +153,17 @@ async function buildAllRows(lanes, preferFillTo10) {
     try {
       console.log(`Processing lane ${i+1}/${lanes.length}: ${lane.origin_city}, ${lane.origin_state} -> ${lane.dest_city}, ${lane.dest_state}`);
       
-      // Simple approach: Use Supabase + HERE.com to guarantee 5 pairs
-      let pairs = [];
-      try {
-        pairs = await generateSimplePairs(
-          lane.origin_city, 
-          lane.origin_state, 
-          lane.dest_city, 
-          lane.dest_state
-        );
-        console.log(`Lane ${i+1}: Generated ${pairs.length} pairs`);
-      } catch (pairError) {
-        console.error(`Lane ${i+1} pair generation failed:`, pairError.message);
-        console.error('Stack:', pairError.stack);
-        pairs = []; // Fallback to empty pairs
+      // Use the original intelligent crawler that was working
+      console.log(`🧠 Lane ${i+1}: Using intelligent crawler with HERE.com verification`);
+      const crawl = await planPairsForLane(lane, { preferFillTo10, usedCities });
+      
+      if (crawl.insufficient) {
+        console.warn(`⚠️ LANE ${lane.id} INSUFFICIENT: ${crawl.message}. Using the ${crawl.pairs?.length || 0} pairs found.`);
       }
       
-      // EMERGENCY FALLBACK: If no pairs generated, create simple fake pairs
-      if (pairs.length === 0) {
-        console.warn(`❌ Lane ${i+1}: No pairs generated, creating emergency pairs`);
-        pairs = [
-          {
-            pickup: { city: lane.origin_city, state: lane.origin_state, zip: lane.origin_zip || '' },
-            delivery: { city: lane.dest_city, state: lane.dest_state, zip: lane.dest_zip || '' },
-            geographic: { pickup_kma: 'EMERGENCY', delivery_kma: 'EMERGENCY' },
-            score: 1.0,
-            intelligence: 'emergency_fallback'
-          },
-          {
-            pickup: { city: lane.origin_city, state: lane.origin_state, zip: lane.origin_zip || '' },
-            delivery: { city: lane.dest_city, state: lane.dest_state, zip: lane.dest_zip || '' },
-            geographic: { pickup_kma: 'EMERGENCY', delivery_kma: 'EMERGENCY' },
-            score: 1.0,
-            intelligence: 'emergency_fallback'
-          },
-          {
-            pickup: { city: lane.origin_city, state: lane.origin_state, zip: lane.origin_zip || '' },
-            delivery: { city: lane.dest_city, state: lane.dest_state, zip: lane.dest_zip || '' },
-            geographic: { pickup_kma: 'EMERGENCY', delivery_kma: 'EMERGENCY' },
-            score: 1.0,
-            intelligence: 'emergency_fallback'
-          },
-          {
-            pickup: { city: lane.origin_city, state: lane.origin_state, zip: lane.origin_zip || '' },
-            delivery: { city: lane.dest_city, state: lane.dest_state, zip: lane.dest_zip || '' },
-            geographic: { pickup_kma: 'EMERGENCY', delivery_kma: 'EMERGENCY' },
-            score: 1.0,
-            intelligence: 'emergency_fallback'
-          },
-          {
-            pickup: { city: lane.origin_city, state: lane.origin_state, zip: lane.origin_zip || '' },
-            delivery: { city: lane.dest_city, state: lane.dest_state, zip: lane.dest_zip || '' },
-            geographic: { pickup_kma: 'EMERGENCY', delivery_kma: 'EMERGENCY' },
-            score: 1.0,
-            intelligence: 'emergency_fallback'
-          }
-        ];
-        console.log(`✅ Lane ${i+1}: Created ${pairs.length} emergency pairs`);
-      }
+      console.log(`🎯 Lane ${i+1}: Intelligent crawler found ${crawl.pairs?.length || 0} pairs`);
       
-      const baseOrigin = { city: lane.origin_city, state: lane.origin_state, zip: lane.origin_zip || '' };
-      const baseDest = { city: lane.dest_city, state: lane.dest_state, zip: lane.dest_zip || '' };
-      
-      const rows = rowsFromBaseAndPairs(lane, baseOrigin, baseDest, pairs, preferFillTo10, usedRefIds);
+      const rows = rowsFromBaseAndPairs(lane, crawl.baseOrigin, crawl.baseDest, crawl.pairs, preferFillTo10, usedRefIds);
       
       console.log(`Lane ${i+1} generated ${rows.length} rows`);
       allRows.push(...rows);
