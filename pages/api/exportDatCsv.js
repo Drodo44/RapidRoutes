@@ -144,7 +144,6 @@ async function selectLanes({ pending, days, all }) {
 async function buildAllRows(lanes, preferFillTo10) {
   const allRows = [];
   const usedRefIds = new Set(); // Track reference IDs across entire CSV export
-  const usedCities = new Set(); // Track cities across entire CSV export for diversity
   console.log(`BULK EXPORT: Processing ${lanes.length} lanes with preferFillTo10=${preferFillTo10}`);
   console.log(`🔍 PARAMETER CHECK: preferFillTo10 type: ${typeof preferFillTo10}, value: ${preferFillTo10}, strict boolean: ${preferFillTo10 === true}`);
   
@@ -152,6 +151,9 @@ async function buildAllRows(lanes, preferFillTo10) {
     const lane = lanes[i];
     try {
       console.log(`Processing lane ${i+1}/${lanes.length}: ${lane.origin_city}, ${lane.origin_state} -> ${lane.dest_city}, ${lane.dest_state}`);
+      
+      // CRITICAL FIX: Each lane gets its OWN fresh usedCities set for unique pairs per lane
+      const usedCities = new Set(); // Fresh set for THIS lane only - allows city reuse across different lanes
       
       // Use the original intelligent crawler that was working
       console.log(`🧠 Lane ${i+1}: Using intelligent crawler with HERE.com verification`);
