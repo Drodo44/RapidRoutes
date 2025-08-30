@@ -6,9 +6,9 @@
 // - If part is specified for GET, returns only that part.
 
 import { adminSupabase } from '../../utils/supabaseClient';
-import { generateAllPairs } from '../../lib/datcrawl.js';
+import { generateSimplePairs } from '../../lib/simplePairGenerator.js';
 import { DAT_HEADERS } from '../../lib/datHeaders.js';
-import { planPairsForLane, rowsFromBaseAndPairs, toCsv, chunkRows } from '../../lib/datCsvBuilder';
+import { rowsFromBaseAndPairs, toCsv, chunkRows } from '../../lib/datCsvBuilder';
 
 // EMERGENCY PAIR GENERATOR - USING YOUR ACTUAL DATABASE
 async function emergencyPairs(origin, dest) {
@@ -152,25 +152,22 @@ async function buildAllRows(lanes, preferFillTo10) {
   for (let i = 0; i < lanes.length; i++) {
     const lane = lanes[i];
     try {
-      console.log(`BULK EXPORT: Processing lane ${i+1}/${lanes.length}: ${lane.origin_city}, ${lane.origin_state} -> ${lane.dest_city}, ${lane.dest_state}`);
+      console.log(`Processing lane ${i+1}/${lanes.length}: ${lane.origin_city}, ${lane.origin_state} -> ${lane.dest_city}, ${lane.dest_state}`);
       
-      // Use intelligent crawler with guaranteed row counts and city diversity
-      const crawl = await planPairsForLane(lane, { preferFillTo10, usedCities });
+      // Simple approach: Use Supabase + HERE.com to guarantee 5 pairs
+      const pairs = await generateSimplePairs(
+        lane.origin_city, 
+        lane.origin_state, 
+        lane.dest_city, 
+        lane.dest_state
+      );
       
-      if (crawl.insufficient) {
-        console.warn(`⚠️ LANE ${lane.id} INSUFFICIENT: ${crawl.message}. Using the ${crawl.pairs?.length || 0} legit pairs found.`);
-        res.setHeader('X-Debug-Warning', `Lane ${lane.id} had insufficient pairs: ${crawl.message}`);
-      }
-
-      const rows = rowsFromBaseAndPairs(lane, crawl.baseOrigin, crawl.baseDest, crawl.pairs, preferFillTo10, usedRefIds);
+      const baseOrigin = { city: lane.origin_city, state: lane.origin_state, zip: lane.origin_zip || '' };
+      const baseDest = { city: lane.dest_city, state: lane.dest_state, zip: lane.dest_zip || '' };
       
-      // This check is now informational; the builder will no longer throw an error for this.
-      if (preferFillTo10 && rows.length !== 12) {
-        console.warn(`Lane ${i+1} generated ${rows.length} rows instead of the ideal 12 due to insufficient pairs.`);
-      }
+      const rows = rowsFromBaseAndPairs(lane, baseOrigin, baseDest, pairs, preferFillTo10, usedRefIds);
       
-      console.log(`BULK EXPORT: Lane ${i+1} generated ${rows.length} rows (expected: ${preferFillTo10 ? 12 : 6})`);
-      console.log(`🌍 DIVERSITY TRACKER: ${usedCities.size} unique cities used so far`);
+      console.log(`Lane ${i+1} generated ${rows.length} rows`);
       allRows.push(...rows);
     } catch (laneError) {
       console.error(`BULK EXPORT: Error processing lane ${i+1} (${lane.id}):`, laneError);
@@ -179,7 +176,7 @@ async function buildAllRows(lanes, preferFillTo10) {
     }
   }
   
-  console.log(`BULK EXPORT: Total rows generated: ${allRows.length}`);
+  console.log(`Total rows generated: ${allRows.length}`);
   return allRows;
 }
 
