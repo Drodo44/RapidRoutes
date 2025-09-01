@@ -140,15 +140,18 @@ async function buildAllRows(lanes, preferFillTo10) {
       // CRITICAL FIX: Each lane gets its OWN fresh usedCities set for unique pairs per lane
       const usedCities = new Set(); // Fresh set for THIS lane only - allows city reuse across different lanes
       
-      // Use the original intelligent crawler that was working
-      console.log(`🧠 Lane ${i+1}: Using intelligent crawler with HERE.com verification`);
-      const crawl = await planPairsForLane(lane, { preferFillTo10, usedCities });
+      // Use our proven FreightIntelligence system
+      console.log(`🧠 Lane ${i+1}: Using FreightIntelligence system with KMA diversity`);
+      const crawl = await generatePairsForLane(lane);
       
-      if (crawl.insufficient) {
-        console.warn(`⚠️ LANE ${lane.id} INSUFFICIENT: ${crawl.message}. Using the ${crawl.pairs?.length || 0} pairs found.`);
+      // Validate the returned pairs
+      if (!crawl.pairs?.length) {
+        console.error(`❌ LANE ${lane.id}: No valid pairs generated`);
+        continue; // Skip this lane
       }
       
-      console.log(`🎯 Lane ${i+1}: Intelligent crawler found ${crawl.pairs?.length || 0} pairs`);
+      console.log(`✅ Lane ${i+1}: Generated ${crawl.pairs.length} diverse pairs`);
+      console.log(`🎯 Base pair: ${crawl.baseOrigin.city}, ${crawl.baseOrigin.state} -> ${crawl.baseDest.city}, ${crawl.baseDest.state}`);
       
       const rows = rowsFromBaseAndPairs(lane, crawl.baseOrigin, crawl.baseDest, crawl.pairs, preferFillTo10, usedRefIds);
       
