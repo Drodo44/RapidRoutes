@@ -22,18 +22,6 @@ export class FreightIntelligence {
         this.supabase = adminSupabase;
         this.apiCallCount = 0;
         this.cacheHits = 0;
-        this.cityPairCache = new Map();
-    }
-
-    /**
-     * Get usage statistics
-     * @returns {Object} Object containing API calls and cache hits
-     */
-    getUsageStats() {
-        return {
-            apiCalls: this.apiCallCount,
-            cacheHits: this.cacheHits
-        };
     }
 
     /**

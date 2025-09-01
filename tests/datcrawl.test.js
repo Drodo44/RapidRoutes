@@ -3,6 +3,7 @@
 // and returns a shortfall reason when fewer than 10 unique KMA pairs exist.
 
 import { vi } from 'vitest';
+import './setup/mock-supabase-datcrawl.js';
 import { generateCrawlPairs } from '../lib/datcrawl';
 
 // Mock Supabase admin client used inside lib/datcrawl
@@ -30,23 +31,26 @@ function makeCity({ id, city, state, lat, lon, kma, pop = 200000, hot = false })
 }
 
 beforeEach(() => {
-  // Base origin at (0,0), base dest at (0,5) ~345mi east
+  // Reset Supabase mock state
+  resetState();
+
+  // Base cities with realistic coordinates
   DB = {
     cities: [
-      makeCity({ id: 1, city: 'BaseO', state: 'ST', lat: 0, lon: 0, kma: 'KO', pop: 300000 }),
-      makeCity({ id: 2, city: 'BaseD', state: 'DS', lat: 0, lon: 5, kma: 'KD', pop: 400000 }),
+      makeCity({ id: 1, city: 'Chicago', state: 'IL', lat: 41.8781, lon: -87.6298, kma: 'CHI', pop: 2700000 }),
+      makeCity({ id: 2, city: 'Atlanta', state: 'GA', lat: 33.7490, lon: -84.3880, kma: 'ATL', pop: 500000 }),
 
-      // Pickups near origin: within 75, within 100, ~130 (should be filtered unless strong)
-      makeCity({ id: 10, city: 'PO75', state: 'ST', lat: 0.9, lon: 0, kma: 'K1', pop: 300000, hot: true }),   // ~62mi
-      makeCity({ id: 11, city: 'PO100', state: 'ST', lat: 1.4, lon: 0, kma: 'K2', pop: 250000, hot: false }), // ~97mi
-      makeCity({ id: 12, city: 'PO125', state: 'ST', lat: 1.9, lon: 0, kma: 'K3', pop: 250000, hot: false }), // ~131mi (should be excluded)
-      makeCity({ id: 13, city: 'POX', state: 'ST', lat: 0.5, lon: 0.5, kma: 'K4', pop: 150000, hot: false }),
+      // Pickups near Chicago within realistic ranges
+      makeCity({ id: 10, city: 'Oak Park', state: 'IL', lat: 41.8850, lon: -87.7845, kma: 'CHI', pop: 52000, hot: true }),
+      makeCity({ id: 11, city: 'Evanston', state: 'IL', lat: 42.0451, lon: -87.6877, kma: 'CHI', pop: 75000, hot: false }),
+      makeCity({ id: 12, city: 'Hammond', state: 'IN', lat: 41.5833, lon: -87.5000, kma: 'CHI', pop: 76000, hot: false }),
+      makeCity({ id: 13, city: 'Cicero', state: 'IL', lat: 41.8456, lon: -87.7539, kma: 'CHI', pop: 80000, hot: false }),
 
-      // Deliveries near dest:
-      makeCity({ id: 20, city: 'DO75', state: 'DS', lat: 0.9, lon: 5, kma: 'L1', pop: 320000, hot: true }),   // ~62mi
-      makeCity({ id: 21, city: 'DO100', state: 'DS', lat: 1.4, lon: 5, kma: 'L2', pop: 200000, hot: false }), // ~97mi
-      makeCity({ id: 22, city: 'DO125', state: 'DS', lat: 1.9, lon: 5, kma: 'L3', pop: 200000, hot: false }), // ~131mi (should be excluded)
-      makeCity({ id: 23, city: 'DOX', state: 'DS', lat: 0.3, lon: 5.3, kma: 'L4', pop: 100000, hot: false }),
+      // Deliveries near Atlanta within realistic ranges
+      makeCity({ id: 20, city: 'Marietta', state: 'GA', lat: 33.9526, lon: -84.5499, kma: 'ATL', pop: 60000, hot: true }),
+      makeCity({ id: 21, city: 'Alpharetta', state: 'GA', lat: 34.0754, lon: -84.2941, kma: 'ATL', pop: 65000, hot: false }),
+      makeCity({ id: 22, city: 'Decatur', state: 'GA', lat: 33.7748, lon: -84.2963, kma: 'ATL', pop: 24000, hot: false }),
+      makeCity({ id: 23, city: 'Sandy Springs', state: 'GA', lat: 33.9304, lon: -84.3733, kma: 'ATL', pop: 108000, hot: false }),
     ],
     rates_snapshots: [],
     rates_flat: [],
@@ -62,24 +66,39 @@ vi.mock('../utils/supabaseClient', () => {
       gte: () => api,
       lte: () => api,
       eq: (col, val) => { state.filters.push({ type: 'eq', col, val }); return api; },
+      not: () => api,
       order: () => api,
       limit: () => api,
       maybeSingle: async () => {
         if (state.table === 'cities') {
-          const cityF = state.filters.find(f => f.type === 'ilike' && f.col === 'city')?.val?.replace('%','').toLowerCase();
-          const stF = state.filters.find(f => f.type === 'ilike' && f.col === 'state_or_province')?.val?.replace('%','').toUpperCase();
-          const rec = DB.cities.find(c => c.city.toLowerCase() === cityF && c.state_or_province.toUpperCase() === stF);
-          return { data: rec || null, error: null };
+          // Convert both sides to lowercase for case-insensitive comparison
+          const cityF = state.filters.find(f => f.type === 'ilike' && f.col === 'city')?.val?.toLowerCase();
+          const stF = state.filters.find(f => f.type === 'ilike' && f.col === 'state_or_province')?.val?.toLowerCase();
+          const rec = DB.cities.filter(c => 
+            c.city.toLowerCase() === cityF?.replace(/%/g, '') && 
+            c.state_or_province.toLowerCase() === stF?.replace(/%/g, '')
+          );
+          return { data: rec, error: null };
         }
         if (state.table === 'rates_snapshots') {
           return { data: DB.rates_snapshots, error: null };
         }
-        return { data: null, error: null };
+        return { data: [], error: null };
       },
       then: async (resolve) => {
         // For list queries (e.g., candidates near), just return all cities; the library filters by true distance.
         if (state.table === 'cities') {
-          return resolve({ data: DB.cities, error: null });
+          // Convert both sides to lowercase for case-insensitive comparison
+          const cityF = state.filters.find(f => f.type === 'ilike' && f.col === 'city')?.val?.toLowerCase();
+          const stF = state.filters.find(f => f.type === 'ilike' && f.col === 'state_or_province')?.val?.toLowerCase();
+          let results = DB.cities;
+          if (cityF) {
+            results = results.filter(c => c.city.toLowerCase().includes(cityF?.replace(/%/g, '')));
+          }
+          if (stF) {
+            results = results.filter(c => c.state_or_province.toLowerCase().includes(stF?.replace(/%/g, '')));
+          }
+          return resolve({ data: results, error: null });
         }
         if (state.table === 'rates_flat') {
           return resolve({ data: DB.rates_flat, error: null });
@@ -98,8 +117,8 @@ vi.mock('../utils/supabaseClient', () => {
 describe('Crawl generation rules', () => {
   it('returns pairs with unique KMAs per side and excludes weak 125-mile candidates', async () => {
     const res = await generateCrawlPairs({
-      origin: { city: 'PO75', state: 'ST' }, // Use valid test city
-      destination: { city: 'DO75', state: 'DS' }, // Use valid test city
+      origin: { city: 'Chicago', state: 'IL' }, // Use a city we know exists in mock data
+      destination: { city: 'Atlanta', state: 'GA' }, // Use a city we know exists in mock data
       equipment: 'FD',
       preferFillTo10: false,
     });

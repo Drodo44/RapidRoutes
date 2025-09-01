@@ -46,8 +46,13 @@ async function emergencyPairs(origin, dest) {
     console.log(`EMERGENCY: Found dest: ${destCity.city}, ${destCity.state_or_province}, KMA: ${destCity.kma_code}`);
     
     // Get nearby cities for origin (within same KMA or adjacent KMAs)
+    // ENHANCED: Use KMA codes to find more intelligent matches
     const { data: nearOrigins } = await adminSupabase
       .from('cities')
+      .select('*')
+      .or(`kma_code.eq.${originCity.kma_code},adjacent_kmas.cs.{${originCity.kma_code}}`)
+      .not('city', 'eq', originCity.city)  // Exclude original city
+      .limit(25)  // Get more candidates for better diversity
       .select('city, state_or_province, zip, kma_code')
       .neq('city', originCity.city)
       .neq('state_or_province', originCity.state_or_province) // Different state for diversity

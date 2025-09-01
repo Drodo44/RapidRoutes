@@ -2,6 +2,7 @@
 // Test environment setup for RapidRoutes
 
 import { vi } from 'vitest';
+import './setup/mock-here-api.js';
 
 // Set up environment variables for tests
 process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://gwuhjxomavulwduhvgvi.supabase.co';
