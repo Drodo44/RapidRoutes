@@ -80,9 +80,9 @@ async function emergencyPairs(origin, dest) {
       };
     }
     
-    // Create 5 pairs using actual nearby cities from YOUR database
+    // Create minimum 6 pairs (12 rows with contact methods) using actual nearby cities
     const pairs = [];
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 6; i++) {
       const originAlt = nearOrigins[i % nearOrigins.length];
       const destAlt = nearDests[i % nearDests.length];
       
@@ -196,8 +196,8 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // DEFAULT TO FILL MODE for production unless explicitly set to 0
-  const preferFillTo10 = String(req.query.fill || '1') !== '0';
+  // Always optimize for maximum pairs (up to 11) while ensuring minimum 6
+  const preferFillTo10 = true; // Force optimization mode on
   const pending = String(req.query.pending || '') === '1';
   const all = String(req.query.all || '') === '1';
   const days = req.query.days != null ? Number(req.query.days) : null;
