@@ -1,9 +1,8 @@
 // test-intelligent-lanes.js
-// Tests intelligent lane generation with KMA diversity
+// Tests intelligent lane generation with KMA diversity and market intelligence
 
 import { config } from 'dotenv';
-import { adminSupabase } from './utils/supabaseClient.js';
-import { planPairsForLane, rowsFromBaseAndPairs } from './lib/datCsvBuilder.js';
+import { FreightIntelligence } from './lib/FreightIntelligence.js';
 
 config(); // Load environment variables
 
@@ -41,76 +40,102 @@ const TEST_LANES = [
 ];
 
 async function testLaneGeneration() {
-  console.log('🧪 TESTING INTELLIGENT LANE GENERATION\n');
+  console.log('� TESTING FREIGHT INTELLIGENCE GENERATION\n');
+
+  const intelligence = new FreightIntelligence();
 
   for (const lane of TEST_LANES) {
     console.log(`\n📍 Testing lane: ${lane.origin_city}, ${lane.origin_state} -> ${lane.dest_city}, ${lane.dest_state}`);
     
     try {
-      // Plan pairs with intelligent crawling
-      const crawl = await planPairsForLane(lane, { preferFillTo10: true });
-      
-      console.log('\n🎯 Crawl Results:');
-      console.log(`Base Origin: ${crawl.baseOrigin.city}, ${crawl.baseOrigin.state}`);
-      console.log(`Base Destination: ${crawl.baseDest.city}, ${crawl.baseDest.state}`);
-      console.log(`Found Pairs: ${crawl.pairs.length}`);
-      
-      // Log each pair with its KMA code
-      console.log('\n📊 Generated Pairs:');
-      for (const pair of crawl.pairs) {
-        const { data: pickupKma } = await adminSupabase
-          .from('cities')
-          .select('kma_code, kma_name')
-          .eq('city', pair.pickup.city)
-          .eq('state_or_province', pair.pickup.state)
-          .single();
-          
-        const { data: deliveryKma } = await adminSupabase
-          .from('cities')
-          .select('kma_code, kma_name')
-          .eq('city', pair.delivery.city)
-          .eq('state_or_province', pair.delivery.state)
-          .single();
-          
-        console.log(`${pair.pickup.city}, ${pair.pickup.state} (KMA: ${pickupKma?.kma_name || 'Unknown'}) -> ` +
-                    `${pair.delivery.city}, ${pair.delivery.state} (KMA: ${deliveryKma?.kma_name || 'Unknown'})`);
-      }
-      
-      // Generate CSV rows
-      const rows = rowsFromBaseAndPairs(lane, crawl.baseOrigin, crawl.baseDest, crawl.pairs, true);
-      
-      console.log('\n📈 Row Generation Results:');
-      console.log(`Total Rows: ${rows.length}`);
-      console.log(`Expected: 12 (6 postings × 2 contact methods)`);
-      console.log(`Status: ${rows.length === 12 ? '✅ PASS' : '❌ FAIL'}`);
-      
-      // Show unique city pairs
-      const uniquePairs = new Set();
-      rows.forEach(row => {
-        const pairKey = `${row['Origin City*']},${row['Origin State*']}->${row['Destination City*']},${row['Destination State*']}`;
-        uniquePairs.add(pairKey);
+      // Generate pairs with freight intelligence
+      const result = await intelligence.generateDiversePairs({
+        origin: {
+          city: lane.origin_city,
+          state: lane.origin_state,
+          zip: lane.origin_zip
+        },
+        destination: {
+          city: lane.dest_city,
+          state: lane.dest_state,
+          zip: lane.dest_zip
+        },
+        equipment: lane.equipment_code,
+        preferFillTo10: true
       });
       
-      console.log(`\n🎯 Unique City Pairs: ${uniquePairs.size}`);
-      console.log('Pairs List:');
-      [...uniquePairs].forEach(pair => console.log(`  ${pair}`));
+      console.log('\n🧠 Intelligence Results:');
+      console.log(`Found Pairs: ${result.pairs.length}`);
+      console.log(`Target Range: 6-10 pairs with maximum KMA diversity`);
       
-      // Analyze KMA diversity
-      console.log('\n📊 KMA Diversity Analysis:');
-      const kmas = new Set();
-      for (const pair of crawl.pairs) {
-        const { data: pickupKma } = await adminSupabase
-          .from('cities')
-          .select('kma_code')
-          .eq('city', pair.pickup.city)
-          .eq('state_or_province', pair.pickup.state)
-          .single();
-          
-        if (pickupKma?.kma_code) {
-          kmas.add(pickupKma.kma_code);
-        }
+      // Log each pair with its KMA code and score
+      console.log('\n📊 Generated Pairs:');
+      for (const pair of result.pairs) {
+        console.log(
+          `${pair.pickup.city}, ${pair.pickup.state} (KMA: ${pair.geographic.pickup_kma}) -> ` +
+          `${pair.delivery.city}, ${pair.delivery.state} (KMA: ${pair.geographic.delivery_kma})`
+        );
+        console.log(`  • Score: ${pair.score?.toFixed(2) || 'N/A'}`);
+        console.log(`  • Distances: ${Math.round(pair.geographic.pickup_distance)}mi pickup, ${Math.round(pair.geographic.delivery_distance)}mi delivery`);
       }
-      console.log(`Unique KMAs used: ${kmas.size}`);
+      
+      // Calculate KMA diversity
+      const pickupKMAs = new Set(result.pairs.map(p => p.geographic.pickup_kma));
+      const deliveryKMAs = new Set(result.pairs.map(p => p.geographic.delivery_kma));
+      const kmaScore = ((pickupKMAs.size + deliveryKMAs.size) / (result.pairs.length * 2)) * 100;
+      
+      console.log('\n📈 Intelligence Analysis:');
+      console.log(`Total Pairs: ${result.pairs.length}`);
+      console.log(`KMA Diversity Score: ${kmaScore.toFixed(1)}%`);
+      console.log(`Unique Pickup KMAs: ${pickupKMAs.size}`);
+      console.log(`Unique Delivery KMAs: ${deliveryKMAs.size}`);
+      console.log(`Status: ${result.pairs.length >= 6 ? '✅ PASS' : '❌ FAIL'}`);
+      
+      // Calculate average distances
+      const avgPickupDist = result.pairs.reduce((sum, p) => sum + p.geographic.pickup_distance, 0) / result.pairs.length;
+      const avgDeliveryDist = result.pairs.reduce((sum, p) => sum + p.geographic.delivery_distance, 0) / result.pairs.length;
+      
+      console.log('\n📍 Distance Analysis:');
+      console.log(`Average Pickup Distance: ${Math.round(avgPickupDist)} miles`);
+      console.log(`Average Delivery Distance: ${Math.round(avgDeliveryDist)} miles`);
+      
+      // Generate DAT rows
+      const datRows = result.pairs.flatMap(pair => {
+        const base = {
+          'Pickup Earliest*': lane.pickup_earliest || '09/01/2025',
+          'Pickup Latest': lane.pickup_latest || '09/02/2025',
+          'Length (ft)*': lane.length_ft || '53',
+          'Weight (lbs)*': lane.weight_lbs || '45000',
+          'Full/Partial*': lane.full_partial || 'full',
+          'Equipment*': lane.equipment_code,
+          'Use Private Network*': 'NO',
+          'Private Network Rate': '',
+          'Allow Private Network Booking': '',
+          'Allow Private Network Bidding': '',
+          'Use DAT Loadboard*': 'yes',
+          'DAT Loadboard Rate': '',
+          'Allow DAT Loadboard Booking': '',
+          'Use Extended Network': '',
+          'Origin City*': pair.pickup.city,
+          'Origin State*': pair.pickup.state,
+          'Origin Postal Code': pair.pickup.zip || '',
+          'Destination City*': pair.delivery.city,
+          'Destination State*': pair.delivery.state,
+          'Destination Postal Code': pair.delivery.zip || '',
+          'Comment': '',
+          'Commodity': '',
+          'Reference ID': `RR${lane.id}`
+        };
+        return [
+          { ...base, 'Contact Method*': 'email' },
+          { ...base, 'Contact Method*': 'primary phone' }
+        ];
+      });
+      
+      console.log('\n📋 DAT Export Analysis:');
+      console.log(`Total Rows: ${datRows.length}`);
+      console.log(`Expected Range: 12-20 rows (6-10 pairs × 2 contacts)`);
+      console.log(`Status: ${datRows.length >= 12 ? '✅ PASS' : '❌ FAIL'}`);
       
     } catch (error) {
       console.error(`❌ Error testing lane:`, error);

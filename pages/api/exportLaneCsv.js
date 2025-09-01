@@ -5,7 +5,8 @@
 
 import { adminSupabase } from '../../utils/supabaseClient';
 import { DAT_HEADERS } from '../../lib/datHeaders.js';
-import { planPairsForLane, rowsFromBaseAndPairs, toCsv } from '../../lib/datCsvBuilder';
+import { rowsFromBaseAndPairs, toCsv } from '../../lib/datCsvBuilder';
+import { FreightIntelligence } from '../../lib/FreightIntelligence.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -27,18 +28,37 @@ export default async function handler(req, res) {
     if (error) throw error;
     if (!lane) return res.status(404).json({ error: 'lane not found' });
 
-    // Build crawl plan with unique reference IDs
+    // Generate pairs using freight intelligence
+    const intelligence = new FreightIntelligence();
+    const result = await intelligence.generateDiversePairs({
+      origin: {
+        city: lane.origin_city,
+        state: lane.origin_state,
+        zip: lane.origin_zip
+      },
+      destination: {
+        city: lane.dest_city,
+        state: lane.dest_state,
+        zip: lane.dest_zip
+      },
+      equipment: lane.equipment_code,
+      preferFillTo10
+    });
+
+    // Convert result to DAT format
     const usedRefIds = new Set();
-    const crawl = await planPairsForLane(lane, { preferFillTo10 });
-    const rows = rowsFromBaseAndPairs(lane, crawl.baseOrigin, crawl.baseDest, crawl.pairs, preferFillTo10, usedRefIds);
+    const baseOrigin = { city: lane.origin_city, state: lane.origin_state };
+    const baseDest = { city: lane.dest_city, state: lane.dest_state };
+    const rows = rowsFromBaseAndPairs(lane, baseOrigin, baseDest, result.pairs, preferFillTo10, usedRefIds);
 
     // Enhanced debug info
-    console.log(`FILL-TO-5 EXPORT DEBUG:`);
+    console.log(`🧠 INTELLIGENT EXPORT DEBUG:`);
     console.log(`  preferFillTo10: ${preferFillTo10}`);
-    console.log(`  Generated pairs: ${crawl.pairs?.length || 0}`);
-    console.log(`  Total rows: ${rows.length} (minimum: ${preferFillTo10 ? 12 : 8}, scales with market density)`);
-    console.log(`  Shortfall reason: ${crawl.shortfallReason || 'none'}`);
-    console.log(`  Pairs details:`, crawl.pairs?.map(p => `${p.pickup?.city}, ${p.pickup?.state} -> ${p.delivery?.city}, ${p.delivery?.state}`));
+    console.log(`  Generated pairs: ${result.pairs.length}`);
+    console.log(`  Total rows: ${rows.length} (minimum: 12, scales with market density)`);
+    console.log(`  Pairs details:`, result.pairs.map(p => 
+      `${p.pickup.city}, ${p.pickup.state} (KMA: ${p.geographic.pickup_kma}) -> ${p.delivery.city}, ${p.delivery.state} (KMA: ${p.geographic.delivery_kma})`
+    ));
     
     const csv = toCsv(DAT_HEADERS, rows);
     const filename = `DAT_Upload_${id}.csv`;

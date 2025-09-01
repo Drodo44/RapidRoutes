@@ -7,7 +7,6 @@
 
 import { adminSupabase } from '../../utils/supabaseClient';
 import { DAT_HEADERS } from '../../lib/datHeaders.js';
-import { planPairsForLane } from '../../lib/planPairsForLane.js';
 import { rowsFromBaseAndPairs, toCsv, chunkRows } from '../../lib/datCsvBuilder';
 import { FreightIntelligence } from '../../lib/FreightIntelligence.js';
 
