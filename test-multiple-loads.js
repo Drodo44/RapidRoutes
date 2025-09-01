@@ -47,7 +47,8 @@ async function testMultipleLoads() {
       console.log(`🚛 LOAD ${i+1}/3: ${lane.origin_city}, ${lane.origin_state} -> ${lane.dest_city}, ${lane.dest_state} (${lane.equipment_code})`);
       
       // Get pairs for this lane, passing usedCities to ensure variation
-      const pairResult = await planPairsForLane(lane, { 
+      const pairResult = await planPairsForLane(lane, {
+        minPairs: 6, // Enforce minimum requirement
         preferFillTo10: true,
         usedCities // This ensures each load gets different cities
       });

@@ -1,5 +1,6 @@
 // pages/api/health.js
 import { adminSupabase as supabase } from "../../utils/supabaseClient.js";
+import { monitor } from "../../lib/monitoring/logger.js";
 
 async function checkEnv() {
   const keys = [
@@ -75,8 +76,17 @@ async function checkExportHead(params = "") {
 }
 
 export default async function handler(_req, res) {
+  const healthCheckId = `health_${Date.now()}`;
+  monitor.startOperation(healthCheckId, { type: 'system_health_check' });
+
   try {
-    const env = await checkEnv();
+    // Core system checks
+    const [env, monitorStatus] = await Promise.all([
+      checkEnv(),
+      monitor.checkHealth()
+    ]);
+
+    // Database table checks
     const tables = await Promise.all([
       "cities",
       "lanes",
@@ -85,6 +95,9 @@ export default async function handler(_req, res) {
       "dat_maps",
       "settings",
       "user_prefs",
+      "operation_logs",
+      "error_logs",
+      "system_health"
     ].map(async (t) => ({ table: t, ...(await checkTable(t)) })));
 
     const storage = await checkStorage("dat_maps");
@@ -96,17 +109,43 @@ export default async function handler(_req, res) {
       tables.every((t) => t.ok) &&
       storage.ok &&
       rpc.ok &&
-      exportHead.ok;
+      exportHead.ok &&
+      monitorStatus.database &&
+      monitorStatus.api_services;
 
-    return res.status(ok ? 200 : 500).json({
+    // Enhanced response with monitoring data
+    const response = {
       ok,
+      timestamp: new Date().toISOString(),
       env,
       tables,
       storage,
       rpc,
       exportHead,
+      monitoring: {
+        database: monitorStatus.database ? 'up' : 'down',
+        api_services: monitorStatus.api_services ? 'up' : 'down',
+        memory: {
+          heapUsed: Math.round(monitorStatus.memory.heapUsed / 1024 / 1024) + 'MB',
+          heapTotal: Math.round(monitorStatus.memory.heapTotal / 1024 / 1024) + 'MB',
+          rss: Math.round(monitorStatus.memory.rss / 1024 / 1024) + 'MB'
+        }
+      }
+    };
+
+    monitor.endOperation(healthCheckId, { 
+      success: ok,
+      components_checked: tables.length + 4 // tables + storage + rpc + export + monitoring
     });
-  } catch (e) {
-    return res.status(500).json({ ok: false, error: e.message || "health failed" });
+
+    return res.status(ok ? 200 : 503).json(response);
+  } catch (error) {
+    await monitor.logError(error, 'Health check failed', { severity: 'critical' });
+    monitor.endOperation(healthCheckId, { success: false, error: error.message });
+    return res.status(500).json({ 
+      ok: false, 
+      error: error.message || "health check failed",
+      timestamp: new Date().toISOString()
+    });
   }
 }
