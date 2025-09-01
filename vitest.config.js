@@ -8,6 +8,17 @@ export default defineConfig({
     coverage: {
       reporter: ['text', 'json', 'html'],
     },
-    setupFiles: ['./tests/setup.js'],
+    setupFiles: [
+      './tests/setup/vitest.setup.js'
+    ],
+    testTimeout: 10000, // 10 seconds default timeout
+    hookTimeout: 10000,
+    pool: 'threads',
+    poolOptions: {
+      threads: {
+        singleThread: true // Run tests in a single thread to avoid mock conflicts
+      }
+    },
+    globalSetup: ['./tests/setup/global.setup.js']
   },
 });

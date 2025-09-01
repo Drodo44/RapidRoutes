@@ -1,6 +1,6 @@
-import './setup/mock-supabase.js';
-
-import { vi, describe, expect, it, beforeAll, afterAll } from 'vitest';
+import './setup/test-setup.js';
+import { vi, describe, expect, it, beforeAll, afterAll, beforeEach } from 'vitest';
+import { resetTestState } from './__mocks__/testData.js';
 
 // Mock the geographic crawl module
 vi.mock('../lib/geographicCrawl.js', () => ({
@@ -38,6 +38,10 @@ vi.mock('../lib/geographicCrawl.js', () => ({
     totalPairs: 2
   }))
 }));
+
+beforeEach(() => {
+  resetTestState();
+});
 
 // Import the mocked module
 import { generateGeographicCrawlPairs } from '../lib/geographicCrawl.js';

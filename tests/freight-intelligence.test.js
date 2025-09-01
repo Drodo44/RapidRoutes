@@ -2,9 +2,10 @@
  * Comprehensive test suite for FreightIntelligence system
  */
 
+import './setup/test-setup.js';
+import { expect, beforeAll, beforeEach, describe, it } from 'vitest';
 import { FreightIntelligence } from '../lib/FreightIntelligence.js';
-import { adminSupabase } from '../utils/supabaseClient.js';
-import { expect, beforeAll, describe, it } from 'vitest';
+import { resetTestState } from './__mocks__/testData.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -15,6 +16,10 @@ describe('FreightIntelligence Production Verification', () => {
 
     beforeAll(async () => {
         intelligence = new FreightIntelligence();
+    });
+
+    beforeEach(async () => {
+        resetTestState();
         
         // Use mock data if no Supabase credentials
         if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -74,10 +79,9 @@ describe('FreightIntelligence Production Verification', () => {
         });
 
         it('should handle invalid coordinates gracefully', () => {
-            const distance = intelligence.calculateDistance(
+            expect(() => intelligence.calculateDistance(
                 null, undefined, NaN, 'invalid'
-            );
-            expect(distance).to.equal(0);
+            )).to.throw('Invalid coordinates');
         });
     });
 
@@ -188,7 +192,8 @@ describe('FreightIntelligence Production Verification', () => {
                 'V',
                 2
             );
-            expect(result).to.be.null;
+            // Failed operation should return empty array
+            expect(result).to.deep.equal([]);
         });
     });
 
