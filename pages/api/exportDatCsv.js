@@ -7,118 +7,98 @@
 
 import { adminSupabase } from '../../utils/supabaseClient';
 import { DAT_HEADERS } from '../../lib/datHeaders.js';
-import { planPairsForLane, rowsFromBaseAndPairs, toCsv, chunkRows } from '../../lib/datCsvBuilder';
+import { planPairsForLane } from '../../lib/planPairsForLane.js';
+import { rowsFromBaseAndPairs, toCsv, chunkRows } from '../../lib/datCsvBuilder';
+import { FreightIntelligence } from '../../lib/FreightIntelligence.js';
 
-// EMERGENCY PAIR GENERATOR - USING YOUR ACTUAL DATABASE
-async function emergencyPairs(origin, dest) {
+// Use our proven intelligent routing system for lane pair generation
+async function generatePairsForLane(lane) {
   try {
-    console.log(`EMERGENCY: Generating pairs for ${origin.city}, ${origin.state} -> ${dest.city}, ${dest.state}`);
+    console.log(`🔍 Generating intelligent pairs for: ${lane.origin_city}, ${lane.origin_state} -> ${lane.dest_city}, ${lane.dest_state}`);
     
-    // Find origin city in YOUR database
-    const { data: originCities } = await adminSupabase
-      .from('cities')
-      .select('*')
-      .ilike('city', origin.city)
-      .ilike('state_or_province', origin.state)
-      .limit(1);
-    
-    // Find destination city in YOUR database  
-    const { data: destCities } = await adminSupabase
-      .from('cities')
-      .select('*')
-      .ilike('city', dest.city)
-      .ilike('state_or_province', dest.state)
-      .limit(1);
-    
-    if (!originCities?.[0] || !destCities?.[0]) {
-      console.error('EMERGENCY: Origin or dest city not found in database');
-      return { 
-        pairs: [], 
-        baseOrigin: { city: origin.city, state: origin.state, zip: '' }, 
-        baseDest: { city: dest.city, state: dest.state, zip: '' } 
+    const intelligence = new FreightIntelligence();
+    const result = await intelligence.generateDiversePairs({
+      origin: {
+        city: lane.origin_city,
+        state: lane.origin_state,
+        zip: lane.origin_zip
+      },
+      destination: {
+        city: lane.dest_city,
+        state: lane.dest_state,
+        zip: lane.dest_zip
+      },
+      equipment: lane.equipment_code,
+      preferFillTo10: true  // Always optimize for maximum pairs while ensuring minimum 6
+    });
+
+    if (!result?.pairs?.length) {
+      console.error(`❌ Failed to generate pairs for lane ${lane.id}`);
+      return {
+        pairs: [],
+        baseOrigin: { city: lane.origin_city, state: lane.origin_state },
+        baseDest: { city: lane.dest_city, state: lane.dest_state }
       };
     }
-    
-    const originCity = originCities[0];
-    const destCity = destCities[0];
-    
-    console.log(`EMERGENCY: Found origin: ${originCity.city}, ${originCity.state_or_province}, KMA: ${originCity.kma_code}`);
-    console.log(`EMERGENCY: Found dest: ${destCity.city}, ${destCity.state_or_province}, KMA: ${destCity.kma_code}`);
-    
-    // Get nearby cities for origin (within same KMA or adjacent KMAs)
-    // ENHANCED: Use KMA codes to find more intelligent matches
-    const { data: nearOrigins } = await adminSupabase
-      .from('cities')
-      .select('*')
-      .or(`kma_code.eq.${originCity.kma_code},adjacent_kmas.cs.{${originCity.kma_code}}`)
-      .not('city', 'eq', originCity.city)  // Exclude original city
-      .limit(25)  // Get more candidates for better diversity
-      .select('city, state_or_province, zip, kma_code')
-      .neq('city', originCity.city)
-      .neq('state_or_province', originCity.state_or_province) // Different state for diversity
-      .not('latitude', 'is', null) // Only cities with coordinates
-      .limit(100);
-    
-    // Get nearby cities for destination
-    const { data: nearDests } = await adminSupabase
-      .from('cities')
-      .select('city, state_or_province, zip, kma_code')
-      .neq('city', destCity.city)
-      .neq('state_or_province', destCity.state_or_province) // Different state for diversity
-      .not('latitude', 'is', null) // Only cities with coordinates
-      .limit(100);
-    
-    console.log(`EMERGENCY: Found ${nearOrigins?.length || 0} potential origin alternatives`);
-    console.log(`EMERGENCY: Found ${nearDests?.length || 0} potential dest alternatives`);
-    
-    if (!nearOrigins?.length || !nearDests?.length) {
-      console.error('EMERGENCY: No alternative cities found');
-      return { 
-        pairs: [], 
-        baseOrigin: { city: originCity.city, state: originCity.state_or_province, zip: originCity.zip || '' }, 
-        baseDest: { city: destCity.city, state: destCity.state_or_province, zip: destCity.zip || '' } 
+
+    // Verify pair diversity using KMA codes
+    const diversityCheck = new Set();
+    const pairScores = [];
+
+    for (const pair of result.pairs) {
+      diversityCheck.add(`${pair.origin.kma_code}-${pair.destination.kma_code}`);
+      pairScores.push(intelligence.calculateFreightScore(pair));
+    }
+
+    if (diversityCheck.size < 6) {
+      console.error(`❌ Insufficient KMA diversity: ${diversityCheck.size} unique pairs for lane ${lane.id}`);
+      return {
+        pairs: [],
+        baseOrigin: { city: lane.origin_city, state: lane.origin_state },
+        baseDest: { city: lane.dest_city, state: lane.dest_state }
       };
     }
-    
-    // Create minimum 6 pairs (12 rows with contact methods) using actual nearby cities
-    const pairs = [];
-    for (let i = 0; i < 6; i++) {
-      const originAlt = nearOrigins[i % nearOrigins.length];
-      const destAlt = nearDests[i % nearDests.length];
-      
-      pairs.push({
-        pickup: { 
-          city: originAlt.city, 
-          state: originAlt.state_or_province, 
-          zip: originAlt.zip || '' 
-        },
-        delivery: { 
-          city: destAlt.city, 
-          state: destAlt.state_or_province, 
-          zip: destAlt.zip || '' 
-        }
-      });
-    }
-    
-    console.log(`EMERGENCY: Generated ${pairs.length} pairs using YOUR database:`, 
-      pairs.map(p => `${p.pickup.city},${p.pickup.state} -> ${p.delivery.city},${p.delivery.state}`)
-    );
-    
+
+    const avgScore = pairScores.reduce((a, b) => a + b, 0) / pairScores.length;
+    console.log(`✅ Generated ${result.pairs.length} pairs (${diversityCheck.size} unique KMAs, score: ${avgScore.toFixed(2)})`);
+
+    const formattedPairs = result.pairs.map(p => ({
+      pickup: {
+        city: p.origin.city,
+        state: p.origin.state,
+        zip: p.origin.zip || ''
+      },
+      delivery: {
+        city: p.destination.city,
+        state: p.destination.state,
+        zip: p.destination.zip || ''
+      }
+    }));
+
     return {
-      pairs,
-      baseOrigin: { city: originCity.city, state: originCity.state_or_province, zip: originCity.zip || '' },
-      baseDest: { city: destCity.city, state: destCity.state_or_province, zip: destCity.zip || '' }
+      pairs: formattedPairs,
+      baseOrigin: { 
+        city: lane.origin_city, 
+        state: lane.origin_state,
+        zip: lane.origin_zip || '' 
+      },
+      baseDest: { 
+        city: lane.dest_city, 
+        state: lane.dest_state,
+        zip: lane.dest_zip || '' 
+      }
     };
-    
+
   } catch (error) {
-    console.error('Emergency pairs database error:', error);
-    return { 
-      pairs: [], 
-      baseOrigin: { city: origin.city, state: origin.state, zip: '' }, 
-      baseDest: { city: dest.city, state: dest.state, zip: '' } 
+    console.error('Failed to generate intelligent pairs:', error);
+    return {
+      pairs: [],
+      baseOrigin: { city: lane.origin_city, state: lane.origin_state },
+      baseDest: { city: lane.dest_city, state: lane.dest_state }
     };
   }
 }
+
 
 function daysAgoUTC(n) {
   const d = new Date();
