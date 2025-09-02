@@ -6,6 +6,7 @@ import IntermodalNudge from '../components/IntermodalNudge';
 import IntermodalEmailModal from '../components/IntermodalEmailModal';
 import { supabase } from '../utils/supabaseClient';
 import { checkIntermodalEligibility } from '../lib/intermodalAdvisor';
+import { generateReferenceId, getDisplayReferenceId } from '../lib/referenceIdUtils';
 import Head from 'next/head';
 
 function Section({ title, children, right, className = '' }) {
@@ -45,6 +46,7 @@ export default function LanesPage() {
   // Lists
   const [tab, setTab] = useState('pending');
   const [pending, setPending] = useState([]);
+  const [posted, setPosted] = useState([]); // New: Active postings
   const [recent, setRecent] = useState([]);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
@@ -61,11 +63,14 @@ export default function LanesPage() {
   function onPickDest(it){ setDest(`${it.city}, ${it.state}`); setDestZip(it.zip || ''); }
 
   async function loadLists(){
-    const [{ data: p }, { data: r }] = await Promise.all([
+    const [{ data: p }, { data: posted }, { data: r }] = await Promise.all([
       supabase.from('lanes').select('*').eq('status', 'pending').order('created_at', { ascending: false }).limit(200),
+      supabase.from('lanes').select('*').eq('status', 'posted').order('created_at', { ascending: false }).limit(200),
       supabase.from('lanes').select('*').order('created_at', { ascending: false }).limit(50),
     ]);
-    setPending(p || []); setRecent(r || []);
+    setPending(p || []); 
+    setPosted(posted || []); // New: Load active postings
+    setRecent(r || []);
   }
   useEffect(()=>{ loadLists(); }, []);
 
@@ -367,6 +372,114 @@ export default function LanesPage() {
     }
   }
 
+  // Generate unique reference ID for a lane
+  async function generateRefId(lane) {
+    try {
+      const newRefId = generateReferenceId(lane.id);
+      
+      // Check if this reference ID already exists
+      const { data: existingLanes } = await supabase
+        .from('lanes')
+        .select('id')
+        .eq('reference_id', newRefId)
+        .neq('id', lane.id);
+      
+      let finalRefId = newRefId;
+      let counter = 1;
+      
+      // If it exists, generate a unique one
+      while (existingLanes && existingLanes.length > 0) {
+        const baseNum = parseInt(newRefId.slice(2), 10);
+        const newNum = String((baseNum + counter) % 100000).padStart(5, '0');
+        finalRefId = `RR${newNum}`;
+        
+        const { data: checkAgain } = await supabase
+          .from('lanes')
+          .select('id')
+          .eq('reference_id', finalRefId)
+          .neq('id', lane.id);
+        
+        if (!checkAgain || checkAgain.length === 0) break;
+        counter++;
+        
+        if (counter > 1000) {
+          finalRefId = `RR${String(Math.floor(Math.random() * 100000)).padStart(5, '0')}`;
+          break;
+        }
+      }
+      
+      // Update the lane with the new reference ID
+      const response = await fetch('/api/lanes', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: lane.id, reference_id: finalRefId }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update reference ID');
+      }
+      
+      // Refresh the lists to show the new reference ID
+      await loadLists();
+      
+      setMsg(`✅ Generated reference ID: ${finalRefId}`);
+      setTimeout(() => setMsg(''), 3000);
+      
+    } catch (error) {
+      alert(`Failed to generate reference ID: ${error.message}`);
+    }
+  }
+
+  // Bulk generate reference IDs for all lanes without them
+  async function bulkGenerateRefIds() {
+    try {
+      const currentLanes = tab === 'pending' ? pending : tab === 'posted' ? posted : recent;
+      const lanesWithoutRefIds = currentLanes.filter(l => !l.reference_id);
+      
+      if (lanesWithoutRefIds.length === 0) {
+        alert('All lanes already have reference IDs');
+        return;
+      }
+      
+      if (!confirm(`Generate reference IDs for ${lanesWithoutRefIds.length} lanes?`)) {
+        return;
+      }
+      
+      setBusy(true);
+      setMsg('Generating reference IDs...');
+      
+      for (let i = 0; i < lanesWithoutRefIds.length; i++) {
+        const lane = lanesWithoutRefIds[i];
+        setMsg(`Generating reference ID ${i + 1} of ${lanesWithoutRefIds.length}...`);
+        
+        const newRefId = generateReferenceId(lane.id);
+        
+        // Update the lane with the new reference ID
+        const response = await fetch('/api/lanes', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: lane.id, reference_id: newRefId }),
+        });
+        
+        if (!response.ok) {
+          console.error(`Failed to update lane ${lane.id} with reference ID`);
+        }
+      }
+      
+      // Refresh the lists to show the new reference IDs
+      await loadLists();
+      
+      setMsg(`✅ Generated ${lanesWithoutRefIds.length} reference IDs`);
+      setTimeout(() => setMsg(''), 3000);
+      
+    } catch (error) {
+      alert(`Failed to bulk generate reference IDs: ${error.message}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   // INTELLIGENT FREIGHT REPOSTING - Create new lane based on successful one
   async function postAgain(lane){
     try {
@@ -614,18 +727,39 @@ export default function LanesPage() {
         right={
           <div className="flex gap-2">
             <button className={`px-3 py-1 rounded-md ${tab==='pending' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white'}`} onClick={()=>setTab('pending')}>Pending</button>
+            <button className={`px-3 py-1 rounded-md ${tab==='posted' ? 'bg-green-700 text-white' : 'text-gray-400 hover:bg-green-700 hover:text-white'}`} onClick={()=>setTab('posted')}>Active Postings</button>
             <button className={`px-3 py-1 rounded-md ${tab==='recent' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white'}`} onClick={()=>setTab('recent')}>Recent</button>
           </div>
         }
       >
+        {/* Bulk Actions */}
+        <div className="mb-4 p-3 bg-gray-800 rounded-lg border border-gray-700">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-300">
+              <span className="font-medium">Reference ID Management:</span> Generate unique RR# identifiers for CSV exports
+            </div>
+            <button 
+              onClick={bulkGenerateRefIds}
+              disabled={busy}
+              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white text-sm rounded-lg font-mono"
+            >
+              {busy ? 'Generating...' : '🎯 Generate All RR#'}
+            </button>
+          </div>
+          {(tab === 'pending' ? pending : tab === 'posted' ? posted : recent).filter(l => !l.reference_id).length > 0 && (
+            <div className="mt-2 text-xs text-yellow-300">
+              {(tab === 'pending' ? pending : tab === 'posted' ? posted : recent).filter(l => !l.reference_id).length} lanes need reference IDs
+            </div>
+          )}
+        </div>
         <div className="divide-y divide-gray-800">
-          {(tab === 'pending' ? pending : recent).map(l => (
+          {(tab === 'pending' ? pending : tab === 'posted' ? posted : recent).map(l => (
             <div key={l.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 py-3">
               <div className="text-sm">
                 <div className="text-gray-100">
-                  {l.reference_id && (
+                  {(l.reference_id || getDisplayReferenceId(l)) && (
                     <span className="inline-block mr-3 px-2 py-0.5 text-xs font-mono font-bold rounded bg-green-900/60 text-green-200">
-                      REF #{l.reference_id}
+                      REF #{l.reference_id || getDisplayReferenceId(l)}
                     </span>
                   )}
                   <span className="font-medium">{l.origin_city}, {l.origin_state}</span>
@@ -646,6 +780,13 @@ export default function LanesPage() {
                 {l.status==='posted' && <button onClick={()=>updateStatus(l,'pending')} className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-sm rounded-lg">Unpost</button>}
                 {l.status!=='covered' && <button onClick={()=>updateStatus(l,'covered')} className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-sm rounded-lg">Mark Covered</button>}
                 {l.status==='covered' && <button onClick={()=>postAgain(l)} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm rounded-lg">🚀 Post Again</button>}
+                
+                {/* Reference ID Generation */}
+                {!l.reference_id && (
+                  <button onClick={()=>generateRefId(l)} className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-sm rounded-lg font-mono">
+                    🎯 Generate RR#
+                  </button>
+                )}
                 
                 {/* Actions Dropdown */}
                 <div className="relative">
@@ -701,7 +842,7 @@ export default function LanesPage() {
               </div>
             </div>
           ))}
-          {(tab === 'pending' ? pending : recent).length === 0 && (
+          {(tab === 'pending' ? pending : tab === 'posted' ? posted : recent).length === 0 && (
             <div className="py-6 text-sm text-gray-400">No lanes yet.</div>
           )}
         </div>

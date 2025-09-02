@@ -93,8 +93,13 @@ export default async function handler(req, res) {
       laneId: laneId, // Keep as UUID, don't parseInt!
       isBase: false,
       display: `${pair.pickup.city}, ${pair.pickup?.state || pair.pickup?.state_or_province} → ${pair.delivery.city}, ${pair.delivery?.state || pair.delivery?.state_or_province}`,
-      // Generate reference ID on-the-fly since column doesn't exist in database
-      referenceId: lane.reference_id || `RR${String(Math.abs(laneId.split('-')[0].replace(/[a-f]/g, '').substring(0,5) || '10000')).padStart(5, '0')}`,
+      // Generate reference ID on-the-fly using SAME logic as CSV export
+      referenceId: lane.reference_id || (() => {
+        const laneId = String(lane.id);
+        const numericPart = laneId.split('-')[0].replace(/[a-f]/g, '').substring(0,5) || '10000';
+        const referenceNum = String(Math.abs(parseInt(numericPart, 10) || 10000) % 100000).padStart(5, '0');
+        return `RR${referenceNum}`;
+      })(),
       pickup: {
         city: pair.pickup.city,
         state: pair.pickup?.state || pair.pickup?.state_or_province,

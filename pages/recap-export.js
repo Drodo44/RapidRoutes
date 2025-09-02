@@ -5,12 +5,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import Head from 'next/head';
-
-function cleanReferenceId(refId) {
-  if (!refId) return '';
-  // Remove Excel text formatting like ="RR12345"
-  return String(refId).replace(/^="?|"?$/g, '');
-}
+import { getDisplayReferenceId, matchesReferenceId, cleanReferenceId } from '../lib/referenceIdUtils';
 
 // Generate reference ID for generated pairs (same logic as CSV)
 function generatePairReferenceId(baseRefId, pairIndex) {
@@ -84,14 +79,14 @@ export default function RecapExport() {
                   laneId: lane.id,
                   isBase: true,
                   display: `${lane.origin_city}, ${lane.origin_state} → ${lane.dest_city}, ${lane.dest_state}`,
-                  referenceId: lane.reference_id || `RR${String(Math.abs(lane.id.split('-')[0].replace(/[a-f]/g, '').substring(0,5) || '10000')).padStart(5, '0')}`,
+                  referenceId: getDisplayReferenceId(lane),
                   pickup: { city: lane.origin_city, state: lane.origin_state },
                   delivery: { city: lane.dest_city, state: lane.dest_state }
                 });
                 
                 // Add generated pairs with their own reference IDs
                 pairData.postedPairs.forEach((pair, index) => {
-                  const baseRef = lane.reference_id || `RR${String(Math.abs(lane.id.split('-')[0].replace(/[a-f]/g, '').substring(0,5) || '10000')).padStart(5, '0')}`;
+                  const baseRef = getDisplayReferenceId(lane);
                   const pairRefId = generatePairReferenceId(baseRef, index);
                   allPairs.push({
                     id: `pair-${lane.id}-${index}`,
@@ -155,9 +150,8 @@ export default function RecapExport() {
     
     const q = query.toLowerCase().trim();
     
-    // Check main lane reference ID (generated if not exists)
-    const refId = cleanReferenceId(lane.reference_id) || `RR${String(Math.abs(lane.id.split('-')[0].replace(/[a-f]/g, '').substring(0,5) || '10000')).padStart(5, '0')}`;
-    if (refId.toLowerCase().includes(q)) return true;
+    // Check main lane reference ID using unified logic
+    if (matchesReferenceId(q, lane)) return true;
     
     // Check generated pair reference IDs
     const lanePairs = postedPairs.filter(pair => pair.laneId === lane.id);
@@ -291,7 +285,7 @@ export default function RecapExport() {
                 console.log('🔍 EXPORT DEBUG: Lane', lane.id, 'has', lanePostedPairs.length, 'pairs');
                 
                 return lanePostedPairs.length > 0 ? (
-                  <optgroup key={lane.id} label={`${lane.origin_city}, ${lane.origin_state} → ${lane.dest_city}, ${lane.dest_state} • REF #${cleanReferenceId(lane.reference_id)} • ${lanePostedPairs.length} pairs`}>
+                  <optgroup key={lane.id} label={`${lane.origin_city}, ${lane.origin_state} → ${lane.dest_city}, ${lane.dest_state} • REF #${getDisplayReferenceId(lane)} • ${lanePostedPairs.length} pairs`}>
                     {basePair && (
                       <option value={basePair.id}>🎯 BASE: {basePair.display} • {basePair.referenceId}</option>
                     )}
@@ -309,7 +303,7 @@ export default function RecapExport() {
                 <optgroup label="⏳ PENDING LANES">
                   {lanes.filter(lane => lane.status === 'pending').slice(0, 10).map((lane) => (
                     <option key={`pending-${lane.id}`} value={`pending-${lane.id}`}>
-                      ⏳ {lane.origin_city}, {lane.origin_state} → {lane.dest_city}, {lane.dest_state} • {cleanReferenceId(lane.reference_id)}
+                      ⏳ {lane.origin_city}, {lane.origin_state} → {lane.dest_city}, {lane.dest_state} • REF #{getDisplayReferenceId(lane)}
                     </option>
                   ))}
                 </optgroup>

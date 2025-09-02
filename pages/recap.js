@@ -3,12 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import Head from 'next/head';
-
-function cleanReferenceId(refId) {
-  if (!refId) return '';
-  // Remove Excel text formatting like ="RR12345"
-  return String(refId).replace(/^="?|"?$/g, '');
-}
+import { getDisplayReferenceId, matchesReferenceId, cleanReferenceId } from '../lib/referenceIdUtils';
 
 // Generate reference ID for generated pairs (same logic as CSV)
 function generatePairReferenceId(baseRefId, pairIndex) {
@@ -25,47 +20,17 @@ function generatePairReferenceId(baseRefId, pairIndex) {
 
 function matches(q, l) {
   if (!q) return true;
-  const s = q.toLowerCase().trim();
   
-  console.log('🔍 DEBUG: Searching for:', s, 'in lane:', l.id, 'refId:', l.reference_id);
+  console.log('🔍 DEBUG: Searching for:', q, 'in lane:', l.id);
   
-  // Check reference ID (supports partial matching)
-  const refId = cleanReferenceId(l.reference_id);
-  if (refId) {
-    const cleanRef = refId.toLowerCase();
-    console.log('🔍 DEBUG: Clean ref ID:', cleanRef);
-    
-    // Support searching with or without RR prefix, partial matching
-    if (cleanRef.includes(s) || 
-        cleanRef.replace('rr', '').includes(s) || 
-        s.replace('rr', '').includes(cleanRef.replace('rr', '')) ||
-        cleanRef === s ||
-        cleanRef.replace('rr', '') === s.replace('rr', '') ||
-        // Also try numeric portion matching
-        cleanRef.slice(2).includes(s) ||
-        s.includes(cleanRef.slice(2))) {
-      console.log('✅ DEBUG: Reference ID match found');
-      return true;
-    }
-  } else {
-    // Generate reference ID on-the-fly since column doesn't exist
-    const generatedRefId = `RR${String(Math.abs(l.id.split('-')[0].replace(/[a-f]/g, '').substring(0,5) || '10000')).padStart(5, '0')}`;
-    const cleanGenerated = generatedRefId.toLowerCase();
-    console.log('🔍 DEBUG: Generated ref ID:', generatedRefId);
-    
-    if (cleanGenerated.includes(s) || 
-        cleanGenerated.replace('rr', '').includes(s) || 
-        s.replace('rr', '').includes(cleanGenerated.replace('rr', '')) ||
-        cleanGenerated === s ||
-        cleanGenerated.replace('rr', '') === s.replace('rr', '') ||
-        cleanGenerated.slice(2).includes(s) ||
-        s.includes(cleanGenerated.slice(2))) {
-      console.log('✅ DEBUG: Generated reference ID match found');
-      return true;
-    }
+  // Check reference ID using unified logic
+  if (matchesReferenceId(q, l)) {
+    console.log('✅ DEBUG: Reference ID match found');
+    return true;
   }
   
   // Check origin/destination cities and states
+  const s = q.toLowerCase().trim();
   const origin = `${l.origin_city || ''}, ${l.origin_state || ''}`.toLowerCase();
   const dest = `${l.dest_city || ''}, ${l.dest_state || ''}`.toLowerCase();
   const equipment = String(l.equipment_code || '').toLowerCase();
@@ -105,7 +70,7 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
           <div className="flex items-center gap-2">
             {(lane.reference_id || !lane.reference_id) && (
               <div className="text-xs px-2 py-1 rounded font-mono font-bold bg-green-900/60 text-green-200">
-                REF #{lane.reference_id ? cleanReferenceId(lane.reference_id) : `RR${String(Math.abs(lane.id.split('-')[0].replace(/[a-f]/g, '').substring(0,5) || '10000')).padStart(5, '0')}`}
+                REF #{getDisplayReferenceId(lane)}
               </div>
             )}
             <div className="text-xs px-2 py-1 rounded-full font-medium bg-blue-900/60 text-blue-200">{lane.status}</div>
