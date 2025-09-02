@@ -1,5 +1,5 @@
 // pages/api/test-crawl.js
-import { generateCrawlPairs } from '../../lib/datcrawl.js';
+import { generateGeographicCrawlPairs } from '../../lib/geographicCrawl.js';
 import { adminSupabase } from '../../utils/supabaseClient';
 
 export default async function handler(req, res) {

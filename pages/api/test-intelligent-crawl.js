@@ -1,5 +1,5 @@
 // Test intelligent crawl specifically for McDavid, FL
-import { generateIntelligentCrawlPairs } from '../../lib/intelligentCrawl.js';
+import { generateGeographicCrawlPairs } from '../../lib/geographicCrawl.js';
 
 export default async function handler(req, res) {
   try {

@@ -1,6 +1,6 @@
 // Quick production environment test
 import { adminSupabase as supabase } from '../../utils/supabaseClient.js';
-import { generateIntelligentCrawlPairs } from '../../lib/intelligentCrawl.js';
+import { generateGeographicCrawlPairs } from '../../lib/geographicCrawl.js';
 
 export default async function handler(req, res) {
   try {

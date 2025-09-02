@@ -2,7 +2,7 @@
 // GET /api/debugCrawl?origin=City,ST&dest=City,ST&equip=CODE&fill=0|1
 // Returns crawl preview JSON with baseOrigin/baseDest/pairs, counts, reasons.
 
-import { generateIntelligentCrawlPairs } from '../../lib/intelligentCrawl.js';
+import { generateGeographicCrawlPairs } from '../../lib/geographicCrawl.js';
 
 function parseCityState(s) {
   const [city, st] = String(s || '').split(',').map((x) => x.trim());
