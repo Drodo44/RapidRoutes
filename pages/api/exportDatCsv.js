@@ -1,67 +1,154 @@
 // pages/api/exportDatCsv.js
 // GET /api/exportDatCsv?pending=1|&days=<n>|&all=1&fill=0|1&part=<n>
 // - Streams a CSV with exact 24 headers
-// - 22 rows per lane (base + 10 pairs, duplicated for contact methods)
+// - 12 rows per lane (6 pairs × 2 contact methods)
 // - Splits into ≤499 rows per part; HEAD returns X-Total-Parts for pagination
 // - If part is specified for GET, returns only that part.
 
 import { adminSupabase } from '../../utils/supabaseClient';
 import { DAT_HEADERS } from '../../lib/datHeaders.js';
-import { rowsFromBaseAndPairs, toCsv, chunkRows } from '../../lib/datCsvBuilder';
+import { generateDatCsvRows, toCsv, chunkRows } from '../../lib/datCsvBuilder';
 import { FreightIntelligence } from '../../lib/FreightIntelligence.js';
 
-// Use our proven intelligent routing system for lane pair generation
-async function generatePairsForLane(lane) {
+export default async function handler(req, res) {
+  // Check if this is a HEAD request for pagination info
+  if (req.method === 'HEAD') {
+    const pendingCount = await getPendingRowCount();
+    const parts = Math.ceil(pendingCount / 499);
+    res.setHeader('X-Total-Parts', String(parts));
+    return res.status(200).end();
+  }
+
   try {
-    console.log(`🔍 Generating intelligent pairs for: ${lane.origin_city}, ${lane.origin_state} -> ${lane.dest_city}, ${lane.dest_state}`);
+    const { pending, days, all, fill, part } = req.query;
+    console.log('🔍 EXPORT REQUEST:', { pending, days, all, fill, part });
+
+    // Get lanes based on filters
+    const { data: lanes, error } = await getLanes({ pending, days, all });
     
-    const intelligence = new FreightIntelligence();
-    const result = await intelligence.generateDiversePairs({
-      origin: {
-        city: lane.origin_city,
-        state: lane.origin_state,
-        zip: lane.origin_zip
-      },
-      destination: {
-        city: lane.dest_city,
-        state: lane.dest_state,
-        zip: lane.dest_zip
-      },
-      equipment: lane.equipment_code,
-      preferFillTo10: true  // Always optimize for maximum pairs while ensuring minimum 6
+    if (error) {
+      console.error('❌ Database error:', error);
+      return res.status(500).json({ error: error.message });
+    }
+
+    if (!lanes?.length) {
+      console.log('ℹ️ No lanes to export');
+      return res.status(200).json({ 
+        rows: [],
+        message: 'No lanes found matching criteria' 
+      });
+    }
+
+    console.log(`📋 Processing ${lanes.length} lanes...`);
+    
+    // Generate rows for all lanes using datCsvBuilder
+    const allRows = [];
+    for (const lane of lanes) {
+      try {
+        const rows = await generateDatCsvRows(lane);
+        if (rows?.length) {
+          allRows.push(...rows);
+        }
+      } catch (error) {
+        console.error(`❌ Failed to generate rows for lane ${lane.id}:`, error);
+        // Continue with other lanes
+      }
+    }
+
+    // Split into parts if needed (max 499 rows per part)
+    const parts = chunkRows(allRows, 499);
+    const partIndex = part ? parseInt(part, 10) - 1 : 0;
+    const selectedRows = parts[partIndex] || [];
+
+    console.log('BULK EXPORT DEBUG: Part ' + (partIndex + 1) + '/' + parts.length);
+    console.log('  Lanes processed:', lanes.length);
+    console.log('  Total rows generated:', allRows.length);
+    console.log('  Fill-to-5 mode:', Boolean(fill));
+    console.log('  Selected rows for this part:', selectedRows.length);
+
+    // Generate CSV
+    const csv = toCsv(DAT_HEADERS, selectedRows);
+    const csvRows = csv.split('\n');
+    console.log('  Actual CSV rows:', csvRows.length);
+    console.log('  First few lines:', [csvRows[0]]);
+
+    // Send response
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename=dat_upload_${Date.now()}.csv`);
+    return res.status(200).send(csv);
+
+  } catch (error) {
+    console.error('❌ Export failed:', error);
+    return res.status(500).json({ 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
+  }
+}
 
-    if (!result?.pairs?.length) {
-      console.error(`❌ Failed to generate pairs for lane ${lane.id}`);
-      return {
-        pairs: [],
-        baseOrigin: { city: lane.origin_city, state: lane.origin_state },
-        baseDest: { city: lane.dest_city, state: lane.dest_state }
-      };
+async function getLanes({ pending, days, all }) {
+  let query = adminSupabase.from('lanes').select('*');
+  
+  if (pending) {
+    query = query.eq('status', 'pending');
+  } else if (days) {
+    const daysAgo = new Date();
+    daysAgo.setDate(daysAgo.getDate() - parseInt(days, 10));
+    query = query.gte('created_at', daysAgo.toISOString());
+  } else if (!all) {
+    query = query.eq('status', 'pending'); // Default to pending
+  }
+  
+  return await query;
+}
+
+async function getPendingRowCount() {
+  const { data: lanes, error } = await adminSupabase
+    .from('lanes')
+    .select('id')
+    .eq('status', 'pending');
+    
+  if (error) throw error;
+  // Each lane needs minimum 6 pairs × 2 contacts = 12 rows
+  return (lanes?.length || 0) * 12;
+}
+
+    // Verify KMA diversity using preserved geographic data
+    const uniqueKmaPairs = new Set(
+      formattedPairs.map(p => `${p.geographic.pickup_kma}-${p.geographic.delivery_kma}`)
+    );
+
+    console.log(`🔍 DIVERSITY CHECK: Lane ${lane.id}`);
+    console.log(`   Pairs: ${formattedPairs.length}`);
+    console.log(`   Unique KMAs: ${uniqueKmaPairs.size}`);
+    console.log(`   Avg Score: ${avgScore.toFixed(2)}`);
+
+    // Only return pairs if we have enough diversity
+    if (uniqueKmaPairs.size < 6) {
+      console.error(`❌ Lane ${lane.id}: Only ${uniqueKmaPairs.size} unique KMA pairs (need 6)`);
+      throw new Error(`Insufficient KMA diversity for lane ${lane.id}`);
     }
 
-    // Verify pair diversity using KMA codes
-    const diversityCheck = new Set();
-    const pairScores = [];
+    console.log(`✅ Lane ${lane.id}: Generated ${formattedPairs.length} pairs with ${uniqueKmaPairs.size} unique KMAs`);
 
-    for (const pair of result.pairs) {
-      diversityCheck.add(`${pair.origin.kma_code}-${pair.destination.kma_code}`);
-      pairScores.push(intelligence.calculateFreightScore(pair));
-    }
-
-    if (diversityCheck.size < 6) {
-      console.error(`❌ Insufficient KMA diversity: ${diversityCheck.size} unique pairs for lane ${lane.id}`);
-      return {
-        pairs: [],
-        baseOrigin: { city: lane.origin_city, state: lane.origin_state },
-        baseDest: { city: lane.dest_city, state: lane.dest_state }
-      };
-    }
-
-    const avgScore = pairScores.reduce((a, b) => a + b, 0) / pairScores.length;
-    console.log(`✅ Generated ${result.pairs.length} pairs (${diversityCheck.size} unique KMAs, score: ${avgScore.toFixed(2)})`);
-
-    const formattedPairs = result.pairs.map(p => ({
+    // Return valid pairs with all necessary data
+    return {
+      pairs: formattedPairs,
+      baseOrigin: { 
+        city: lane.origin_city, 
+        state: lane.origin_state,
+        zip: lane.origin_zip || '' 
+      },
+      baseDest: { 
+        city: lane.dest_city, 
+        state: lane.dest_state,
+        zip: lane.dest_zip || '' 
+      },
+      stats: {
+        uniqueKmas: uniqueKmaPairs.size,
+        avgScore: avgScore,
+        totalPairs: formattedPairs.length
+      }
       pickup: {
         city: p.origin.city,
         state: p.origin.state,
