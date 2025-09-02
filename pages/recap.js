@@ -15,8 +15,11 @@ function matches(q, l) {
   
   // Check reference ID (partial match, with or without RR prefix)
   const refId = cleanReferenceId(l.reference_id).toLowerCase();
-  if (refId && refId.includes(s)) {
-    return true;
+  if (refId) {
+    // Support searching with or without RR prefix
+    if (refId.includes(s) || refId.replace('rr', '').includes(s) || s.replace('rr', '').includes(refId.replace('rr', ''))) {
+      return true;
+    }
   }
   
   // Check origin/destination
@@ -125,6 +128,7 @@ export default function RecapPage() {
   const [generatingIds, setGeneratingIds] = useState(new Set());
   const [showAIOnly, setShowAIOnly] = useState(false);
   const [sortOrder, setSortOrder] = useState('date');
+  const [postedPairs, setPostedPairs] = useState([]); // Store all generated pairs for dropdown
   
   useEffect(() => {
     // Load lanes
@@ -134,7 +138,51 @@ export default function RecapPage() {
       .in('status', ['pending', 'posted'])
       .order('created_at', { ascending: false })
       .limit(200)
-      .then(({ data }) => setLanes(data || []));
+      .then(async ({ data }) => {
+        setLanes(data || []);
+        
+        // For posted lanes, get their generated pairs for the dropdown
+        const postedLanes = (data || []).filter(lane => lane.status === 'posted');
+        const allPairs = [];
+        
+        for (const lane of postedLanes) {
+          try {
+            const response = await fetch(`/api/getPostedPairs?laneId=${lane.id}`);
+            if (response.ok) {
+              const pairData = await response.json();
+              if (pairData.postedPairs?.length) {
+                // Add base lane as first option
+                allPairs.push({
+                  id: `base-${lane.id}`,
+                  laneId: lane.id,
+                  isBase: true,
+                  display: `${lane.origin_city}, ${lane.origin_state} → ${lane.dest_city}, ${lane.dest_state}`,
+                  referenceId: lane.reference_id,
+                  pickup: { city: lane.origin_city, state: lane.origin_state },
+                  delivery: { city: lane.dest_city, state: lane.dest_state }
+                });
+                
+                // Add generated pairs
+                pairData.postedPairs.forEach((pair, index) => {
+                  allPairs.push({
+                    id: `pair-${lane.id}-${index}`,
+                    laneId: lane.id,
+                    isBase: false,
+                    display: `${pair.pickup.city}, ${pair.pickup.state} → ${pair.delivery.city}, ${pair.delivery.state}`,
+                    referenceId: lane.reference_id,
+                    pickup: pair.pickup,
+                    delivery: pair.delivery
+                  });
+                });
+              }
+            }
+          } catch (error) {
+            console.error(`Error loading pairs for lane ${lane.id}:`, error);
+          }
+        }
+        
+        setPostedPairs(allPairs);
+      });
     
     // Load crawl cities for dropdown
     fetch('/api/lanes/crawl-cities')
@@ -301,43 +349,90 @@ export default function RecapPage() {
                 </span>
               </div>
               
-              <div className="relative w-64">
+              <div className="relative w-80">
                 <select 
                   value=""
                   onChange={(e) => {
-                    const laneId = parseInt(e.target.value);
-                    if (laneId) {
+                    const selectedValue = e.target.value;
+                    if (selectedValue) {
+                      const [type, laneId] = selectedValue.split('-');
+                      const numericLaneId = parseInt(laneId);
+                      
                       // Clear search to show all lanes
                       setQ('');
+                      
                       // Scroll to the lane immediately
                       setTimeout(() => {
-                        const element = document.getElementById(`lane-${laneId}`);
+                        const element = document.getElementById(`lane-${numericLaneId}`);
                         if (element) {
                           element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                          element.style.border = '3px solid #3B82F6';
-                          element.style.backgroundColor = '#1E3A8A40';
-                          element.style.transition = 'all 0.3s ease';
+                          element.style.border = '3px solid #10B981';
+                          element.style.backgroundColor = '#059669';
+                          element.style.boxShadow = '0 0 20px rgba(16, 185, 129, 0.5)';
+                          element.style.transition = 'all 0.5s ease';
+                          
+                          // Show which specific pair was selected
+                          const selectedPair = postedPairs.find(pair => pair.id === selectedValue);
+                          if (selectedPair && !selectedPair.isBase) {
+                            // Create a notification showing the selected pair
+                            const notification = document.createElement('div');
+                            notification.className = 'fixed top-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg z-50 max-w-md';
+                            notification.innerHTML = `
+                              <div class="font-semibold">📍 Selected Generated Pair:</div>
+                              <div class="text-sm">${selectedPair.pickup.city}, ${selectedPair.pickup.state} → ${selectedPair.delivery.city}, ${selectedPair.delivery.state}</div>
+                              <div class="text-xs mt-1 opacity-80">REF #${cleanReferenceId(selectedPair.referenceId)}</div>
+                            `;
+                            document.body.appendChild(notification);
+                            
+                            setTimeout(() => {
+                              if (notification.parentNode) {
+                                notification.parentNode.removeChild(notification);
+                              }
+                            }, 5000);
+                          }
+                          
                           setTimeout(() => { 
                             element.style.border = ''; 
                             element.style.backgroundColor = '';
-                          }, 15000); // Much longer highlight duration for better visibility
+                            element.style.boxShadow = '';
+                          }, 10000);
                         }
                       }, 100);
                     }
                   }}
-                  className="w-full bg-gray-900 border border-gray-600 rounded-md text-gray-200 py-2 px-3 appearance-none"
+                  className="w-full bg-gray-900 border border-gray-600 rounded-md text-gray-200 py-2 px-3 appearance-none text-sm"
                 >
-                  <option value="">📍 Jump to lane...</option>
-                  {filtered.sort((a, b) => {
-                    const aDisplay = `${a.origin_city}, ${a.origin_state} → ${a.dest_city}, ${a.dest_state}`;
-                    const bDisplay = `${b.origin_city}, ${b.origin_state} → ${b.dest_city}, ${b.dest_state}`;
-                    return aDisplay.localeCompare(bDisplay);
-                  }).map((lane) => (
-                    <option key={lane.id} value={lane.id}>
-                      {lane.origin_city}, {lane.origin_state} → {lane.dest_city}, {lane.dest_state} 
-                      {lane.reference_id && ` • REF #${cleanReferenceId(lane.reference_id)}`}
-                    </option>
-                  ))}
+                  <option value="">📍 Jump to posted lane/pair...</option>
+                  {/* Group by base lanes and their pairs */}
+                  {lanes.filter(lane => lane.status === 'posted').map(lane => {
+                    const basePair = postedPairs.find(pair => pair.laneId === lane.id && pair.isBase);
+                    const generatedPairs = postedPairs.filter(pair => pair.laneId === lane.id && !pair.isBase);
+                    
+                    return (
+                      <optgroup key={lane.id} label={`🏠 ${lane.origin_city}, ${lane.origin_state} → ${lane.dest_city}, ${lane.dest_state} • REF #${cleanReferenceId(lane.reference_id)}`}>
+                        {basePair && (
+                          <option value={basePair.id} className="font-semibold">
+                            🎯 BASE: {basePair.display}
+                          </option>
+                        )}
+                        {generatedPairs.map((pair, index) => (
+                          <option key={pair.id} value={pair.id}>
+                            📊 PAIR {index + 1}: {pair.display}
+                          </option>
+                        ))}
+                      </optgroup>
+                    );
+                  })}
+                  
+                  {/* Also show pending lanes for context */}
+                  <optgroup label="⏳ PENDING LANES (Not yet posted)">
+                    {filtered.filter(lane => lane.status === 'pending').slice(0, 10).map((lane) => (
+                      <option key={`pending-${lane.id}`} value={`pending-${lane.id}`}>
+                        ⏳ {lane.origin_city}, {lane.origin_state} → {lane.dest_city}, {lane.dest_state}
+                        {lane.reference_id && ` • REF #${cleanReferenceId(lane.reference_id)}`}
+                      </option>
+                    ))}
+                  </optgroup>
                 </select>
               </div>
             </div>
