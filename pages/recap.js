@@ -1,4 +1,5 @@
 // pages/recap.js
+// Updated: Sep 2, 2025 - Fixed dropdown selection and reference ID search
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import Head from 'next/head';
