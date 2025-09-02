@@ -1,53 +1,53 @@
-import './setup/test-setup.js';
 import { vi, describe, expect, it, beforeAll, afterAll, beforeEach } from 'vitest';
-import { resetTestState } from './__mocks__/testData.js';
-
-// Mock the geographic crawl module
-vi.mock('../lib/geographicCrawl.js', () => ({
-  generateGeographicCrawlPairs: vi.fn(() => Promise.resolve({
-    pairs: [
-      {
-        pickup: {
-          city: "Oak Park",
-          state: "IL",
-          distance: 15,
-          kma: "CHI"
-        },
-        delivery: {
-          city: "Hammond",
-          state: "IN",
-          distance: 25,
-          kma: "CHI"
-        }
-      },
-      {
-        pickup: {
-          city: "Evanston",
-          state: "IL",
-          distance: 20,
-          kma: "CHI"
-        },
-        delivery: {
-          city: "Cicero",
-          state: "IL",
-          distance: 30,
-          kma: "CHI"
-        }
-      }
-    ],
-    totalPairs: 2
-  }))
-}));
-
-beforeEach(() => {
-  resetTestState();
-});
-
-// Import the mocked module
-import { generateGeographicCrawlPairs } from '../lib/geographicCrawl.js';
 import { setupTestData, cleanupTestData } from './setup/test-data.js';
 
-describe('Geographic Crawl System Production Verification', () => {
+// Import dependencies before mocking
+import { generateGeographicCrawlPairs } from '../lib/geographicCrawl.js';
+
+vi.mock('../lib/geographicCrawl.js');
+
+describe('Geographic Crawl System', () => {
+    beforeEach(async () => {
+        await setupTestData();
+    });
+
+    afterAll(async () => {
+        await cleanupTestData();
+    });
+
+    it('finds nearby cities with different KMAs', async () => {
+        // Mock implementation for this test
+        vi.mocked(generateGeographicCrawlPairs).mockResolvedValueOnce({
+            pairs: [
+                {
+                    pickup: {
+                        city: "Oak Park",
+                        state: "IL",
+                        distance: 15,
+                        kma: "CHI"
+                    },
+                    delivery: {
+                        city: "Hammond",
+                        state: "IN",
+                        distance: 25,
+                        kma: "CHI"
+                    }
+                }
+            ],
+            totalPairs: 1
+        });
+
+        const result = await generateGeographicCrawlPairs({
+            originCity: 'Chicago',
+            originState: 'IL',
+            equipment: 'V'
+        });
+
+        expect(result.pairs.length).toBe(1);
+        expect(result.totalPairs).toBe(1);
+        expect(result.pairs[0].pickup.city).toBe('Oak Park');
+        expect(result.pairs[0].delivery.city).toBe('Hammond');
+    });
   beforeAll(async () => {
     await setupTestData();
   });

@@ -1,7 +1,15 @@
 import { vi } from 'vitest';
-import { datMockSupabase } from './mock-datcrawl-db.js';
+import { createMockDatabase } from './enhanced-mock-db.js';
+
+// Create a fresh mock database instance for each test
+const mockSupabase = createMockDatabase();
 
 // Set up mocks for all tests
 vi.mock('../../utils/supabaseClient.js', () => ({
-    adminSupabase: datMockSupabase
+    adminSupabase: mockSupabase
 }));
+
+// Reset mock database between tests
+beforeEach(() => {
+    Object.assign(mockSupabase, createMockDatabase());
+});

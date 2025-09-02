@@ -1,7 +1,7 @@
 // pages/api/lanes/crawl-cities.js
 // API to get crawl cities for dropdown functionality
 import { adminSupabase } from '../../../utils/supabaseClient';
-import { generateCrawlPairs } from '../../../lib/datcrawl.js';
+import { generateGeographicCrawlPairs } from '../../../lib/geographicCrawl.js';
 
 function cleanReferenceId(refId) {
   if (!refId) return '';

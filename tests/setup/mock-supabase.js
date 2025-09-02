@@ -1,11 +1,17 @@
 import { vi } from 'vitest';
-import { TEST_CITIES, EQUIPMENT_TYPES, TEST_LANES } from '../mock-test-data.js';
+import { MOCK_CITIES as TEST_CITIES, MOCK_LANES as TEST_LANES } from '../mock-data.js';
+
+const EQUIPMENT_TYPES = {
+  V: 'Van',
+  FD: 'Flatbed',
+  R: 'Reefer'
+};
 
 // Initialize DB state
 const testDB = {
-  cities: [...TEST_CITIES],
+  cities: [],
   equipment_codes: Object.values(EQUIPMENT_TYPES),
-  lanes: [...TEST_LANES]
+  lanes: []
 };
 
 // Reset DB state
@@ -17,20 +23,35 @@ export const resetTestState = () => {
 
 // Query builder methods
 const createQueryBuilder = () => {
-  const state = {
+  // Create query state for this builder instance
+  const builderState = {
+    table: null,
+    filters: [],
+    orderBy: [],
+    limitVal: null,
+    selectedColumns: '*'
+  };
+  const initialState = {
     table: null,
     filters: [],
     orderBy: [],
     limitVal: null
   };
 
+  let state = { ...initialState };
+
   const builder = {
-    select: vi.fn(() => builder),
+    select: vi.fn((columns = '*') => {
+      builderState.selectedColumns = columns;
+      return builder;
+    }),
     insert: vi.fn((data) => {
       if (Array.isArray(data)) {
-        testDB[state.table].push(...data);
+        if (!testDB[builderState.table]) testDB[builderState.table] = [];
+        testDB[builderState.table].push(...data);
       } else {
-        testDB[state.table].push(data);
+        if (!testDB[builderState.table]) testDB[builderState.table] = [];
+        testDB[builderState.table].push(data);
       }
       return builder;
     }),
@@ -50,28 +71,28 @@ const createQueryBuilder = () => {
       return builder;
     }),
     eq: vi.fn((col, val) => {
-      state.filters.push({ type: 'eq', col, val });
+      builderState.filters.push({ type: 'eq', col, val });
       return builder;
     }),
     ilike: vi.fn((col, val) => {
-      state.filters.push({ type: 'ilike', col, val });
+      builderState.filters.push({ type: 'ilike', col, val });
       return builder;
     }),
     in: vi.fn((col, vals) => {
-      state.filters.push({ type: 'in', col, vals });
+      builderState.filters.push({ type: 'in', col, vals });
       return builder;
     }),
     limit: vi.fn((n) => {
-      state.limitVal = n;
+      builderState.limitVal = n;
       return builder;
     }),
     then: vi.fn(async () => {
       // Apply filters to data
-      let data = testDB[state.table] || [];
+      let data = testDB[builderState.table] || [];
       
       // Apply filters
       data = data.filter(record => 
-        state.filters.every(f => {
+        builderState.filters.every(f => {
           if (f.type === 'eq') {
             return record[f.col] === f.val;
           }
@@ -86,22 +107,41 @@ const createQueryBuilder = () => {
       );
       
       // Apply limit
-      if (state.limitVal) {
-        data = data.slice(0, state.limitVal);
+      if (builderState.limitVal) {
+        data = data.slice(0, builderState.limitVal);
       }
       
       return { data, error: null };
     })
   };
   
+  // Reset state before returning for next query
+  builder.then(async () => {
+    Object.assign(builderState, {
+      table: null,
+      filters: [],
+      orderBy: [],
+      limitVal: null
+    });
+  });
+  
   return builder;
 };
 
 // Mock the Supabase client
-export const mockSupabase = {
+const mockSupabaseClient = {
   from: vi.fn((table) => {
-    const builder = createQueryBuilder();
-    builder.table = table;
-    return builder;
+    return createQueryBuilder().select('*');
   })
+};
+
+export const mockSupabase = {
+  from: (table) => {
+    const builder = createQueryBuilder();
+    builder.select('*');
+    builder.then(() => {
+      builder.table = table;
+    });
+    return builder;
+  }
 };

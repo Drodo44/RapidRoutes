@@ -2,7 +2,7 @@ import { expect, describe, it, beforeEach } from 'vitest';
 import './setup/test-setup.js';
 import { FreightIntelligence } from '../lib/FreightIntelligence.js';
 import { generateDatCsvRows } from '../lib/datCsvBuilder.js';
-import { TEST_LANES } from './mock-test-data.js';
+import { MOCK_LANES } from './mock-data.js';
 
 describe('DAT Core Requirements', () => {
     let intelligence;
@@ -10,7 +10,7 @@ describe('DAT Core Requirements', () => {
 
     beforeEach(async () => {
         intelligence = new FreightIntelligence();
-        testLane = TEST_LANES[0];
+        testLane = MOCK_LANES[0];
     });
 
     describe('1. Lane Generation Requirements', () => {
