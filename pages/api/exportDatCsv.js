@@ -5,9 +5,10 @@
 // - Splits into ≤499 rows per part; HEAD returns X-Total-Parts for pagination
 // - If part is specified for GET, returns only that part.
 
-import { adminSupabase } from '../../utils/supabaseClient';
+import { adminSupabase } from '../../utils/supabaseClient.js';
 import { DAT_HEADERS } from '../../lib/datHeaders.js';
-import { generateDatCsvRows, toCsv, chunkRows } from '../../lib/datCsvBuilder';
+import { generateDatCsvRows, toCsv, chunkRows } from '../../lib/datCsvBuilder.js';
+import { monitor } from '../../lib/monitor.js';
 
 // Helper to get pending row count for pagination
 async function getPendingRowCount() {
@@ -53,15 +54,22 @@ async function selectLanes({ pending, days, all }) {
 export default async function handler(req, res) {
   const { method } = req;
   
-  console.log(`🔍 ${method} /api/exportDatCsv`);
-  console.log('Query params:', req.query);
+  const operationId = `export_${Date.now()}`;
+  monitor.startOperation(operationId, {
+    method,
+    query: req.query
+  });
 
   try {
+    monitor.log('info', `${method} /api/exportDatCsv`);
+    monitor.log('debug', 'Query params:', req.query);
+
     // Handle HEAD request for pagination info
     if (method === 'HEAD') {
       const pendingCount = await getPendingRowCount();
       const parts = Math.ceil(pendingCount / 499);
       res.setHeader('X-Total-Parts', String(parts));
+      monitor.endOperation(operationId, { success: true, parts });
       return res.status(200).end();
     }
 
@@ -76,17 +84,18 @@ export default async function handler(req, res) {
     const days = req.query.days != null ? Number(req.query.days) : null;
     const part = req.query.part != null ? Number(req.query.part) : 1;
 
-    console.log('📋 Processing request:', { pending, days, all, part });
+    monitor.log('info', 'Processing request:', { pending, days, all, part });
 
     // Get lanes to process
     const lanes = await selectLanes({ pending, days, all });
     
     if (!lanes?.length) {
-      console.log('ℹ️ No lanes to export');
+      monitor.log('info', 'No lanes to export');
+      monitor.endOperation(operationId, { success: true, lanes: 0 });
       return res.status(200).json({ rows: [], message: 'No matching lanes' });
     }
 
-    console.log(`🔄 Processing ${lanes.length} lanes...`);
+    monitor.log('info', `Processing ${lanes.length} lanes...`);
     
     // Generate all rows
     const allRows = [];
@@ -97,10 +106,10 @@ export default async function handler(req, res) {
         const rows = await generateDatCsvRows(lane);
         if (rows?.length) {
           allRows.push(...rows);
-          console.log(`✅ Lane ${lane.id}: Generated ${rows.length} rows`);
+          monitor.log('info', `Lane ${lane.id}: Generated ${rows.length} rows`);
         }
       } catch (error) {
-        console.error(`❌ Lane ${lane.id} failed:`, error);
+        await monitor.logError(error, `Lane ${lane.id} failed`);
         errors.push({ laneId: lane.id, error: error.message });
       }
     }
@@ -111,17 +120,27 @@ export default async function handler(req, res) {
     const selectedRows = parts[partIndex] || [];
 
     // Log detailed status
-    console.log('📊 EXPORT STATUS:');
-    console.log(`   Lanes: ${lanes.length} processed, ${errors.length} failed`);
-    console.log(`   Rows: ${allRows.length} total, ${selectedRows.length} in part ${partIndex + 1}/${parts.length}`);
+    monitor.log('info', 'EXPORT STATUS:', {
+      lanes: {
+        processed: lanes.length,
+        failed: errors.length
+      },
+      rows: {
+        total: allRows.length,
+        selected: selectedRows.length,
+        part: `${partIndex + 1}/${parts.length}`
+      }
+    });
     
     if (!selectedRows.length) {
-      return res.status(200).json({ 
+      const result = { 
         message: 'No rows in selected part',
         totalParts: parts.length,
         totalRows: allRows.length,
         errors 
-      });
+      };
+      monitor.endOperation(operationId, { success: true, ...result });
+      return res.status(200).json(result);
     }
 
     // Update lane statuses to 'posted' after successful CSV generation
@@ -132,10 +151,10 @@ export default async function handler(req, res) {
           .from('lanes')
           .update({ status: 'posted', posted_at: new Date().toISOString() })
           .in('id', laneIds);
-        console.log(`✅ Updated ${laneIds.length} lanes to 'posted' status`);
+        monitor.log('info', `Updated ${laneIds.length} lanes to 'posted' status`);
       }
     } catch (updateError) {
-      console.error('Failed to update lane statuses:', updateError);
+      await monitor.logError(updateError, 'Failed to update lane statuses');
       // Don't fail the export if status update fails
     }
 
@@ -157,10 +176,13 @@ export default async function handler(req, res) {
     return res.status(200).send(csv);
 
   } catch (error) {
-    console.error('❌ Export failed:', error);
+    await monitor.logError(error, 'Export failed');
+    monitor.endOperation(operationId, { success: false, error: error.message });
+    
     if (method === 'HEAD') {
       return res.status(500).end();
     }
+    
     return res.status(500).json({ 
       error: error.message,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined 
