@@ -12,6 +12,19 @@ function cleanReferenceId(refId) {
   return String(refId).replace(/^="?|"?$/g, '');
 }
 
+// Generate reference ID for generated pairs (same logic as CSV)
+function generatePairReferenceId(baseRefId, pairIndex) {
+  const baseRef = cleanReferenceId(baseRefId);
+  if (baseRef && /^RR\d{5}$/.test(baseRef)) {
+    // Extract numeric part and increment for pairs
+    const baseNum = parseInt(baseRef.slice(2), 10);
+    const pairNum = (baseNum + pairIndex + 1) % 100000;
+    return `RR${String(pairNum).padStart(5, '0')}`;
+  }
+  // Fallback
+  return `RR${String(Math.floor(Math.random() * 100000)).padStart(5, '0')}`;
+}
+
 export default function RecapExport() {
   const [lanes, setLanes] = useState([]);
   const [postedPairs, setPostedPairs] = useState([]);
@@ -76,14 +89,16 @@ export default function RecapExport() {
                   delivery: { city: lane.dest_city, state: lane.dest_state }
                 });
                 
-                // Add generated pairs
+                // Add generated pairs with their own reference IDs
                 pairData.postedPairs.forEach((pair, index) => {
+                  const pairRefId = generatePairReferenceId(lane.reference_id, index);
                   allPairs.push({
                     id: `pair-${lane.id}-${index}`,
                     laneId: lane.id,
                     isBase: false,
                     display: `${pair.pickup.city}, ${pair.pickup.state} → ${pair.delivery.city}, ${pair.delivery.state}`,
-                    referenceId: lane.reference_id,
+                    referenceId: pairRefId, // Generate unique reference ID for each pair
+                    baseReferenceId: lane.reference_id, // Keep original for grouping
                     pickup: pair.pickup,
                     delivery: pair.delivery
                   });
@@ -96,6 +111,7 @@ export default function RecapExport() {
         }
         
         setPostedPairs(allPairs);
+        console.log('🔍 DEBUG: Loaded posted pairs for export:', allPairs.length, allPairs);
       }
     }
     
@@ -132,15 +148,27 @@ export default function RecapExport() {
 
   const printNow = () => window.print();
 
-  // Search functionality
+  // Search functionality - enhanced to include all posted pairs
   const matches = (lane, query) => {
     if (!query) return true;
     
     const q = query.toLowerCase().trim();
     
-    // Check reference ID (format: RR12345)
+    // Check main lane reference ID
     const refId = cleanReferenceId(lane.reference_id) || `RR${String(lane.id).slice(-5)}`;
     if (refId.toLowerCase().includes(q)) return true;
+    
+    // Check generated pair reference IDs
+    const lanePairs = postedPairs.filter(pair => pair.laneId === lane.id);
+    for (const pair of lanePairs) {
+      const pairRefId = pair.referenceId || '';
+      if (pairRefId.toLowerCase().includes(q)) return true;
+      
+      // Also check pair cities
+      const pairOrigin = `${pair.pickup.city}, ${pair.pickup.state}`.toLowerCase();
+      const pairDest = `${pair.delivery.city}, ${pair.delivery.state}`.toLowerCase();
+      if (pairOrigin.includes(q) || pairDest.includes(q)) return true;
+    }
     
     // Check origin and destination
     const origin = `${lane.origin_city}, ${lane.origin_state}`.toLowerCase();
@@ -231,6 +259,8 @@ export default function RecapExport() {
               onChange={(e) => {
                 if (e.target.value) {
                   const selectedValue = e.target.value;
+                  console.log('🔍 EXPORT DEBUG: Selected value:', selectedValue);
+                  
                   let targetLaneId;
                   
                   if (selectedValue.startsWith('pending-')) {
@@ -240,33 +270,45 @@ export default function RecapExport() {
                     targetLaneId = parseInt(parts[1]);
                   }
                   
+                  console.log('🔍 EXPORT DEBUG: Target lane ID:', targetLaneId);
+                  
                   if (targetLaneId) {
                     scrollToLane(targetLaneId);
                   }
                   e.target.value = '';
                 }
               }}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm max-w-64"
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm max-w-80"
             >
               <option value="">Jump to lane...</option>
               {/* Posted lanes with their pairs */}
-              {lanes.filter(lane => lane.status === 'posted' && postedPairs.some(pair => pair.laneId === lane.id)).map(lane => {
-                const generatedPairs = postedPairs.filter(pair => pair.laneId === lane.id && !pair.isBase);
-                return (
-                  <optgroup key={lane.id} label={`${lane.origin_city}, ${lane.origin_state} → ${lane.dest_city}, ${lane.dest_state} • REF #${cleanReferenceId(lane.reference_id)}`}>
-                    <option value={`base-${lane.id}`}>🎯 BASE: {lane.origin_city}, {lane.origin_state} → {lane.dest_city}, {lane.dest_state}</option>
-                    {generatedPairs.slice(0, 10).map((pair, index) => (
-                      <option key={pair.id} value={pair.id}>📊 PAIR {index + 1}: {pair.display}</option>
+              {lanes.filter(lane => lane.status === 'posted').map(lane => {
+                const lanePostedPairs = postedPairs.filter(pair => pair.laneId === lane.id);
+                const basePair = lanePostedPairs.find(pair => pair.isBase);
+                const generatedPairs = lanePostedPairs.filter(pair => !pair.isBase);
+                
+                console.log('🔍 EXPORT DEBUG: Lane', lane.id, 'has', lanePostedPairs.length, 'pairs');
+                
+                return lanePostedPairs.length > 0 ? (
+                  <optgroup key={lane.id} label={`${lane.origin_city}, ${lane.origin_state} → ${lane.dest_city}, ${lane.dest_state} • REF #${cleanReferenceId(lane.reference_id)} • ${lanePostedPairs.length} pairs`}>
+                    {basePair && (
+                      <option value={basePair.id}>🎯 BASE: {basePair.display} • {basePair.referenceId}</option>
+                    )}
+                    {generatedPairs.slice(0, 15).map((pair, index) => (
+                      <option key={pair.id} value={pair.id}>📊 PAIR {index + 1}: {pair.display} • {pair.referenceId}</option>
                     ))}
+                    {generatedPairs.length > 15 && (
+                      <option disabled>... and {generatedPairs.length - 15} more pairs</option>
+                    )}
                   </optgroup>
-                );
+                ) : null;
               })}
               {/* Pending lanes */}
               {lanes.filter(lane => lane.status === 'pending').length > 0 && (
                 <optgroup label="⏳ PENDING LANES">
-                  {lanes.filter(lane => lane.status === 'pending').map((lane) => (
+                  {lanes.filter(lane => lane.status === 'pending').slice(0, 10).map((lane) => (
                     <option key={`pending-${lane.id}`} value={`pending-${lane.id}`}>
-                      ⏳ {lane.origin_city}, {lane.origin_state} → {lane.dest_city}, {lane.dest_state}
+                      ⏳ {lane.origin_city}, {lane.origin_state} → {lane.dest_city}, {lane.dest_state} • {cleanReferenceId(lane.reference_id)}
                     </option>
                   ))}
                 </optgroup>
@@ -357,25 +399,31 @@ export default function RecapExport() {
                       {lane.status === 'posted' && postedPairs.filter(pair => pair.laneId === lane.id).length > 0 && (
                         <div className="mb-3">
                           <h4 className="text-sm font-medium text-gray-700 mb-1">Posted Lanes ({postedPairs.filter(pair => pair.laneId === lane.id).length} total)</h4>
-                          <div className="space-y-1 max-h-24 overflow-y-auto">
-                            {postedPairs.filter(pair => pair.laneId === lane.id).slice(0, 8).map((pair, index) => (
-                              <div key={pair.id} className="text-xs text-gray-600 flex items-center">
-                                <span className="text-blue-600 mr-2 min-w-[12px]">
-                                  {pair.isBase ? '🎯' : '📊'}
-                                </span>
-                                <span>
-                                  <span className="font-medium">
-                                    {pair.isBase ? 'BASE' : `P${index}`}:
+                          <div className="space-y-1 max-h-32 overflow-y-auto">
+                            {postedPairs.filter(pair => pair.laneId === lane.id).slice(0, 12).map((pair, index) => (
+                              <div key={pair.id} className="text-xs text-gray-600 flex items-center justify-between">
+                                <div className="flex items-center flex-1">
+                                  <span className="text-blue-600 mr-2 min-w-[12px]">
+                                    {pair.isBase ? '🎯' : '📊'}
                                   </span>
-                                  <span className="ml-1">
-                                    {pair.pickup.city}, {pair.pickup.state} → {pair.delivery.city}, {pair.delivery.state}
+                                  <span>
+                                    <span className="font-medium">
+                                      {pair.isBase ? 'BASE' : `P${index}`}:
+                                    </span>
+                                    <span className="ml-1">
+                                      {pair.pickup.city}, {pair.pickup.state} → {pair.delivery.city}, {pair.delivery.state}
+                                    </span>
                                   </span>
+                                </div>
+                                {/* Show reference ID for each pair */}
+                                <span className="text-xs font-mono bg-gray-200 px-1 rounded ml-2">
+                                  {pair.isBase ? cleanReferenceId(pair.referenceId) : pair.referenceId}
                                 </span>
                               </div>
                             ))}
-                            {postedPairs.filter(pair => pair.laneId === lane.id).length > 8 && (
+                            {postedPairs.filter(pair => pair.laneId === lane.id).length > 12 && (
                               <div className="text-xs text-gray-500 italic">
-                                ... and {postedPairs.filter(pair => pair.laneId === lane.id).length - 8} more pairs
+                                ... and {postedPairs.filter(pair => pair.laneId === lane.id).length - 12} more pairs
                               </div>
                             )}
                           </div>

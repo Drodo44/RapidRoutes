@@ -9,22 +9,50 @@ function cleanReferenceId(refId) {
   return String(refId).replace(/^="?|"?$/g, '');
 }
 
+// Generate reference ID for generated pairs (same logic as CSV)
+function generatePairReferenceId(baseRefId, pairIndex) {
+  const baseRef = cleanReferenceId(baseRefId);
+  if (baseRef && /^RR\d{5}$/.test(baseRef)) {
+    // Extract numeric part and increment for pairs
+    const baseNum = parseInt(baseRef.slice(2), 10);
+    const pairNum = (baseNum + pairIndex + 1) % 100000;
+    return `RR${String(pairNum).padStart(5, '0')}`;
+  }
+  // Fallback
+  return `RR${String(Math.floor(Math.random() * 100000)).padStart(5, '0')}`;
+}
+
 function matches(q, l) {
   if (!q) return true;
   const s = q.toLowerCase().trim();
+  
+  console.log('🔍 DEBUG: Searching for:', s, 'in lane:', l.id, 'refId:', l.reference_id);
   
   // Check reference ID (supports partial matching)
   const refId = cleanReferenceId(l.reference_id);
   if (refId) {
     const cleanRef = refId.toLowerCase();
+    console.log('🔍 DEBUG: Clean ref ID:', cleanRef);
+    
     // Support searching with or without RR prefix, partial matching
     if (cleanRef.includes(s) || 
         cleanRef.replace('rr', '').includes(s) || 
         s.replace('rr', '').includes(cleanRef.replace('rr', '')) ||
         cleanRef === s ||
-        cleanRef.replace('rr', '') === s.replace('rr', '')) {
+        cleanRef.replace('rr', '') === s.replace('rr', '') ||
+        // Also try numeric portion matching
+        cleanRef.slice(2).includes(s) ||
+        s.includes(cleanRef.slice(2))) {
+      console.log('✅ DEBUG: Reference ID match found');
       return true;
     }
+  }
+  
+  // Also check if query matches the generated reference ID format
+  const generatedRef = `rr${String(l.id).slice(-5)}`;
+  if (generatedRef.includes(s) || s.includes(generatedRef.slice(2))) {
+    console.log('✅ DEBUG: Generated reference ID match found');
+    return true;
   }
   
   // Check origin/destination cities and states
@@ -33,7 +61,7 @@ function matches(q, l) {
   const equipment = String(l.equipment_code || '').toLowerCase();
   const comment = String(l.comment || '').toLowerCase();
   
-  return origin.includes(s) || 
+  const cityStateMatch = origin.includes(s) || 
          dest.includes(s) || 
          equipment.includes(s) ||
          comment.includes(s) ||
@@ -41,6 +69,14 @@ function matches(q, l) {
          (l.origin_state || '').toLowerCase().includes(s) ||
          (l.dest_city || '').toLowerCase().includes(s) ||
          (l.dest_state || '').toLowerCase().includes(s);
+  
+  if (cityStateMatch) {
+    console.log('✅ DEBUG: City/state/equipment match found');
+  } else {
+    console.log('❌ DEBUG: No match found for query:', s);
+  }
+  
+  return cityStateMatch;
 }
 
 function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs = [] }) {
@@ -89,17 +125,23 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
             </h4>
             <div className="space-y-1.5 max-h-32 overflow-y-auto">
               {laneGeneratedPairs.map((pair, index) => (
-                <div key={pair.id} className="text-xs text-gray-200 flex items-center">
-                  <span className="text-blue-400 mr-2 min-w-[16px]">
-                    {pair.isBase ? '🎯' : '📊'}
-                  </span>
-                  <span className="flex-1">
-                    <span className="font-medium">
-                      {pair.isBase ? 'BASE' : `PAIR ${index}`}:
+                <div key={pair.id} className="text-xs text-gray-200 flex items-center justify-between">
+                  <div className="flex items-center flex-1">
+                    <span className="text-blue-400 mr-2 min-w-[16px]">
+                      {pair.isBase ? '🎯' : '📊'}
                     </span>
-                    <span className="ml-2">
-                      {pair.pickup.city}, {pair.pickup.state} → {pair.delivery.city}, {pair.delivery.state}
+                    <span className="flex-1">
+                      <span className="font-medium">
+                        {pair.isBase ? 'BASE' : `PAIR ${index}`}:
+                      </span>
+                      <span className="ml-2">
+                        {pair.pickup.city}, {pair.pickup.state} → {pair.delivery.city}, {pair.delivery.state}
+                      </span>
                     </span>
+                  </div>
+                  {/* Show reference ID for each pair */}
+                  <span className="text-xs font-mono bg-gray-700 px-1.5 py-0.5 rounded ml-2 text-green-300">
+                    {pair.isBase ? cleanReferenceId(pair.referenceId) : pair.referenceId}
                   </span>
                 </div>
               ))}
@@ -213,14 +255,16 @@ export default function RecapPage() {
                   delivery: { city: lane.dest_city, state: lane.dest_state }
                 });
                 
-                // Add generated pairs
+                // Add generated pairs with unique reference IDs
                 pairData.postedPairs.forEach((pair, index) => {
+                  const pairRefId = generatePairReferenceId(lane.reference_id, index);
                   allPairs.push({
                     id: `pair-${lane.id}-${index}`,
                     laneId: lane.id,
                     isBase: false,
                     display: `${pair.pickup.city}, ${pair.pickup.state} → ${pair.delivery.city}, ${pair.delivery.state}`,
-                    referenceId: lane.reference_id,
+                    referenceId: pairRefId, // Generate unique reference ID for each pair
+                    baseReferenceId: lane.reference_id, // Keep original for grouping
                     pickup: pair.pickup,
                     delivery: pair.delivery
                   });
@@ -422,16 +466,27 @@ export default function RecapPage() {
                   value=""
                   onChange={(e) => {
                     const selectedValue = e.target.value;
+                    console.log('🔍 DEBUG: Selected value:', selectedValue);
+                    
                     if (selectedValue) {
                       // Handle both posted pairs and pending lanes
                       let targetLaneId;
                       
                       if (selectedValue.startsWith('pending-')) {
                         targetLaneId = parseInt(selectedValue.replace('pending-', ''));
+                        console.log('🔍 DEBUG: Pending lane ID:', targetLaneId);
                       } else if (selectedValue.includes('-')) {
                         // Extract lane ID from pair ID format: "base-123" or "pair-123-0"
                         const parts = selectedValue.split('-');
                         targetLaneId = parseInt(parts[1]);
+                        console.log('🔍 DEBUG: Pair lane ID from parts:', parts, 'extracted ID:', targetLaneId);
+                      }
+                      
+                      console.log('🔍 DEBUG: Final target lane ID:', targetLaneId);
+                      
+                      if (!targetLaneId || isNaN(targetLaneId)) {
+                        console.error('❌ Failed to extract valid lane ID from:', selectedValue);
+                        return;
                       }
                       
                       // Clear search to show all lanes
@@ -440,6 +495,8 @@ export default function RecapPage() {
                       // Scroll to the lane immediately
                       setTimeout(() => {
                         const element = document.getElementById(`lane-${targetLaneId}`);
+                        console.log('🔍 DEBUG: Looking for element:', `lane-${targetLaneId}`, 'found:', element);
+                        
                         if (element) {
                           element.scrollIntoView({ behavior: 'smooth', block: 'center' });
                           element.style.border = '3px solid #10B981';
@@ -449,6 +506,8 @@ export default function RecapPage() {
                           
                           // Show which specific pair was selected
                           const selectedPair = postedPairs.find(pair => pair.id === selectedValue);
+                          console.log('🔍 DEBUG: Selected pair data:', selectedPair);
+                          
                           if (selectedPair) {
                             // Create a notification showing the selected pair
                             const notification = document.createElement('div');
@@ -473,6 +532,11 @@ export default function RecapPage() {
                             element.style.backgroundColor = '';
                             element.style.boxShadow = '';
                           }, 10000);
+                        } else {
+                          console.error('❌ Element not found:', `lane-${targetLaneId}`);
+                          // Show all available lane elements for debugging
+                          const allLanes = document.querySelectorAll('[id^="lane-"]');
+                          console.log('🔍 DEBUG: Available lane elements:', Array.from(allLanes).map(el => el.id));
                         }
                       }, 100);
                     }
@@ -485,16 +549,18 @@ export default function RecapPage() {
                     const basePair = postedPairs.find(pair => pair.laneId === lane.id && pair.isBase);
                     const generatedPairs = postedPairs.filter(pair => pair.laneId === lane.id && !pair.isBase);
                     
+                    console.log('🔍 DEBUG: Lane', lane.id, 'pairs:', generatedPairs.length, 'base:', basePair ? 'yes' : 'no');
+                    
                     return (
                       <optgroup key={lane.id} label={`🏠 ${lane.origin_city}, ${lane.origin_state} → ${lane.dest_city}, ${lane.dest_state} • REF #${cleanReferenceId(lane.reference_id)} • ${generatedPairs.length} pairs`}>
                         {basePair && (
                           <option value={basePair.id} className="font-semibold">
-                            🎯 BASE: {basePair.display}
+                            🎯 BASE: {basePair.display} • {cleanReferenceId(basePair.referenceId)}
                           </option>
                         )}
                         {generatedPairs.slice(0, 15).map((pair, index) => (
                           <option key={pair.id} value={pair.id}>
-                            📊 PAIR {index + 1}: {pair.display}
+                            📊 PAIR {index + 1}: {pair.display} • {pair.referenceId}
                           </option>
                         ))}
                         {generatedPairs.length > 15 && (
