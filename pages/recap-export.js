@@ -14,7 +14,7 @@ function cleanReferenceId(refId) {
 
 export default function RecapExport() {
   const [lanes, setLanes] = useState([]);
-  const [crawlData, setCrawlData] = useState([]);
+  const [postedPairs, setPostedPairs] = useState([]);
   const [recaps, setRecaps] = useState({});
   const [loading, setLoading] = useState(true);
   const [aiLoading, setAiLoading] = useState(false);
@@ -54,17 +54,48 @@ export default function RecapExport() {
       const lanesData = await fetchLanes();
       if (lanesData.length > 0) {
         await fetchAIRecaps(lanesData.map(l => l.id));
-      }
-      
-      // Load crawl cities for dropdown
-      try {
-        const response = await fetch('/api/lanes/crawl-cities');
-        const data = await response.json();
-        if (data.crawlData) {
-          setCrawlData(data.crawlData);
+        
+        // Load posted pairs for posted lanes (same logic as main recap page)
+        const postedLanes = lanesData.filter(lane => lane.status === 'posted');
+        const allPairs = [];
+        
+        for (const lane of postedLanes) {
+          try {
+            const response = await fetch(`/api/getPostedPairs?laneId=${lane.id}`);
+            if (response.ok) {
+              const pairData = await response.json();
+              if (pairData.postedPairs?.length) {
+                // Add base lane as first option
+                allPairs.push({
+                  id: `base-${lane.id}`,
+                  laneId: lane.id,
+                  isBase: true,
+                  display: `${lane.origin_city}, ${lane.origin_state} → ${lane.dest_city}, ${lane.dest_state}`,
+                  referenceId: lane.reference_id,
+                  pickup: { city: lane.origin_city, state: lane.origin_state },
+                  delivery: { city: lane.dest_city, state: lane.dest_state }
+                });
+                
+                // Add generated pairs
+                pairData.postedPairs.forEach((pair, index) => {
+                  allPairs.push({
+                    id: `pair-${lane.id}-${index}`,
+                    laneId: lane.id,
+                    isBase: false,
+                    display: `${pair.pickup.city}, ${pair.pickup.state} → ${pair.delivery.city}, ${pair.delivery.state}`,
+                    referenceId: lane.reference_id,
+                    pickup: pair.pickup,
+                    delivery: pair.delivery
+                  });
+                });
+              }
+            }
+          } catch (error) {
+            console.error(`Error loading pairs for lane ${lane.id}:`, error);
+          }
         }
-      } catch (error) {
-        console.error('Error loading crawl cities:', error);
+        
+        setPostedPairs(allPairs);
       }
     }
     
@@ -195,24 +226,51 @@ export default function RecapExport() {
               )}
             </div>
 
-            {/* Lane Dropdown */}
+            {/* Lane Dropdown - Updated to use posted pairs */}
             <select
               onChange={(e) => {
                 if (e.target.value) {
-                  scrollToLane(e.target.value);
+                  const selectedValue = e.target.value;
+                  let targetLaneId;
+                  
+                  if (selectedValue.startsWith('pending-')) {
+                    targetLaneId = parseInt(selectedValue.replace('pending-', ''));
+                  } else if (selectedValue.includes('-')) {
+                    const parts = selectedValue.split('-');
+                    targetLaneId = parseInt(parts[1]);
+                  }
+                  
+                  if (targetLaneId) {
+                    scrollToLane(targetLaneId);
+                  }
                   e.target.value = '';
                 }
               }}
               className="px-3 py-2 border border-gray-300 rounded-lg text-sm max-w-64"
             >
               <option value="">Jump to lane...</option>
-              {crawlData
-                .filter(item => !item.isOriginal) // Show only generated crawl cities
-                .map((item, index) => (
-                <option key={`${item.laneId}-${index}`} value={item.laneId}>
-                  {item.displayName} → {cleanReferenceId(item.referenceId)}
-                </option>
-              ))}
+              {/* Posted lanes with their pairs */}
+              {lanes.filter(lane => lane.status === 'posted' && postedPairs.some(pair => pair.laneId === lane.id)).map(lane => {
+                const generatedPairs = postedPairs.filter(pair => pair.laneId === lane.id && !pair.isBase);
+                return (
+                  <optgroup key={lane.id} label={`${lane.origin_city}, ${lane.origin_state} → ${lane.dest_city}, ${lane.dest_state} • REF #${cleanReferenceId(lane.reference_id)}`}>
+                    <option value={`base-${lane.id}`}>🎯 BASE: {lane.origin_city}, {lane.origin_state} → {lane.dest_city}, {lane.dest_state}</option>
+                    {generatedPairs.slice(0, 10).map((pair, index) => (
+                      <option key={pair.id} value={pair.id}>📊 PAIR {index + 1}: {pair.display}</option>
+                    ))}
+                  </optgroup>
+                );
+              })}
+              {/* Pending lanes */}
+              {lanes.filter(lane => lane.status === 'pending').length > 0 && (
+                <optgroup label="⏳ PENDING LANES">
+                  {lanes.filter(lane => lane.status === 'pending').map((lane) => (
+                    <option key={`pending-${lane.id}`} value={`pending-${lane.id}`}>
+                      ⏳ {lane.origin_city}, {lane.origin_state} → {lane.dest_city}, {lane.dest_state}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
             </select>
 
             {aiLoading && <div className="text-sm text-gray-500">Loading AI insights...</div>}
@@ -295,10 +353,40 @@ export default function RecapExport() {
                     </div>
                     
                     <div className="p-3">
+                      {/* Show generated pairs for posted lanes */}
+                      {lane.status === 'posted' && postedPairs.filter(pair => pair.laneId === lane.id).length > 0 && (
+                        <div className="mb-3">
+                          <h4 className="text-sm font-medium text-gray-700 mb-1">Posted Lanes ({postedPairs.filter(pair => pair.laneId === lane.id).length} total)</h4>
+                          <div className="space-y-1 max-h-24 overflow-y-auto">
+                            {postedPairs.filter(pair => pair.laneId === lane.id).slice(0, 8).map((pair, index) => (
+                              <div key={pair.id} className="text-xs text-gray-600 flex items-center">
+                                <span className="text-blue-600 mr-2 min-w-[12px]">
+                                  {pair.isBase ? '🎯' : '📊'}
+                                </span>
+                                <span>
+                                  <span className="font-medium">
+                                    {pair.isBase ? 'BASE' : `P${index}`}:
+                                  </span>
+                                  <span className="ml-1">
+                                    {pair.pickup.city}, {pair.pickup.state} → {pair.delivery.city}, {pair.delivery.state}
+                                  </span>
+                                </span>
+                              </div>
+                            ))}
+                            {postedPairs.filter(pair => pair.laneId === lane.id).length > 8 && (
+                              <div className="text-xs text-gray-500 italic">
+                                ... and {postedPairs.filter(pair => pair.laneId === lane.id).length - 8} more pairs
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* AI talking points (if available) */}
                       {recap && (
                         <>
                           <div className="mb-3">
-                            <h4 className="text-sm font-medium text-gray-700 mb-1">Talking Points</h4>
+                            <h4 className="text-sm font-medium text-gray-700 mb-1">AI Talking Points</h4>
                             <ul className="space-y-1">
                               {recap.bullets.map((bullet, i) => (
                                 <li key={i} className="text-sm text-gray-600 flex">
@@ -309,7 +397,7 @@ export default function RecapExport() {
                             </ul>
                           </div>
 
-                          {recap.risks.length > 0 && (
+                          {recap.risks && recap.risks.length > 0 && (
                             <div className="mb-3">
                               <h4 className="text-sm font-medium text-gray-700 mb-1">Risk Factors</h4>
                               <ul className="space-y-1">
@@ -336,12 +424,17 @@ export default function RecapExport() {
                         </>
                       )}
                       
-                      {!recap && lane.comment && (
+                      {/* Fallbacks when no data available */}
+                      {!recap && lane.status !== 'posted' && lane.comment && (
                         <div className="text-sm text-gray-600">{lane.comment}</div>
                       )}
                       
-                      {!recap && !lane.comment && (
-                        <div className="text-sm text-gray-500 italic">No additional information available</div>
+                      {!recap && lane.status !== 'posted' && !lane.comment && (
+                        <div className="text-sm text-gray-500 italic">Generate AI insights or mark as posted to see more details</div>
+                      )}
+                      
+                      {lane.status === 'posted' && postedPairs.filter(pair => pair.laneId === lane.id).length === 0 && (
+                        <div className="text-sm text-gray-500 italic">Loading posted pairs...</div>
                       )}
                     </div>
                   </article>

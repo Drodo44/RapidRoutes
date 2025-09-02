@@ -13,24 +13,40 @@ function matches(q, l) {
   if (!q) return true;
   const s = q.toLowerCase().trim();
   
-  // Check reference ID (partial match, with or without RR prefix)
-  const refId = cleanReferenceId(l.reference_id).toLowerCase();
+  // Check reference ID (supports partial matching)
+  const refId = cleanReferenceId(l.reference_id);
   if (refId) {
-    // Support searching with or without RR prefix
-    if (refId.includes(s) || refId.replace('rr', '').includes(s) || s.replace('rr', '').includes(refId.replace('rr', ''))) {
+    const cleanRef = refId.toLowerCase();
+    // Support searching with or without RR prefix, partial matching
+    if (cleanRef.includes(s) || 
+        cleanRef.replace('rr', '').includes(s) || 
+        s.replace('rr', '').includes(cleanRef.replace('rr', '')) ||
+        cleanRef === s ||
+        cleanRef.replace('rr', '') === s.replace('rr', '')) {
       return true;
     }
   }
   
-  // Check origin/destination
-  const origin = `${l.origin_city}, ${l.origin_state}`.toLowerCase();
-  const dest = `${l.dest_city}, ${l.dest_state}`.toLowerCase();
+  // Check origin/destination cities and states
+  const origin = `${l.origin_city || ''}, ${l.origin_state || ''}`.toLowerCase();
+  const dest = `${l.dest_city || ''}, ${l.dest_state || ''}`.toLowerCase();
   const equipment = String(l.equipment_code || '').toLowerCase();
+  const comment = String(l.comment || '').toLowerCase();
   
-  return origin.includes(s) || dest.includes(s) || equipment.includes(s);
+  return origin.includes(s) || 
+         dest.includes(s) || 
+         equipment.includes(s) ||
+         comment.includes(s) ||
+         (l.origin_city || '').toLowerCase().includes(s) ||
+         (l.origin_state || '').toLowerCase().includes(s) ||
+         (l.dest_city || '').toLowerCase().includes(s) ||
+         (l.dest_state || '').toLowerCase().includes(s);
 }
 
-function LaneCard({ lane, recapData, onGenerateRecap, isGenerating }) {
+function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs = [] }) {
+  // Get generated pairs for this lane
+  const laneGeneratedPairs = postedPairs.filter(pair => pair.laneId === lane.id);
+  
   return (
     <article id={`lane-${lane.id}`} className="rounded-xl border border-gray-700 bg-gray-800 overflow-hidden transition-all duration-300">
       <div className="p-4">
@@ -63,10 +79,44 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating }) {
         {lane.comment && <div className="text-xs text-gray-300 mt-2 italic">"{lane.comment}"</div>}
       </div>
 
-      {recapData && (
+      {/* Show generated lanes instead of AI talking points */}
+      {lane.status === 'posted' && laneGeneratedPairs.length > 0 && (
         <div className="border-t border-gray-700 bg-gray-900 p-4">
           <div className="mb-3">
-            <h4 className="text-sm font-medium text-blue-300 mb-2">Talking Points</h4>
+            <h4 className="text-sm font-medium text-blue-300 mb-2 flex items-center">
+              <span className="mr-2">📍</span>
+              Generated Postings ({laneGeneratedPairs.length} lanes posted)
+            </h4>
+            <div className="space-y-1.5 max-h-32 overflow-y-auto">
+              {laneGeneratedPairs.map((pair, index) => (
+                <div key={pair.id} className="text-xs text-gray-200 flex items-center">
+                  <span className="text-blue-400 mr-2 min-w-[16px]">
+                    {pair.isBase ? '🎯' : '📊'}
+                  </span>
+                  <span className="flex-1">
+                    <span className="font-medium">
+                      {pair.isBase ? 'BASE' : `PAIR ${index}`}:
+                    </span>
+                    <span className="ml-2">
+                      {pair.pickup.city}, {pair.pickup.state} → {pair.delivery.city}, {pair.delivery.state}
+                    </span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          <div className="text-xs text-gray-400 bg-gray-800 rounded p-2">
+            💡 <strong>Tip:</strong> When carriers call about this load, use the dropdown above to quickly find the exact pickup/delivery pair they're asking about.
+          </div>
+        </div>
+      )}
+
+      {/* Legacy AI recap display (only if specifically generated) */}
+      {recapData && recapData.bullets && (
+        <div className="border-t border-gray-700 bg-gray-900 p-4">
+          <div className="mb-3">
+            <h4 className="text-sm font-medium text-blue-300 mb-2">AI Talking Points</h4>
             <ul className="space-y-1.5">
               {recapData.bullets.map((bullet, i) => (
                 <li key={i} className="text-xs text-gray-200 flex">
@@ -77,7 +127,7 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating }) {
             </ul>
           </div>
 
-          {recapData.risks.length > 0 && (
+          {recapData.risks && recapData.risks.length > 0 && (
             <div className="mb-3">
               <h4 className="text-sm font-medium text-amber-300 mb-2">Risk Factors</h4>
               <ul className="space-y-1.5">
@@ -105,7 +155,8 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating }) {
         </div>
       )}
 
-      {!recapData && (
+      {/* Show generate button only for lanes that need AI insights and don't have generated pairs */}
+      {!recapData && lane.status !== 'posted' && (
         <div className="border-t border-gray-700 bg-gray-900 p-4 flex items-center justify-center">
           <button 
             onClick={() => onGenerateRecap(lane.id)}
@@ -329,6 +380,23 @@ export default function RecapPage() {
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-100 mb-2">Active Lane Postings</h1>
           <p className="text-gray-400">Generate AI-powered talking points for client conversations</p>
+          
+          {/* Add workflow guidance */}
+          {lanes.filter(lane => lane.status === 'pending').length > 0 && (
+            <div className="mt-4 p-3 bg-blue-900/30 border border-blue-700 rounded-lg">
+              <div className="text-sm text-blue-200">
+                <strong>💡 Workflow:</strong> Export CSV → Upload to DAT → Mark lanes as "Posted" → Use recap system to match incoming calls
+              </div>
+            </div>
+          )}
+          
+          {lanes.filter(lane => lane.status === 'posted').length === 0 && lanes.length > 0 && (
+            <div className="mt-4 p-3 bg-amber-900/30 border border-amber-700 rounded-lg">
+              <div className="text-sm text-amber-200">
+                <strong>📋 No Posted Lanes:</strong> Mark your lanes as "Posted" after uploading CSV to DAT to see generated pairs here
+              </div>
+            </div>
+          )}
         </div>
         
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-gray-800 rounded-lg p-4 border border-gray-700">
@@ -355,30 +423,38 @@ export default function RecapPage() {
                   onChange={(e) => {
                     const selectedValue = e.target.value;
                     if (selectedValue) {
-                      const [type, laneId] = selectedValue.split('-');
-                      const numericLaneId = parseInt(laneId);
+                      // Handle both posted pairs and pending lanes
+                      let targetLaneId;
+                      
+                      if (selectedValue.startsWith('pending-')) {
+                        targetLaneId = parseInt(selectedValue.replace('pending-', ''));
+                      } else if (selectedValue.includes('-')) {
+                        // Extract lane ID from pair ID format: "base-123" or "pair-123-0"
+                        const parts = selectedValue.split('-');
+                        targetLaneId = parseInt(parts[1]);
+                      }
                       
                       // Clear search to show all lanes
                       setQ('');
                       
                       // Scroll to the lane immediately
                       setTimeout(() => {
-                        const element = document.getElementById(`lane-${numericLaneId}`);
+                        const element = document.getElementById(`lane-${targetLaneId}`);
                         if (element) {
                           element.scrollIntoView({ behavior: 'smooth', block: 'center' });
                           element.style.border = '3px solid #10B981';
-                          element.style.backgroundColor = '#059669';
+                          element.style.backgroundColor = '#1F2937'; // Keep dark theme
                           element.style.boxShadow = '0 0 20px rgba(16, 185, 129, 0.5)';
                           element.style.transition = 'all 0.5s ease';
                           
                           // Show which specific pair was selected
                           const selectedPair = postedPairs.find(pair => pair.id === selectedValue);
-                          if (selectedPair && !selectedPair.isBase) {
+                          if (selectedPair) {
                             // Create a notification showing the selected pair
                             const notification = document.createElement('div');
                             notification.className = 'fixed top-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg z-50 max-w-md';
                             notification.innerHTML = `
-                              <div class="font-semibold">📍 Selected Generated Pair:</div>
+                              <div class="font-semibold">${selectedPair.isBase ? '🎯 BASE LANE' : '📊 GENERATED PAIR'}:</div>
                               <div class="text-sm">${selectedPair.pickup.city}, ${selectedPair.pickup.state} → ${selectedPair.delivery.city}, ${selectedPair.delivery.state}</div>
                               <div class="text-xs mt-1 opacity-80">REF #${cleanReferenceId(selectedPair.referenceId)}</div>
                             `;
@@ -391,6 +467,7 @@ export default function RecapPage() {
                             }, 5000);
                           }
                           
+                          // Remove highlighting after delay
                           setTimeout(() => { 
                             element.style.border = ''; 
                             element.style.backgroundColor = '';
@@ -403,36 +480,41 @@ export default function RecapPage() {
                   className="w-full bg-gray-900 border border-gray-600 rounded-md text-gray-200 py-2 px-3 appearance-none text-sm"
                 >
                   <option value="">📍 Jump to posted lane/pair...</option>
-                  {/* Group by base lanes and their pairs */}
-                  {lanes.filter(lane => lane.status === 'posted').map(lane => {
+                  {/* Only show posted lanes with their actual generated pairs */}
+                  {lanes.filter(lane => lane.status === 'posted' && postedPairs.some(pair => pair.laneId === lane.id)).map(lane => {
                     const basePair = postedPairs.find(pair => pair.laneId === lane.id && pair.isBase);
                     const generatedPairs = postedPairs.filter(pair => pair.laneId === lane.id && !pair.isBase);
                     
                     return (
-                      <optgroup key={lane.id} label={`🏠 ${lane.origin_city}, ${lane.origin_state} → ${lane.dest_city}, ${lane.dest_state} • REF #${cleanReferenceId(lane.reference_id)}`}>
+                      <optgroup key={lane.id} label={`🏠 ${lane.origin_city}, ${lane.origin_state} → ${lane.dest_city}, ${lane.dest_state} • REF #${cleanReferenceId(lane.reference_id)} • ${generatedPairs.length} pairs`}>
                         {basePair && (
                           <option value={basePair.id} className="font-semibold">
                             🎯 BASE: {basePair.display}
                           </option>
                         )}
-                        {generatedPairs.map((pair, index) => (
+                        {generatedPairs.slice(0, 15).map((pair, index) => (
                           <option key={pair.id} value={pair.id}>
                             📊 PAIR {index + 1}: {pair.display}
                           </option>
                         ))}
+                        {generatedPairs.length > 15 && (
+                          <option disabled>... and {generatedPairs.length - 15} more pairs</option>
+                        )}
                       </optgroup>
                     );
                   })}
                   
-                  {/* Also show pending lanes for context */}
-                  <optgroup label="⏳ PENDING LANES (Not yet posted)">
-                    {filtered.filter(lane => lane.status === 'pending').slice(0, 10).map((lane) => (
-                      <option key={`pending-${lane.id}`} value={`pending-${lane.id}`}>
-                        ⏳ {lane.origin_city}, {lane.origin_state} → {lane.dest_city}, {lane.dest_state}
-                        {lane.reference_id && ` • REF #${cleanReferenceId(lane.reference_id)}`}
-                      </option>
-                    ))}
-                  </optgroup>
+                  {/* Show pending lanes for reference */}
+                  {lanes.filter(lane => lane.status === 'pending').length > 0 && (
+                    <optgroup label="⏳ PENDING LANES (Mark as posted after CSV upload)">
+                      {lanes.filter(lane => lane.status === 'pending').slice(0, 10).map((lane) => (
+                        <option key={`pending-${lane.id}`} value={`pending-${lane.id}`}>
+                          ⏳ {lane.origin_city}, {lane.origin_state} → {lane.dest_city}, {lane.dest_state}
+                          {lane.reference_id && ` • REF #${cleanReferenceId(lane.reference_id)}`}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
                 </select>
               </div>
             </div>
@@ -487,6 +569,7 @@ export default function RecapPage() {
               recapData={recaps[lane.id]}
               onGenerateRecap={handleGenerateRecap}
               isGenerating={generatingIds.has(lane.id)}
+              postedPairs={postedPairs}
             />
           ))}
         </div>
