@@ -84,21 +84,22 @@ export default function RecapExport() {
                   laneId: lane.id,
                   isBase: true,
                   display: `${lane.origin_city}, ${lane.origin_state} → ${lane.dest_city}, ${lane.dest_state}`,
-                  referenceId: lane.reference_id,
+                  referenceId: lane.reference_id || `RR${String(Math.abs(lane.id.split('-')[0].replace(/[a-f]/g, '').substring(0,5) || '10000')).padStart(5, '0')}`,
                   pickup: { city: lane.origin_city, state: lane.origin_state },
                   delivery: { city: lane.dest_city, state: lane.dest_state }
                 });
                 
                 // Add generated pairs with their own reference IDs
                 pairData.postedPairs.forEach((pair, index) => {
-                  const pairRefId = generatePairReferenceId(lane.reference_id, index);
+                  const baseRef = lane.reference_id || `RR${String(Math.abs(lane.id.split('-')[0].replace(/[a-f]/g, '').substring(0,5) || '10000')).padStart(5, '0')}`;
+                  const pairRefId = generatePairReferenceId(baseRef, index);
                   allPairs.push({
                     id: `pair-${lane.id}-${index}`,
                     laneId: lane.id,
                     isBase: false,
                     display: `${pair.pickup.city}, ${pair.pickup.state} → ${pair.delivery.city}, ${pair.delivery.state}`,
                     referenceId: pairRefId, // Generate unique reference ID for each pair
-                    baseReferenceId: lane.reference_id, // Keep original for grouping
+                    baseReferenceId: baseRef, // Keep original for grouping
                     pickup: pair.pickup,
                     delivery: pair.delivery
                   });
@@ -154,8 +155,8 @@ export default function RecapExport() {
     
     const q = query.toLowerCase().trim();
     
-    // Check main lane reference ID
-    const refId = cleanReferenceId(lane.reference_id) || `RR${String(lane.id).slice(-5)}`;
+    // Check main lane reference ID (generated if not exists)
+    const refId = cleanReferenceId(lane.reference_id) || `RR${String(Math.abs(lane.id.split('-')[0].replace(/[a-f]/g, '').substring(0,5) || '10000')).padStart(5, '0')}`;
     if (refId.toLowerCase().includes(q)) return true;
     
     // Check generated pair reference IDs

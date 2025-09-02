@@ -47,13 +47,22 @@ function matches(q, l) {
       console.log('✅ DEBUG: Reference ID match found');
       return true;
     }
-  }
-  
-  // Also check if query matches the generated reference ID format
-  const generatedRef = `rr${String(l.id).slice(-5)}`;
-  if (generatedRef.includes(s) || s.includes(generatedRef.slice(2))) {
-    console.log('✅ DEBUG: Generated reference ID match found');
-    return true;
+  } else {
+    // Generate reference ID on-the-fly since column doesn't exist
+    const generatedRefId = `RR${String(Math.abs(l.id.split('-')[0].replace(/[a-f]/g, '').substring(0,5) || '10000')).padStart(5, '0')}`;
+    const cleanGenerated = generatedRefId.toLowerCase();
+    console.log('🔍 DEBUG: Generated ref ID:', generatedRefId);
+    
+    if (cleanGenerated.includes(s) || 
+        cleanGenerated.replace('rr', '').includes(s) || 
+        s.replace('rr', '').includes(cleanGenerated.replace('rr', '')) ||
+        cleanGenerated === s ||
+        cleanGenerated.replace('rr', '') === s.replace('rr', '') ||
+        cleanGenerated.slice(2).includes(s) ||
+        s.includes(cleanGenerated.slice(2))) {
+      console.log('✅ DEBUG: Generated reference ID match found');
+      return true;
+    }
   }
   
   // Check origin/destination cities and states
@@ -94,9 +103,9 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
             {lane.dest_city}, {lane.dest_state}
           </div>
           <div className="flex items-center gap-2">
-            {lane.reference_id && (
+            {(lane.reference_id || !lane.reference_id) && (
               <div className="text-xs px-2 py-1 rounded font-mono font-bold bg-green-900/60 text-green-200">
-                REF #{cleanReferenceId(lane.reference_id)}
+                REF #{lane.reference_id ? cleanReferenceId(lane.reference_id) : `RR${String(Math.abs(lane.id.split('-')[0].replace(/[a-f]/g, '').substring(0,5) || '10000')).padStart(5, '0')}`}
               </div>
             )}
             <div className="text-xs px-2 py-1 rounded-full font-medium bg-blue-900/60 text-blue-200">{lane.status}</div>
@@ -496,18 +505,25 @@ export default function RecapPage() {
                       let targetLaneId;
                       
                       if (selectedValue.startsWith('pending-')) {
-                        targetLaneId = parseInt(selectedValue.replace('pending-', ''));
+                        // Extract UUID directly (no parseInt for UUIDs)
+                        targetLaneId = selectedValue.replace('pending-', '');
                         console.log('🔍 DROPDOWN DEBUG: Pending lane ID:', targetLaneId);
                       } else if (selectedValue.includes('-')) {
-                        // Extract lane ID from pair ID format: "base-123" or "pair-123-0"
+                        // Extract lane ID from pair ID format: "base-uuid" or "pair-uuid-0"
                         const parts = selectedValue.split('-');
-                        targetLaneId = parseInt(parts[1]);
+                        // For UUIDs, we need to reconstruct the full UUID
+                        if (parts.length >= 6) { // UUID parts split by dashes
+                          targetLaneId = parts.slice(1, 6).join('-'); // Skip first part (base/pair), join UUID parts
+                        } else {
+                          console.error('❌ DROPDOWN ERROR: Invalid UUID format in:', selectedValue);
+                          return;
+                        }
                         console.log('🔍 DROPDOWN DEBUG: Pair lane ID from parts:', parts, 'extracted ID:', targetLaneId);
                       }
                       
                       console.log('🔍 DROPDOWN DEBUG: Final target lane ID:', targetLaneId);
                       
-                      if (!targetLaneId || isNaN(targetLaneId)) {
+                      if (!targetLaneId || targetLaneId.length < 10) {
                         console.error('❌ DROPDOWN ERROR: Failed to extract valid lane ID from:', selectedValue);
                         alert('Error: Could not extract lane ID from selection: ' + selectedValue);
                         return;

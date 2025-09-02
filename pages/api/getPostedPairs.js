@@ -90,10 +90,11 @@ export default async function handler(req, res) {
     // Convert to the format expected by the recap page
     const postedPairs = validPairs.map((pair, index) => ({
       id: `pair-${laneId}-${index}`,
-      laneId: parseInt(laneId),
+      laneId: laneId, // Keep as UUID, don't parseInt!
       isBase: false,
       display: `${pair.pickup.city}, ${pair.pickup?.state || pair.pickup?.state_or_province} → ${pair.delivery.city}, ${pair.delivery?.state || pair.delivery?.state_or_province}`,
-      referenceId: lane.reference_id,
+      // Generate reference ID on-the-fly since column doesn't exist in database
+      referenceId: lane.reference_id || `RR${String(Math.abs(laneId.split('-')[0].replace(/[a-f]/g, '').substring(0,5) || '10000')).padStart(5, '0')}`,
       pickup: {
         city: pair.pickup.city,
         state: pair.pickup?.state || pair.pickup?.state_or_province,
