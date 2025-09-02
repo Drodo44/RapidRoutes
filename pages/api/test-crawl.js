@@ -36,7 +36,7 @@ export default async function handler(req, res) {
     
     console.log('Nearby Belvidere cities:', nearbyBelvidere?.length || 0);
     
-    const result = await generateCrawlPairs({
+    const result = await generateGeographicCrawlPairs({
       origin: { city: 'Belvidere', state: 'IL' },
       destination: { city: 'Schofield', state: 'WI' },
       equipment: 'FD',
