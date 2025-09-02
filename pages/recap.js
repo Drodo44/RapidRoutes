@@ -292,11 +292,24 @@ export default function RecapPage() {
   }, []);
   
   const filtered = useMemo(() => {
-    let result = (lanes || []).filter(l => matches(q, l));
+    console.log('🔍 FILTER DEBUG: Computing filtered results');
+    console.log('🔍 FILTER DEBUG: Query:', q);
+    console.log('🔍 FILTER DEBUG: Total lanes:', lanes?.length || 0);
+    
+    let result = (lanes || []).filter(l => {
+      const match = matches(q, l);
+      if (q && match) {
+        console.log('🔍 FILTER DEBUG: Lane matched:', l.id, l.reference_id);
+      }
+      return match;
+    });
+    
+    console.log('🔍 FILTER DEBUG: Filtered result count:', result.length);
     
     // Apply AI-only filter if enabled
     if (showAIOnly) {
       result = result.filter(lane => recaps[lane.id]);
+      console.log('🔍 FILTER DEBUG: After AI-only filter:', result.length);
     }
     
     // Apply sorting
@@ -309,6 +322,7 @@ export default function RecapPage() {
     }
     // date sorting is default (no need to sort again)
     
+    console.log('🔍 FILTER DEBUG: Final result:', result.length, 'lanes');
     return result;
   }, [lanes, q, recaps, showAIOnly, sortOrder]);
 
@@ -451,7 +465,13 @@ export default function RecapPage() {
                 <input 
                   type="text" 
                   value={q} 
-                  onChange={(e) => setQ(e.target.value)}
+                  onChange={(e) => {
+                    const newValue = e.target.value;
+                    console.log('🔍 SEARCH DEBUG: Input changed to:', newValue);
+                    console.log('🔍 SEARCH DEBUG: Total lanes:', lanes.length);
+                    console.log('🔍 SEARCH DEBUG: First few lanes:', lanes.slice(0, 3).map(l => ({ id: l.id, refId: l.reference_id, origin: l.origin_city })));
+                    setQ(newValue);
+                  }}
                   placeholder="Search reference ID, city, state, or equipment"
                   className="w-full pl-9 pr-3 py-2 bg-gray-900 border border-gray-600 rounded-md text-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 />
@@ -467,7 +487,9 @@ export default function RecapPage() {
                   value=""
                   onChange={(e) => {
                     const selectedValue = e.target.value;
-                    console.log('🔍 DEBUG: Selected value:', selectedValue);
+                    console.log('🔍 DROPDOWN DEBUG: Selected value:', selectedValue);
+                    console.log('🔍 DROPDOWN DEBUG: Posted pairs:', postedPairs);
+                    console.log('🔍 DROPDOWN DEBUG: Total lanes:', lanes.length);
                     
                     if (selectedValue) {
                       // Handle both posted pairs and pending lanes
@@ -475,30 +497,42 @@ export default function RecapPage() {
                       
                       if (selectedValue.startsWith('pending-')) {
                         targetLaneId = parseInt(selectedValue.replace('pending-', ''));
-                        console.log('🔍 DEBUG: Pending lane ID:', targetLaneId);
+                        console.log('🔍 DROPDOWN DEBUG: Pending lane ID:', targetLaneId);
                       } else if (selectedValue.includes('-')) {
                         // Extract lane ID from pair ID format: "base-123" or "pair-123-0"
                         const parts = selectedValue.split('-');
                         targetLaneId = parseInt(parts[1]);
-                        console.log('🔍 DEBUG: Pair lane ID from parts:', parts, 'extracted ID:', targetLaneId);
+                        console.log('🔍 DROPDOWN DEBUG: Pair lane ID from parts:', parts, 'extracted ID:', targetLaneId);
                       }
                       
-                      console.log('🔍 DEBUG: Final target lane ID:', targetLaneId);
+                      console.log('🔍 DROPDOWN DEBUG: Final target lane ID:', targetLaneId);
                       
                       if (!targetLaneId || isNaN(targetLaneId)) {
-                        console.error('❌ Failed to extract valid lane ID from:', selectedValue);
+                        console.error('❌ DROPDOWN ERROR: Failed to extract valid lane ID from:', selectedValue);
+                        alert('Error: Could not extract lane ID from selection: ' + selectedValue);
                         return;
                       }
                       
                       // Clear search to show all lanes
+                      console.log('🔍 DROPDOWN DEBUG: Clearing search filter');
                       setQ('');
+                      
+                      // Find the lane in our data
+                      const targetLane = lanes.find(l => l.id === targetLaneId);
+                      console.log('🔍 DROPDOWN DEBUG: Found target lane:', targetLane);
                       
                       // Scroll to the lane immediately
                       setTimeout(() => {
-                        const element = document.getElementById(`lane-${targetLaneId}`);
-                        console.log('🔍 DEBUG: Looking for element:', `lane-${targetLaneId}`, 'found:', element);
+                        const elementId = `lane-${targetLaneId}`;
+                        const element = document.getElementById(elementId);
+                        console.log('🔍 DROPDOWN DEBUG: Looking for element:', elementId, 'found:', !!element);
+                        
+                        // List all available lane elements for debugging
+                        const allLanes = document.querySelectorAll('[id^="lane-"]');
+                        console.log('🔍 DROPDOWN DEBUG: Available lane elements:', Array.from(allLanes).map(el => el.id));
                         
                         if (element) {
+                          console.log('🔍 DROPDOWN DEBUG: Scrolling to element');
                           element.scrollIntoView({ behavior: 'smooth', block: 'center' });
                           element.style.border = '3px solid #10B981';
                           element.style.backgroundColor = '#1F2937'; // Keep dark theme
@@ -507,7 +541,7 @@ export default function RecapPage() {
                           
                           // Show which specific pair was selected
                           const selectedPair = postedPairs.find(pair => pair.id === selectedValue);
-                          console.log('🔍 DEBUG: Selected pair data:', selectedPair);
+                          console.log('🔍 DROPDOWN DEBUG: Selected pair data:', selectedPair);
                           
                           if (selectedPair) {
                             // Create a notification showing the selected pair
@@ -534,10 +568,8 @@ export default function RecapPage() {
                             element.style.boxShadow = '';
                           }, 10000);
                         } else {
-                          console.error('❌ Element not found:', `lane-${targetLaneId}`);
-                          // Show all available lane elements for debugging
-                          const allLanes = document.querySelectorAll('[id^="lane-"]');
-                          console.log('🔍 DEBUG: Available lane elements:', Array.from(allLanes).map(el => el.id));
+                          console.error('❌ DROPDOWN ERROR: Element not found:', elementId);
+                          alert(`Error: Could not find lane element: ${elementId}. Available lanes: ${Array.from(allLanes).map(el => el.id).join(', ')}`);
                         }
                       }, 100);
                     }
@@ -550,7 +582,9 @@ export default function RecapPage() {
                     const basePair = postedPairs.find(pair => pair.laneId === lane.id && pair.isBase);
                     const generatedPairs = postedPairs.filter(pair => pair.laneId === lane.id && !pair.isBase);
                     
-                    console.log('🔍 DEBUG: Lane', lane.id, 'pairs:', generatedPairs.length, 'base:', basePair ? 'yes' : 'no');
+                    console.log('🔍 DROPDOWN DEBUG: Lane', lane.id, 'pairs:', generatedPairs.length, 'base:', basePair ? 'yes' : 'no');
+                    console.log('🔍 DROPDOWN DEBUG: Lane', lane.id, 'base pair:', basePair);
+                    console.log('🔍 DROPDOWN DEBUG: Lane', lane.id, 'generated pairs:', generatedPairs.slice(0, 2));
                     
                     return (
                       <optgroup key={lane.id} label={`🏠 ${lane.origin_city}, ${lane.origin_state} → ${lane.dest_city}, ${lane.dest_state} • REF #${cleanReferenceId(lane.reference_id)} • ${generatedPairs.length} pairs`}>
