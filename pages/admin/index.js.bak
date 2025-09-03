@@ -5,21 +5,16 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import withAuth from '../../middleware/withAuth';
 
-function AdminDashboard({ userProfile }) {
+// Wrap with auth HOC and require Admin role
+export default withAuth(AdminDashboard, { requiredRole: 'Admin' });
   const router = useRouter();
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({});
 
   useEffect(() => {
-    if (userProfile?.role === 'Admin') {
-      setIsAdmin(true);
-      loadStats();
-    } else {
-      setIsAdmin(false);
-      setLoading(false);
-    }
-  }, [userProfile]);
+    loadStats();
+  }, []);
 
   async function loadStats() {
     try {
@@ -37,7 +32,7 @@ function AdminDashboard({ userProfile }) {
       });
       
     } catch (error) {
-      console.error('Stats loading failed:', error);
+      console.error('Auth check failed:', error);
     } finally {
       setLoading(false);
     }
@@ -186,6 +181,3 @@ function AdminDashboard({ userProfile }) {
     </div>
   );
 }
-
-// Wrap with auth HOC and require Admin role
-export default withAuth(AdminDashboard, { requiredRole: 'Admin' });

@@ -7,19 +7,12 @@ import withAuth from '../../middleware/withAuth';
 
 function AdminDashboard({ userProfile }) {
   const router = useRouter();
-  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({});
 
   useEffect(() => {
-    if (userProfile?.role === 'Admin') {
-      setIsAdmin(true);
-      loadStats();
-    } else {
-      setIsAdmin(false);
-      setLoading(false);
-    }
-  }, [userProfile]);
+    loadStats();
+  }, []);
 
   async function loadStats() {
     try {
@@ -47,14 +40,6 @@ function AdminDashboard({ userProfile }) {
     return (
       <div className="min-h-screen bg-gray-900 text-gray-100 flex items-center justify-center">
         <div className="text-xl">Loading admin panel...</div>
-      </div>
-    );
-  }
-
-  if (!isAdmin) {
-    return (
-      <div className="min-h-screen bg-gray-900 text-gray-100 flex items-center justify-center">
-        <div className="text-xl text-red-400">Access Denied</div>
       </div>
     );
   }
