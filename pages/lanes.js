@@ -1061,4 +1061,3 @@ function LanesPage({ userProfile }) {
 
 // Wrap with auth HOC - only allow active users
 export default withAuth(LanesPage);
-}
