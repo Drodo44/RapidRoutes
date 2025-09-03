@@ -1,4 +1,5 @@
 // pages/api/lanes.js
+import { validateApiAuth } from '../../utils/validateApiAuth';
 import { adminSupabase } from '../../utils/supabaseClient';
 
 export default async function handler(req, res) {
@@ -7,6 +8,10 @@ export default async function handler(req, res) {
     res.setHeader('Allow', 'GET, POST, PUT, DELETE');
     return res.status(200).end();
   }
+
+  // Validate authentication for all requests
+  const auth = await validateApiAuth(req, res);
+  if (!auth) return;
 
   try {
     // GET - Get lanes with filtering
@@ -59,6 +64,7 @@ export default async function handler(req, res) {
         ...payload,
         status: payload.status || 'pending',
         created_at: new Date().toISOString(),
+        created_by: auth.user.id,
       };
 
       const { data, error } = await adminSupabase.from('lanes').insert([lane]).select('*');
@@ -73,6 +79,22 @@ export default async function handler(req, res) {
       
       if (!id) {
         return res.status(400).json({ error: 'Lane ID required' });
+      }
+
+      // Verify ownership or admin status
+      const { data: existingLane } = await adminSupabase
+        .from('lanes')
+        .select('created_by')
+        .eq('id', id)
+        .single();
+
+      if (!existingLane) {
+        return res.status(404).json({ error: 'Lane not found' });
+      }
+
+      // Only allow update if user owns the lane or is an admin
+      if (existingLane.created_by !== auth.user.id && auth.profile.role !== 'Admin') {
+        return res.status(403).json({ error: 'Not authorized to modify this lane' });
       }
       
       const { data, error } = await adminSupabase
@@ -91,6 +113,21 @@ export default async function handler(req, res) {
       
       if (!id) {
         return res.status(400).json({ error: 'Lane ID required' });
+      }
+
+      // Verify ownership or admin status before delete
+      const { data: laneToDelete } = await adminSupabase
+        .from('lanes')
+        .select('created_by')
+        .eq('id', id)
+        .single();
+
+      if (!laneToDelete) {
+        return res.status(404).json({ error: 'Lane not found' });
+      }
+
+      if (laneToDelete.created_by !== auth.user.id && auth.profile.role !== 'Admin') {
+        return res.status(403).json({ error: 'Not authorized to delete this lane' });
       }
       
       const { error } = await adminSupabase

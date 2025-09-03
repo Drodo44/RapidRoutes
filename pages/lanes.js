@@ -1,5 +1,6 @@
 // pages/lanes.js
 import { useEffect, useState } from 'react';
+import withAuth from '../middleware/withAuth';
 import CityAutocomplete from '../components/CityAutocomplete.jsx';
 import EquipmentPicker from '../components/EquipmentPicker.jsx';
 import IntermodalNudge from '../components/IntermodalNudge';
@@ -21,7 +22,7 @@ function Section({ title, children, right, className = '' }) {
   );
 }
 
-export default function LanesPage() {
+function LanesPage({ userProfile }) {
   // Form state
   const [origin, setOrigin] = useState('');
   const [originZip, setOriginZip] = useState('');
@@ -1056,4 +1057,8 @@ export default function LanesPage() {
     </div>
     </>
   );
+}
+
+// Wrap with auth HOC - only allow active users
+export default withAuth(LanesPage);
 }
