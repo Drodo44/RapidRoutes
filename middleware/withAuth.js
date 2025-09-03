@@ -16,41 +16,85 @@ export default function withAuth(Component, options = {}) {
     const [authorized, setAuthorized] = useState(false);
     const [loading, setLoading] = useState(true);
     const [userProfile, setUserProfile] = useState(null);
+    const [retryCount, setRetryCount] = useState(0);
 
     useEffect(() => {
+      let mounted = true;
+      
       const verifyAuth = async () => {
         try {
           const { user, profile } = await getUserAndProfile();
+          
+          // Only proceed if component is still mounted
+          if (!mounted) return;
 
-          if (!user || !profile?.active) {
-            router.push('/login');
+          if (!user) {
+            console.log('No user found, redirecting to login');
+            router.replace('/login');
             return;
           }
 
-          if (options.requiredRole && profile.role !== options.requiredRole) {
-            router.push('/unauthorized');
+          if (!profile?.active) {
+            console.log('Profile inactive, redirecting to login');
+            router.replace('/login');
             return;
           }
 
-          setAuthorized(true);
+          // Strict role checking
+          if (options.requiredRole) {
+            if (!profile.role) {
+              console.log('No role found, redirecting to unauthorized');
+              router.replace('/unauthorized');
+              return;
+            }
+
+            if (profile.role !== options.requiredRole) {
+              console.log(`Role ${profile.role} does not match required ${options.requiredRole}`);
+              router.replace('/unauthorized');
+              return;
+            }
+          }
+
+          // If we get here, user is authorized
           setUserProfile({ user, profile });
+          setAuthorized(true);
+          
         } catch (error) {
           console.error('Auth verification error:', error);
-          router.push('/login');
+          
+          // Retry up to 3 times if we get an error
+          if (retryCount < 3) {
+            setRetryCount(prev => prev + 1);
+            setTimeout(verifyAuth, 1000); // Wait 1 second before retry
+            return;
+          }
+          
+          router.replace('/login');
         } finally {
-          setLoading(false);
+          if (mounted) {
+            setLoading(false);
+          }
         }
       };
 
       verifyAuth();
-    }, [router]);
+
+      return () => {
+        mounted = false;
+      };
+    }, [router, retryCount]);
 
     if (loading) {
       return (
         <div className="min-h-screen bg-gray-900 text-gray-100 flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-            <p>Verifying access...</p>
+            <p className="text-lg">Verifying access...</p>
+            {retryCount > 0 && (
+              <p className="text-sm text-gray-400 mt-2">
+                Retrying... ({retryCount}/3)
+              </p>
+            )}
           </div>
         </div>
       );
