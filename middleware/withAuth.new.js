@@ -1,7 +1,8 @@
 // middleware/withAuth.js
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { getUserAndProfile } from '../utils/getUserProfile';
+import { supabase } from '../utils/supabaseClient';
+import { getUserAndProfile } from '../utils/getUserProfile.new';
 
 /**
  * HOC to wrap pages requiring authentication
@@ -23,7 +24,17 @@ export default function withAuth(Component, options = {}) {
       
       const verifyAuth = async () => {
         try {
+          if (!mounted) return;
+          
           console.log('Starting auth verification...');
+          const session = await supabase.auth.getSession();
+          
+          if (!session?.data?.session) {
+            console.log('No active session, redirecting to login');
+            router.replace('/login');
+            return;
+          }
+          
           const { user, profile } = await getUserAndProfile();
           
           // Only proceed if component is still mounted
