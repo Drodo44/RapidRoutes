@@ -2,7 +2,8 @@
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { supabase } from '../utils/supabaseClient';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 
 const links = [
   { href: '/dashboard', label: 'Dashboard', icon: '📊' },
@@ -15,29 +16,8 @@ const links = [
 export default function NavBar() {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
-  const [user, setUser] = useState(null);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  
-  useEffect(() => {
-    const getUser = async () => {
-      const { data } = await supabase.auth.getUser();
-      if (data?.user) {
-        setUser(data.user);
-        
-        // Check if user is an admin
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", data.user.id)
-          .single();
-          
-        setIsAdmin(profile?.role === "Admin");
-      }
-    };
-    
-    getUser();
-  }, []);
+  const { user, isAdmin } = useAuth();
 
   async function logout() {
     try {

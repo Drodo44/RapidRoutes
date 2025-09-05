@@ -2,6 +2,7 @@
 import '../styles/globals.css';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
+import { AuthProvider } from '../contexts/AuthContext';
 import NavBar from '../components/NavBar';
 import Head from 'next/head';
 
@@ -28,16 +29,33 @@ export default function App({ Component, pageProps }) {
   }, [router]);
 
   return (
-    <>
+    <AuthProvider>
       <Head>
         <title>RapidRoutes | Freight Brokerage Automation</title>
         <meta name="description" content="Production-grade freight brokerage automation platform for TQL brokers" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
       
-      <div className="min-h-screen bg-gray-900 text-gray-200">
-        <Component {...pageProps} />
+      <div className="min-h-screen bg-gray-900 text-gray-200 flex flex-col">
+        <NavBar />
+        
+        {/* Loading indicator */}
+        {loading && (
+          <div className="fixed top-0 left-0 right-0 h-1 z-50">
+            <div className="h-full bg-blue-600 animate-pulse"></div>
+          </div>
+        )}
+        
+        <main className="flex-grow pt-20 pb-12">
+          <Component {...pageProps} />
+        </main>
+        
+        <footer className="border-t border-gray-800 py-4 bg-gray-900">
+          <div className="container mx-auto px-4 text-center text-xs text-gray-500">
+            © 2025 RapidRoutes | Created by Andrew Connellan - Logistics Account Executive at Total Quality Logistics
+          </div>
+        </footer>
       </div>
-    </>
+    </AuthProvider>
   );
 }
