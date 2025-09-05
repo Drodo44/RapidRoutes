@@ -1,50 +1,52 @@
 // middleware/withAuth.js
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../utils/supabaseClient';
 
-/**
- * HOC to wrap pages requiring authentication
- * @param {React.Component} Component - The page component to wrap
- * @param {Object} options - Configuration options
- * @param {string} options.requiredRole - Optional role requirement (e.g., 'Admin')
- * @returns {React.Component} - Protected component
- */
 export default function withAuth(Component, options = {}) {
   return function ProtectedPage(props) {
     const router = useRouter();
-    const { user, profile, loading, isAuthenticated, isAdmin } = useAuth();
+    const [loading, setLoading] = useState(true);
+    const [user, setUser] = useState(null);
 
     useEffect(() => {
-      console.log('withAuth: Auth state check:', {
-        loading,
-        isAuthenticated,
-        hasUser: !!user,
-        hasProfile: !!profile,
-        profileStatus: profile?.status,
-        profileRole: profile?.role,
-        requiredRole: options.requiredRole
-      });
+      // Get current user's session and profile
+      async function checkUser() {
+        try {
+          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+          
+          if (sessionError || !session) {
+            router.replace('/login');
+            return;
+          }
 
-      if (loading) {
-        console.log('withAuth: Still loading auth state...');
-        return;
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+
+          if (profileError || !profile || profile.status !== 'approved') {
+            router.replace('/login');
+            return;
+          }
+
+          if (options.requiredRole && profile.role !== options.requiredRole) {
+            router.replace('/unauthorized');
+            return;
+          }
+
+          setUser({ ...session.user, profile });
+          setLoading(false);
+          
+        } catch (error) {
+          console.error('Auth check error:', error);
+          router.replace('/login');
+        }
       }
 
-      if (!isAuthenticated) {
-        console.log('withAuth: User not authenticated, redirecting to login');
-        router.replace('/login');
-        return;
-      }
-
-      if (options.requiredRole === 'Admin' && !isAdmin) {
-        console.log('withAuth: User not admin, redirecting to unauthorized');
-        router.replace('/unauthorized');
-        return;
-      }
-
-      console.log('withAuth: Auth check passed, rendering component');
-    }, [loading, isAuthenticated, isAdmin, router, user, profile]);
+      checkUser();
+    }, [router]);
 
     if (loading) {
       return (
@@ -57,11 +59,6 @@ export default function withAuth(Component, options = {}) {
       );
     }
 
-    // Only render if authenticated and role matches
-    const authorized = isAuthenticated && (!options.requiredRole || (options.requiredRole === 'Admin' && isAdmin));
-    
-    return authorized ? (
-      <Component {...props} userProfile={{ user, profile }} />
-    ) : null;
+    return <Component {...props} user={user} />;
   };
 }

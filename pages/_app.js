@@ -2,7 +2,6 @@
 import '../styles/globals.css';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { AuthProvider } from '../contexts/AuthContext';
 import NavBar from '../components/NavBar';
 import Head from 'next/head';
 
@@ -29,25 +28,16 @@ export default function App({ Component, pageProps }) {
   }, [router]);
 
   return (
-    <AuthProvider>
+    <>
       <Head>
         <title>RapidRoutes | Freight Brokerage Automation</title>
         <meta name="description" content="Production-grade freight brokerage automation platform for TQL brokers" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
       
-      <div className="min-h-screen bg-gray-900 text-gray-200 flex flex-col">
+      <div className="min-h-screen bg-gray-900 text-gray-200">
         <Component {...pageProps} />
-        
-        {/* Route change loading indicator */}
-        {routeLoading && (
-          <div className="fixed top-0 left-0 right-0 h-1 z-50">
-            <div className="h-full bg-blue-600 animate-pulse"></div>
-          </div>
-        )}
-        
-
       </div>
-    </AuthProvider>
+    </>
   );
 }
