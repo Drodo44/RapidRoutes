@@ -11,7 +11,11 @@ const PUBLIC_ROUTES = new Set(['/login', '/signup', '/']);
 function AppContent({ Component, pageProps }) {
   const router = useRouter();
   const [routeLoading, setRouteLoading] = useState(false);
-  const { loading } = useAuth();
+  const { loading, isAuthenticated, session } = useAuth();
+  
+  useEffect(() => {
+    console.log('AppContent loading state:', { loading, isAuthenticated, hasSession: !!session });
+  }, [loading, isAuthenticated, session]);
 
   // Handle route changes
   useEffect(() => {
@@ -68,9 +72,17 @@ function AppContent({ Component, pageProps }) {
 }
 
 export default function App({ Component, pageProps }) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   return (
     <AuthProvider>
-      <AppContent Component={Component} pageProps={pageProps} />
+      {mounted ? (
+        <AppContent Component={Component} pageProps={pageProps} />
+      ) : null}
     </AuthProvider>
   );
 }
