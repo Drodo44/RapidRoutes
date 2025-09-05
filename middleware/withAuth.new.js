@@ -34,9 +34,13 @@ export default function withAuth(Component, options = {}) {
             return;
           }
 
-          if (!profile?.active) {
-            console.log('Profile inactive, redirecting to login');
-            router.replace('/login');
+          if (!profile?.active || profile?.status !== 'approved') {
+            console.log('Auth redirect: No approved active user/profile');
+            if (profile?.status === 'pending') {
+              router.replace('/pending-approval');
+            } else {
+              router.replace('/login');
+            }
             return;
           }
 
