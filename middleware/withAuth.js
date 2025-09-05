@@ -57,9 +57,9 @@ export default function withAuth(Component, options = {}) {
             return;
           }
 
-          if (!profile.active || profile.status !== 'approved') {
+          // Only check status, not active field since it's undefined
+          if (profile.status !== 'approved') {
             console.log('Profile status check failed:', {
-              active: profile.active,
               status: profile.status
             });
             
