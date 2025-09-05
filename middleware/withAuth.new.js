@@ -23,10 +23,22 @@ export default function withAuth(Component, options = {}) {
       
       const verifyAuth = async () => {
         try {
+          console.log('Starting auth verification...');
           const { user, profile } = await getUserAndProfile();
           
           // Only proceed if component is still mounted
-          if (!mounted) return;
+          if (!mounted) {
+            console.log('Component unmounted during auth check');
+            return;
+          }
+
+          console.log('Auth state:', { 
+            hasUser: !!user, 
+            hasProfile: !!profile,
+            profileStatus: profile?.status,
+            isActive: profile?.active,
+            role: profile?.role
+          });
 
           if (!user) {
             console.log('No user found, redirecting to login');
@@ -34,11 +46,23 @@ export default function withAuth(Component, options = {}) {
             return;
           }
 
-          if (!profile?.active || profile?.status !== 'approved') {
-            console.log('Auth redirect: No approved active user/profile');
-            if (profile?.status === 'pending') {
+          if (!profile) {
+            console.log('No profile found for user');
+            router.replace('/login');
+            return;
+          }
+
+          if (!profile.active || profile.status !== 'approved') {
+            console.log('Profile status check failed:', {
+              active: profile.active,
+              status: profile.status
+            });
+            
+            if (profile.status === 'pending') {
+              console.log('User pending approval');
               router.replace('/pending-approval');
             } else {
+              console.log('User not approved');
               router.replace('/login');
             }
             return;

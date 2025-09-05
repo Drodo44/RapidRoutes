@@ -7,7 +7,15 @@ export async function getUserAndProfile() {
     error: userError,
   } = await supabase.auth.getUser();
 
-  if (userError || !user) return { user: null, profile: null };
+  if (userError) {
+    console.error('Auth user error:', userError);
+    return { user: null, profile: null };
+  }
+
+  if (!user) {
+    console.log('No authenticated user found');
+    return { user: null, profile: null };
+  }
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
@@ -15,7 +23,22 @@ export async function getUserAndProfile() {
     .eq("id", user.id)
     .single();
 
-  if (profileError || !profile) return { user, profile: null };
+  if (profileError) {
+    console.error('Profile fetch error:', profileError);
+    return { user, profile: null };
+  }
+
+  if (!profile) {
+    console.log('No profile found for user:', user.id);
+    return { user, profile: null };
+  }
+
+  console.log('Profile status:', {
+    id: profile.id,
+    status: profile.status,
+    active: profile.active,
+    role: profile.role
+  });
 
   return { user, profile };
 }
