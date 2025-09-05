@@ -16,20 +16,35 @@ export default function withAuth(Component, options = {}) {
     const { user, profile, loading, isAuthenticated, isAdmin } = useAuth();
 
     useEffect(() => {
-      if (loading) return;
+      console.log('withAuth: Auth state check:', {
+        loading,
+        isAuthenticated,
+        hasUser: !!user,
+        hasProfile: !!profile,
+        profileStatus: profile?.status,
+        profileRole: profile?.role,
+        requiredRole: options.requiredRole
+      });
+
+      if (loading) {
+        console.log('withAuth: Still loading auth state...');
+        return;
+      }
 
       if (!isAuthenticated) {
-        console.log('User not authenticated, redirecting to login');
+        console.log('withAuth: User not authenticated, redirecting to login');
         router.replace('/login');
         return;
       }
 
       if (options.requiredRole === 'Admin' && !isAdmin) {
-        console.log('User not admin, redirecting to unauthorized');
+        console.log('withAuth: User not admin, redirecting to unauthorized');
         router.replace('/unauthorized');
         return;
       }
-    }, [loading, isAuthenticated, isAdmin, router]);
+
+      console.log('withAuth: Auth check passed, rendering component');
+    }, [loading, isAuthenticated, isAdmin, router, user, profile]);
 
     if (loading) {
       return (

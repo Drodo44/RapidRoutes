@@ -16,25 +16,47 @@ export function AuthProvider({ children }) {
     let mounted = true;
 
     // Get initial session
+    console.log('AuthContext: Initializing...');
+    
     supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
       if (!mounted) return;
+      
+      console.log('AuthContext: Initial session check:', {
+        hasSession: !!initialSession,
+        userId: initialSession?.user?.id
+      });
+      
       setSession(initialSession);
       setUser(initialSession?.user ?? null);
       
       if (initialSession?.user) {
         // Get initial profile
+        console.log('AuthContext: Fetching initial profile...');
+        
         supabase
           .from('profiles')
           .select('*')
           .eq('id', initialSession.user.id)
           .single()
-          .then(({ data: profile }) => {
-            if (mounted) {
+          .then(({ data: profile, error }) => {
+            if (!mounted) return;
+            
+            if (error) {
+              console.error('AuthContext: Profile fetch error:', error);
+              setProfile(null);
+            } else {
+              console.log('AuthContext: Profile loaded:', {
+                id: profile?.id,
+                status: profile?.status,
+                role: profile?.role
+              });
               setProfile(profile);
-              setLoading(false);
             }
+            
+            setLoading(false);
           });
       } else {
+        console.log('AuthContext: No initial session, setting not loading');
         setLoading(false);
       }
     });
