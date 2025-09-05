@@ -73,3 +73,4 @@ export default function App({ Component, pageProps }) {
       <AppContent Component={Component} pageProps={pageProps} />
     </AuthProvider>
   );
+}
