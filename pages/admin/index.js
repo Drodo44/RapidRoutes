@@ -61,32 +61,25 @@ function AdminDashboard({ userProfile }) {
 
   const adminTools = [
     {
-      title: '🏛️ City Database Manager',
-      description: 'Add missing cities with coordinates and KMA codes',
-      href: '/admin/city-manager',
+      title: '👥 User Management',
+      description: 'Manage user accounts and access control',
+      href: '/admin/users',
       color: 'blue',
       priority: 'high'
     },
     {
-      title: '⚙️ Equipment Management',
-      description: 'Manage DAT equipment codes and categories',
-      href: '/admin/equipment',
+      title: '🏛️ City Database',
+      description: 'Manage cities and geographic data',
+      href: '/admin/city-manager',
       color: 'green',
       priority: 'medium'
     },
     {
-      title: '🔍 System Debug',
-      description: 'System health checks and debugging tools',
-      href: '/admin/debug',
-      color: 'yellow',
-      priority: 'medium'
-    },
-    {
-      title: '📊 Repository Health',
-      description: 'Code quality and repository status monitoring',
-      href: '/admin/repo-health',
+      title: '⚙️ Equipment Types',
+      description: 'Manage DAT equipment codes and categories',
+      href: '/admin/equipment',
       color: 'purple',
-      priority: 'low'
+      priority: 'medium'
     }
   ];
 
@@ -109,6 +102,15 @@ function AdminDashboard({ userProfile }) {
             <h3 className="text-lg font-semibold text-green-400 mb-2">Active Lanes</h3>
             <div className="text-3xl font-bold">{stats.activeLanes}</div>
             <div className="text-sm text-gray-400">Currently being exported</div>
+          </div>
+          <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+            <h3 className="text-lg font-semibold text-blue-400 mb-2">Pending Users</h3>
+            <div className="text-3xl font-bold">{stats.pendingUsers || 0}</div>
+            <div className="text-sm text-gray-400">
+              <Link href="/admin/pending-users" className="text-blue-400 hover:text-blue-300">
+                Review applications →
+              </Link>
+            </div>
           </div>
           
           <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
@@ -161,27 +163,7 @@ function AdminDashboard({ userProfile }) {
           })}
         </div>
 
-        {/* Quick Actions */}
-        <div className="mt-12 bg-gray-800 rounded-lg p-6 border border-gray-700">
-          <h2 className="text-xl font-semibold mb-4">🚨 Emergency Actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <button
-              onClick={() => router.push('/admin/city-manager')}
-              className="px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-md text-left"
-            >
-              <div className="font-semibold">Fix Missing Cities</div>
-              <div className="text-sm text-red-200">When CSV exports fail due to missing destinations</div>
-            </button>
-            
-            <button
-              onClick={() => router.push('/admin/debug')}
-              className="px-4 py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-md text-left"
-            >
-              <div className="font-semibold">System Health Check</div>
-              <div className="text-sm text-orange-200">Diagnose production issues immediately</div>
-            </button>
-          </div>
-        </div>
+
       </div>
     </div>
   );

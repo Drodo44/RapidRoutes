@@ -36,6 +36,9 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-900">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
+          <div className="mb-4">
+            <img src="/logo.png" alt="RapidRoutes Logo" className="h-16 mx-auto" />
+          </div>
           <h1 className="text-2xl font-bold text-white mb-2">
             <span className="text-blue-400">Rapid</span>
             <span className="text-gray-100">Routes</span>

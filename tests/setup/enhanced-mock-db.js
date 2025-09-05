@@ -45,8 +45,17 @@ export function createMockDatabase() {
     return {
         from: (table) => ({
             select: (columns = '*') => {
-                const data = table === 'cities' ? MOCK_CITIES :
-                           table === 'lanes' ? MOCK_LANES : [];
+                let data;
+                if (table === 'cities') {
+                    data = MOCK_CITIES.map(city => ({
+                        ...city,
+                        state: city.state_or_province // Ensure state field exists
+                    }));
+                } else if (table === 'lanes') {
+                    data = MOCK_LANES;
+                } else {
+                    data = [];
+                }
                 return makeChainable(data);
             },
             insert: (rows) => Promise.resolve({
@@ -65,7 +74,10 @@ export function createMockDatabase() {
             }),
             match: (criteria) => {
                 const data = table === 'cities' ? 
-                    MOCK_CITIES.filter(c => Object.entries(criteria)
+                    MOCK_CITIES.map(city => ({
+                        ...city,
+                        state: city.state_or_province
+                    })).filter(c => Object.entries(criteria)
                         .every(([key, value]) => c[key] === value)) :
                     table === 'lanes' ? 
                     MOCK_LANES.filter(l => Object.entries(criteria)
@@ -75,6 +87,20 @@ export function createMockDatabase() {
                     error: null
                 });
             }
-        })
+        }),
+        rpc: (func, params) => {
+            if (func === 'get_nearby_cities') {
+                const { lat, lon, radius } = params;
+                return Promise.resolve({
+                    data: MOCK_CITIES.map(city => ({
+                        ...city,
+                        state: city.state_or_province,
+                        distance: Math.random() * radius
+                    })),
+                    error: null
+                });
+            }
+            return Promise.resolve({ data: [], error: null });
+        }
     };
 }

@@ -1,4 +1,4 @@
-const { generateUniquePairs } = require('./lib/definitiveIntelligent.fixed.js');
+import { generateUniquePairs } from './lib/definitiveIntelligent.fixed.js';
 
 async function runTests() {
   const testCases = [

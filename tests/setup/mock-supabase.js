@@ -9,9 +9,9 @@ const EQUIPMENT_TYPES = {
 
 // Initialize DB state
 const testDB = {
-  cities: [],
+  cities: [...TEST_CITIES],
   equipment_codes: Object.values(EQUIPMENT_TYPES),
-  lanes: []
+  lanes: [...TEST_LANES]
 };
 
 // Reset DB state

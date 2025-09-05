@@ -11,7 +11,11 @@
     "start": "next start -p 3000",
     "vercel-build": "next build",
     "test": "vitest run",
-    "test:freight": "node --experimental-vm-modules node_modules/vitest/vitest.mjs run ./tests/freight-intelligence.test.js"
+    "test:watch": "vitest watch",
+    "test:coverage": "vitest run --coverage",
+    "test:freight": "vitest run ./tests/freight-intelligence.test.js",
+    "test:core": "vitest run ./tests/core-verification.test.js",
+    "test:ci": "vitest run --reporter=json --coverage --outputFile=./coverage/coverage.json"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.56.1",
