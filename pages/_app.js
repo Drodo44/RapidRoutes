@@ -2,15 +2,16 @@
 import '../styles/globals.css';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { AuthProvider } from '../contexts/AuthContext';
+import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import NavBar from '../components/NavBar';
 import Head from 'next/head';
 
 const PUBLIC_ROUTES = new Set(['/login', '/signup', '/']);
 
-export default function App({ Component, pageProps }) {
+function AppContent({ Component, pageProps }) {
   const router = useRouter();
   const [routeLoading, setRouteLoading] = useState(false);
+  const { loading } = useAuth();
 
   // Handle route changes
   useEffect(() => {
@@ -29,7 +30,7 @@ export default function App({ Component, pageProps }) {
   }, [router]);
 
   return (
-    <AuthProvider>
+    <>
       <Head>
         <title>RapidRoutes | Freight Brokerage Automation</title>
         <meta name="description" content="Production-grade freight brokerage automation platform for TQL brokers" />
@@ -37,18 +38,24 @@ export default function App({ Component, pageProps }) {
       </Head>
       
       <div className="min-h-screen bg-gray-900 text-gray-200 flex flex-col">
-        <NavBar />
+        {!loading && <NavBar />}
         
         {/* Loading indicator */}
-        {routeLoading && (
+        {(loading || routeLoading) && (
           <div className="fixed top-0 left-0 right-0 h-1 z-50">
             <div className="h-full bg-blue-600 animate-pulse"></div>
           </div>
         )}
         
-        <main className="flex-grow pt-20 pb-12">
-          <Component {...pageProps} />
-        </main>
+        {loading ? (
+          <div className="flex-grow flex items-center justify-center">
+            <div className="text-gray-400 text-lg">Loading RapidRoutes...</div>
+          </div>
+        ) : (
+          <main className="flex-grow pt-20 pb-12">
+            <Component {...pageProps} />
+          </main>
+        )}
         
         <footer className="border-t border-gray-800 py-4 bg-gray-900">
           <div className="container mx-auto px-4 text-center text-xs text-gray-500">
@@ -56,6 +63,13 @@ export default function App({ Component, pageProps }) {
           </div>
         </footer>
       </div>
-    </AuthProvider>
+    </>
   );
 }
+
+export default function App({ Component, pageProps }) {
+  return (
+    <AuthProvider>
+      <AppContent Component={Component} pageProps={pageProps} />
+    </AuthProvider>
+  );

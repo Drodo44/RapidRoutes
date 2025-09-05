@@ -121,7 +121,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider value={value}>
-      {children}
+      {typeof children === 'function' ? children(value) : children}
     </AuthContext.Provider>
   );
 }
