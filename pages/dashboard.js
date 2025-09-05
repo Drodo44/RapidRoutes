@@ -127,7 +127,10 @@ function formatDate(dateString) {
   }
 }
 
-export default function Dashboard() {
+// Wrap with auth HOC - required for all pages
+import withAuth from '../middleware/withAuth';
+
+function Dashboard() {
   const [tab, setTab] = useState('van');
   const maps = useLatestMaps();
   const rec = maps[tab];
@@ -403,3 +406,6 @@ export default function Dashboard() {
     </>
   );
 }
+
+// Export with auth protection
+export default withAuth(Dashboard);
