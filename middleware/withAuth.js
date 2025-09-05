@@ -1,7 +1,8 @@
 // middleware/withAuth.js
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { getUserAndProfile } from '../utils/getUserProfile';
+import { supabase } from '../utils/supabaseClient';
+import { getUserAndProfile } from '../utils/getUserProfile.new';
 
 /**
  * HOC to wrap pages requiring authentication
@@ -13,103 +14,118 @@ import { getUserAndProfile } from '../utils/getUserProfile';
 export default function withAuth(Component, options = {}) {
   return function ProtectedPage(props) {
     const router = useRouter();
-    const [userProfile, setUserProfile] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+    const [authorized, setAuthorized] = useState(false);
+    const [userProfile, setUserProfile] = useState(null);
+    const [retryCount, setRetryCount] = useState(0);
 
     useEffect(() => {
       let mounted = true;
 
-      async function verifyAuth() {
+      const verifyAuth = async () => {
         try {
-          const { user, profile } = await getUserAndProfile();
-
           if (!mounted) return;
+          
+          console.log('Starting auth verification...');
+          const session = await supabase.auth.getSession();
+          
+          if (!session?.data?.session) {
+            console.log('No active session, redirecting to login');
+            router.replace('/login');
+            return;
+          }
+          
+          const { user, profile } = await getUserAndProfile();
+          
+          // Only proceed if component is still mounted
+          if (!mounted) {
+            console.log('Component unmounted during auth check');
+            return;
+          }
 
-          // Check user status and activity
-          if (!user || !profile?.active || profile?.status !== 'approved') {
-            console.log('Auth redirect: No approved active user/profile');
+          console.log('Auth state:', { 
+            hasUser: !!user, 
+            hasProfile: !!profile,
+            profileStatus: profile?.status,
+            isActive: profile?.active,
+            role: profile?.role
+          });
+
+          if (!user || !profile) {
+            console.log('No user/profile found, redirecting to login');
+            router.replace('/login');
+            return;
+          }
+
+          if (!profile.active || profile.status !== 'approved') {
+            console.log('Profile status check failed:', {
+              active: profile.active,
+              status: profile.status
+            });
             
-            // If pending approval, show waiting screen
-            if (profile?.status === 'pending') {
-              await router.replace('/pending-approval');
-              return;
+            if (profile.status === 'pending') {
+              console.log('User pending approval');
+              router.replace('/pending-approval');
+            } else {
+              console.log('User not approved');
+              router.replace('/login');
             }
-            
-            // Otherwise redirect to login
-            await router.replace('/login');
             return;
           }
 
-          // Role check if required
+          // Strict role checking
           if (options.requiredRole && profile.role !== options.requiredRole) {
-            console.log(`Auth redirect: Role mismatch - Required: ${options.requiredRole}, Has: ${profile.role}`);
-            await router.replace('/unauthorized');
+            console.log(`Role ${profile.role} does not match required ${options.requiredRole}`);
+            router.replace('/unauthorized');
             return;
           }
 
-          // Success - set profile and continue
+          // If we get here, user is authorized
           setUserProfile({ user, profile });
-          setLoading(false);
+          setAuthorized(true);
 
-        } catch (err) {
-          console.error('Auth error:', err);
-          setError(err.message);
-          setLoading(false);
+        } catch (error) {
+          console.error('Auth verification error:', error);
+          
+          // Retry up to 3 times if we get an error
+          if (retryCount < 3) {
+            setRetryCount(prev => prev + 1);
+            setTimeout(verifyAuth, 1000); // Wait 1 second before retry
+            return;
+          }
+          
+          router.replace('/login');
+        } finally {
+          if (mounted) {
+            setLoading(false);
+          }
         }
-      }
+      };
 
       verifyAuth();
 
-      // Watch for path changes
-      const lastPath = router.asPath;
-      if (mounted && lastPath !== '/login' && lastPath !== '/unauthorized') {
-        verifyAuth();
-      }
-
-      // Cleanup
       return () => {
         mounted = false;
       };
-    }, [router.asPath]);
+    }, [router, retryCount]);
 
-    // Loading state
     if (loading) {
       return (
         <div className="min-h-screen bg-gray-900 text-gray-100 flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
             <p className="text-lg">Verifying access...</p>
+            {retryCount > 0 && (
+              <p className="text-sm text-gray-400 mt-2">
+                Retrying... ({retryCount}/3)
+              </p>
+            )}
           </div>
         </div>
       );
     }
 
-    // Error state
-    if (error) {
-      return (
-        <div className="min-h-screen bg-gray-900 text-gray-100 flex items-center justify-center">
-          <div className="text-center">
-            <div className="text-red-500 mb-4">⚠️</div>
-            <p className="text-lg text-red-400">Authentication Error</p>
-            <p className="text-sm text-gray-400 mt-2">{error}</p>
-            <button 
-              onClick={() => router.replace('/login')}
-              className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded"
-            >
-              Return to Login
-            </button>
-          </div>
-        </div>
-      );
-    }
-
-    // No profile = not authorized
-    if (!userProfile) {
-      return null;
-    }
-
-    // All good - render the protected component
-    return <Component {...props} userProfile={userProfile} />;
+    // Pass user profile data to the protected component
+    return authorized ? <Component {...props} userProfile={userProfile} /> : null;
   };
 }
