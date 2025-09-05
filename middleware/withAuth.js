@@ -1,8 +1,7 @@
 // middleware/withAuth.js
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { supabase } from '../utils/supabaseClient';
-import { getUserAndProfile } from '../utils/getUserProfile.new';
+import { useAuth } from '../contexts/AuthContext';
 
 /**
  * HOC to wrap pages requiring authentication
@@ -14,100 +13,23 @@ import { getUserAndProfile } from '../utils/getUserProfile.new';
 export default function withAuth(Component, options = {}) {
   return function ProtectedPage(props) {
     const router = useRouter();
-    const [loading, setLoading] = useState(true);
-    const [authorized, setAuthorized] = useState(false);
-    const [userProfile, setUserProfile] = useState(null);
-    const [retryCount, setRetryCount] = useState(0);
+    const { user, profile, loading, isAuthenticated, isAdmin } = useAuth();
 
     useEffect(() => {
-      let mounted = true;
+      if (loading) return;
 
-      const verifyAuth = async () => {
-        try {
-          if (!mounted) return;
-          
-          console.log('Starting auth verification...');
-          const session = await supabase.auth.getSession();
-          
-          if (!session?.data?.session) {
-            console.log('No active session, redirecting to login');
-            router.replace('/login');
-            return;
-          }
-          
-          const { user, profile } = await getUserAndProfile();
-          
-          // Only proceed if component is still mounted
-          if (!mounted) {
-            console.log('Component unmounted during auth check');
-            return;
-          }
+      if (!isAuthenticated) {
+        console.log('User not authenticated, redirecting to login');
+        router.replace('/login');
+        return;
+      }
 
-          console.log('Auth state:', { 
-            hasUser: !!user, 
-            hasProfile: !!profile,
-            profileStatus: profile?.status,
-            isActive: profile?.active,
-            role: profile?.role
-          });
-
-          if (!user || !profile) {
-            console.log('No user/profile found, redirecting to login');
-            router.replace('/login');
-            return;
-          }
-
-          // Only check status, not active field since it's undefined
-          if (profile.status !== 'approved') {
-            console.log('Profile status check failed:', {
-              status: profile.status
-            });
-            
-            if (profile.status === 'pending') {
-              console.log('User pending approval');
-              router.replace('/pending-approval');
-            } else {
-              console.log('User not approved');
-              router.replace('/login');
-            }
-            return;
-          }
-
-          // Strict role checking
-          if (options.requiredRole && profile.role !== options.requiredRole) {
-            console.log(`Role ${profile.role} does not match required ${options.requiredRole}`);
-            router.replace('/unauthorized');
-            return;
-          }
-
-          // If we get here, user is authorized
-          setUserProfile({ user, profile });
-          setAuthorized(true);
-
-        } catch (error) {
-          console.error('Auth verification error:', error);
-          
-          // Retry up to 3 times if we get an error
-          if (retryCount < 3) {
-            setRetryCount(prev => prev + 1);
-            setTimeout(verifyAuth, 1000); // Wait 1 second before retry
-            return;
-          }
-          
-          router.replace('/login');
-        } finally {
-          if (mounted) {
-            setLoading(false);
-          }
-        }
-      };
-
-      verifyAuth();
-
-      return () => {
-        mounted = false;
-      };
-    }, [router, retryCount]);
+      if (options.requiredRole === 'Admin' && !isAdmin) {
+        console.log('User not admin, redirecting to unauthorized');
+        router.replace('/unauthorized');
+        return;
+      }
+    }, [loading, isAuthenticated, isAdmin, router]);
 
     if (loading) {
       return (
@@ -115,17 +37,16 @@ export default function withAuth(Component, options = {}) {
           <div className="text-center">
             <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
             <p className="text-lg">Verifying access...</p>
-            {retryCount > 0 && (
-              <p className="text-sm text-gray-400 mt-2">
-                Retrying... ({retryCount}/3)
-              </p>
-            )}
           </div>
         </div>
       );
     }
 
-    // Pass user profile data to the protected component
-    return authorized ? <Component {...props} userProfile={userProfile} /> : null;
+    // Only render if authenticated and role matches
+    const authorized = isAuthenticated && (!options.requiredRole || (options.requiredRole === 'Admin' && isAdmin));
+    
+    return authorized ? (
+      <Component {...props} userProfile={{ user, profile }} />
+    ) : null;
   };
 }
