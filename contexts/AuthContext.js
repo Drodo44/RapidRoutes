@@ -48,21 +48,37 @@ export function AuthProvider({ children }) {
       setSession(newSession);
       setUser(newSession?.user ?? null);
       
-      // Clear profile on signOut
-      if (event === 'SIGNED_OUT') {
-        setProfile(null);
-        return;
-      }
-      
-      // Update profile on auth changes
-      if (newSession?.user) {
-        const { data: newProfile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', newSession.user.id)
-          .single();
+      try {
+        // Clear profile on signOut
+        if (event === 'SIGNED_OUT') {
+          setProfile(null);
+          setLoading(false);
+          return;
+        }
+        
+        // Update profile on auth changes
+        if (newSession?.user) {
+          const { data: newProfile, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', newSession.user.id)
+            .single();
           
-        setProfile(newProfile);
+          if (error) {
+            console.error('Error fetching profile:', error);
+            setProfile(null);
+          } else {
+            console.log('Profile loaded:', newProfile?.status, newProfile?.role);
+            setProfile(newProfile);
+          }
+        }
+      } catch (error) {
+        console.error('Auth state change error:', error);
+        setProfile(null);
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
       }
     });
 
