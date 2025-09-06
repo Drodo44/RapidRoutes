@@ -8,7 +8,7 @@ export async function authenticateUser(context, requiredRole = null) {
   try {
     const { user, profile } = await getUserAndProfile();
 
-    if (!user || !profile?.active) {
+    if (!user || profile?.status !== 'approved') {
       return {
         redirect: {
           destination: '/login',
@@ -51,7 +51,7 @@ export async function validateApiAuth(req, res, requiredRole = null) {
   try {
     const { user, profile } = await getUserAndProfile();
 
-    if (!user || !profile?.active) {
+    if (!user || profile?.status !== 'approved') {
       return res.status(401).json({ error: 'Authentication required' });
     }
 

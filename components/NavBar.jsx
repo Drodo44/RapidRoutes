@@ -4,20 +4,37 @@ import { useRouter } from 'next/router';
 import { supabase } from '../utils/supabaseClient';
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import RoleDisplay from './RoleDisplay';
 
 const links = [
   { href: '/dashboard', label: 'Dashboard', icon: '📊' },
-  { href: '/lanes', label: 'Lanes', icon: '🛣️' },
-  { href: '/recap', label: 'Recap', icon: '📋' },
+  { href: '/lanes', label: 'Lanes', icon: '🛣️', minRole: 'Apprentice' },
+  { href: '/recap', label: 'Recap', icon: '📋', minRole: 'Apprentice' },
+  { href: '/admin', label: 'Admin', icon: '⚙️', minRole: 'Admin' },
   { href: '/profile', label: 'Profile', icon: '👤' },
-  { href: '/admin', label: 'Admin', icon: '⚙️', adminOnly: true },
 ];
 
 export default function NavBar() {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { user, isAdmin } = useAuth();
+  const { user, profile, hasAdminAccess, hasBrokerAccess, hasSupportAccess } = useAuth();
+
+  // Check if user has access to a link based on role hierarchy
+  const hasAccess = (link) => {
+    if (!link.minRole) return true; // No role requirement
+    
+    switch (link.minRole) {
+      case 'Admin':
+        return hasAdminAccess;
+      case 'Broker':
+        return hasBrokerAccess;
+      case 'Support':
+        return hasSupportAccess;
+      default:
+        return true; // Apprentice and above
+    }
+  };
 
   async function logout() {
     try {
@@ -39,7 +56,7 @@ export default function NavBar() {
           
           {/* Desktop navigation */}
           <ul className="hidden md:flex items-center gap-6">
-            {links.filter(l => !l.adminOnly || isAdmin).map((l) => {
+            {links.filter(hasAccess).map((l) => {
               const active = router.pathname === l.href || 
                             (l.href !== '/dashboard' && router.pathname.startsWith(l.href));
               return (
@@ -61,9 +78,12 @@ export default function NavBar() {
         </div>
         
         <div className="flex items-center gap-3">
-          {user && (
-            <div className="hidden md:block text-sm text-gray-400">
-              <span>{user.email?.split('@')[0]}</span>
+          {user && profile && (
+            <div className="hidden md:flex items-center gap-3">
+              <div className="text-sm text-gray-400">
+                <span>{user.email?.split('@')[0]}</span>
+              </div>
+              <RoleDisplay role={profile.role} className="text-xs" />
             </div>
           )}
           

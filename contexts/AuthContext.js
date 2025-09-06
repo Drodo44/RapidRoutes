@@ -33,7 +33,7 @@ export function AuthProvider({ children }) {
         
         if (initialSession?.user) {
           // Get initial profile
-          console.log('AuthContext: Fetching initial profile...');
+          console.log('AuthContext: Fetching initial profile for user:', initialSession.user.id);
           
           const { data: profile, error } = await supabase
             .from('profiles')
@@ -44,16 +44,19 @@ export function AuthProvider({ children }) {
           if (!mounted) return;
           
           if (error) {
-            console.error('AuthContext: Profile fetch error:', error);
+            console.error('AuthContext: Profile fetch error:', error.message, error.code);
             setProfile(null);
           } else {
             console.log('AuthContext: Profile loaded:', {
               id: profile?.id,
               status: profile?.status,
-              role: profile?.role
+              role: profile?.role,
+              email: profile?.email
             });
             setProfile(profile);
           }
+        } else {
+          console.log('AuthContext: No initial session');
         }
       } catch (error) {
         console.error('AuthContext: Initialization error:', error);
@@ -64,11 +67,12 @@ export function AuthProvider({ children }) {
         }
       } finally {
         if (mounted) {
+          console.log('AuthContext: Setting loading to false');
           setLoading(false);
         }
       }
     }
-    
+
     initializeAuth();
 
     // Listen for auth changes
@@ -80,38 +84,55 @@ export function AuthProvider({ children }) {
       setSession(newSession);
       setUser(newSession?.user ?? null);
       
-      try {
-        // Clear profile on signOut
-        if (event === 'SIGNED_OUT') {
-          setProfile(null);
-          setLoading(false);
-          return;
-        }
+      // Clear profile on signOut
+      if (event === 'SIGNED_OUT') {
+        console.log('AuthContext: User signed out');
+        setProfile(null);
+        setLoading(false);
+        return;
+      }
+      
+      // Update profile on auth changes
+      if (newSession?.user) {
+        console.log('AuthContext: Fetching profile for auth state change, user ID:', newSession.user.id);
         
-        // Update profile on auth changes
-        if (newSession?.user) {
+        try {
           const { data: newProfile, error } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', newSession.user.id)
             .single();
           
+          console.log('AuthContext: Profile query result:', { 
+            hasData: !!newProfile, 
+            hasError: !!error,
+            errorMessage: error?.message,
+            errorCode: error?.code
+          });
+          
           if (error) {
-            console.error('Error fetching profile:', error);
+            console.error('AuthContext: Auth change profile error:', error.message, error.code);
             setProfile(null);
           } else {
-            console.log('Profile loaded:', newProfile?.status, newProfile?.role);
+            console.log('AuthContext: Profile loaded from auth change:', {
+              id: newProfile?.id,
+              status: newProfile?.status, 
+              role: newProfile?.role,
+              email: newProfile?.email
+            });
             setProfile(newProfile);
           }
+        } catch (fetchError) {
+          console.error('AuthContext: Profile fetch exception:', fetchError);
+          setProfile(null);
         }
-      } catch (error) {
-        console.error('Auth state change error:', error);
+      } else {
+        console.log('AuthContext: No user in auth change session');
         setProfile(null);
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
       }
+      
+      console.log('AuthContext: Auth change complete, setting loading to false');
+      setLoading(false);
     });
 
     return () => {
@@ -127,6 +148,14 @@ export function AuthProvider({ children }) {
     loading,
     isAuthenticated: !!session && !!profile && profile.status === 'approved',
     isAdmin: profile?.role === 'Admin',
+    isBroker: profile?.role === 'Broker',
+    isSupport: profile?.role === 'Support',
+    isApprentice: profile?.role === 'Apprentice',
+    // Helper functions for permission checks
+    hasAdminAccess: profile?.role === 'Admin',
+    hasBrokerAccess: ['Admin', 'Broker'].includes(profile?.role),
+    hasSupportAccess: ['Admin', 'Broker', 'Support'].includes(profile?.role),
+    hasAnyAccess: ['Admin', 'Broker', 'Support', 'Apprentice'].includes(profile?.role),
   };
 
   return (

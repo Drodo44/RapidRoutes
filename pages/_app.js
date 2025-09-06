@@ -14,8 +14,22 @@ function AppContent({ Component, pageProps }) {
   const { loading, isAuthenticated, session } = useAuth();
   
   useEffect(() => {
-    console.log('AppContent loading state:', { loading, isAuthenticated, hasSession: !!session });
+    console.log('AppContent loading state:', { 
+      loading, 
+      isAuthenticated, 
+      hasSession: !!session 
+    });
   }, [loading, isAuthenticated, session]);
+
+  // Global auth redirect for protected routes
+  useEffect(() => {
+    if (!loading && !PUBLIC_ROUTES.has(router.pathname)) {
+      if (!isAuthenticated) {
+        console.log('Redirecting to login - not authenticated');
+        router.replace('/login');
+      }
+    }
+  }, [loading, isAuthenticated, router]);
 
   // Handle route changes
   useEffect(() => {
