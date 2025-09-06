@@ -32,28 +32,32 @@ export function AuthProvider({ children }) {
         setUser(initialSession?.user ?? null);
         
         if (initialSession?.user) {
-          // Get initial profile
+          // Get initial profile via API route
           console.log('AuthContext: Fetching initial profile for user:', initialSession.user.id);
           
-          const { data: profile, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', initialSession.user.id)
-            .single();
-          
-          if (!mounted) return;
-          
-          if (error) {
-            console.error('AuthContext: Profile fetch error:', error.message, error.code);
-            setProfile(null);
-          } else {
-            console.log('AuthContext: Profile loaded:', {
-              id: profile?.id,
-              status: profile?.status,
-              role: profile?.role,
-              email: profile?.email
+          try {
+            const response = await fetch('/api/auth/profile', {
+              headers: {
+                'Authorization': `Bearer ${initialSession.access_token}`
+              }
             });
-            setProfile(profile);
+            
+            if (response.ok) {
+              const { profile } = await response.json();
+              console.log('AuthContext: Initial profile loaded:', {
+                id: profile?.id,
+                status: profile?.status,
+                role: profile?.role,
+                email: profile?.email
+              });
+              setProfile(profile);
+            } else {
+              console.error('AuthContext: Profile API failed:', response.status);
+              setProfile(null);
+            }
+          } catch (fetchError) {
+            console.error('AuthContext: Profile fetch failed:', fetchError.message);
+            setProfile(null);
           }
         } else {
           console.log('AuthContext: No initial session');
@@ -97,30 +101,14 @@ export function AuthProvider({ children }) {
         console.log('AuthContext: Fetching profile for auth state change, user ID:', newSession.user.id);
         
         try {
-          // Add timeout to prevent hanging
-          const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
-          );
-          
-          const queryPromise = supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', newSession.user.id)
-            .single();
-          
-          const { data: newProfile, error } = await Promise.race([queryPromise, timeoutPromise]);
-          
-          console.log('AuthContext: Profile query result:', { 
-            hasData: !!newProfile, 
-            hasError: !!error,
-            errorMessage: error?.message,
-            errorCode: error?.code
+          const response = await fetch('/api/auth/profile', {
+            headers: {
+              'Authorization': `Bearer ${newSession.access_token}`
+            }
           });
           
-          if (error) {
-            console.error('AuthContext: Auth change profile error:', error.message, error.code);
-            setProfile(null);
-          } else {
+          if (response.ok) {
+            const { profile: newProfile } = await response.json();
             console.log('AuthContext: Profile loaded from auth change:', {
               id: newProfile?.id,
               status: newProfile?.status, 
@@ -128,12 +116,12 @@ export function AuthProvider({ children }) {
               email: newProfile?.email
             });
             setProfile(newProfile);
+          } else {
+            console.error('AuthContext: Profile API failed in auth change:', response.status);
+            setProfile(null);
           }
         } catch (fetchError) {
           console.error('AuthContext: Profile fetch exception:', fetchError.message);
-          if (fetchError.message === 'Profile fetch timeout') {
-            console.error('AuthContext: Database query timed out - possible RLS policy issue');
-          }
           setProfile(null);
         }
       } else {
