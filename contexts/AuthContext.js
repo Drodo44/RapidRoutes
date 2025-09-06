@@ -97,11 +97,18 @@ export function AuthProvider({ children }) {
         console.log('AuthContext: Fetching profile for auth state change, user ID:', newSession.user.id);
         
         try {
-          const { data: newProfile, error } = await supabase
+          // Add timeout to prevent hanging
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
+          );
+          
+          const queryPromise = supabase
             .from('profiles')
             .select('*')
             .eq('id', newSession.user.id)
             .single();
+          
+          const { data: newProfile, error } = await Promise.race([queryPromise, timeoutPromise]);
           
           console.log('AuthContext: Profile query result:', { 
             hasData: !!newProfile, 
@@ -123,7 +130,10 @@ export function AuthProvider({ children }) {
             setProfile(newProfile);
           }
         } catch (fetchError) {
-          console.error('AuthContext: Profile fetch exception:', fetchError);
+          console.error('AuthContext: Profile fetch exception:', fetchError.message);
+          if (fetchError.message === 'Profile fetch timeout') {
+            console.error('AuthContext: Database query timed out - possible RLS policy issue');
+          }
           setProfile(null);
         }
       } else {
