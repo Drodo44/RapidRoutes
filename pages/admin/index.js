@@ -7,7 +7,7 @@ import Link from 'next/link';
 
 function AdminDashboard() {
   const router = useRouter();
-  const { loading: authLoading, isAuthenticated, profile } = useAuth();
+  const { loading: authLoading, isAuthenticated, profile, isAdmin } = useAuth();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({});
 

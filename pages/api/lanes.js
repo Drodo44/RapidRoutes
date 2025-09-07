@@ -59,10 +59,21 @@ export default async function handler(req, res) {
         }
       }
 
+      // Generate unique reference ID
+      function generateReferenceId() {
+        const now = new Date();
+        const year = now.getFullYear().toString().slice(-2);
+        const month = (now.getMonth() + 1).toString().padStart(2, '0');
+        const day = now.getDate().toString().padStart(2, '0');
+        const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+        return `RR${year}${month}${day}${random}`;
+      }
+
       // Handle defaults
       const lane = {
         ...payload,
         status: payload.status || 'pending',
+        reference_id: payload.reference_id || generateReferenceId(),
         created_at: new Date().toISOString(),
         created_by: auth.user.id,
       };
