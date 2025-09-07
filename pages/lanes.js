@@ -414,114 +414,6 @@ function LanesPage() {
     }
   }
 
-  // Generate unique reference ID for a lane
-  async function generateRefId(lane) {
-    try {
-      const newRefId = generateReferenceId(lane.id);
-      
-      // Check if this reference ID already exists
-      const { data: existingLanes } = await supabase
-        .from('lanes')
-        .select('id')
-        .eq('reference_id', newRefId)
-        .neq('id', lane.id);
-      
-      let finalRefId = newRefId;
-      let counter = 1;
-      
-      // If it exists, generate a unique one
-      while (existingLanes && existingLanes.length > 0) {
-        const baseNum = parseInt(newRefId.slice(2), 10);
-        const newNum = String((baseNum + counter) % 100000).padStart(5, '0');
-        finalRefId = `RR${newNum}`;
-        
-        const { data: checkAgain } = await supabase
-          .from('lanes')
-          .select('id')
-          .eq('reference_id', finalRefId)
-          .neq('id', lane.id);
-        
-        if (!checkAgain || checkAgain.length === 0) break;
-        counter++;
-        
-        if (counter > 1000) {
-          finalRefId = `RR${String(Math.floor(Math.random() * 100000)).padStart(5, '0')}`;
-          break;
-        }
-      }
-      
-      // Update the lane with the new reference ID
-      const response = await fetch('/api/lanes', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: lane.id, reference_id: finalRefId }),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update reference ID');
-      }
-      
-      // Refresh the lists to show the new reference ID
-      await loadLists();
-      
-      setMsg(`✅ Generated reference ID: ${finalRefId}`);
-      setTimeout(() => setMsg(''), 3000);
-      
-    } catch (error) {
-      alert(`Failed to generate reference ID: ${error.message}`);
-    }
-  }
-
-  // Bulk generate reference IDs for all lanes without them
-  async function bulkGenerateRefIds() {
-    try {
-      const currentLanes = tab === 'pending' ? pending : tab === 'posted' ? posted : recent;
-      const lanesWithoutRefIds = currentLanes.filter(l => !l.reference_id);
-      
-      if (lanesWithoutRefIds.length === 0) {
-        alert('All lanes already have reference IDs');
-        return;
-      }
-      
-      if (!confirm(`Generate reference IDs for ${lanesWithoutRefIds.length} lanes?`)) {
-        return;
-      }
-      
-      setBusy(true);
-      setMsg('Generating reference IDs...');
-      
-      for (let i = 0; i < lanesWithoutRefIds.length; i++) {
-        const lane = lanesWithoutRefIds[i];
-        setMsg(`Generating reference ID ${i + 1} of ${lanesWithoutRefIds.length}...`);
-        
-        const newRefId = generateReferenceId(lane.id);
-        
-        // Update the lane with the new reference ID
-        const response = await fetch('/api/lanes', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: lane.id, reference_id: newRefId }),
-        });
-        
-        if (!response.ok) {
-          console.error(`Failed to update lane ${lane.id} with reference ID`);
-        }
-      }
-      
-      // Refresh the lists to show the new reference IDs
-      await loadLists();
-      
-      setMsg(`✅ Generated ${lanesWithoutRefIds.length} reference IDs`);
-      setTimeout(() => setMsg(''), 3000);
-      
-    } catch (error) {
-      alert(`Failed to bulk generate reference IDs: ${error.message}`);
-    } finally {
-      setBusy(false);
-    }
-  }
-
   // INTELLIGENT FREIGHT REPOSTING - Create new lane based on successful one
   async function postAgain(lane){
     try {
@@ -774,25 +666,16 @@ function LanesPage() {
           </div>
         }
       >
-        {/* Bulk Actions */}
+        {/* Enterprise Automation Notice */}
         <div className="mb-4 p-3 bg-gray-800 rounded-lg border border-gray-700">
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-300">
-              <span className="font-medium">Reference ID Management:</span> Generate unique RR# identifiers for CSV exports
+              <span className="font-medium">🚀 Enterprise Automation:</span> RR# reference IDs are automatically generated during CSV export
             </div>
-            <button 
-              onClick={bulkGenerateRefIds}
-              disabled={busy}
-              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white text-sm rounded-lg font-mono"
-            >
-              {busy ? 'Generating...' : '🎯 Generate All RR#'}
-            </button>
+            <div className="text-xs text-green-300 font-mono">
+              ✅ No manual steps required
+            </div>
           </div>
-          {(tab === 'pending' ? pending : tab === 'posted' ? posted : recent).filter(l => !l.reference_id).length > 0 && (
-            <div className="mt-2 text-xs text-yellow-300">
-              {(tab === 'pending' ? pending : tab === 'posted' ? posted : recent).filter(l => !l.reference_id).length} lanes need reference IDs
-            </div>
-          )}
         </div>
         <div className="divide-y divide-gray-800">
           {(tab === 'pending' ? pending : tab === 'posted' ? posted : recent).map(l => (
@@ -822,13 +705,6 @@ function LanesPage() {
                 {l.status==='posted' && <button onClick={()=>updateStatus(l,'pending')} className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-sm rounded-lg">Unpost</button>}
                 {l.status!=='covered' && <button onClick={()=>updateStatus(l,'covered')} className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-sm rounded-lg">Mark Covered</button>}
                 {l.status==='covered' && <button onClick={()=>postAgain(l)} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm rounded-lg">🚀 Post Again</button>}
-                
-                {/* Reference ID Generation */}
-                {!l.reference_id && (
-                  <button onClick={()=>generateRefId(l)} className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-sm rounded-lg font-mono">
-                    🎯 Generate RR#
-                  </button>
-                )}
                 
                 {/* Actions Dropdown */}
                 <div className="relative">
