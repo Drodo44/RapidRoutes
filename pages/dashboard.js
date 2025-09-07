@@ -5,7 +5,6 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Head from 'next/head';
 import DatMarketMaps from '../components/DatMarketMaps';
-import { fetchLaneStats } from '../utils/apiClient';
 
 function Section({ title, right, children, className = '' }) {
   return (
