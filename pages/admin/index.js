@@ -4,9 +4,6 @@ import { supabase } from '../../utils/supabaseClient';
 import { useRouter } from 'next/router';
 import { useAuth } from '../../contexts/AuthContext';
 import Link from 'next/link';
-import { useRouter } from 'next/router';
-import { useAuth } from '../../contexts/AuthContext';
-import Link from 'next/link';
 
 function AdminDashboard() {
   const router = useRouter();
