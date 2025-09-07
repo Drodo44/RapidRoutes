@@ -18,9 +18,9 @@
     "test:ci": "vitest run --reporter=json --coverage --outputFile=./coverage/coverage.json"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.56.1",
+    "@supabase/supabase-js": "^2.57.2",
     "axios": "^1.11.0",
-    "dotenv": "^17.2.1",
+    "dotenv": "^17.2.2",
     "formidable": "^3.5.4",
     "next": "14.2.3",
     "papaparse": "^5.4.1",

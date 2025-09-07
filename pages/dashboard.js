@@ -1,6 +1,8 @@
 // pages/dashboard.js
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../utils/supabaseClient';
+import { useAuth } from '../contexts/AuthContext';
+import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Head from 'next/head';
 import DatMarketMaps from '../components/DatMarketMaps';
@@ -128,9 +130,40 @@ function formatDate(dateString) {
 }
 
 // Wrap with auth HOC - required for all pages
-import withAuth from '../middleware/withAuth';
-
 function Dashboard() {
+  const router = useRouter();
+  const { loading, isAuthenticated, user, profile } = useAuth();
+  
+  // Redirect if not authenticated
+  useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      router.replace('/login');
+    }
+  }, [loading, isAuthenticated, router]);
+  
+  // Show loading if auth is still loading
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-lg">Loading Dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // Show loading if not authenticated (during redirect)
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-lg">Redirecting to login...</p>
+        </div>
+      </div>
+    );
+  }
   const [tab, setTab] = useState('van');
   const maps = useLatestMaps();
   const rec = maps[tab];
@@ -408,4 +441,4 @@ function Dashboard() {
 }
 
 // Export with auth protection
-export default withAuth(Dashboard);
+export default Dashboard;

@@ -9,6 +9,7 @@ import { adminSupabase } from '../../utils/supabaseClient.js';
 import { DAT_HEADERS } from '../../lib/datHeaders.js';
 import { generateDatCsvRows, toCsv, chunkRows } from '../../lib/datCsvBuilder.js';
 import { monitor } from '../../lib/monitor.js';
+import { validateApiAuth } from '../../middleware/auth.unified.js';
 
 // Helper to get pending row count for pagination
 async function getPendingRowCount() {
@@ -59,6 +60,13 @@ export default async function handler(req, res) {
     method,
     query: req.query
   });
+
+  // Validate user has necessary permissions
+  const auth = await validateApiAuth(req, res, { requiredRole: 'Admin' });
+  if (!auth) return;
+
+  // Log authenticated user
+  monitor.log('info', `Authorized user: ${auth.user.email} (${auth.profile.role})`);
 
   try {
     monitor.log('info', `${method} /api/exportDatCsv`);
@@ -145,13 +153,18 @@ export default async function handler(req, res) {
 
     // Update lane statuses to 'posted' after successful CSV generation
     try {
+      // Only users with Admin role can update lane status
       const laneIds = lanes.map(lane => lane.id);
       if (laneIds.length > 0) {
-        await adminSupabase
-          .from('lanes')
-          .update({ status: 'posted', posted_at: new Date().toISOString() })
-          .in('id', laneIds);
-        monitor.log('info', `Updated ${laneIds.length} lanes to 'posted' status`);
+        if (auth.profile.role === 'Admin') {
+          await adminSupabase
+            .from('lanes')
+            .update({ status: 'posted', posted_at: new Date().toISOString() })
+            .in('id', laneIds);
+          monitor.log('info', `Updated ${laneIds.length} lanes to 'posted' status`);
+        } else {
+          monitor.log('warn', `User ${auth.user.email} lacks permission to update lane status`);
+        }
       }
     } catch (updateError) {
       await monitor.logError(updateError, 'Failed to update lane statuses');

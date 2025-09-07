@@ -1,15 +1,54 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../utils/supabaseClient';
-import withAuth from '../../middleware/withAuth';
+import { useRouter } from 'next/router';
+import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
 function PendingUsers() {
+  const router = useRouter();
+  const { loading: authLoading, isAuthenticated, profile } = useAuth();
   const [pendingUsers, setPendingUsers] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Redirect if not authenticated or not admin
   useEffect(() => {
-    loadPendingUsers();
-  }, []);
+    if (!authLoading) {
+      if (!isAuthenticated) {
+        router.replace('/login');
+        return;
+      }
+      if (profile?.role !== 'Admin') {
+        router.replace('/unauthorized');
+        return;
+      }
+      // User is authenticated and is admin
+      loadPendingUsers();
+    }
+  }, [authLoading, isAuthenticated, profile, router]);
+  
+  // Show loading if auth is still loading
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-lg">Loading Pending Users...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // Show loading if not authenticated/authorized (during redirect)
+  if (!isAuthenticated || profile?.role !== 'Admin') {
+    return (
+      <div className="min-h-screen bg-gray-900 text-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-lg">Checking authorization...</p>
+        </div>
+      </div>
+    );
+  }
 
   async function loadPendingUsers() {
     try {
@@ -97,4 +136,4 @@ function PendingUsers() {
   );
 }
 
-export default withAuth(PendingUsers, { requiredRole: 'Admin' });
+export default PendingUsers;

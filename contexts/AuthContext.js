@@ -18,7 +18,7 @@ export function AuthProvider({ children }) {
     async function initializeAuth() {
       try {
         // Get initial session
-        console.log('AuthContext: Initializing...');
+        console.log('AuthContext: Initializing auth system...');
         const { data: { session: initialSession } } = await supabase.auth.getSession();
         
         if (!mounted) return;

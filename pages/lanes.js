@@ -1,11 +1,12 @@
 // pages/lanes.js
 import { useEffect, useState } from 'react';
-import withAuth from '../middleware/withAuth';
+import { useRouter } from 'next/router';
 import CityAutocomplete from '../components/CityAutocomplete.jsx';
 import EquipmentPicker from '../components/EquipmentPicker.jsx';
 import IntermodalNudge from '../components/IntermodalNudge';
 import IntermodalEmailModal from '../components/IntermodalEmailModal';
 import { supabase } from '../utils/supabaseClient';
+import { useAuth } from '../contexts/AuthContext';
 import { checkIntermodalEligibility } from '../lib/intermodalAdvisor';
 import { generateReferenceId, getDisplayReferenceId } from '../lib/referenceIdUtils';
 import Head from 'next/head';
@@ -22,7 +23,40 @@ function Section({ title, children, right, className = '' }) {
   );
 }
 
-function LanesPage({ userProfile }) {
+function LanesPage() {
+  const router = useRouter();
+  const { loading, isAuthenticated, session } = useAuth();
+  
+  // Redirect if not authenticated
+  useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      router.replace('/login');
+    }
+  }, [loading, isAuthenticated, router]);
+  
+  // Show loading if auth is still loading
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-lg">Loading Lanes...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // Show loading if not authenticated (during redirect)
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-lg">Redirecting to login...</p>
+        </div>
+      </div>
+    );
+  }
   // Form state
   const [origin, setOrigin] = useState('');
   const [originZip, setOriginZip] = useState('');
@@ -356,10 +390,17 @@ function LanesPage({ userProfile }) {
 
   async function updateStatus(lane, status){
     try {
-      const response = await fetch('/api/lanes', {
+      if (!session) {
+        throw new Error('Authentication required');
+      }
+      
+      const response = await fetch('/api/updateLaneStatus', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: lane.id, status }),
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ laneId: lane.id, status }),
       });
       
       if (!response.ok) {
@@ -1060,4 +1101,4 @@ function LanesPage({ userProfile }) {
 }
 
 // Wrap with auth HOC - only allow active users
-export default withAuth(LanesPage);
+export default LanesPage;

@@ -2,24 +2,57 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../utils/supabaseClient';
 import { useRouter } from 'next/router';
+import { useAuth } from '../../contexts/AuthContext';
 import Link from 'next/link';
-import withAuth from '../../middleware/withAuth';
+import { useRouter } from 'next/router';
+import { useAuth } from '../../contexts/AuthContext';
+import Link from 'next/link';
 
-function AdminDashboard({ userProfile }) {
+function AdminDashboard() {
   const router = useRouter();
-  const [isAdmin, setIsAdmin] = useState(false);
+  const { loading: authLoading, isAuthenticated, profile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({});
 
+  // Redirect if not authenticated or not admin
   useEffect(() => {
-    if (userProfile?.role === 'Admin') {
-      setIsAdmin(true);
+    if (!authLoading) {
+      if (!isAuthenticated) {
+        router.replace('/login');
+        return;
+      }
+      if (profile?.role !== 'Admin') {
+        router.replace('/unauthorized');
+        return;
+      }
+      // User is authenticated and is admin
       loadStats();
-    } else {
-      setIsAdmin(false);
-      setLoading(false);
     }
-  }, [userProfile]);
+  }, [authLoading, isAuthenticated, profile, router]);
+  
+  // Show loading if auth is still loading
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-900 text-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-lg">Loading Admin Dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // Show loading if not authenticated/authorized (during redirect)
+  if (!isAuthenticated || profile?.role !== 'Admin') {
+    return (
+      <div className="min-h-screen bg-gray-900 text-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-lg">Checking authorization...</p>
+        </div>
+      </div>
+    );
+  }
 
   async function loadStats() {
     try {
@@ -54,7 +87,13 @@ function AdminDashboard({ userProfile }) {
   if (!isAdmin) {
     return (
       <div className="min-h-screen bg-gray-900 text-gray-100 flex items-center justify-center">
-        <div className="text-xl text-red-400">Access Denied</div>
+        <div className="text-center">
+          <div className="text-2xl text-red-400 mb-2">Access Denied</div>
+          <div className="text-gray-400">Administrator privileges required</div>
+          <Link href="/dashboard" className="mt-4 inline-block px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-md">
+            ← Return to Dashboard
+          </Link>
+        </div>
       </div>
     );
   }
@@ -170,4 +209,4 @@ function AdminDashboard({ userProfile }) {
 }
 
 // Wrap with auth HOC and require Admin role
-export default withAuth(AdminDashboard, { requiredRole: 'Admin' });
+export default AdminDashboard;
