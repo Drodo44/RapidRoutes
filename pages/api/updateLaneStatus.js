@@ -34,7 +34,7 @@ export default async function handler(req, res) {
     // Update the lane status
     const { data, error } = await adminSupabase
       .from('lanes')
-      .update({ status, updated_at: new Date() })
+      .update({ status })
       .eq('id', laneId)
       .select();
     
