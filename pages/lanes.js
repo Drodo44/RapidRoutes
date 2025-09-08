@@ -221,7 +221,7 @@ function LanesPage() {
       const newLane = await response.json();
       
       // Check for intermodal eligibility after successful lane creation
-      if (newLane.data) {
+      if (newLane) {
         const laneData = {
           origin_city: oc,
           origin_state: os,
@@ -234,7 +234,7 @@ function LanesPage() {
         
         const isEligible = await checkIntermodalEligibility(laneData);
         if (isEligible.eligible) {
-          setIntermodalLane(newLane.data);
+          setIntermodalLane(newLane);
           setShowIntermodalNudge(true);
         }
       }
