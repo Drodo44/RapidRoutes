@@ -363,6 +363,9 @@ function LanesPage() {
     console.log('Bulk export clicked:', { fill });
     setMsg('Starting bulk export...');
     
+    // Get auth headers for API requests
+    const authHeaders = await getAuthHeaders();
+    
     // QUICK CRAWL TEST - Let's see what's happening
     if (fill) {
       try {
@@ -376,7 +379,10 @@ function LanesPage() {
     }
     
     try {
-      const head = await fetch(`/api/exportDatCsv?pending=1&fill=${fill?'1':'0'}`, { method:'HEAD' });
+      const head = await fetch(`/api/exportDatCsv?pending=1&fill=${fill?'1':'0'}`, { 
+        method:'HEAD',
+        headers: authHeaders
+      });
       console.log('Bulk export HEAD response:', head.status);
       
       if (!head.ok) {
@@ -393,7 +399,7 @@ function LanesPage() {
         console.log(`Downloading part ${i}/${total}:`, url);
         
         // First, test the response to see what we're getting
-        const testResponse = await fetch(url);
+        const testResponse = await fetch(url, { headers: authHeaders });
         const csvContent = await testResponse.text();
         const rowCount = csvContent.split('\n').length - 1; // Subtract 1 for header
         
@@ -787,7 +793,24 @@ function LanesPage() {
                     onClick={(e) => {
                       e.stopPropagation();
                       const dropdown = e.currentTarget.nextElementSibling;
+                      
+                      // Smart positioning: check if near bottom of viewport
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const spaceBelow = window.innerHeight - rect.bottom;
+                      const spaceAbove = rect.top;
+                      const dropdownHeight = 200; // approximate dropdown height
+                      
+                      // Position dropdown up if not enough space below
+                      if (spaceBelow < dropdownHeight && spaceAbove > dropdownHeight) {
+                        dropdown.classList.remove('top-full', 'mt-1');
+                        dropdown.classList.add('bottom-full', 'mb-1');
+                      } else {
+                        dropdown.classList.remove('bottom-full', 'mb-1');
+                        dropdown.classList.add('top-full', 'mt-1');
+                      }
+                      
                       dropdown.classList.toggle('hidden');
+                      
                       // Close when clicking outside
                       const closeDropdown = (evt) => {
                         if (e.currentTarget && dropdown && !e.currentTarget.contains(evt.target) && !dropdown.contains(evt.target)) {
@@ -804,7 +827,7 @@ function LanesPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   </button>
-                  <div className="absolute right-0 mt-1 w-48 bg-gray-800 rounded-lg shadow-lg border border-gray-700 z-10 hidden">
+                  <div className="absolute right-0 mt-1 w-48 bg-gray-800 rounded-lg shadow-xl border border-gray-700 z-50 hidden top-full">
                     <button 
                       onClick={() => openCrawlPreview(l)}
                       className="w-full text-left px-4 py-2 text-sm text-gray-200 hover:bg-gray-700 rounded-t-lg"
