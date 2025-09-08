@@ -8,7 +8,7 @@ import IntermodalEmailModal from '../components/IntermodalEmailModal';
 import { supabase } from '../utils/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { checkIntermodalEligibility } from '../lib/intermodalAdvisor';
-import { generateReferenceId, getDisplayReferenceId } from '../lib/referenceIdUtils';
+import { generateReferenceId, generateNewReferenceId, getDisplayReferenceId } from '../lib/referenceIdUtils';
 import Head from 'next/head';
 
 function Section({ title, children, right, className = '' }) {
@@ -301,7 +301,8 @@ function LanesPage() {
         weight_max: lane.weight_max || null,
         comment: lane.comment || null,
         commodity: lane.commodity || null,
-        status: 'pending'
+        status: 'pending',
+        reference_id: generateNewReferenceId()
       };
 
       const response = await fetch('/api/lanes', {
