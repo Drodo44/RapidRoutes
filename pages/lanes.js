@@ -680,6 +680,67 @@ function LanesPage() {
           />
         )}
 
+        {/* Randomize Weight Modal */}
+        {randOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+            <div className="bg-gray-900 p-6 rounded-lg border border-gray-700 shadow-lg max-w-md w-full mx-4">
+              <h3 className="text-lg font-semibold text-gray-100 mb-4">Randomize Weight Range</h3>
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm text-gray-300 mb-1">Min Weight (lbs)</label>
+                  <input 
+                    type="number" 
+                    min={1} 
+                    value={randMin} 
+                    onChange={(e) => setRandMin(e.target.value)} 
+                    className="inp"
+                    placeholder="e.g., 20000"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-300 mb-1">Max Weight (lbs)</label>
+                  <input 
+                    type="number" 
+                    min={1} 
+                    value={randMax} 
+                    onChange={(e) => setRandMax(e.target.value)} 
+                    className="inp"
+                    placeholder="e.g., 40000"
+                  />
+                </div>
+              </div>
+              <div className="mb-4">
+                <label className="flex items-center text-sm text-gray-300">
+                  <input 
+                    type="checkbox" 
+                    checked={rememberSession} 
+                    onChange={(e) => setRememberSession(e.target.checked)}
+                    className="mr-2 rounded border-gray-600 bg-gray-700 text-blue-500 focus:ring-blue-500"
+                  />
+                  Remember these values for this session
+                </label>
+              </div>
+              <div className="flex justify-end gap-3">
+                <button 
+                  onClick={() => {
+                    setRandomize(false);
+                    setRandOpen(false);
+                  }}
+                  className="btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={() => setRandOpen(false)}
+                  className="btn-primary"
+                >
+                  Set Range
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Intermodal Email Modal */}
         {showIntermodalEmail && (
           <IntermodalEmailModal
