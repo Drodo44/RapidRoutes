@@ -78,10 +78,21 @@ export default async function handler(req, res) {
         created_by: auth.user.id,
       };
 
-      const { data, error } = await adminSupabase.from('lanes').insert([lane]).select('*');
+      const { data, error } = await adminSupabase
+        .from('lanes')
+        .insert([lane])
+        .select('id, reference_id, origin_city, origin_state, dest_city, dest_state, status')
+        .single();
       
-      if (error) throw error;
-      return res.status(201).json(data?.[0] || null);
+      if (error) {
+        console.error('Lane creation error:', error);
+        throw error;
+      }
+      if (!data?.id) {
+        console.error('Lane created but no ID returned:', data);
+        throw new Error('Lane creation failed - database did not return an ID');
+      }
+      return res.status(201).json(data);
     }
     
     // PUT - Update lane

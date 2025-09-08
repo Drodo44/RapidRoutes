@@ -302,7 +302,9 @@ function LanesPage() {
         comment: lane.comment || null,
         commodity: lane.commodity || null,
         status: 'pending',
-        reference_id: generateNewReferenceId()
+        reference_id: generateNewReferenceId(),
+        created_by: session.user.id,
+        user_id: session.user.id
       };
 
       const response = await fetch('/api/lanes', {
