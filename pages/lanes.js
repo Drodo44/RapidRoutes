@@ -455,7 +455,8 @@ function LanesPage() {
 
   async function updateStatus(lane, status) {
     try {
-      if (!session) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
         throw new Error('Authentication required');
       }
       
