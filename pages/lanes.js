@@ -555,6 +555,491 @@ function LanesPage() {
 
   // INTELLIGENT FREIGHT REPOSTING - Create new lane based on successful one
   async function postAgain(lane){
+// Temporary fix file
+async function postAgain(lane) {
+  try {
+    setMsg('Creating new lane based on successful posting...');
+    
+    // First ensure we have a valid auth session
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      throw new Error('Authentication required. Please log in again.');
+    }
+
+    // Prepare the payload with all required fields
+    const payload = {
+      origin_city: lane.origin_city,
+      origin_state: lane.origin_state,
+      origin_zip: lane.origin_zip || null,
+      dest_city: lane.dest_city,
+      dest_state: lane.dest_state,
+      dest_zip: lane.dest_zip || null,
+      equipment_code: lane.equipment_code,
+      length_ft: lane.length_ft,
+      full_partial: lane.full_partial || 'full',
+      pickup_earliest: lane.pickup_earliest,
+      pickup_latest: lane.pickup_latest,
+      randomize_weight: !!lane.randomize_weight,
+      weight_lbs: lane.weight_lbs || null,
+      weight_min: lane.weight_min || null,
+      weight_max: lane.weight_max || null,
+      comment: lane.comment || null,
+      commodity: lane.commodity || null,
+      status: 'pending'
+    };
+
+    // Create the new lane
+    console.log('Creating new lane with payload:', payload);
+    const response = await fetch('/api/lanes', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('Lane creation failed:', errorData);
+      throw new Error(errorData.error || 'Failed to create new lane');
+    }
+
+    const responseData = await response.json();
+    console.log('Lane creation response:', responseData);
+
+    if (!responseData || typeof responseData.id === 'undefined') {
+      console.error('Invalid lane creation response:', responseData);
+      throw new Error('Lane creation failed - invalid response');
+    }
+
+    // Update UI and refresh lists
+    setMsg(`✅ Successfully created new lane: ${lane.origin_city}, ${lane.origin_state} → ${lane.dest_city}, ${lane.dest_state}`);
+    await loadLists();
+
+    // Track intelligence data
+    try {
+      const { data: { session: perfSession } } = await supabase.auth.getSession();
+      if (!perfSession?.access_token) {
+        throw new Error('Missing auth token for intelligence tracking');
+      }
+
+      const trackingResponse = await fetch('/api/lane-performance', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${perfSession.access_token}`
+        },
+        body: JSON.stringify({
+          lane_id: responseData.id,
+          equipment_code: lane.equipment_code,
+          origin_city: lane.origin_city,
+          origin_state: lane.origin_state,
+          dest_city: lane.dest_city,
+          dest_state: lane.dest_state,
+          crawl_cities: [],
+          intelligence_metadata: {
+            repost_of_successful_lane: lane.id,
+            original_success_date: lane.updated_at,
+            intelligence_level: 'successful_repost'
+          }
+        })
+      });
+
+      if (!trackingResponse.ok) {
+        throw new Error('Intelligence tracking failed');
+      }
+    } catch (trackingError) {
+      console.warn('Intelligence tracking error:', trackingError);
+      // Non-blocking - continue even if tracking fails
+    }
+  } catch (error) {
+    console.error('Post Again Error:', error);
+    setMsg(`❌ Failed to create new lane: ${error.message}`);
+  }
+}
+    } catch (error) {
+      console.error('Failed to load lanes:', error);
+      
+      // Attempt to refresh the session first
+      try {
+        const { data: { session }, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError) throw refreshError;
+        
+        console.log('Session refreshed, attempting direct Supabase query...');
+        const [{ data: p, error: pError }, { data: posted, error: postedError }, { data: r, error: rError }] = await Promise.all([
+          supabase.from('lanes').select('*').eq('status', 'pending').order('created_at', { ascending: false }).limit(200),
+          supabase.from('lanes').select('*').eq('status', 'posted').order('created_at', { ascending: false }).limit(200),
+          supabase.from('lanes').select('*').order('created_at', { ascending: false }).limit(50),
+        ]);
+        
+        if (pError) throw pError;
+        if (postedError) throw postedError;
+        if (rError) throw rError;
+        
+        console.log('Supabase fallback results:', {
+          pending: p?.length || 0,
+          posted: posted?.length || 0,
+          recent: r?.length || 0
+        });
+        
+        setPending(p || []); 
+        setPosted(posted || []); 
+        setRecent(r || []);
+      } catch (fallbackError) {
+        console.error('Fallback query failed:', fallbackError);
+        // Set empty arrays if everything fails
+        setPending([]); 
+        setPosted([]); 
+        setRecent([]);
+      }
+      
+      console.log('Supabase fallback results:', {
+        pending: p?.length || 0,
+        posted: posted?.length || 0,
+        recent: r?.length || 0
+      });
+      
+      setPending(p || []); 
+      setPosted(posted || []); 
+      setRecent(r || []);
+    }
+  }
+
+  useEffect(() => {
+    console.log('Initial load effect triggered');
+    loadLists();
+  }, []);
+
+  // When user toggles randomize ON, open modal. Respect session memory
+  useEffect(()=>{
+    if (randomize) {
+      setRandOpen(true);
+      const sMin = sessionStorage.getItem('rr_rand_min');
+      const sMax = sessionStorage.getItem('rr_rand_max');
+      if (sMin && sMax) { setRandMin(sMin); setRandMax(sMax); }
+    }
+  }, [randomize]);
+
+  function validate(){
+    if (!origin.includes(',' ) || !dest.includes(',') ) return 'Choose Origin and Destination from the list.';
+    if (!equipment) return 'Equipment is required.';
+    if (!lengthFt || Number(lengthFt) <= 0) return 'Length must be > 0.';
+    if (!pickupEarliest || !pickupLatest) return 'Pickup dates are required.';
+    if (!randomize) {
+      if (!weight || Number(weight) <= 0) return 'Weight is required when randomize is OFF.';
+    } else {
+      const mn = Number(randMin), mx = Number(randMax);
+      if (!Number.isFinite(mn) || !Number.isFinite(mx) || mn <= 0 || mx <= 0 || mn > mx) return 'Randomize range invalid.';
+    }
+    return null;
+  }
+
+  async function submitLane(e){
+    e.preventDefault(); setMsg('');
+    const err = validate(); if (err) { setMsg(err); return; }
+    setBusy(true);
+    try {
+      const [oc, os] = origin.split(',').map(s=>s.trim());
+      const [dc, ds] = dest.split(',').map(s=>s.trim());
+      const payload = {
+        origin_city: oc, origin_state: os, origin_zip: originZip || null,
+        dest_city: dc,   dest_state: ds,   dest_zip: destZip || null,
+        equipment_code: equipment.toUpperCase(),
+        length_ft: Number(lengthFt),
+        full_partial: fullPartial === 'partial' ? 'partial' : 'full',
+        pickup_earliest: pickupEarliest,
+        pickup_latest: pickupLatest,
+        randomize_weight: !!randomize,
+        weight_lbs: randomize ? null : Number(weight),
+        weight_min: randomize ? Number(randMin) : null,
+        weight_max: randomize ? Number(randMax) : null,
+        comment: comment || null,
+        commodity: commodity || null,
+        status: 'pending',
+      };
+      
+      // Save weight randomization settings if requested
+      if (randomize && rememberSession) {
+        sessionStorage.setItem('rr_rand_min', randMin);
+        sessionStorage.setItem('rr_rand_max', randMax);
+      }
+      
+      // Get authentication token for enterprise-level API security
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Authentication required. Please log in again.');
+      }
+      
+      // Use the API endpoint for better validation and error handling
+      const response = await fetch('/api/lanes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`, // Enterprise-standard authentication
+        },
+        body: JSON.stringify(payload),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save lane');
+      }
+
+      const newLane = await response.json();
+      
+      // Check for intermodal eligibility after successful lane creation
+      if (newLane) {
+        const laneData = {
+          origin_city: oc,
+          origin_state: os,
+          dest_city: dc,
+          dest_state: ds,
+          equipment_code: equipment.toUpperCase(),
+          length_ft: Number(lengthFt),
+          weight_lbs: randomize ? null : Number(weight)
+        };
+        
+        // Only show intermodal nudge if explicitly eligible
+        const eligibilityCheck = await checkIntermodalEligibility(laneData);
+        if (eligibilityCheck && eligibilityCheck.eligible === true) {
+          setIntermodalLane(newLane);
+          setShowIntermodalNudge(true);
+        }
+      }
+      
+      // Ensure lists are updated before clearing form
+      await loadLists();
+
+      // Clear form after lists are updated
+      setMsg('✅ Lane added successfully');
+      setOrigin(''); 
+      setOriginZip(''); 
+      setDest(''); 
+      setDestZip('');
+      setComment(''); 
+      setCommodity('');
+      setWeight(''); 
+      setRandomize(false);
+    } catch (e2) {
+      setMsg(e2.message || 'Failed to save lane.');
+    } finally { setBusy(false); }
+  }
+
+  async function openCrawlPreview(l){
+    try {
+      const o = `${l.origin_city},${l.origin_state}`;
+      const d = `${l.dest_city},${l.dest_state}`;
+      
+      // Test the API first to make sure it works
+      const testUrl = `/api/debugCrawl?origin=${encodeURIComponent(o)}&dest=${encodeURIComponent(d)}&equip=${encodeURIComponent(l.equipment_code)}&fill=0`;
+      const response = await fetch(testUrl);
+      if (!response.ok) {
+        const errorText = await response.text();
+        setMsg(`Preview failed: ${response.status} - ${errorText}`);
+        return;
+      }
+      
+      // If API works, open formatted preview page
+      const previewParams = new URLSearchParams({
+        origin: o,
+        dest: d,
+        equip: l.equipment_code
+      });
+      
+      const previewUrl = `/crawl-preview?${previewParams.toString()}`;
+      window.open(previewUrl, '_blank', 'width=1200,height=800,scrollbars=yes');
+    } catch (error) {
+      console.error('Preview error:', error);
+      setMsg(`Preview failed: ${error.message}`);
+    }
+  }
+  
+  async function perLaneExport(l, fill=true){
+    console.log('Export button clicked:', { lane: l.id, fill });
+    setMsg('Starting export...');
+    
+    try {
+      const url = `/api/exportLaneCsv?id=${encodeURIComponent(l.id)}&fill=${fill?'1':'0'}`;
+      console.log('Export URL:', url);
+      
+      // Test the API first
+      const response = await fetch(url);
+      console.log('API response:', response.status, response.statusText);
+      
+      // Log debug headers
+      const debugPairs = response.headers.get('X-Debug-Pairs');
+      const debugRows = response.headers.get('X-Debug-Rows');
+      const debugFillTo10 = response.headers.get('X-Debug-FillTo10');
+      console.log('FILL-TO-5 DEBUG:', { pairs: debugPairs, rows: debugRows, fillTo10: debugFillTo10 });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Export failed:', response.status, errorText);
+        setMsg(`Export failed: ${response.status} - ${errorText}`);
+        return;
+      }
+      
+      // If successful, trigger download
+      console.log('Opening download window...');
+      window.open(url, '_blank');
+      setMsg('Export successful!');
+    } catch (error) {
+      console.error('Export error:', error);
+      setMsg(`Export failed: ${error.message}`);
+    }
+  }
+
+  async function check(origin, dest, equip) {
+    if (!origin || !dest || !equip) {
+      setMsg('Please complete origin, destination and equipment to preview');
+      return;
+    }
+    
+    try {
+      // Parse origin and destination
+      const originParts = origin.split(',');
+      const destParts = dest.split(',');
+      
+      const originFormatted = originParts.length >= 2 ? 
+        `${originParts[0].trim()},${originParts[1].trim()}` : origin;
+      const destFormatted = destParts.length >= 2 ? 
+        `${destParts[0].trim()},${destParts[1].trim()}` : dest;
+      
+      // Test the API first to make sure it works
+      const testParams = new URLSearchParams({
+        origin: originFormatted,
+        dest: destFormatted,
+        equip: equip
+      });
+      
+      const testUrl = `/api/debugCrawl?${testParams.toString()}`;
+      const response = await fetch(testUrl);
+      if (!response.ok) {
+        const errorText = await response.text();
+        setMsg(`Preview failed: ${response.status} - ${errorText}`);
+        return;
+      }
+      
+      // If API works, open formatted preview page
+      const previewParams = new URLSearchParams({
+        origin: originFormatted,
+        dest: destFormatted,
+        equip: equip
+      });
+      
+      const previewUrl = `/crawl-preview?${previewParams.toString()}`;
+      window.open(previewUrl, '_blank', 'width=1200,height=800,scrollbars=yes');
+    } catch (error) {
+      console.error('Preview error:', error);
+      setMsg(`Preview failed: ${error.message}`);
+    }
+  }
+
+  async function bulkExport({ fill }){
+    console.log('Bulk export clicked:', { fill });
+    setMsg('Starting bulk export...');
+    
+    // Get auth headers for API requests
+    const authHeaders = await getAuthHeaders();
+    
+    // QUICK CRAWL TEST - Let's see what's happening
+    if (fill) {
+      try {
+        console.log('=== TESTING CRAWL GENERATION ===');
+        const testResponse = await fetch(`/api/test-crawl?t=${Date.now()}`); // Cache bust
+        const testResult = await testResponse.json();
+        console.log('CRAWL TEST RESULT (detailed):', JSON.stringify(testResult, null, 2));
+      } catch (e) {
+        console.log('Crawl test failed:', e);
+      }
+    }
+    
+    try {
+      const head = await fetch(`/api/exportDatCsv?pending=1&fill=${fill?'1':'0'}`, { 
+        method:'HEAD',
+        headers: authHeaders
+      });
+      console.log('Bulk export HEAD response:', head.status);
+      
+      if (!head.ok) {
+        const errorText = await head.text();
+        setMsg(`Bulk export failed: ${head.status} - ${errorText}`);
+        return;
+      }
+      
+      const total = Number(head.headers.get('X-Total-Parts') || '1');
+      console.log('Total parts to download:', total);
+      
+      for (let i=1;i<=total;i++){
+        const url = `/api/exportDatCsv?pending=1&fill=${fill?'1':'0'}&part=${i}`;
+        console.log(`Downloading part ${i}/${total}:`, url);
+        
+        // First, test the response to see what we're getting
+        const testResponse = await fetch(url, { headers: authHeaders });
+        const csvContent = await testResponse.text();
+        const rowCount = csvContent.split('\n').length - 1; // Subtract 1 for header
+        
+        // Log debug headers
+        const debugLanes = testResponse.headers.get('X-Debug-Lanes-Processed');
+        const debugTotalRows = testResponse.headers.get('X-Debug-Total-Rows');
+        const debugFillMode = testResponse.headers.get('X-Debug-Fill-Mode');
+        const debugSelectedRows = testResponse.headers.get('X-Debug-Selected-Rows');
+        
+        console.log(`BULK EXPORT DEBUG: Part ${i}/${total}`);
+        console.log(`  Lanes processed: ${debugLanes}`);
+        console.log(`  Total rows generated: ${debugTotalRows}`);
+        console.log(`  Fill-to-5 mode: ${debugFillMode}`);
+        console.log(`  Selected rows for this part: ${debugSelectedRows}`);
+        console.log(`  Actual CSV rows: ${rowCount}`);
+        console.log(`  First few lines:`, csvContent.split('\n').slice(0, 3));
+        
+        // Now trigger the download
+        const a = document.createElement('a'); 
+        a.href = URL.createObjectURL(new Blob([csvContent], { type: 'text/csv' }));
+        a.download = `DAT_Pending_part${i}-of-${total}.csv`;
+        document.body.appendChild(a); 
+        a.click(); 
+        a.remove();
+        
+        // Slight delay to avoid popup blocking
+        if (i < total) await new Promise(r => setTimeout(r, 200));
+      }
+      setMsg(`Bulk export completed! Downloaded ${total} files.`);
+    } catch (e) { 
+      console.error('Bulk export error:', e);
+      setMsg('Bulk export failed: ' + (e.message || ''));
+    }
+  }
+
+  async function updateStatus(lane, status){
+    try {
+      if (!session) {
+        throw new Error('Authentication required');
+      }
+      
+      const response = await fetch('/api/updateLaneStatus', {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ laneId: lane.id, status }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update status');
+      }
+      
+      await loadLists();
+    } catch (error) {
+      alert(error.message);
+    }
+  }
+
+  // INTELLIGENT FREIGHT REPOSTING - Create new lane based on successful one
+  async function postAgain(lane){
     try {
       setMsg('Creating new lane based on successful posting...');
       
@@ -600,27 +1085,36 @@ function LanesPage() {
       }
       
       const newLane = await response.json();
+      console.log('API Response for new lane:', newLane); // Debug log
+      
+      if (!newLane?.id) {
+        console.error('Lane creation response missing ID:', newLane);
+        throw new Error('Lane creation failed - missing lane ID');
+      console.log('API Response for new lane:', newLane); // Debug log
+      
+      if (!newLane) {
+        throw new Error('No response data from lane creation');
+      }
+
+      // Update UI first
       setMsg(`✅ Successfully created new lane: ${lane.origin_city}, ${lane.origin_state} → ${lane.dest_city}, ${lane.dest_state}`);
+      
+      // Refresh the lists to show new lane
       await loadLists();
       
       // Track intelligence: this route was successful before
       try {
-        if (!newLane || !newLane.id) {
-          console.warn('New lane data missing ID, skipping intelligence tracking');
-          return;
-        }
-
         // Get authentication token for enterprise-level API security
         const { data: { session: perfSession } } = await supabase.auth.getSession();
         if (perfSession?.access_token) {
-          await fetch('/api/lane-performance', {
+          const trackingResponse = await fetch('/api/lane-performance', {
             method: 'POST',
             headers: { 
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${perfSession.access_token}`, // Enterprise-standard authentication
+              'Authorization': `Bearer ${perfSession.access_token}`,
             },
             body: JSON.stringify({
-              lane_id: newLane.id, // Use ID directly from the lane object
+              lane_id: newLane.id,
               equipment_code: lane.equipment_code,
               origin_city: lane.origin_city,
               origin_state: lane.origin_state,
