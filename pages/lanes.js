@@ -1,4 +1,4 @@
-// pages/lanes.js
+`// pages/lanes.js
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import CityAutocomplete from '../components/CityAutocomplete.jsx';
@@ -181,9 +181,18 @@ function LanesPage() {
   async function submitLane(e) {
     e.preventDefault();
     setMsg('');
+    
+    // Validate first
     const err = validate();
     if (err) {
       setMsg(err);
+      return;
+    }
+
+    // Then get session
+    const { data: { session: authSession } } = await supabase.auth.getSession();
+    if (!authSession?.access_token) {
+      setMsg('Authentication required. Please log in again.');
       return;
     }
 
@@ -191,6 +200,26 @@ function LanesPage() {
     try {
       const [oc, os] = origin.split(',').map(s => s.trim());
       const [dc, ds] = dest.split(',').map(s => s.trim());
+      
+      // First check intermodal eligibility
+      const laneData = {
+        origin_city: oc,
+        origin_state: os,
+        dest_city: dc,
+        dest_state: ds,
+        equipment_code: equipment.toUpperCase(),
+        length_ft: Number(lengthFt),
+        weight_lbs: randomize ? null : Number(weight)
+      };
+      
+      const eligibilityCheck = await checkIntermodalEligibility(laneData);
+      if (eligibilityCheck?.eligible) {
+        setIntermodalLane(laneData);
+        setShowIntermodalNudge(true);
+        return;
+      }
+      
+      // Then create the payload
       const payload = {
         origin_city: oc,
         origin_state: os,
@@ -210,6 +239,8 @@ function LanesPage() {
         comment: comment || null,
         commodity: commodity || null,
         status: 'pending',
+        user_id: authSession.user.id,
+        created_by: authSession.user.id
       };
       
       if (randomize && rememberSession) {
@@ -238,23 +269,7 @@ function LanesPage() {
 
       const newLane = await response.json();
       
-      if (newLane) {
-        const laneData = {
-          origin_city: oc,
-          origin_state: os,
-          dest_city: dc,
-          dest_state: ds,
-          equipment_code: equipment.toUpperCase(),
-          length_ft: Number(lengthFt),
-          weight_lbs: randomize ? null : Number(weight)
-        };
-        
-        const eligibilityCheck = await checkIntermodalEligibility(laneData);
-        if (eligibilityCheck && eligibilityCheck.eligible === true) {
-          setIntermodalLane(newLane);
-          setShowIntermodalNudge(true);
-        }
-      }
+      // We've already checked intermodal eligibility before creating the lane
       
       await loadLists();
 
@@ -278,9 +293,34 @@ function LanesPage() {
     try {
       setMsg('Creating new lane based on successful posting...');
       
+      // First check intermodal eligibility
+      const eligibilityCheck = await checkIntermodalEligibility({
+        origin_city: lane.origin_city,
+        origin_state: lane.origin_state,
+        dest_city: lane.dest_city,
+        dest_state: lane.dest_state,
+        equipment_code: lane.equipment_code,
+        length_ft: lane.length_ft,
+        weight_lbs: lane.weight_lbs || null
+      });
+      
+      if (eligibilityCheck?.eligible) {
+        setIntermodalLane(lane);
+        setShowIntermodalNudge(true);
+        return null; // Return null to indicate we didn't create a new lane
+      }
+      
+      // Get auth session first
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
-        throw new Error('Authentication required. Please log in again.');
+        setMsg('Authentication required. Please log in again.');
+        return null;
+      }
+
+      // Validate the lane data
+      if (!lane.origin_city || !lane.origin_state || !lane.dest_city || !lane.dest_state || !lane.equipment_code) {
+        setMsg('Invalid lane data for reposting');
+        return null;
       }
 
       const payload = {
@@ -303,8 +343,8 @@ function LanesPage() {
         commodity: lane.commodity || null,
         status: 'pending',
         reference_id: generateNewReferenceId(),
-        created_by: session.user.id,
-        user_id: session.user.id
+        user_id: session.user.id,
+        created_by: session.user.id
       };
 
       const response = await fetch('/api/lanes', {
@@ -322,12 +362,19 @@ function LanesPage() {
       }
 
       const newLane = await response.json();
-      if (!newLane?.id) {
-        throw new Error('Lane creation failed - missing lane ID');
+      
+      if (!newLane || typeof newLane !== 'object') {
+        console.error('Invalid server response:', newLane);
+        throw new Error('Invalid response from server');
+      }
+      
+      if (!newLane.id) {
+        console.error('Server response missing ID:', newLane);
+        throw new Error('Lane creation failed - server did not return lane data');
       }
 
       await loadLists();
-      setMsg(`✅ Successfully created new lane: ${lane.origin_city}, ${lane.origin_state} → ${lane.dest_city}, ${lane.dest_state}`);
+      setMsg(`Lane created successfully: ${lane.origin_city}, ${lane.origin_state} to ${lane.dest_city}, ${lane.dest_state}`);
 
       try {
         const { data: { session: perfSession } } = await supabase.auth.getSession();
