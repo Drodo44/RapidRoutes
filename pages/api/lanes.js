@@ -1,6 +1,7 @@
 // pages/api/lanes.js
 import { validateApiAuth } from '../../middleware/auth.unified';
 import { adminSupabase } from '../../utils/supabaseClient';
+import { createClient } from '@supabase/supabase-js';
 
 export default async function handler(req, res) {
   // Handle CORS preflight
@@ -46,17 +47,17 @@ export default async function handler(req, res) {
     if (req.method === 'POST') {
       console.log('POST request received for lane creation');
       const payload = req.body;
-      
+
       if (!payload.origin_city || !payload.origin_state || !payload.dest_city || !payload.dest_state || 
           !payload.equipment_code || !payload.pickup_earliest) {
         return res.status(400).json({ error: 'Missing required fields' });
       }
-      
+
       // Validate weight requirement
       if (!payload.randomize_weight && (!payload.weight_lbs || payload.weight_lbs <= 0)) {
         return res.status(400).json({ error: 'Weight is required when randomize is OFF' });
       }
-      
+
       if (payload.randomize_weight) {
         if (!payload.weight_min || !payload.weight_max || payload.weight_min <= 0 || payload.weight_max <= 0 || payload.weight_min > payload.weight_max) {
           return res.status(400).json({ error: 'Invalid weight range for randomization' });
@@ -83,27 +84,39 @@ export default async function handler(req, res) {
         user_id: auth.user.id,
       };
 
-      const { data, error } = await adminSupabase
-      .from('lanes')
-      .insert([lane])
-      .select('*')
-      .single();
+      // Insert with admin client
+      const { error: insertError } = await adminSupabase
+        .from('lanes')
+        .insert([lane]);
 
-      if (error) {
-        console.error('Lane creation error:', error);
-        return res.status(500).json({ error: error.message || 'Database error', details: error });
+      if (insertError) {
+        console.error('Lane creation error:', insertError);
+        return res.status(500).json({ error: insertError.message || 'Database error', details: insertError });
       }
-      if (!data || !data.id) {
-        console.error('Lane created but no ID returned:', { data, lane, payload });
-        return res.status(500).json({
-          error: 'Lane creation failed - database did not return an ID',
-          data,
-          lane,
-          payload
-        });
+
+      // Now fetch with user JWT to satisfy RLS
+      const userToken = req.headers.authorization?.replace('Bearer ', '');
+      if (!userToken) {
+        return res.status(401).json({ error: 'Missing user token in Authorization header' });
       }
-      console.log('Lane created successfully:', data);
-      res.status(201).json(data);
+      const userSupabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY, {
+        global: { headers: { Authorization: `Bearer ${userToken}` } }
+      });
+
+      const { data: laneData, error: selectError } = await userSupabase
+        .from('lanes')
+        .select('*')
+        .eq('reference_id', lane.reference_id)
+        .eq('user_id', auth.user.id)
+        .single();
+
+      if (selectError || !laneData) {
+        console.error('Lane created but not visible due to RLS:', { selectError, lane });
+        return res.status(500).json({ error: 'Lane created but not visible due to RLS', selectError, lane });
+      }
+
+      console.log('Lane created and fetched successfully:', laneData);
+      res.status(201).json(laneData);
       return;
       
       if (error) {
