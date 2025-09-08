@@ -100,10 +100,21 @@ function LanesPage() {
     async function loadLists(){
     try {
       console.log('Loading lane lists...');
+      
+      // Get authentication token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Authentication required. Please log in again.');
+      }
+
+      const headers = {
+        'Authorization': `Bearer ${session.access_token}`
+      };
+
       const [pendingRes, postedRes, recentRes] = await Promise.all([
-        fetch('/api/lanes?status=pending'),
-        fetch('/api/lanes?status=posted'),
-        fetch('/api/lanes?limit=50')
+        fetch('/api/lanes?status=pending', { headers }),
+        fetch('/api/lanes?status=posted', { headers }),
+        fetch('/api/lanes?limit=50', { headers })
       ]);
 
       // Log responses for debugging
@@ -113,6 +124,25 @@ function LanesPage() {
         recent: recentRes.status
       });
 
+      // If any response is 401, try to refresh the session
+      if (pendingRes.status === 401 || postedRes.status === 401 || recentRes.status === 401) {
+        console.log('Attempting to refresh session...');
+        const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError) throw new Error('Failed to refresh session: ' + refreshError.message);
+        
+        // Retry with new token
+        const headers = {
+          'Authorization': `Bearer ${refreshedSession.access_token}`
+        };
+        
+        [pendingRes, postedRes, recentRes] = await Promise.all([
+          fetch('/api/lanes?status=pending', { headers }),
+          fetch('/api/lanes?status=posted', { headers }),
+          fetch('/api/lanes?limit=50', { headers })
+        ]);
+      }
+
+      // Parse response data
       const [p, posted, r] = await Promise.all([
         pendingRes.ok ? pendingRes.json() : [],
         postedRes.ok ? postedRes.json() : [],
@@ -131,13 +161,39 @@ function LanesPage() {
       setRecent(Array.isArray(r) ? r : []);
     } catch (error) {
       console.error('Failed to load lanes:', error);
-      // Fallback to direct Supabase query if API fails
-      console.log('Attempting fallback to Supabase query...');
-      const [{ data: p }, { data: posted }, { data: r }] = await Promise.all([
-        supabase.from('lanes').select('*').eq('status', 'pending').order('created_at', { ascending: false }).limit(200),
-        supabase.from('lanes').select('*').eq('status', 'posted').order('created_at', { ascending: false }).limit(200),
-        supabase.from('lanes').select('*').order('created_at', { ascending: false }).limit(50),
-      ]);
+      
+      // Attempt to refresh the session first
+      try {
+        const { data: { session }, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError) throw refreshError;
+        
+        console.log('Session refreshed, attempting direct Supabase query...');
+        const [{ data: p, error: pError }, { data: posted, error: postedError }, { data: r, error: rError }] = await Promise.all([
+          supabase.from('lanes').select('*').eq('status', 'pending').order('created_at', { ascending: false }).limit(200),
+          supabase.from('lanes').select('*').eq('status', 'posted').order('created_at', { ascending: false }).limit(200),
+          supabase.from('lanes').select('*').order('created_at', { ascending: false }).limit(50),
+        ]);
+        
+        if (pError) throw pError;
+        if (postedError) throw postedError;
+        if (rError) throw rError;
+        
+        console.log('Supabase fallback results:', {
+          pending: p?.length || 0,
+          posted: posted?.length || 0,
+          recent: r?.length || 0
+        });
+        
+        setPending(p || []); 
+        setPosted(posted || []); 
+        setRecent(r || []);
+      } catch (fallbackError) {
+        console.error('Fallback query failed:', fallbackError);
+        // Set empty arrays if everything fails
+        setPending([]); 
+        setPosted([]); 
+        setRecent([]);
+      }
       
       console.log('Supabase fallback results:', {
         pending: p?.length || 0,
