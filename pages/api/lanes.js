@@ -13,6 +13,8 @@ export default async function handler(req, res) {
   const auth = await validateApiAuth(req, res);
   if (!auth) return;
 
+  console.log('API Request:', req.method, 'Body:', req.body ? 'present' : 'empty');
+  
   try {
     // GET - Get lanes with filtering
     if (req.method === 'GET') {
@@ -41,6 +43,7 @@ export default async function handler(req, res) {
     
     // POST - Create new lane
     if (req.method === 'POST') {
+      console.log('POST request received for lane creation');
       const payload = req.body;
       
       if (!payload.origin_city || !payload.origin_state || !payload.dest_city || !payload.dest_state || 
@@ -92,6 +95,7 @@ export default async function handler(req, res) {
         console.error('Lane created but no ID returned:', data);
         throw new Error('Lane creation failed - database did not return an ID');
       }
+      console.log('Lane created successfully:', data);
       return res.status(201).json(data);
     }
     
