@@ -37,8 +37,9 @@ export default async function handler(req, res) {
 
       const { data, error } = await query;
       
-      if (error) throw error;
-      return res.status(200).json(data || []);
+  if (error) throw error;
+  res.status(200).json(data || []);
+  return;
     }
     
     // POST - Create new lane
@@ -96,7 +97,8 @@ export default async function handler(req, res) {
         throw new Error('Lane creation failed - database did not return an ID');
       }
       console.log('Lane created successfully:', data);
-      return res.status(201).json(data);
+      res.status(201).json(data);
+      return;
     }
     
     // PUT - Update lane
