@@ -62,8 +62,17 @@ export default async function handler(req, res) {
   });
 
   // Validate user has necessary permissions
-  const auth = await validateApiAuth(req, res, { requiredRole: 'Admin' });
+  const auth = await validateApiAuth(req, res);
   if (!auth) return;
+
+  // Check role permissions: Admin, Broker, and Support can export CSVs (Apprentice cannot)
+  const allowedRoles = ['Admin', 'Administrator', 'Broker', 'Support'];
+  if (!allowedRoles.includes(auth.profile.role)) {
+    monitor.log('warn', `CSV export denied for role: ${auth.profile.role} (${auth.user.email})`);
+    return res.status(403).json({ 
+      error: 'Insufficient permissions. Admin, Broker, or Support role required for CSV export.' 
+    });
+  }
 
   // Log authenticated user
   monitor.log('info', `Authorized user: ${auth.user.email} (${auth.profile.role})`);

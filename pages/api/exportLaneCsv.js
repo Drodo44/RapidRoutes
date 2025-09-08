@@ -7,11 +7,24 @@ import { adminSupabase } from '../../utils/supabaseClient';
 import { DAT_HEADERS } from '../../lib/datHeaders.js';
 import { rowsFromBaseAndPairs, toCsv } from '../../lib/datCsvBuilder';
 import { FreightIntelligence } from '../../lib/FreightIntelligence.js';
+import { validateApiAuth } from '../../middleware/auth.unified.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET');
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // Validate user has necessary permissions
+  const auth = await validateApiAuth(req, res);
+  if (!auth) return;
+
+  // Check role permissions: Admin, Broker, and Support can export CSVs (Apprentice cannot)
+  const allowedRoles = ['Admin', 'Administrator', 'Broker', 'Support'];
+  if (!allowedRoles.includes(auth.profile.role)) {
+    return res.status(403).json({ 
+      error: 'Insufficient permissions. Admin, Broker, or Support role required for CSV export.' 
+    });
   }
 
   const id = String(req.query.id || '').trim();
