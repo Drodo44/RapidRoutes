@@ -97,27 +97,21 @@ function LanesPage() {
   function onPickOrigin(it){ setOrigin(`${it.city}, ${it.state}`); setOriginZip(it.zip || ''); }
   function onPickDest(it){ setDest(`${it.city}, ${it.state}`); setDestZip(it.zip || ''); }
 
-  async function loadLists(){
+    async function loadLists(){
     try {
-      // Get authentication token for enterprise-level API security
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        console.warn('No session token for loading lanes');
-        return;
-      }
-
-      // Use authenticated API calls for consistent data access
+      console.log('Loading lane lists...');
       const [pendingRes, postedRes, recentRes] = await Promise.all([
-        fetch('/api/lanes?status=pending&limit=200', {
-          headers: { 'Authorization': `Bearer ${session.access_token}` }
-        }),
-        fetch('/api/lanes?status=posted&limit=200', {
-          headers: { 'Authorization': `Bearer ${session.access_token}` }
-        }),
-        fetch('/api/lanes?limit=50', {
-          headers: { 'Authorization': `Bearer ${session.access_token}` }
-        }),
+        fetch('/api/lanes?status=pending'),
+        fetch('/api/lanes?status=posted'),
+        fetch('/api/lanes?limit=50')
       ]);
+
+      // Log responses for debugging
+      console.log('API Response Status:', {
+        pending: pendingRes.status,
+        posted: postedRes.status,
+        recent: recentRes.status
+      });
 
       const [p, posted, r] = await Promise.all([
         pendingRes.ok ? pendingRes.json() : [],
@@ -125,23 +119,42 @@ function LanesPage() {
         recentRes.ok ? recentRes.json() : [],
       ]);
 
-      setPending(p || []); 
-      setPosted(posted || []); 
-      setRecent(r || []);
+      // Log list sizes for debugging
+      console.log('Loaded lane counts:', {
+        pending: p?.length || 0,
+        posted: posted?.length || 0,
+        recent: r?.length || 0
+      });
+
+      setPending(Array.isArray(p) ? p : []); 
+      setPosted(Array.isArray(posted) ? posted : []); 
+      setRecent(Array.isArray(r) ? r : []);
     } catch (error) {
       console.error('Failed to load lanes:', error);
       // Fallback to direct Supabase query if API fails
+      console.log('Attempting fallback to Supabase query...');
       const [{ data: p }, { data: posted }, { data: r }] = await Promise.all([
         supabase.from('lanes').select('*').eq('status', 'pending').order('created_at', { ascending: false }).limit(200),
         supabase.from('lanes').select('*').eq('status', 'posted').order('created_at', { ascending: false }).limit(200),
         supabase.from('lanes').select('*').order('created_at', { ascending: false }).limit(50),
       ]);
+      
+      console.log('Supabase fallback results:', {
+        pending: p?.length || 0,
+        posted: posted?.length || 0,
+        recent: r?.length || 0
+      });
+      
       setPending(p || []); 
       setPosted(posted || []); 
       setRecent(r || []);
     }
   }
-  useEffect(()=>{ loadLists(); }, []);
+
+  useEffect(() => {
+    console.log('Initial load effect triggered');
+    loadLists();
+  }, []);
 
   // When user toggles randomize ON, open modal. Respect session memory
   useEffect(()=>{
@@ -522,6 +535,11 @@ function LanesPage() {
       
       // Track intelligence: this route was successful before
       try {
+        if (!newLane || !newLane.id) {
+          console.warn('New lane data missing ID, skipping intelligence tracking');
+          return;
+        }
+
         // Get authentication token for enterprise-level API security
         const { data: { session: perfSession } } = await supabase.auth.getSession();
         if (perfSession?.access_token) {
@@ -532,7 +550,7 @@ function LanesPage() {
               'Authorization': `Bearer ${perfSession.access_token}`, // Enterprise-standard authentication
             },
             body: JSON.stringify({
-              lane_id: newLane.data.id,
+              lane_id: newLane.id, // Use ID directly from the lane object
               equipment_code: lane.equipment_code,
               origin_city: lane.origin_city,
               origin_state: lane.origin_state,
