@@ -131,15 +131,29 @@ function LanesPage() {
         if (refreshError) throw new Error('Failed to refresh session: ' + refreshError.message);
         
         // Retry with new token
-        const headers = {
+        const newHeaders = {
           'Authorization': `Bearer ${refreshedSession.access_token}`
         };
         
-        [pendingRes, postedRes, recentRes] = await Promise.all([
-          fetch('/api/lanes?status=pending', { headers }),
-          fetch('/api/lanes?status=posted', { headers }),
-          fetch('/api/lanes?limit=50', { headers })
+        // Make new requests with refreshed token
+        const [newPendingRes, newPostedRes, newRecentRes] = await Promise.all([
+          fetch('/api/lanes?status=pending', { headers: newHeaders }),
+          fetch('/api/lanes?status=posted', { headers: newHeaders }),
+          fetch('/api/lanes?limit=50', { headers: newHeaders })
         ]);
+
+        // Use the new responses
+        if (newPendingRes.ok && newPostedRes.ok && newRecentRes.ok) {
+          const [p, posted, r] = await Promise.all([
+            newPendingRes.json(),
+            newPostedRes.json(),
+            newRecentRes.json()
+          ]);
+          setPending(Array.isArray(p) ? p : []);
+          setPosted(Array.isArray(posted) ? posted : []);
+          setRecent(Array.isArray(r) ? r : []);
+          return; // Exit early since we've handled the data
+        }
       }
 
       // Parse response data
