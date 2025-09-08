@@ -28,7 +28,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const crawl = await generateIntelligentCrawlPairs({
+    const crawl = await generateGeographicCrawlPairs({
       origin,
       destination,
       equipment: equip,

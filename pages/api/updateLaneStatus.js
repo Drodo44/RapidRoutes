@@ -1,23 +1,19 @@
 // pages/api/updateLaneStatus.js
-import apiAuth from '../../middleware/apiAuth';
+import { validateApiAuth } from '../../middleware/auth.unified';
 import { adminSupabase } from '../../utils/supabaseClient';
 
-function runMiddleware(req, res, fn) {
-  return new Promise((resolve, reject) => {
-    fn(req, res, (result) => {
-      if (result instanceof Error) {
-        return reject(result);
-      }
-      return resolve(result);
-    });
-  });
-}
-
 export default async function handler(req, res) {
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Allow', 'PUT');
+    return res.status(200).end();
+  }
+
+  // Validate authentication for all requests
+  const auth = await validateApiAuth(req, res);
+  if (!auth) return;
+
   try {
-    // Run the middleware
-    await runMiddleware(req, res, apiAuth);
-    
     if (req.method !== 'PUT') {
       res.setHeader('Allow', 'PUT');
       return res.status(405).json({ error: 'Method not allowed' });
@@ -28,18 +24,19 @@ export default async function handler(req, res) {
     if (!laneId || !status) {
       return res.status(400).json({ error: 'Lane ID and status required' });
     }
-    
-    // Validate status value
+
+    // Valid status values
     const validStatuses = ['pending', 'posted', 'covered'];
     if (!validStatuses.includes(status)) {
-      return res.status(400).json({ error: 'Invalid status value' });
+      return res.status(400).json({ error: 'Invalid status' });
     }
 
+    // Update the lane status
     const { data, error } = await adminSupabase
       .from('lanes')
-      .update({ status, updated_at: new Date().toISOString() })
+      .update({ status, updated_at: new Date() })
       .eq('id', laneId)
-      .select('*');
+      .select();
     
     if (error) throw error;
     
