@@ -84,7 +84,16 @@ export default async function handler(req, res) {
         created_by: auth.user.id,
         user_id: auth.user.id,
       };
-      console.log('[API] Inserting lane with user_id:', auth.user.id, 'lane:', lane);
+      // Remove any user_id/created_by from payload to avoid confusion
+      if ('user_id' in lane && lane.user_id !== auth.user.id) {
+        console.warn('[API] Overwriting user_id from payload:', lane.user_id, 'to', auth.user.id);
+        lane.user_id = auth.user.id;
+      }
+      if ('created_by' in lane && lane.created_by !== auth.user.id) {
+        console.warn('[API] Overwriting created_by from payload:', lane.created_by, 'to', auth.user.id);
+        lane.created_by = auth.user.id;
+      }
+      console.log('[API] Auth user id:', auth.user.id, 'Inserting lane with user_id:', lane.user_id, 'lane:', lane);
 
       // Insert with admin client
       const { error: insertError } = await adminSupabase
