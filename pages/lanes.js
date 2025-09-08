@@ -411,17 +411,14 @@ function LanesPage() {
         return null; // Return null to indicate we didn't create a new lane
       }
       
-      // If not intermodal eligible, continue with post again
-      return await createPostAgainLane(lane, session);
-      
-      // Get auth session first
+      // Get auth session first  
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
         setMsg('Authentication required. Please log in again.');
         return null;
       }
-
-      // Use the helper function for actual lane creation
+      
+      // If not intermodal eligible, continue with post again
       return await createPostAgainLane(lane, session);
     } catch (error) {
       console.error('Failed to create new lane:', error);
