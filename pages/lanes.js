@@ -382,13 +382,17 @@ function LanesPage() {
       throw new Error(errorData.error || 'Failed to create new lane');
     }
 
-    const newLane = await response.json();
-    
+    let newLane = await response.json();
+    // Handle if API returns an array
+    if (Array.isArray(newLane)) {
+      console.warn('API returned array, extracting first lane:', newLane);
+      newLane = newLane[0];
+    }
+    console.log('API response for postAgain:', newLane);
     if (!newLane || typeof newLane !== 'object') {
       console.error('Invalid server response:', newLane);
       throw new Error('Invalid response from server');
     }
-    
     if (!newLane.id) {
       console.error('Server response missing ID:', newLane);
       throw new Error('Lane creation failed - server did not return lane data');
