@@ -4,19 +4,38 @@ import { supabase, adminSupabase } from '../utils/supabaseClient';
 /**
  * Unified session handler for auth validation and role checking
  */
-async function validateSession(options = {}) {
+async function validateSession(options = {}, authToken = null) {
   try {
-    const { data: { session }, error: authError } = await supabase.auth.getSession();
+    let session, user;
+    
+    // Server-side: Use provided auth token (from Authorization header)
+    if (authToken) {
+      const { data: { user: tokenUser }, error: tokenError } = await adminSupabase.auth.getUser(authToken);
+      
+      if (tokenError || !tokenUser) {
+        return { error: 'Invalid authentication token' };
+      }
+      
+      user = tokenUser;
+      session = { user: tokenUser };
+    } 
+    // Client-side: Use session from browser
+    else {
+      const { data: { session: clientSession }, error: authError } = await supabase.auth.getSession();
 
-    if (authError || !session?.user) {
-      return { error: 'Authentication required' };
+      if (authError || !clientSession?.user) {
+        return { error: 'Authentication required' };
+      }
+      
+      session = clientSession;
+      user = clientSession.user;
     }
 
-    // Get user profile with role information
-    const { data: profile, error: profileError } = await supabase
+    // Get user profile with role information using adminSupabase for server-side reliability
+    const { data: profile, error: profileError } = await adminSupabase
       .from('profiles')
       .select('*')
-      .eq('id', session.user.id)
+      .eq('id', user.id)
       .single();
 
     if (profileError || !profile?.active || profile.status !== 'approved') {
@@ -28,18 +47,32 @@ async function validateSession(options = {}) {
       return { error: `${options.requiredRole} access required` };
     }
 
-    return { user: session.user, profile };
+    return {
+      user: user,
+      profile,
+      session
+    };
   } catch (error) {
     console.error('Session validation error:', error);
-    return { error: 'Authentication failed' };
+    return { error: 'Authentication validation failed' };
   }
 }
 
 /**
  * API route middleware to validate auth and optionally check role
+ * ENTERPRISE-LEVEL: Supports Bearer token authentication
  */
 export async function validateApiAuth(req, res, options = {}) {
-  const result = await validateSession(options);
+  // Extract Bearer token from Authorization header
+  const authHeader = req.headers.authorization;
+  const authToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  
+  if (!authToken) {
+    res.status(401).json({ error: 'No auth token provided' });
+    return null;
+  }
+  
+  const result = await validateSession(options, authToken);
   
   if (result.error) {
     res.status(result.error === 'Authentication required' ? 401 : 403)

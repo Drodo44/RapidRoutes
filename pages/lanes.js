@@ -163,11 +163,18 @@ function LanesPage() {
         sessionStorage.setItem('rr_rand_max', randMax);
       }
       
+      // Get authentication token for enterprise-level API security
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Authentication required. Please log in again.');
+      }
+      
       // Use the API endpoint for better validation and error handling
       const response = await fetch('/api/lanes', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`, // Enterprise-standard authentication
         },
         body: JSON.stringify(payload),
       });
@@ -440,9 +447,18 @@ function LanesPage() {
         status: 'pending',
       };
       
+      // Get authentication token for enterprise-level API security
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Authentication required. Please log in again.');
+      }
+      
       const response = await fetch('/api/lanes', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`, // Enterprise-standard authentication
+        },
         body: JSON.stringify(payload),
       });
       
@@ -457,24 +473,31 @@ function LanesPage() {
       
       // Track intelligence: this route was successful before
       try {
-        await fetch('/api/lane-performance', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            lane_id: newLane.data.id,
-            equipment_code: lane.equipment_code,
-            origin_city: lane.origin_city,
-            origin_state: lane.origin_state,
-            dest_city: lane.dest_city,
-            dest_state: lane.dest_state,
-            crawl_cities: [],
-            intelligence_metadata: {
-              repost_of_successful_lane: lane.id,
-              original_success_date: lane.updated_at,
-              intelligence_level: 'successful_repost'
-            }
-          })
-        });
+        // Get authentication token for enterprise-level API security
+        const { data: { session: perfSession } } = await supabase.auth.getSession();
+        if (perfSession?.access_token) {
+          await fetch('/api/lane-performance', {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${perfSession.access_token}`, // Enterprise-standard authentication
+            },
+            body: JSON.stringify({
+              lane_id: newLane.data.id,
+              equipment_code: lane.equipment_code,
+              origin_city: lane.origin_city,
+              origin_state: lane.origin_state,
+              dest_city: lane.dest_city,
+              dest_state: lane.dest_state,
+              crawl_cities: [],
+              intelligence_metadata: {
+                repost_of_successful_lane: lane.id,
+                original_success_date: lane.updated_at,
+                intelligence_level: 'successful_repost'
+              }
+            })
+          });
+        }
       } catch (trackingError) {
         console.warn('Failed to track repost intelligence:', trackingError);
         // Don't fail the main operation for tracking
@@ -489,8 +512,17 @@ function LanesPage() {
     if (!confirm('Delete this lane?')) return; 
     
     try {
+      // Get authentication token for enterprise-level API security
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Authentication required. Please log in again.');
+      }
+      
       const response = await fetch(`/api/lanes?id=${lane.id}`, {
         method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`, // Enterprise-standard authentication
+        },
       });
       
       if (!response.ok) {
@@ -518,9 +550,18 @@ function LanesPage() {
     console.log('Saving lane edit...', editingLane);
     
     try {
+      // Get authentication token for enterprise-level API security
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Authentication required. Please log in again.');
+      }
+      
       const response = await fetch('/api/lanes', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`, // Enterprise-standard authentication
+        },
         body: JSON.stringify({
           id: editingLane.id,
           origin_city: editingLane.origin_city,
