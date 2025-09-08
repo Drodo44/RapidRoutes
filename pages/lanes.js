@@ -24,6 +24,52 @@ function Section({ title, children, right, className = '' }) {
 }
 
 function LanesPage() {
+  // --- Restore submitLane function ---
+  async function submitLane(e) {
+    e.preventDefault();
+    setMsg('');
+    // Validate first
+    const err = validate();
+    if (err) {
+      setMsg(err);
+      return;
+    }
+    // Then get session
+    const { data: { session: authSession } } = await supabase.auth.getSession();
+    if (!authSession?.access_token) {
+      setMsg('Authentication required. Please log in again.');
+      return;
+    }
+    setBusy(true);
+    try {
+      const [oc, os] = origin.split(',').map(s => s.trim());
+      const [dc, ds] = dest.split(',').map(s => s.trim());
+      // First check intermodal eligibility
+      const laneData = {
+        origin_city: oc,
+        origin_state: os,
+        dest_city: dc,
+        dest_state: ds,
+        equipment_code: equipment.toUpperCase(),
+        length_ft: Number(lengthFt),
+        weight_lbs: randomize ? null : Number(weight)
+      };
+      const eligibilityCheck = await checkIntermodalEligibility(laneData);
+      if (eligibilityCheck?.eligible) {
+        setIntermodalLane(laneData);
+        setPendingAction({ type: 'createLane', data: laneData });
+        setShowIntermodalNudge(true);
+        setBusy(false);
+        return;
+      }
+      // If not intermodal eligible, continue with regular lane creation
+      await createLaneFromData(laneData, authSession);
+    } catch (error) {
+      setMsg(error.message || 'Failed to save lane.');
+    } finally {
+      setBusy(false);
+    }
+  }
   const router = useRouter();
   const { loading, isAuthenticated, session } = useAuth();
   
