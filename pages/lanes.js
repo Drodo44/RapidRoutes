@@ -61,6 +61,7 @@ function LanesPage() {
   const [showIntermodalEmail, setShowIntermodalEmail] = useState(false);
   const [intermodalLane, setIntermodalLane] = useState(null);
   const [editingLane, setEditingLane] = useState(null);
+  const [pendingAction, setPendingAction] = useState(null); // Track what action to continue after intermodal check
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -178,6 +179,71 @@ function LanesPage() {
     return null;
   }
 
+  // Helper function to create lane from data without intermodal check
+  async function createLaneFromData(laneData, authSession) {
+    try {
+      const payload = {
+        origin_city: laneData.origin_city,
+        origin_state: laneData.origin_state,
+        origin_zip: originZip || null,
+        dest_city: laneData.dest_city,
+        dest_state: laneData.dest_state,
+        dest_zip: destZip || null,
+        equipment_code: laneData.equipment_code,
+        length_ft: laneData.length_ft,
+        full_partial: fullPartial === 'partial' ? 'partial' : 'full',
+        pickup_earliest: pickupEarliest,
+        pickup_latest: pickupLatest,
+        randomize_weight: !!randomize,
+        weight_lbs: laneData.weight_lbs,
+        weight_min: randomize ? Number(randMin) : null,
+        weight_max: randomize ? Number(randMax) : null,
+        comment: comment || null,
+        commodity: commodity || null,
+        status: 'pending',
+        user_id: authSession.user.id,
+        created_by: authSession.user.id
+      };
+
+      if (randomize && rememberSession) {
+        sessionStorage.setItem('rr_rand_min', randMin);
+        sessionStorage.setItem('rr_rand_max', randMax);
+      }
+
+      const response = await fetch('/api/lanes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authSession.access_token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save lane');
+      }
+
+      const newLane = await response.json();
+      await loadLists();
+
+      setMsg('✅ Lane added successfully');
+      // Clear form
+      setOrigin(''); 
+      setOriginZip(''); 
+      setDest(''); 
+      setDestZip('');
+      setComment(''); 
+      setCommodity('');
+      setWeight(''); 
+      setRandomize(false);
+
+      return newLane;
+    } catch (error) {
+      throw error;
+    }
+  }
+
   async function submitLane(e) {
     e.preventDefault();
     setMsg('');
@@ -215,78 +281,112 @@ function LanesPage() {
       const eligibilityCheck = await checkIntermodalEligibility(laneData);
       if (eligibilityCheck?.eligible) {
         setIntermodalLane(laneData);
+        setPendingAction({ type: 'createLane', data: laneData });
         setShowIntermodalNudge(true);
+        setBusy(false);
         return;
       }
       
-      // Then create the payload
-      const payload = {
-        origin_city: oc,
-        origin_state: os,
-        origin_zip: originZip || null,
-        dest_city: dc,
-        dest_state: ds,
-        dest_zip: destZip || null,
-        equipment_code: equipment.toUpperCase(),
-        length_ft: Number(lengthFt),
-        full_partial: fullPartial === 'partial' ? 'partial' : 'full',
-        pickup_earliest: pickupEarliest,
-        pickup_latest: pickupLatest,
-        randomize_weight: !!randomize,
-        weight_lbs: randomize ? null : Number(weight),
-        weight_min: randomize ? Number(randMin) : null,
-        weight_max: randomize ? Number(randMax) : null,
-        comment: comment || null,
-        commodity: commodity || null,
-        status: 'pending',
-        user_id: authSession.user.id,
-        created_by: authSession.user.id
-      };
-      
-      if (randomize && rememberSession) {
-        sessionStorage.setItem('rr_rand_min', randMin);
-        sessionStorage.setItem('rr_rand_max', randMax);
-      }
-      
-      const { data: { session: authSession } } = await supabase.auth.getSession();
-      if (!authSession?.access_token) {
-        throw new Error('Authentication required. Please log in again.');
-      }
-      
-      const response = await fetch('/api/lanes', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authSession.access_token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to save lane');
-      }
-
-      const newLane = await response.json();
-      
-      // We've already checked intermodal eligibility before creating the lane
-      
-      await loadLists();
-
-      setMsg('✅ Lane added successfully');
-      setOrigin(''); 
-      setOriginZip(''); 
-      setDest(''); 
-      setDestZip('');
-      setComment(''); 
-      setCommodity('');
-      setWeight(''); 
-      setRandomize(false);
+      // If not intermodal eligible, continue with regular lane creation
+      await createLaneFromData(laneData, authSession);
     } catch (error) {
       setMsg(error.message || 'Failed to save lane.');
     } finally {
       setBusy(false);
     }
+  }
+
+  // Helper function to create post again lane without intermodal check
+  async function createPostAgainLane(lane, session) {
+    // Validate the lane data
+    if (!lane.origin_city || !lane.origin_state || !lane.dest_city || !lane.dest_state || !lane.equipment_code) {
+      throw new Error('Invalid lane data for reposting');
+    }
+
+    const payload = {
+      origin_city: lane.origin_city,
+      origin_state: lane.origin_state,
+      origin_zip: lane.origin_zip || null,
+      dest_city: lane.dest_city,
+      dest_state: lane.dest_state,
+      dest_zip: lane.dest_zip || null,
+      equipment_code: lane.equipment_code,
+      length_ft: lane.length_ft,
+      full_partial: lane.full_partial || 'full',
+      pickup_earliest: lane.pickup_earliest,
+      pickup_latest: lane.pickup_latest,
+      randomize_weight: !!lane.randomize_weight,
+      weight_lbs: lane.weight_lbs || null,
+      weight_min: lane.weight_min || null,
+      weight_max: lane.weight_max || null,
+      comment: lane.comment || null,
+      commodity: lane.commodity || null,
+      status: 'pending',
+      reference_id: generateNewReferenceId(),
+      user_id: session.user.id,
+      created_by: session.user.id
+    };
+
+    const response = await fetch('/api/lanes', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to create new lane');
+    }
+
+    const newLane = await response.json();
+    
+    if (!newLane || typeof newLane !== 'object') {
+      console.error('Invalid server response:', newLane);
+      throw new Error('Invalid response from server');
+    }
+    
+    if (!newLane.id) {
+      console.error('Server response missing ID:', newLane);
+      throw new Error('Lane creation failed - server did not return lane data');
+    }
+
+    await loadLists();
+    setMsg(`Lane reposted successfully: ${lane.origin_city}, ${lane.origin_state} to ${lane.dest_city}, ${lane.dest_state}`);
+
+    // Track performance
+    try {
+      const { data: { session: perfSession } } = await supabase.auth.getSession();
+      if (perfSession?.access_token) {
+        await fetch('/api/lane-performance', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${perfSession.access_token}`
+          },
+          body: JSON.stringify({
+            lane_id: newLane.id,
+            equipment_code: lane.equipment_code,
+            origin_city: lane.origin_city,
+            origin_state: lane.origin_state,
+            dest_city: lane.dest_city,
+            dest_state: lane.dest_state,
+            crawl_cities: [],
+            intelligence_metadata: {
+              repost_of_successful_lane: lane.id,
+              original_success_date: lane.updated_at,
+              intelligence_level: 'successful_repost'
+            }
+          })
+        });
+      }
+    } catch (trackingError) {
+      console.warn('Intelligence tracking error:', trackingError);
+    }
+
+    return newLane;
   }
 
   async function postAgain(lane) {
@@ -306,9 +406,13 @@ function LanesPage() {
       
       if (eligibilityCheck?.eligible) {
         setIntermodalLane(lane);
+        setPendingAction({ type: 'postAgain', lane: lane });
         setShowIntermodalNudge(true);
         return null; // Return null to indicate we didn't create a new lane
       }
+      
+      // If not intermodal eligible, continue with post again
+      return await createPostAgainLane(lane, session);
       
       // Get auth session first
       const { data: { session } } = await supabase.auth.getSession();
@@ -317,93 +421,8 @@ function LanesPage() {
         return null;
       }
 
-      // Validate the lane data
-      if (!lane.origin_city || !lane.origin_state || !lane.dest_city || !lane.dest_state || !lane.equipment_code) {
-        setMsg('Invalid lane data for reposting');
-        return null;
-      }
-
-      const payload = {
-        origin_city: lane.origin_city,
-        origin_state: lane.origin_state,
-        origin_zip: lane.origin_zip || null,
-        dest_city: lane.dest_city,
-        dest_state: lane.dest_state,
-        dest_zip: lane.dest_zip || null,
-        equipment_code: lane.equipment_code,
-        length_ft: lane.length_ft,
-        full_partial: lane.full_partial || 'full',
-        pickup_earliest: lane.pickup_earliest,
-        pickup_latest: lane.pickup_latest,
-        randomize_weight: !!lane.randomize_weight,
-        weight_lbs: lane.weight_lbs || null,
-        weight_min: lane.weight_min || null,
-        weight_max: lane.weight_max || null,
-        comment: lane.comment || null,
-        commodity: lane.commodity || null,
-        status: 'pending',
-        reference_id: generateNewReferenceId(),
-        user_id: session.user.id,
-        created_by: session.user.id
-      };
-
-      const response = await fetch('/api/lanes', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create new lane');
-      }
-
-      const newLane = await response.json();
-      
-      if (!newLane || typeof newLane !== 'object') {
-        console.error('Invalid server response:', newLane);
-        throw new Error('Invalid response from server');
-      }
-      
-      if (!newLane.id) {
-        console.error('Server response missing ID:', newLane);
-        throw new Error('Lane creation failed - server did not return lane data');
-      }
-
-      await loadLists();
-      setMsg(`Lane created successfully: ${lane.origin_city}, ${lane.origin_state} to ${lane.dest_city}, ${lane.dest_state}`);
-
-      try {
-        const { data: { session: perfSession } } = await supabase.auth.getSession();
-        if (perfSession?.access_token) {
-          await fetch('/api/lane-performance', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${perfSession.access_token}`
-            },
-            body: JSON.stringify({
-              lane_id: newLane.id,
-              equipment_code: lane.equipment_code,
-              origin_city: lane.origin_city,
-              origin_state: lane.origin_state,
-              dest_city: lane.dest_city,
-              dest_state: lane.dest_state,
-              crawl_cities: [],
-              intelligence_metadata: {
-                repost_of_successful_lane: lane.id,
-                original_success_date: lane.updated_at,
-                intelligence_level: 'successful_repost'
-              }
-            })
-          });
-        }
-      } catch (trackingError) {
-        console.warn('Intelligence tracking error:', trackingError);
-      }
+      // Use the helper function for actual lane creation
+      return await createPostAgainLane(lane, session);
     } catch (error) {
       console.error('Failed to create new lane:', error);
       setMsg(`❌ Failed to create new lane: ${error.message}`);
@@ -627,10 +646,36 @@ function LanesPage() {
         {showIntermodalNudge && (
           <IntermodalNudge
             lane={intermodalLane}
-            onClose={() => setShowIntermodalNudge(false)}
+            onClose={async () => {
+              setShowIntermodalNudge(false);
+              
+              // Continue with the pending action if user chose "Continue with Truck"
+              if (pendingAction) {
+                setBusy(true);
+                try {
+                  if (pendingAction.type === 'createLane') {
+                    const { data: { session: authSession } } = await supabase.auth.getSession();
+                    if (authSession?.access_token) {
+                      await createLaneFromData(pendingAction.data, authSession);
+                    }
+                  } else if (pendingAction.type === 'postAgain') {
+                    const { data: { session } } = await supabase.auth.getSession();
+                    if (session?.access_token) {
+                      await createPostAgainLane(pendingAction.lane, session);
+                    }
+                  }
+                } catch (error) {
+                  setMsg(`❌ ${error.message}`);
+                } finally {
+                  setBusy(false);
+                  setPendingAction(null);
+                }
+              }
+            }}
             onEmail={(lane) => {
               setShowIntermodalNudge(false);
               setShowIntermodalEmail(true);
+              setPendingAction(null); // Clear pending action when choosing intermodal
             }}
           />
         )}
