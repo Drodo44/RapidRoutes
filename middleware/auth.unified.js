@@ -1,4 +1,5 @@
 // middleware/auth.unified.js
+import { createClient } from '@supabase/supabase-js';
 import { supabase, adminSupabase } from '../utils/supabaseClient';
 
 /**
@@ -10,7 +11,20 @@ async function validateSession(options = {}, authToken = null) {
     
     // Server-side: Use provided auth token (from Authorization header)
     if (authToken) {
-      const { data: { user: tokenUser }, error: tokenError } = await adminSupabase.auth.getUser(authToken);
+      // Create a temporary client with the provided token for validation
+      const tokenClient = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+        {
+          global: {
+            headers: {
+              Authorization: `Bearer ${authToken}`
+            }
+          }
+        }
+      );
+      
+      const { data: { user: tokenUser }, error: tokenError } = await tokenClient.auth.getUser();
       
       if (tokenError || !tokenUser) {
         return { error: 'Invalid authentication token' };
