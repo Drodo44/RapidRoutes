@@ -80,13 +80,31 @@ export default async function handler(req, res) {
         reference_id: payload.reference_id || generateReferenceId(),
         created_at: new Date().toISOString(),
         created_by: auth.user.id,
+        user_id: auth.user.id,
       };
 
       const { data, error } = await adminSupabase
-        .from('lanes')
-        .insert([lane])
-        .select('id, reference_id, origin_city, origin_state, dest_city, dest_state, status')
-        .single();
+      .from('lanes')
+      .insert([lane])
+      .select('*')
+      .single();
+
+      if (error) {
+        console.error('Lane creation error:', error);
+        return res.status(500).json({ error: error.message || 'Database error', details: error });
+      }
+      if (!data || !data.id) {
+        console.error('Lane created but no ID returned:', { data, lane, payload });
+        return res.status(500).json({
+          error: 'Lane creation failed - database did not return an ID',
+          data,
+          lane,
+          payload
+        });
+      }
+      console.log('Lane created successfully:', data);
+      res.status(201).json(data);
+      return;
       
       if (error) {
         console.error('Lane creation error:', error);
