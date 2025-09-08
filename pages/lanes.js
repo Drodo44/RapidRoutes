@@ -232,18 +232,27 @@ function LanesPage() {
           weight_lbs: randomize ? null : Number(weight)
         };
         
-        const isEligible = await checkIntermodalEligibility(laneData);
-        if (isEligible.eligible) {
+        // Only show intermodal nudge if explicitly eligible
+        const eligibilityCheck = await checkIntermodalEligibility(laneData);
+        if (eligibilityCheck && eligibilityCheck.eligible === true) {
           setIntermodalLane(newLane);
           setShowIntermodalNudge(true);
         }
       }
-
-      setMsg('Lane added.');
-      setOrigin(''); setOriginZip(''); setDest(''); setDestZip('');
-      setComment(''); setCommodity('');
-      setWeight(''); setRandomize(false);
+      
+      // Ensure lists are updated before clearing form
       await loadLists();
+
+      // Clear form after lists are updated
+      setMsg('✅ Lane added successfully');
+      setOrigin(''); 
+      setOriginZip(''); 
+      setDest(''); 
+      setDestZip('');
+      setComment(''); 
+      setCommodity('');
+      setWeight(''); 
+      setRandomize(false);
     } catch (e2) {
       setMsg(e2.message || 'Failed to save lane.');
     } finally { setBusy(false); }
