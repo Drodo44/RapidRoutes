@@ -228,43 +228,38 @@ function LanesPage() {
       await loadLists();
 
       setMsg('✅ Lane added successfully');
-      // Clear form
-      setOrigin(''); 
-      setOriginZip(''); 
-      setDest(''); 
-      setDestZip('');
-      setComment(''); 
-      setCommodity('');
-      setWeight(''); 
-      setRandomize(false);
-
-      return newLane;
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  async function submitLane(e) {
-    e.preventDefault();
-    setMsg('');
-    
-    // Validate first
-    const err = validate();
-    if (err) {
-      setMsg(err);
-      return;
-    }
-
-    // Then get session
-    const { data: { session: authSession } } = await supabase.auth.getSession();
-    if (!authSession?.access_token) {
-      setMsg('Authentication required. Please log in again.');
-      return;
-    }
-
-    setBusy(true);
-    try {
-      const [oc, os] = origin.split(',').map(s => s.trim());
+      try {
+        console.log('Loading lane lists...');
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
+        if (!session?.access_token) {
+          const { data: { session: refreshed }, error: refreshError } = await supabase.auth.refreshSession();
+          if (refreshError) throw refreshError;
+          if (!refreshed?.access_token) {
+            throw new Error('Failed to authenticate. Please log in again.');
+          }
+        }
+        const [{ data: p, error: pError }, { data: posted, error: postedError }, { data: r, error: rError }] = await Promise.all([
+          supabase.from('lanes').select('*').eq('status', 'pending').order('created_at', { ascending: false }).limit(200),
+          supabase.from('lanes').select('*').eq('status', 'posted').order('created_at', { ascending: false }).limit(200),
+          supabase.from('lanes').select('*').order('created_at', { ascending: false }).limit(50),
+        ]);
+        // Diagnostic: log user and loaded lanes
+        const userId = session?.user?.id;
+        console.log('[LANES] Current user id:', userId);
+        if (p) console.log('[LANES] Pending lanes user_ids:', p.map(l => l.user_id));
+        if (posted) console.log('[LANES] Posted lanes user_ids:', posted.map(l => l.user_id));
+        if (r) console.log('[LANES] Recent lanes user_ids:', r.map(l => l.user_id));
+        setPending(p || []); 
+        setPosted(posted || []); 
+        setRecent(r || []);
+      } catch (error) {
+        console.error('Failed to load lanes:', error);
+        setPending([]); 
+        setPosted([]); 
+        setRecent([]);
+        setMsg(`❌ Failed to load lanes: ${error.message}`);
+      }
       const [dc, ds] = dest.split(',').map(s => s.trim());
       
       // First check intermodal eligibility

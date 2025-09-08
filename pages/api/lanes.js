@@ -75,6 +75,7 @@ export default async function handler(req, res) {
       }
 
       // Handle defaults
+      // Never trust client for user_id/created_by
       const lane = {
         ...payload,
         status: payload.status || 'pending',
@@ -83,6 +84,7 @@ export default async function handler(req, res) {
         created_by: auth.user.id,
         user_id: auth.user.id,
       };
+      console.log('[API] Inserting lane with user_id:', auth.user.id, 'lane:', lane);
 
       // Insert with admin client
       const { error: insertError } = await adminSupabase
@@ -110,6 +112,7 @@ export default async function handler(req, res) {
         .eq('user_id', auth.user.id)
         .single();
 
+      console.log('[API] Fetched lane for user:', auth.user.id, 'lane:', laneData, 'error:', selectError);
       if (selectError || !laneData) {
         console.error('Lane created but not visible due to RLS:', { selectError, lane });
         return res.status(500).json({ error: 'Lane created but not visible due to RLS', selectError, lane });
