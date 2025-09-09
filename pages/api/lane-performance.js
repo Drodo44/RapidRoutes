@@ -49,7 +49,8 @@ async function trackLanePerformance(req, res) {
       .select()
       .single();
 
-    if (lanePerfError) throw lanePerfError;
+  if (lanePerfError) throw lanePerfError;
+  if (!lanePerf) throw new Error('Supabase did not return lane performance row after insert');
 
     // Track individual crawl city performance
     if (crawl_cities && crawl_cities.length > 0) {
@@ -99,7 +100,9 @@ async function trackLanePerformance(req, res) {
 
   } catch (error) {
     console.error('Failed to track lane performance:', error);
-    return res.status(500).json({ error: 'Failed to track performance' });
+    const payload = { error: error.message || 'Failed to track performance' };
+    if (process.env.NODE_ENV !== 'production') payload.stack = error.stack;
+    return res.status(500).json(payload);
   }
 }
 
