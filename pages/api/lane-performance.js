@@ -100,6 +100,19 @@ async function trackLanePerformance(req, res) {
 
   } catch (error) {
     console.error('Failed to track lane performance:', error);
+    // If DB relation missing or permission issue, enqueue payload for later processing
+    const errMsg = String(error?.message || 'unknown');
+    if (/relation .* does not exist|permission denied|table .* does not exist/i.test(errMsg)) {
+      try {
+        const queuePayload = { ...req.body, error: errMsg };
+        await adminSupabase.from('performance_queue').insert([{ payload: queuePayload }]);
+        return res.status(202).json({ accepted: true, queued: true });
+      } catch (qErr) {
+        console.error('Failed to enqueue performance payload:', qErr);
+        // fall through to return full error
+      }
+    }
+
     const payload = { error: error.message || 'Failed to track performance' };
     if (process.env.NODE_ENV !== 'production') payload.stack = error.stack;
     return res.status(500).json(payload);
