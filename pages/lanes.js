@@ -393,7 +393,7 @@ function LanesPage() {
       console.warn('API returned array, extracting first lane:', newLane);
       newLane = newLane[0];
     }
-    console.log('API response for postAgain:', newLane);
+  console.log('API response for postAgain:', newLane);
     if (!newLane || typeof newLane !== 'object') {
       console.error('Invalid server response:', newLane);
       throw new Error('Invalid response from server');
@@ -403,7 +403,20 @@ function LanesPage() {
       throw new Error('Lane creation failed - server did not return lane data');
     }
 
-    await loadLists();
+    // Optimistically update UI so new lane appears immediately (works around list fetch timing/RLS delays)
+    try {
+      if (newLane.status === 'posted') {
+        setPosted((prev) => [newLane, ...(prev || [])]);
+      } else {
+        setPending((prev) => [newLane, ...(prev || [])]);
+      }
+    } catch (uiErr) {
+      console.warn('Failed to optimistic-update lists:', uiErr);
+    }
+
+    // Refresh lists in background (non-blocking)
+    loadLists().catch((e) => console.warn('Background reload failed:', e));
+
     setMsg(`Lane reposted successfully: ${lane.origin_city}, ${lane.origin_state} to ${lane.dest_city}, ${lane.dest_state}`);
 
     // Track performance (include smart crawl cities)
