@@ -165,25 +165,29 @@ function LanesPage() {
         }
       }
       
-      const [{ data: p, error: pError }, { data: posted, error: postedError }, { data: r, error: rError }] = await Promise.all([
+      const [
+        { data: p = [], error: pError },
+        { data: posted = [], error: postedError },
+        { data: r = [], error: rError }
+      ] = await Promise.all([
         supabase.from('lanes').select('*').eq('status', 'pending').order('created_at', { ascending: false }).limit(200),
         supabase.from('lanes').select('*').eq('status', 'posted').order('created_at', { ascending: false }).limit(200),
         supabase.from('lanes').select('*').order('created_at', { ascending: false }).limit(50),
       ]);
-      
+
       if (pError) throw pError;
       if (postedError) throw postedError;
       if (rError) throw rError;
-      
+
       console.log('Lists loaded successfully:', {
-        pending: p?.length || 0,
-        posted: posted?.length || 0,
-        recent: r?.length || 0
+        pending: p.length,
+        posted: posted.length,
+        recent: r.length
       });
-      
-      setPending(p || []); 
-      setPosted(posted || []); 
-      setRecent(r || []);
+
+      setPending(p);
+      setPosted(posted);
+      setRecent(r);
     } catch (error) {
       console.error('Failed to load lanes:', error);
       setPending([]); 
