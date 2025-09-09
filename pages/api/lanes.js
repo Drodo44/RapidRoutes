@@ -70,42 +70,36 @@ export default async function handler(req, res) {
         const year = now.getFullYear().toString().slice(-2);
         const month = (now.getMonth() + 1).toString().padStart(2, '0');
         const day = now.getDate().toString().padStart(2, '0');
-        const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+        const random = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
         return `RR${year}${month}${day}${random}`;
       }
 
       // Handle defaults
-      // Never trust client for user_id/created_by
+      // Never trust client for user_id/created_by, always generate new reference_id
       const lane = {
         ...payload,
         status: payload.status || 'pending',
-        reference_id: payload.reference_id || generateReferenceId(),
+        reference_id: generateReferenceId(),
         created_at: new Date().toISOString(),
         created_by: auth.user.id,
         user_id: auth.user.id,
       };
-      // Remove any user_id/created_by from payload to avoid confusion
-      if ('user_id' in lane && lane.user_id !== auth.user.id) {
-        console.warn('[API] Overwriting user_id from payload:', lane.user_id, 'to', auth.user.id);
-        lane.user_id = auth.user.id;
-      }
-      if ('created_by' in lane && lane.created_by !== auth.user.id) {
-        console.warn('[API] Overwriting created_by from payload:', lane.created_by, 'to', auth.user.id);
-        lane.created_by = auth.user.id;
-      }
-      console.log('[API] Auth user id:', auth.user.id, 'Inserting lane with user_id:', lane.user_id, 'lane:', lane);
+      console.log('[API] Auth user id:', auth.user.id, 'Inserting lane:', lane);
 
-      // Insert with admin client
-      const { error: insertError } = await adminSupabase
+      // Insert with admin client and get inserted row
+      const { data: insertedLanes, error: insertError } = await adminSupabase
         .from('lanes')
-        .insert([lane]);
+        .insert([lane])
+        .select();
 
       if (insertError) {
         console.error('Lane creation error:', insertError);
         return res.status(500).json({ error: insertError.message || 'Database error', details: insertError });
       }
+      const insertedLane = Array.isArray(insertedLanes) ? insertedLanes[0] : insertedLanes;
+      console.log('[API] Inserted lane:', insertedLane);
 
-      // Now fetch with user JWT to satisfy RLS
+      // Now fetch with user JWT to satisfy RLS, by ID
       const userToken = req.headers.authorization?.replace('Bearer ', '');
       if (!userToken) {
         return res.status(401).json({ error: 'Missing user token in Authorization header' });
@@ -117,14 +111,13 @@ export default async function handler(req, res) {
       const { data: laneData, error: selectError } = await userSupabase
         .from('lanes')
         .select('*')
-        .eq('reference_id', lane.reference_id)
-        .eq('user_id', auth.user.id)
+        .eq('id', insertedLane.id)
         .single();
 
       console.log('[API] Fetched lane for user:', auth.user.id, 'lane:', laneData, 'error:', selectError);
       if (selectError || !laneData) {
-        console.error('Lane created but not visible due to RLS:', { selectError, lane });
-        return res.status(500).json({ error: 'Lane created but not visible due to RLS', selectError, lane });
+        console.error('Lane created but not visible due to RLS:', { selectError, insertedLane, lane });
+        return res.status(500).json({ error: 'Lane created but not visible due to RLS', selectError, insertedLane, lane });
       }
 
       console.log('Lane created and fetched successfully:', laneData);
