@@ -6,6 +6,7 @@ import EquipmentPicker from '../components/EquipmentPicker.jsx';
 import IntermodalNudge from '../components/IntermodalNudge';
 import IntermodalEmailModal from '../components/IntermodalEmailModal';
 import { supabase } from '../utils/supabaseClient';
+import { generateSmartCrawlCities } from '../utils/smartCitySelector';
 import { useAuth } from '../contexts/AuthContext';
 import { checkIntermodalEligibility } from '../lib/intermodalAdvisor';
 import { generateReferenceId, generateNewReferenceId, getDisplayReferenceId } from '../lib/referenceIdUtils';
@@ -405,10 +406,38 @@ function LanesPage() {
     await loadLists();
     setMsg(`Lane reposted successfully: ${lane.origin_city}, ${lane.origin_state} to ${lane.dest_city}, ${lane.dest_state}`);
 
-    // Track performance
+    // Track performance (include smart crawl cities)
     try {
       const { data: { session: perfSession } } = await supabase.auth.getSession();
       if (perfSession?.access_token) {
+        let crawlCitiesPayload = [];
+        try {
+          const result = await generateSmartCrawlCities({
+            laneOriginText: `${lane.origin_city}, ${lane.origin_state}`,
+            laneDestinationText: `${lane.dest_city}, ${lane.dest_state}`,
+            equipment: lane.equipment_code,
+            maxPairs: 10,
+            preferFillTo10: true
+          });
+          const pairs = (result && result.pairs) || [];
+          crawlCitiesPayload = pairs.map(p => ({
+            pickup: {
+              city: p.pickup.city,
+              state: p.pickup.state,
+              kma_code: p.pickup.kma || null
+            },
+            delivery: {
+              city: p.delivery.city,
+              state: p.delivery.state,
+              kma_code: p.delivery.kma || null
+            },
+            score: Number(p.score || 0.5)
+          }));
+        } catch (genErr) {
+          console.warn('Failed to generate smart crawl cities, sending empty crawls:', genErr?.message || genErr);
+          crawlCitiesPayload = [];
+        }
+
         await fetch('/api/lane-performance', {
           method: 'POST',
           headers: {
@@ -422,7 +451,7 @@ function LanesPage() {
             origin_state: lane.origin_state,
             dest_city: lane.dest_city,
             dest_state: lane.dest_state,
-            crawl_cities: [],
+            crawl_cities: crawlCitiesPayload,
             intelligence_metadata: {
               repost_of_successful_lane: lane.id,
               original_success_date: lane.updated_at,
