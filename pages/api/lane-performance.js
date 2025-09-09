@@ -33,24 +33,47 @@ async function trackLanePerformance(req, res) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    // Insert lane performance record
-    const { data: lanePerf, error: lanePerfError } = await adminSupabase
-      .from('lane_performance')
-      .insert({
+    // Prefer an atomic RPC that inserts the master row and all crawls in one transaction.
+    // If the RPC doesn't exist yet (migration not applied), fall back to individual inserts.
+    let lanePerf = null;
+    try {
+      const payload = {
         lane_id,
         equipment_code: equipment_code.toUpperCase(),
         origin_city,
         origin_state: origin_state.toUpperCase(),
         dest_city,
         dest_state: dest_state.toUpperCase(),
-        crawl_cities,
-        success_metrics: intelligence_metadata || {}
-      })
-      .select()
-      .single();
+        crawl_cities: crawl_cities || [],
+        intelligence_metadata: intelligence_metadata || {}
+      };
 
-  if (lanePerfError) throw lanePerfError;
-  if (!lanePerf) throw new Error('Supabase did not return lane performance row after insert');
+      const { data: rpcData, error: rpcError } = await adminSupabase.rpc('create_lane_performance_with_crawls', { p_lane: payload });
+      if (rpcError) throw rpcError;
+      if (rpcData && rpcData.length > 0) {
+        lanePerf = { id: rpcData[0].performance_id };
+      }
+    } catch (rpcErr) {
+      // If RPC isn't available or fails due to missing migration, fall back to direct inserts.
+      console.warn('RPC insert failed or unavailable, falling back to manual inserts:', rpcErr?.message || rpcErr);
+      const { data: lpData, error: lanePerfError } = await adminSupabase
+        .from('lane_performance')
+        .insert({
+          lane_id,
+          equipment_code: equipment_code.toUpperCase(),
+          origin_city,
+          origin_state: origin_state.toUpperCase(),
+          dest_city,
+          dest_state: dest_state.toUpperCase(),
+          crawl_cities,
+          success_metrics: intelligence_metadata || {}
+        })
+        .select()
+        .single();
+
+      if (lanePerfError) throw lanePerfError;
+      lanePerf = lpData;
+    }
 
     // Track individual crawl city performance
     if (crawl_cities && crawl_cities.length > 0) {
