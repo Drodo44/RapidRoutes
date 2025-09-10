@@ -47,7 +47,7 @@ function lookupRate(matrix, o, d) {
 async function fetchCityRecord(city, state) {
   const { data, error } = await supabase
     .from("cities")
-    .select("id, city, state_or_province, zip, latitude, longitude, kma, population, equipment_bias, is_hot")
+    .select("id, city, state_or_province, zip, latitude, longitude, kma_code, population, equipment_bias, is_hot")
     .ilike("city", city)
     .eq("state_or_province", state)
     .limit(1);
@@ -61,7 +61,7 @@ async function fetchCityRecord(city, state) {
     zip: c.zip || "",
     lat: c.latitude,
     lon: c.longitude,
-    kma: c.kma,
+    kma: c.kma_code,
     population: c.population,
     equipment_bias: c.equipment_bias || [],
     is_hot: !!c.is_hot,
@@ -75,7 +75,7 @@ async function queryNearby(base, radius) {
   
   const { data: approx, error } = await supabase
     .from("cities")
-    .select("id, city, state_or_province, zip, latitude, longitude, kma, population, equipment_bias, is_hot")
+    .select("id, city, state_or_province, zip, latitude, longitude, kma_code, population, equipment_bias, is_hot")
     .gt("latitude", base.lat - latDelta)
     .lt("latitude", base.lat + latDelta)
     .gt("longitude", base.lon - lonDelta)
@@ -95,7 +95,7 @@ async function queryNearby(base, radius) {
       zip: c.zip || "",
       lat: c.latitude,
       lon: c.longitude,
-      kma: c.kma,
+      kma: c.kma_code,
       population: c.population,
       equipment_bias: c.equipment_bias || [],
       is_hot: !!c.is_hot,
