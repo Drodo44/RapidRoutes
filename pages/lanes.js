@@ -6,7 +6,7 @@ import EquipmentPicker from '../components/EquipmentPicker.jsx';
 import IntermodalNudge from '../components/IntermodalNudge';
 import IntermodalEmailModal from '../components/IntermodalEmailModal';
 import { supabase } from '../utils/supabaseClient';
-import { generateSmartCrawlCities } from '../utils/smartCitySelector';
+import { generateLearningIntelligentPairs } from '../lib/intelligentLearningSystem';
 import { useAuth } from '../contexts/AuthContext';
 import { checkIntermodalEligibility } from '../lib/intermodalAdvisor';
 import { generateReferenceId, generateNewReferenceId, getDisplayReferenceId } from '../lib/referenceIdUtils';
@@ -430,24 +430,24 @@ function LanesPage() {
       if (perfSession?.access_token) {
         let crawlCitiesPayload = [];
         try {
-          const result = await generateSmartCrawlCities({
-            laneOriginText: `${lane.origin_city}, ${lane.origin_state}`,
-            laneDestinationText: `${lane.dest_city}, ${lane.dest_state}`,
+          const result = await generateLearningIntelligentPairs({
+            origin: { city: lane.origin_city, state: lane.origin_state },
+            destination: { city: lane.dest_city, state: lane.dest_state },
             equipment: lane.equipment_code,
-            maxPairs: 25,  // Allow for 10-15+ pairs like manual process
-            preferFillTo10: true
+            preferFillTo10: true,
+            usedCities: new Set()
           });
           const pairs = (result && result.pairs) || [];
           crawlCitiesPayload = pairs.map(p => ({
             pickup: {
               city: p.pickup.city,
-              state: p.pickup.state,
-              kma_code: p.pickup.kma || null
+              state: p.pickup.state_or_province || p.pickup.state,
+              kma_code: p.pickup.kma_code || null
             },
             delivery: {
               city: p.delivery.city,
-              state: p.delivery.state,
-              kma_code: p.delivery.kma || null
+              state: p.delivery.state_or_province || p.delivery.state,
+              kma_code: p.delivery.kma_code || null
             },
             score: Number(p.score || 0.5)
           }));
