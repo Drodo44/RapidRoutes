@@ -6,7 +6,7 @@ import EquipmentPicker from '../components/EquipmentPicker.jsx';
 import IntermodalNudge from '../components/IntermodalNudge';
 import IntermodalEmailModal from '../components/IntermodalEmailModal';
 import { supabase } from '../utils/supabaseClient';
-import { generateLearningIntelligentPairs } from '../lib/intelligentLearningSystem';
+// Removed direct import - now using API call for server-side intelligence generation
 import { useAuth } from '../contexts/AuthContext';
 import { checkIntermodalEligibility } from '../lib/intermodalAdvisor';
 import { generateReferenceId, generateNewReferenceId, getDisplayReferenceId } from '../lib/referenceIdUtils';
@@ -430,13 +430,20 @@ function LanesPage() {
       if (perfSession?.access_token) {
         let crawlCitiesPayload = [];
         try {
-          const result = await generateLearningIntelligentPairs({
-            origin: { city: lane.origin_city, state: lane.origin_state },
-            destination: { city: lane.dest_city, state: lane.dest_state },
-            equipment: lane.equipment_code,
-            preferFillTo10: true,
-            usedCities: new Set()
+          const intelligenceResponse = await fetch('/api/generateIntelligentPairs', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${perfSession.access_token}`
+            },
+            body: JSON.stringify({
+              origin: { city: lane.origin_city, state: lane.origin_state },
+              destination: { city: lane.dest_city, state: lane.dest_state },
+              equipment: lane.equipment_code
+            })
           });
+          
+          const result = await intelligenceResponse.json();
           const pairs = (result && result.pairs) || [];
           crawlCitiesPayload = pairs.map(p => ({
             pickup: {
@@ -452,7 +459,7 @@ function LanesPage() {
             score: Number(p.score || 0.5)
           }));
         } catch (genErr) {
-          console.warn('Failed to generate smart crawl cities, sending empty crawls:', genErr?.message || genErr);
+          console.warn('Failed to generate intelligent pairs via API:', genErr?.message || genErr);
           crawlCitiesPayload = [];
         }
 
