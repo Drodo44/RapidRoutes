@@ -45,17 +45,13 @@ function lookupRate(matrix, o, d) {
 }
 
 async function fetchCityRecord(city, state) {
-  console.log(`🔍 Fetching city record for: ${city}, ${state}`);
   const { data, error } = await supabase
     .from("cities")
     .select("id, city, state_or_province, zip, latitude, longitude, kma_code, population, equipment_bias, is_hot")
     .ilike("city", city)
     .eq("state_or_province", state)
     .limit(1);
-  if (error) {
-    console.error(`❌ Database error for ${city}, ${state}:`, error);
-    throw error;
-  }
+  if (error) throw error;
   const c = data?.[0];
   if (!c) return null;
   return {
