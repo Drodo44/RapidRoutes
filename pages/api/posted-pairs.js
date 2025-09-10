@@ -2,24 +2,24 @@
 // Track generated RR numbers for search functionality
 
 import { adminSupabase } from '../../utils/supabaseClient';
-import { auth } from '../../utils/auth';
+import { validateApiAuth } from '../../middleware/auth.unified';
 
 export default async function handler(req, res) {
+  // Validate authentication for all requests
+  const auth = await validateApiAuth(req, res);
+  if (!auth) return;
+
   if (req.method === 'POST') {
-    return handleCreatePostedPairs(req, res);
+    return handleCreatePostedPairs(req, res, auth);
   } else if (req.method === 'GET') {
-    return handleSearchPostedPairs(req, res);
+    return handleSearchPostedPairs(req, res, auth);
   } else {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 }
 
-async function handleCreatePostedPairs(req, res) {
+async function handleCreatePostedPairs(req, res, auth) {
   try {
-    const authResult = await auth(req);
-    if (!authResult.success || !authResult.user) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
 
     const { lane_id, pairs } = req.body;
     
@@ -35,7 +35,7 @@ async function handleCreatePostedPairs(req, res) {
       origin_state: pair.origin_state,
       dest_city: pair.dest_city,
       dest_state: pair.dest_state,
-      created_by: authResult.user.id
+      created_by: auth.user.id
     }));
 
     const { data, error } = await adminSupabase
@@ -55,12 +55,8 @@ async function handleCreatePostedPairs(req, res) {
   }
 }
 
-async function handleSearchPostedPairs(req, res) {
+async function handleSearchPostedPairs(req, res, auth) {
   try {
-    const authResult = await auth(req);
-    if (!authResult.success || !authResult.user) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
 
     const { reference_id } = req.query;
     
@@ -76,7 +72,7 @@ async function handleSearchPostedPairs(req, res) {
         lanes!inner(*)
       `)
       .eq('reference_id', reference_id)
-      .eq('created_by', authResult.user.id);
+      .eq('created_by', auth.user.id);
 
     if (error) {
       console.error('Error searching posted pairs:', error);
