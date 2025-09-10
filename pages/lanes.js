@@ -96,12 +96,17 @@ function LanesPage() {
   const [rememberSession, setRememberSession] = useState(true);
 
   // Lists
-  const [tab, setTab] = useState('pending');
-  const [pending, setPending] = useState([]);
-  const [posted, setPosted] = useState([]); 
-  const [recent, setRecent] = useState([]);
+  const [tab, setTab] = useState('active');
+  const [pending, setPending] = useState([]); // Now holds "Active" lanes (pending + posted)
+  const [posted, setPosted] = useState([]);   // Now holds "Covered" lanes
+  const [recent, setRecent] = useState([]);   // Now holds "Archived" lanes
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
+
+  // RR# Search state
+  const [searchRR, setSearchRR] = useState('');
+  const [searchResult, setSearchResult] = useState(null);
+  const [searchLoading, setSearchLoading] = useState(false);
 
   // Intermodal state
   const [showIntermodalNudge, setShowIntermodalNudge] = useState(false);
@@ -167,28 +172,28 @@ function LanesPage() {
       }
       
       const [
-        { data: p = [], error: pError },
-        { data: posted = [], error: postedError },
-        { data: r = [], error: rError }
+        { data: active = [], error: activeError },
+        { data: covered = [], error: coveredError },
+        { data: archived = [], error: archivedError }
       ] = await Promise.all([
-        supabase.from('lanes').select('*').eq('status', 'pending').order('created_at', { ascending: false }).limit(200),
-        supabase.from('lanes').select('*').eq('status', 'posted').order('created_at', { ascending: false }).limit(200),
-        supabase.from('lanes').select('*').order('created_at', { ascending: false }).limit(50),
+        supabase.from('lanes').select('*').in('status', ['pending', 'posted']).order('created_at', { ascending: false }).limit(200),
+        supabase.from('lanes').select('*').eq('status', 'covered').order('created_at', { ascending: false }).limit(200),
+        supabase.from('lanes').select('*').eq('status', 'archived').order('created_at', { ascending: false }).limit(50),
       ]);
 
-      if (pError) throw pError;
-      if (postedError) throw postedError;
-      if (rError) throw rError;
+      if (activeError) throw activeError;
+      if (coveredError) throw coveredError;
+      if (archivedError) throw archivedError;
 
       console.log('Lists loaded successfully:', {
-        pending: p.length,
-        posted: posted.length,
-        recent: r.length
+        active: active.length,
+        covered: covered.length,
+        archived: archived.length
       });
 
-      setPending(p);
-      setPosted(posted);
-      setRecent(r);
+      setPending(active);
+      setPosted(covered);
+      setRecent(archived);
     } catch (error) {
       console.error('Failed to load lanes:', error);
       setPending([]); 
@@ -571,6 +576,101 @@ function LanesPage() {
     }
   }
 
+  async function searchByRR(e) {
+    e.preventDefault();
+    if (!searchRR.trim()) return;
+    
+    setSearchLoading(true);
+    setSearchResult(null);
+    
+    try {
+      const response = await fetch(`/api/searchByReference?referenceId=${encodeURIComponent(searchRR.trim())}`);
+      const data = await response.json();
+      
+      if (response.ok) {
+        setSearchResult(data);
+      } else {
+        setSearchResult({ error: data.error || 'Not found' });
+      }
+    } catch (error) {
+      setSearchResult({ error: error.message });
+    } finally {
+      setSearchLoading(false);
+    }
+  }
+
+  function RRSearch() {
+    return (
+      <div className="space-y-4">
+        <form onSubmit={searchByRR} className="flex gap-3">
+          <input
+            type="text"
+            value={searchRR}
+            onChange={(e) => setSearchRR(e.target.value)}
+            placeholder="Enter RR# (e.g., RR12345)"
+            className="flex-1 px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <button
+            type="submit"
+            disabled={searchLoading || !searchRR.trim()}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded-md font-medium"
+          >
+            {searchLoading ? 'Searching...' : 'Search'}
+          </button>
+        </form>
+
+        {searchResult && (
+          <div className="bg-gray-800 rounded-lg border border-gray-600 p-4">
+            {searchResult.error ? (
+              <p className="text-red-400">❌ {searchResult.error}</p>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-gray-100">
+                    Found Lane: {searchResult.lane.origin_city}, {searchResult.lane.origin_state} → {searchResult.lane.dest_city}, {searchResult.lane.dest_state}
+                  </h3>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    searchResult.lane.status === 'covered' ? 'bg-green-100 text-green-800' :
+                    searchResult.lane.status === 'archived' ? 'bg-gray-100 text-gray-800' :
+                    'bg-blue-100 text-blue-800'
+                  }`}>
+                    {searchResult.lane.status}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm text-gray-300">
+                  <div>
+                    <span className="font-medium">Equipment:</span> {searchResult.lane.equipment_code}
+                  </div>
+                  <div>
+                    <span className="font-medium">Weight:</span> {searchResult.lane.weight_lbs?.toLocaleString()} lbs
+                  </div>
+                  <div>
+                    <span className="font-medium">Created:</span> {new Date(searchResult.lane.created_at).toLocaleDateString()}
+                  </div>
+                  <div>
+                    <span className="font-medium">Generated RRs:</span> {searchResult.totalPostings}
+                  </div>
+                </div>
+                {searchResult.postedPairs.length > 0 && (
+                  <div>
+                    <p className="text-sm font-medium text-gray-300 mb-2">Generated Reference IDs:</p>
+                    <div className="flex flex-wrap gap-1">
+                      {searchResult.postedPairs.map((pair, idx) => (
+                        <span key={idx} className="px-2 py-1 bg-gray-700 text-gray-200 text-xs rounded">
+                          {pair.reference_id}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <>
       <Head>
@@ -581,6 +681,16 @@ function LanesPage() {
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-100 mb-2">Lane Management</h1>
           <p className="text-gray-400">Create and manage freight lanes for DAT posting</p>
+        </div>
+
+        {/* RR# Search Section */}
+        <div className="bg-gray-800 rounded-lg border border-gray-700 shadow-lg overflow-hidden mb-6">
+          <div className="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700">
+            <h2 className="text-lg font-semibold text-gray-100">RR# Search</h2>
+          </div>
+          <div className="p-4 bg-gray-900">
+            <RRSearch />
+          </div>
         </div>
 
         <div className="bg-gray-800 rounded-lg border border-gray-700 shadow-lg overflow-hidden mb-8">
@@ -665,20 +775,20 @@ function LanesPage() {
           title="Lanes"
           right={
             <div className="flex gap-2">
-              <button className={`px-3 py-1 rounded-md ${tab === 'pending' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white'}`} onClick={() => setTab('pending')}>
-                Pending
+              <button className={`px-3 py-1 rounded-md ${tab === 'active' ? 'bg-blue-700 text-white' : 'text-gray-400 hover:bg-blue-700 hover:text-white'}`} onClick={() => setTab('active')}>
+                Active ({pending.length})
               </button>
-              <button className={`px-3 py-1 rounded-md ${tab === 'posted' ? 'bg-green-700 text-white' : 'text-gray-400 hover:bg-green-700 hover:text-white'}`} onClick={() => setTab('posted')}>
-                Active Postings
+              <button className={`px-3 py-1 rounded-md ${tab === 'covered' ? 'bg-green-700 text-white' : 'text-gray-400 hover:bg-green-700 hover:text-white'}`} onClick={() => setTab('covered')}>
+                Covered ({posted.length})
               </button>
-              <button className={`px-3 py-1 rounded-md ${tab === 'recent' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white'}`} onClick={() => setTab('recent')}>
-                Recent
+              <button className={`px-3 py-1 rounded-md ${tab === 'archived' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white'}`} onClick={() => setTab('archived')}>
+                Archived ({recent.length})
               </button>
             </div>
           }
         >
           <div className="divide-y divide-gray-800">
-            {(tab === 'pending' ? pending : tab === 'posted' ? posted : recent).map(l => (
+            {(tab === 'active' ? pending : tab === 'covered' ? posted : recent).map(l => (
               <div key={l.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 py-3">
                 <div className="text-sm">
                   <div className="text-gray-100">
@@ -699,18 +809,8 @@ function LanesPage() {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  {l.status !== 'posted' && (
-                    <button onClick={() => updateStatus(l, 'posted')} className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg">
-                      Mark Posted
-                    </button>
-                  )}
-                  {l.status === 'posted' && (
-                    <button onClick={() => updateStatus(l, 'pending')} className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-sm rounded-lg">
-                      Unpost
-                    </button>
-                  )}
-                  {l.status !== 'covered' && (
-                    <button onClick={() => updateStatus(l, 'covered')} className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-sm rounded-lg">
+                  {(l.status === 'pending' || l.status === 'posted') && (
+                    <button onClick={() => updateStatus(l, 'covered')} className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg">
                       Mark Covered
                     </button>
                   )}
@@ -719,13 +819,23 @@ function LanesPage() {
                       🚀 Post Again
                     </button>
                   )}
+                  {l.status === 'covered' && (
+                    <button onClick={() => updateStatus(l, 'archived')} className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-sm rounded-lg">
+                      Archive
+                    </button>
+                  )}
+                  {l.status === 'archived' && (
+                    <button onClick={() => updateStatus(l, 'covered')} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg">
+                      Restore to Covered
+                    </button>
+                  )}
                   <button onClick={() => delLane(l)} className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg">
                     Delete
                   </button>
                 </div>
               </div>
             ))}
-            {(tab === 'pending' ? pending : tab === 'posted' ? posted : recent).length === 0 && (
+            {(tab === 'active' ? pending : tab === 'covered' ? posted : recent).length === 0 && (
               <div className="py-6 text-sm text-gray-400">No lanes in this category.</div>
             )}
           </div>

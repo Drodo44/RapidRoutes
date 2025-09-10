@@ -30,13 +30,15 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'Lane not found with that reference ID' });
     }
 
-    // Get posted pairs for this lane
-    const response = await fetch(`${req.headers.origin || 'http://localhost:3000'}/api/getPostedPairs?laneId=${lane.id}`);
-    let postedPairs = [];
-    
-    if (response.ok) {
-      const data = await response.json();
-      postedPairs = data.postedPairs || [];
+    // Get posted pairs for this lane from our posted_pairs table
+    const { data: postedPairs = [], error: pairsError } = await adminSupabase
+      .from('posted_pairs')
+      .select('*')
+      .eq('lane_id', lane.id)
+      .order('posted_at', { ascending: false });
+
+    if (pairsError) {
+      console.warn('Error fetching posted pairs:', pairsError);
     }
 
     return res.status(200).json({
