@@ -8,7 +8,7 @@ const supabase = createClient(
 export default async function fetchCitiesFromSupabase() {
   const { data, error } = await supabase
     .from("cities")
-    .select("city, state_or_province, postal_code, latitude, longitude, kma, kma_name, region, freight_score");
+    .select("city, state_or_province, zip, latitude, longitude, kma, kma_name, region, freight_score");
 
   if (error) throw new Error(error.message);
   return data;
