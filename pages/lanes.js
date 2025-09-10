@@ -410,9 +410,12 @@ function LanesPage() {
 
     // Optimistically update UI so new lane appears immediately (works around list fetch timing/RLS delays)
     try {
+      console.log('🔄 Updating UI - New lane status:', newLane.status);
       if (newLane.status === 'posted') {
+        console.log('📮 Adding to Posted list');
         setPosted((prev) => [newLane, ...(prev || [])]);
       } else {
+        console.log('⏳ Adding to Pending list');
         setPending((prev) => [newLane, ...(prev || [])]);
       }
     } catch (uiErr) {
@@ -420,49 +423,16 @@ function LanesPage() {
     }
 
     // Refresh lists in background (non-blocking)
-    loadLists().catch((e) => console.warn('Background reload failed:', e));
+    loadLists()
+      .then(() => console.log('✅ Background list reload completed'))
+      .catch((e) => console.warn('Background reload failed:', e));
 
     setMsg(`Lane reposted successfully: ${lane.origin_city}, ${lane.origin_state} to ${lane.dest_city}, ${lane.dest_state}`);
 
-    // Track performance (include smart crawl cities)
+    // Simple performance tracking (no intelligence dependency)
     try {
       const { data: { session: perfSession } } = await supabase.auth.getSession();
       if (perfSession?.access_token) {
-        let crawlCitiesPayload = [];
-        try {
-          const intelligenceResponse = await fetch('/api/generateIntelligentPairs', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${perfSession.access_token}`
-            },
-            body: JSON.stringify({
-              origin: { city: lane.origin_city, state: lane.origin_state },
-              destination: { city: lane.dest_city, state: lane.dest_state },
-              equipment: lane.equipment_code
-            })
-          });
-          
-          const result = await intelligenceResponse.json();
-          const pairs = (result && result.pairs) || [];
-          crawlCitiesPayload = pairs.map(p => ({
-            pickup: {
-              city: p.pickup.city,
-              state: p.pickup.state_or_province || p.pickup.state,
-              kma_code: p.pickup.kma_code || null
-            },
-            delivery: {
-              city: p.delivery.city,
-              state: p.delivery.state_or_province || p.delivery.state,
-              kma_code: p.delivery.kma_code || null
-            },
-            score: Number(p.score || 0.5)
-          }));
-        } catch (genErr) {
-          console.warn('Failed to generate intelligent pairs via API:', genErr?.message || genErr);
-          crawlCitiesPayload = [];
-        }
-
         await fetch('/api/lane-performance', {
           method: 'POST',
           headers: {
@@ -476,17 +446,16 @@ function LanesPage() {
             origin_state: lane.origin_state,
             dest_city: lane.dest_city,
             dest_state: lane.dest_state,
-            crawl_cities: crawlCitiesPayload,
             intelligence_metadata: {
               repost_of_successful_lane: lane.id,
               original_success_date: lane.updated_at,
-              intelligence_level: 'successful_repost'
+              intelligence_level: 'repost_pending_intelligence'
             }
           })
         });
       }
     } catch (trackingError) {
-      console.warn('Intelligence tracking error:', trackingError);
+      console.warn('Performance tracking error:', trackingError);
     }
 
     return newLane;
