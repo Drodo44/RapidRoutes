@@ -60,6 +60,23 @@ export default function LanesPage() {
   function onPickOrigin(it){ setOrigin(`${it.city}, ${it.state}`); setOriginZip(it.zip || ''); }
   function onPickDest(it){ setDest(`${it.city}, ${it.state}`); setDestZip(it.zip || ''); }
 
+  // Allow typing "City State" without comma (e.g., "Maplesville AL")
+  function parseCityStateInput(text){
+    if (!text) return { city: '', state: '' };
+    // Support both "City, ST" and "City ST"
+    if (text.includes(',')) {
+      const [c, s] = text.split(',').map(s => s.trim());
+      return { city: c || '', state: (s || '').toUpperCase() };
+    }
+    const parts = text.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      const state = parts.pop();
+      const city = parts.join(' ');
+      return { city, state: state.toUpperCase() };
+    }
+    return { city: text.trim(), state: '' };
+  }
+
   async function loadLists(){
     const [{ data: p }, { data: r }] = await Promise.all([
       supabase.from('lanes').select('*').eq('status', 'pending').order('created_at', { ascending: false }).limit(200),
@@ -98,8 +115,8 @@ export default function LanesPage() {
     const err = validate(); if (err) { setMsg(err); return; }
     setBusy(true);
     try {
-      const [oc, os] = origin.split(',').map(s=>s.trim());
-      const [dc, ds] = dest.split(',').map(s=>s.trim());
+  const { city: oc, state: os } = parseCityStateInput(origin);
+  const { city: dc, state: ds } = parseCityStateInput(dest);
       const payload = {
         origin_city: oc, origin_state: os, origin_zip: originZip || null,
         dest_city: dc,   dest_state: ds,   dest_zip: destZip || null,
@@ -124,7 +141,7 @@ export default function LanesPage() {
       }
       
       // Use the API endpoint for better validation and error handling
-      const response = await fetch('/api/lanes', {
+        const response = await fetch('/api/lanes', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -136,12 +153,14 @@ export default function LanesPage() {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to save lane');
       }
-
-      const newLane = await response.json();
+      
+      const created = await response.json();
+      // API returns { data: lane }
+      const newLane = created?.data || created || null;
       
       // Check for intermodal eligibility after successful lane creation
       if (newLane.data) {
-        const laneData = {
+          const laneData = {
           origin_city: oc,
           origin_state: os,
           dest_city: dc,
@@ -158,7 +177,7 @@ export default function LanesPage() {
         }
       }
 
-      setMsg('Lane added.');
+  setMsg('Lane added.');
       setOrigin(''); setOriginZip(''); setDest(''); setDestZip('');
       setComment(''); setCommodity('');
       setWeight(''); setRandomize(false);
@@ -539,7 +558,13 @@ export default function LanesPage() {
         <form onSubmit={submitLane} className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <CityAutocomplete id="origin" label="Origin (City, ST)" value={origin} onChange={setOrigin} onPick={onPickOrigin} />
           <CityAutocomplete id="dest"   label="Destination (City, ST)" value={dest}   onChange={setDest}   onPick={onPickDest} />
-          <EquipmentPicker code={equipment} onChange={setEquipment} />
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">Equipment Code</label>
+            <div className="flex gap-2">
+              <EquipmentPicker code={equipment} onChange={setEquipment} />
+              <input placeholder="Or type code e.g. FD, SD" value={equipment} onChange={(e)=>setEquipment(e.target.value)} className="inp" />
+            </div>
+          </div>
 
           <div>
             <label className="block text-sm text-gray-300 mb-1">Full / Partial</label>
@@ -771,13 +796,13 @@ export default function LanesPage() {
               <div>
                 <label className="block text-sm text-gray-300 mb-1">Origin City, State</label>
                 <input 
-                  value={`${editingLane.origin_city}, ${editingLane.origin_state}`}
+                  value={`${editingLane.origin_city}${editingLane.origin_state ? ', '+editingLane.origin_state : ''}`}
                   onChange={(e) => {
-                    const [city, state] = e.target.value.split(',').map(s => s.trim());
-                    setEditingLane({...editingLane, origin_city: city || '', origin_state: state || ''});
+                    const parsed = parseCityStateInput(e.target.value);
+                    setEditingLane({...editingLane, origin_city: parsed.city || '', origin_state: parsed.state || ''});
                   }}
                   className="inp" 
-                  placeholder="City, State"
+                  placeholder="City, State or 'City ST'"
                 />
               </div>
               <div>
@@ -792,13 +817,13 @@ export default function LanesPage() {
               <div>
                 <label className="block text-sm text-gray-300 mb-1">Destination City, State</label>
                 <input 
-                  value={`${editingLane.dest_city}, ${editingLane.dest_state}`}
+                  value={`${editingLane.dest_city}${editingLane.dest_state ? ', '+editingLane.dest_state : ''}`}
                   onChange={(e) => {
-                    const [city, state] = e.target.value.split(',').map(s => s.trim());
-                    setEditingLane({...editingLane, dest_city: city || '', dest_state: state || ''});
+                    const parsed = parseCityStateInput(e.target.value);
+                    setEditingLane({...editingLane, dest_city: parsed.city || '', dest_state: parsed.state || ''});
                   }}
                   className="inp" 
-                  placeholder="City, State"
+                  placeholder="City, State or 'City ST'"
                 />
               </div>
               <div>

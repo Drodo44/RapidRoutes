@@ -61,28 +61,58 @@ export default async function handler(req, res) {
         created_at: new Date().toISOString(),
       };
 
-      const { data, error } = await adminSupabase.from('lanes').insert([lane]).select('*');
-      
-      if (error) throw error;
-      return res.status(201).json(data?.[0] || null);
+      // Insert lane first, then generate/persist a stable RR##### reference_id
+      const { data: inserted, error: insertError } = await adminSupabase.from('lanes').insert([lane]).select('*').single();
+      if (insertError) throw insertError;
+
+      // Compute a 5-digit RR reference. Prefer using numeric id when available.
+      try {
+        let reference_id = inserted.reference_id;
+        if (!reference_id || !/^RR\d{5}$/.test(reference_id)) {
+          let ref = null;
+          const numericId = Number(inserted.id);
+          if (Number.isFinite(numericId)) {
+            ref = `RR${String(Math.abs(numericId) % 100000).padStart(5, '0')}`;
+          } else {
+            // Fallback random 5 digits
+            ref = `RR${String(Math.floor(Math.random() * 100000)).padStart(5, '0')}`;
+          }
+
+          // Attempt to persist the generated reference_id; if the column is missing we'll return the inserted row
+          const { data: updated, error: updErr } = await adminSupabase.from('lanes').update({ reference_id: ref }).eq('id', inserted.id).select('*').single();
+          if (updErr) {
+            console.warn('Failed to persist reference_id for lane', inserted.id, updErr.message || updErr);
+            return res.status(201).json({ data: inserted });
+          }
+
+          return res.status(201).json({ data: updated });
+        }
+
+        // Already has a valid reference_id
+        return res.status(201).json({ data: inserted });
+      } catch (e) {
+        console.warn('Reference ID generation/persist failed, returning inserted row:', e.message || e);
+        return res.status(201).json({ data: inserted });
+      }
     }
     
     // PUT - Update lane
     if (req.method === 'PUT') {
       const { id, ...updates } = req.body;
-      
+
       if (!id) {
         return res.status(400).json({ error: 'Lane ID required' });
       }
-      
+
       const { data, error } = await adminSupabase
         .from('lanes')
         .update(updates)
         .eq('id', id)
-        .select('*');
-      
+        .select('*')
+        .single();
+
       if (error) throw error;
-      return res.status(200).json(data?.[0] || null);
+      return res.status(200).json({ data });
     }
     
     // DELETE - Delete lane
