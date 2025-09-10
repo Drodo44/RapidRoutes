@@ -1,7 +1,13 @@
 // utils/smartCitySelector.js
 // Intelligent crawl: 50→75 mi MAX; KMA diversity; unique pairing. Business rule: Never exceed 75 miles.
 import { supabase } from "./supabaseClient";
-import { distanceInMiles } from "./haversine";
+import export async function generateSmartCrawlCities({
+  laneOriginText,         // "City, ST" 
+  laneDestinationText,    // "City, ST"
+  equipment,              // 'van' | 'reefer' | 'flatbed'
+  maxPairs = 25,          // Allow for 10-15+ pairs like manual process (6 minimum, no real maximum)
+  preferFillTo10 = false
+}) {nceInMiles } from "./haversine";
 import { assignPairs } from "./assignment";
 
 // Radius policy - BUSINESS RULE: Never exceed 75 miles
@@ -11,9 +17,9 @@ const MAX_RADIUS = 75;                // Hard limit - never exceed
 const NO_BRAINER_SCORE = 0.92;        // "absolutely works"
 const TOP_PERCENTILE = 0.05;          // top 5%
 
-// Diversity & duplicates
-const KMA_CAP_STRICT = 1;
-const KMA_CAP_RELAXED = 2;
+// Diversity & duplicates - Allow more cities per KMA like manual process
+const KMA_CAP_STRICT = 2;             // Allow 2 cities per KMA for diversity
+const KMA_CAP_RELAXED = 3;            // Allow 3 cities per KMA when needed
 const DUP_KMA_PENALTY = 0.03;
 const JUSTIFY_GAP = 0.06;
 
@@ -204,12 +210,14 @@ export async function generateSmartCrawlCities({
 
   const rates = await latestSnapshots(equipment, "state");
 
-  // Nearby pools (75 → 100)
-  const p75 = await queryNearby(baseOrigin, PASS1_RADIUS);
-  const d75 = await queryNearby(baseDest, PASS1_RADIUS);
-  let pCands = p75, dCands = d75;
-  if (pCands.length < maxPairs) pCands = await queryNearby(baseOrigin, PASS2_RADIUS);
-  if (dCands.length < maxPairs) dCands = await queryNearby(baseDest, PASS2_RADIUS);
+  // Find ALL cities within 75 miles for maximum KMA diversity like manual process
+  console.log(`🔍 Searching for ALL cities within 75 miles of ${baseOrigin.city}, ${baseOrigin.state} and ${baseDest.city}, ${baseDest.state}`);
+  
+  // Always search full 75-mile radius to get maximum unique KMAs
+  const pCands = await queryNearby(baseOrigin, PASS2_RADIUS);  // 75 miles
+  const dCands = await queryNearby(baseDest, PASS2_RADIUS);    // 75 miles
+  
+  console.log(`📊 Found ${pCands.length} pickup candidates and ${dCands.length} delivery candidates`);
 
   // Score + sort
   const scoreSide = (arr, side) =>

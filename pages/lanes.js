@@ -434,7 +434,7 @@ function LanesPage() {
             laneOriginText: `${lane.origin_city}, ${lane.origin_state}`,
             laneDestinationText: `${lane.dest_city}, ${lane.dest_state}`,
             equipment: lane.equipment_code,
-            maxPairs: 10,
+            maxPairs: 25,  // Allow for 10-15+ pairs like manual process
             preferFillTo10: true
           });
           const pairs = (result && result.pairs) || [];
