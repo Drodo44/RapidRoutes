@@ -1,13 +1,13 @@
 // utils/smartCitySelector.js
-// Intelligent crawl: 75→100 mi, 125 mi only for no-brainers; KMA diversity; unique pairing.
+// Intelligent crawl: 50→75 mi MAX; KMA diversity; unique pairing. Business rule: Never exceed 75 miles.
 import { supabase } from "./supabaseClient";
 import { distanceInMiles } from "./haversine";
 import { assignPairs } from "./assignment";
 
-// Radius policy
-const PASS1_RADIUS = 75;
-const PASS2_RADIUS = 100;
-const PASS3_RADIUS = 125;             // only for no-brainers
+// Radius policy - BUSINESS RULE: Never exceed 75 miles
+const PASS1_RADIUS = 50;              // Start conservative
+const PASS2_RADIUS = 75;              // Maximum allowed distance
+const MAX_RADIUS = 75;                // Hard limit - never exceed
 const NO_BRAINER_SCORE = 0.92;        // "absolutely works"
 const TOP_PERCENTILE = 0.05;          // top 5%
 
@@ -225,28 +225,9 @@ export async function generateSmartCrawlCities({
   let Pstrict = enforceKmaCap(P, KMA_CAP_STRICT);
   let Dstrict = enforceKmaCap(D, KMA_CAP_STRICT);
 
-  // If still short, allow 125 mi "no-brainers" only
-  if (Math.min(Pstrict.length, Dstrict.length) < maxPairs) {
-    const p125 = await queryNearby(baseOrigin, PASS3_RADIUS);
-    const d125 = await queryNearby(baseDest, PASS3_RADIUS);
-
-    const pExtra = scoreSide(
-      p125.filter((c) => distanceInMiles(baseOrigin, c) > PASS2_RADIUS && distanceInMiles(baseOrigin, c) <= PASS3_RADIUS),
-      "pickup"
-    );
-    const dExtra = scoreSide(
-      d125.filter((c) => distanceInMiles(baseDest, c) > PASS2_RADIUS && distanceInMiles(baseDest, c) <= PASS3_RADIUS),
-      "delivery"
-    );
-
-    const pCut = Math.max(1, Math.floor(pExtra.length * TOP_PERCENTILE));
-    const dCut = Math.max(1, Math.floor(dExtra.length * TOP_PERCENTILE));
-    const pNoBrain = pExtra.filter((x, i) => x.score >= NO_BRAINER_SCORE && i < pCut && (x.cand.is_hot || (x.cand.equipment_bias || []).includes(equipment)));
-    const dNoBrain = dExtra.filter((x, i) => x.score >= NO_BRAINER_SCORE && i < dCut && (x.cand.is_hot || (x.cand.equipment_bias || []).includes(equipment)));
-
-    Pstrict = enforceKmaCap([...Pstrict, ...pNoBrain].sort((a, b) => b.score - a.score), KMA_CAP_STRICT);
-    Dstrict = enforceKmaCap([...Dstrict, ...dNoBrain].sort((a, b) => b.score - a.score), KMA_CAP_STRICT);
-  }
+  // BUSINESS RULE: Never exceed 75 miles - removed 125-mile "no-brainer" logic
+  // If we don't have enough pairs within 75 miles, that's acceptable
+  // Quality over quantity - stay within freight-intelligent radius
 
   // Attempt A: strict (no KMA dupes)
   let { pairs } = pairUp({ pickups: Pstrict, deliveries: Dstrict, allowKmaDup: false });
