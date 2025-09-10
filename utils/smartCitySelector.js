@@ -1,14 +1,8 @@
 // utils/smartCitySelector.js
 // Intelligent crawl: 50→75 mi MAX; KMA diversity; unique pairing. Business rule: Never exceed 75 miles.
-import { supabase } from "./supabaseClient";
-import export async function generateSmartCrawlCities({
-  laneOriginText,         // "City, ST" 
-  laneDestinationText,    // "City, ST"
-  equipment,              // 'van' | 'reefer' | 'flatbed'
-  maxPairs = 25,          // Allow for 10-15+ pairs like manual process (6 minimum, no real maximum)
-  preferFillTo10 = false
-}) {nceInMiles } from "./haversine";
-import { assignPairs } from "./assignment";
+import { supabase } from "./supabaseClient.js";
+import { distanceInMiles } from "./haversine.js";
+import { assignPairs } from "./assignment.js";
 
 // Radius policy - BUSINESS RULE: Never exceed 75 miles
 const PASS1_RADIUS = 50;              // Start conservative
@@ -17,9 +11,9 @@ const MAX_RADIUS = 75;                // Hard limit - never exceed
 const NO_BRAINER_SCORE = 0.92;        // "absolutely works"
 const TOP_PERCENTILE = 0.05;          // top 5%
 
-// Diversity & duplicates - Allow more cities per KMA like manual process
-const KMA_CAP_STRICT = 2;             // Allow 2 cities per KMA for diversity
-const KMA_CAP_RELAXED = 3;            // Allow 3 cities per KMA when needed
+// Diversity & duplicates - CORRECT: 1 per KMA to avoid load board flooding
+const KMA_CAP_STRICT = 1;             // Only 1 city per KMA (prevents KMA flooding)
+const KMA_CAP_RELAXED = 2;            // Relaxed allows 2 per KMA if justified
 const DUP_KMA_PENALTY = 0.03;
 const JUSTIFY_GAP = 0.06;
 
@@ -195,7 +189,7 @@ export async function generateSmartCrawlCities({
   laneOriginText,         // "City, ST"
   laneDestinationText,    // "City, ST"
   equipment,              // 'van' | 'reefer' | 'flatbed'
-  maxPairs = 10,
+  maxPairs = 25,          // Allow for 10-15+ pairs like manual process (6 minimum, no maximum)
   preferFillTo10 = false
 }) {
   const { city: oCity, state: oState } = parseCityState(laneOriginText);
