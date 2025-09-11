@@ -306,6 +306,12 @@ function LanesPage() {
       }
 
       console.log('🚛 About to make POST request to /api/lanes');
+      console.log('🚛 Request payload:', JSON.stringify(payload, null, 2));
+      console.log('🚛 Request headers:', {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authSession.access_token?.substring(0, 20)}...`
+      });
+      
       const response = await fetch('/api/lanes', {
         method: 'POST',
         headers: {
@@ -315,15 +321,25 @@ function LanesPage() {
         body: JSON.stringify(payload),
       });
 
+      console.log('🚛 Response received:', response.status, response.statusText);
+      console.log('🚛 Response ok:', response.ok);
+
       if (!response.ok) {
+        console.log('🚛 Response not ok, getting error data...');
         const errorData = await response.json();
+        console.log('🚛 Error data:', errorData);
         throw new Error(errorData.error || 'Failed to save lane');
       }
 
+      console.log('🚛 Response ok, getting lane data...');
       const newLane = await response.json();
+      console.log('🚛 New lane created:', newLane);
       
+      console.log('🚛 Setting success message...');
       setMsg('✅ Lane added successfully');
+      console.log('🚛 Success message set');
       
+      console.log('🚛 Lane creation completed successfully!');
       // Return the new lane for further processing
       return newLane;
       
