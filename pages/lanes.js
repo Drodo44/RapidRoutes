@@ -47,8 +47,10 @@ function LanesPage() {
       const [dc, ds] = dest.split(',').map(s => s.trim());
       
       // Debug weight randomization values
-      console.log('🚛 Form values - randomize:', randomize, 'randMin:', randMin, 'randMax:', randMax);
-      console.log('🚛 Weight values - Number(randMin):', Number(randMin), 'Number(randMax):', Number(randMax));
+      // Weight validation for debugging if needed
+      if (randomize && (!randMin || !randMax)) {
+        console.warn('Weight randomization enabled but min/max not set');
+      }
       
       // First check intermodal eligibility - include ALL required form data
       const laneData = {
@@ -699,6 +701,68 @@ function LanesPage() {
     }
   }
 
+  // Generate CSV function
+  async function generateCSV() {
+    try {
+      setBusy(true);
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Authentication required');
+      }
+
+      // Get only pending lanes for CSV generation
+      const activeCount = pending.filter(l => l.status === 'pending').length;
+      
+      if (activeCount === 0) {
+        alert('No active lanes to generate CSV for. Create some lanes first.');
+        return;
+      }
+
+      if (!confirm(`Generate DAT CSV for ${activeCount} active lane(s)? This will create a downloadable CSV file with RR numbers.`)) {
+        return;
+      }
+
+      // Call the CSV export API
+      const response = await fetch('/api/exportDatCsv?pending=1', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate CSV');
+      }
+
+      // Handle the CSV download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      // Generate filename with date
+      const today = new Date();
+      const dateStr = today.toISOString().split('T')[0];
+      link.download = `DAT_Export_${dateStr}.csv`;
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      // Show success message with RR number info
+      alert(`CSV generated successfully! File contains ${activeCount} lane(s) with RR numbers for tracking and sourcing. Use the RR# search to find generated lanes later.`);
+      
+    } catch (error) {
+      console.error('CSV Generation Error:', error);
+      alert(`Failed to generate CSV: ${error.message}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function RRSearch() {
     return (
       <div className="space-y-4">
@@ -874,16 +938,26 @@ function LanesPage() {
         <Section
           title="Lanes"
           right={
-            <div className="flex gap-2">
-              <button className={`px-3 py-1 rounded-md ${tab === 'active' ? 'bg-blue-700 text-white' : 'text-gray-400 hover:bg-blue-700 hover:text-white'}`} onClick={() => setTab('active')}>
-                Active ({pending.length})
+            <div className="flex gap-2 items-center">
+              <button 
+                onClick={generateCSV}
+                disabled={busy || pending.filter(l => l.status === 'pending').length === 0}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium text-sm"
+                title={`Generate DAT CSV for ${pending.filter(l => l.status === 'pending').length} active lane(s)`}
+              >
+                {busy ? 'Generating...' : `📊 Generate CSV (${pending.filter(l => l.status === 'pending').length})`}
               </button>
-              <button className={`px-3 py-1 rounded-md ${tab === 'covered' ? 'bg-green-700 text-white' : 'text-gray-400 hover:bg-green-700 hover:text-white'}`} onClick={() => setTab('covered')}>
-                Covered ({posted.length})
-              </button>
-              <button className={`px-3 py-1 rounded-md ${tab === 'archived' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white'}`} onClick={() => setTab('archived')}>
-                Archived ({recent.length})
-              </button>
+              <div className="flex gap-2">
+                <button className={`px-3 py-1 rounded-md ${tab === 'active' ? 'bg-blue-700 text-white' : 'text-gray-400 hover:bg-blue-700 hover:text-white'}`} onClick={() => setTab('active')}>
+                  Active ({pending.length})
+                </button>
+                <button className={`px-3 py-1 rounded-md ${tab === 'covered' ? 'bg-green-700 text-white' : 'text-gray-400 hover:bg-green-700 hover:text-white'}`} onClick={() => setTab('covered')}>
+                  Covered ({posted.length})
+                </button>
+                <button className={`px-3 py-1 rounded-md ${tab === 'archived' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white'}`} onClick={() => setTab('archived')}>
+                  Archived ({recent.length})
+                </button>
+              </div>
             </div>
           }
         >
