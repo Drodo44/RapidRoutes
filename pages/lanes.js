@@ -45,6 +45,11 @@ function LanesPage() {
     try {
       const [oc, os] = origin.split(',').map(s => s.trim());
       const [dc, ds] = dest.split(',').map(s => s.trim());
+      
+      // Debug weight randomization values
+      console.log('🚛 Form values - randomize:', randomize, 'randMin:', randMin, 'randMax:', randMax);
+      console.log('🚛 Weight values - Number(randMin):', Number(randMin), 'Number(randMax):', Number(randMax));
+      
       // First check intermodal eligibility - include ALL required form data
       const laneData = {
         origin_city: oc,
@@ -60,8 +65,8 @@ function LanesPage() {
         pickup_latest: pickupLatest,
         randomize_weight: !!randomize,
         weight_lbs: randomize ? null : Number(weight),
-        weight_min: randomize ? Number(randMin) : null,
-        weight_max: randomize ? Number(randMax) : null,
+        weight_min: randomize ? Number(randMin) || null : null,
+        weight_max: randomize ? Number(randMax) || null : null,
         comment: comment || null,
         commodity: commodity || null
       };
@@ -276,12 +281,18 @@ function LanesPage() {
       
       console.log('🚛 Final payload:', payload);
 
-      if (laneData.randomize_weight && laneData.weight_min && laneData.weight_max) {
-        // Only save to session if we have valid weight range data
-        sessionStorage.setItem('rr_rand_min', laneData.weight_min.toString());
-        sessionStorage.setItem('rr_rand_max', laneData.weight_max.toString());
+      try {
+        if (laneData.randomize_weight && laneData.weight_min && laneData.weight_max) {
+          console.log('🚛 Saving weight range to session:', laneData.weight_min, laneData.weight_max);
+          sessionStorage.setItem('rr_rand_min', laneData.weight_min.toString());
+          sessionStorage.setItem('rr_rand_max', laneData.weight_max.toString());
+        }
+      } catch (sessionError) {
+        console.error('🚛 Session storage error:', sessionError);
+        // Continue anyway, this isn't critical
       }
 
+      console.log('🚛 About to make POST request to /api/lanes');
       const response = await fetch('/api/lanes', {
         method: 'POST',
         headers: {
