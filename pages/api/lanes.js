@@ -121,6 +121,7 @@ export default async function handler(req, res) {
       }
 
       console.log('Lane created and fetched successfully:', laneData);
+      console.log('🚀 API sending response - Status:', laneData.status, 'ID:', laneData.id);
       res.status(201).json(laneData);
       return;
       

@@ -399,6 +399,9 @@ function LanesPage() {
       newLane = newLane[0];
     }
   console.log('API response for postAgain:', newLane);
+    console.log('🔍 Lane status from API:', newLane.status);
+    console.log('🔍 Lane ID from API:', newLane.id);
+    console.log('🔍 Lane created_at from API:', newLane.created_at);
     if (!newLane || typeof newLane !== 'object') {
       console.error('Invalid server response:', newLane);
       throw new Error('Invalid response from server');
