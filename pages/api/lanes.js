@@ -14,9 +14,10 @@ export default async function handler(req, res) {
   const auth = await validateApiAuth(req, res);
   if (!auth) return;
 
-  console.log('🚀 API Request:', req.method, 'Body:', req.body ? 'present' : 'empty');
-  console.log('🚀 API URL:', req.url);
-  console.log('🚀 API Headers:', JSON.stringify(req.headers, null, 2));
+  // Debug logging only for non-GET requests
+  if (req.method !== 'GET') {
+    console.log('🚀 API Request:', req.method, req.url);
+  }
   
   try {
     // GET - Get lanes with filtering
