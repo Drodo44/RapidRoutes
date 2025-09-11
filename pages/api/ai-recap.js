@@ -1,16 +1,17 @@
 // /pages/api/ai-recap.js
 export default function handler(req, res) {
-  res.setHeader('Content-Type', 'application/json');
-  
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-  
-  const { laneIds } = req.body;
-  
-  if (!laneIds || !Array.isArray(laneIds) || laneIds.length === 0) {
-    return res.status(400).json({ error: 'laneIds array is required' });
-  }
+  try {
+    res.setHeader('Content-Type', 'application/json');
+    
+    if (req.method !== 'POST') {
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
+    
+    const { laneIds } = req.body;
+    
+    if (!laneIds || !Array.isArray(laneIds) || laneIds.length === 0) {
+      return res.status(400).json({ error: 'laneIds array is required' });
+    }
   
   // Mock AI recap response for each lane
   const results = laneIds.map(laneId => ({
@@ -31,5 +32,12 @@ export default function handler(req, res) {
     }
   }));
   
-  return res.status(200).json({ results });
+    return res.status(200).json({ results });
+  } catch (error) {
+    console.error('AI Recap API error:', error);
+    return res.status(500).json({ 
+      error: 'Failed to generate AI recap',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
 }
