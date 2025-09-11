@@ -138,6 +138,7 @@ function LanesPage() {
   const [showIntermodalEmail, setShowIntermodalEmail] = useState(false);
   const [intermodalLane, setIntermodalLane] = useState(null);
   const [editingLane, setEditingLane] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [pendingAction, setPendingAction] = useState(null); // Track what action to continue after intermodal check
 
   // Redirect if not authenticated
@@ -179,6 +180,65 @@ function LanesPage() {
   function onPickDest(it) {
     setDest(`${it.city}, ${it.state}`);
     setDestZip(it.zip || '');
+  }
+
+  // Edit lane functionality
+  function startEditLane(lane) {
+    setEditingLane({ ...lane });
+    setShowEditModal(true);
+  }
+
+  async function saveEditedLane() {
+    if (!editingLane) return;
+    
+    setBusy(true);
+    setMsg('');
+    
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        setMsg('Authentication required. Please log in again.');
+        return;
+      }
+
+      const response = await fetch(`/api/lanes/${editingLane.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          pickup_earliest: editingLane.pickup_earliest,
+          pickup_latest: editingLane.pickup_latest,
+          weight_lbs: editingLane.weight_lbs,
+          weight_min: editingLane.weight_min,
+          weight_max: editingLane.weight_max,
+          comment: editingLane.comment,
+          commodity: editingLane.commodity,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update lane');
+      }
+
+      setMsg('✅ Lane updated successfully');
+      setShowEditModal(false);
+      setEditingLane(null);
+      await loadLists(); // Refresh the lists
+
+    } catch (error) {
+      console.error('Edit lane error:', error);
+      setMsg(error.message || 'Failed to update lane');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function cancelEdit() {
+    setEditingLane(null);
+    setShowEditModal(false);
   }
 
   async function loadLists() {
@@ -850,6 +910,11 @@ function LanesPage() {
                 </div>
                 <div className="flex gap-2">
                   {(l.status === 'pending' || l.status === 'posted') && (
+                    <button onClick={() => startEditLane(l)} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg">
+                      ✏️ Edit
+                    </button>
+                  )}
+                  {(l.status === 'pending' || l.status === 'posted') && (
                     <button onClick={() => updateStatus(l, 'covered')} className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg">
                       Mark Covered
                     </button>
@@ -934,6 +999,116 @@ function LanesPage() {
               setPendingAction(null); // Clear pending action when choosing intermodal
             }}
           />
+        )}
+
+        {/* Edit Lane Modal */}
+        {showEditModal && editingLane && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+            <div className="bg-gray-900 p-6 rounded-lg border border-gray-700 shadow-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+              <h3 className="text-lg font-semibold text-gray-100 mb-4">
+                Edit Lane: {editingLane.origin_city}, {editingLane.origin_state} → {editingLane.dest_city}, {editingLane.dest_state}
+              </h3>
+              
+              <div className="space-y-4">
+                {/* Pickup Dates */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Pickup Earliest</label>
+                    <input
+                      type="date"
+                      value={editingLane.pickup_earliest || ''}
+                      onChange={(e) => setEditingLane({...editingLane, pickup_earliest: e.target.value})}
+                      className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Pickup Latest</label>
+                    <input
+                      type="date"
+                      value={editingLane.pickup_latest || ''}
+                      onChange={(e) => setEditingLane({...editingLane, pickup_latest: e.target.value})}
+                      className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Weight Fields */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Weight (lbs)</label>
+                    <input
+                      type="number"
+                      value={editingLane.weight_lbs || ''}
+                      onChange={(e) => setEditingLane({...editingLane, weight_lbs: e.target.value ? parseInt(e.target.value) : null})}
+                      className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Exact weight"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Weight Min</label>
+                    <input
+                      type="number"
+                      value={editingLane.weight_min || ''}
+                      onChange={(e) => setEditingLane({...editingLane, weight_min: e.target.value ? parseInt(e.target.value) : null})}
+                      className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Min weight"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Weight Max</label>
+                    <input
+                      type="number"
+                      value={editingLane.weight_max || ''}
+                      onChange={(e) => setEditingLane({...editingLane, weight_max: e.target.value ? parseInt(e.target.value) : null})}
+                      className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Max weight"
+                    />
+                  </div>
+                </div>
+
+                {/* Comment */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Comment</label>
+                  <textarea
+                    value={editingLane.comment || ''}
+                    onChange={(e) => setEditingLane({...editingLane, comment: e.target.value})}
+                    rows={3}
+                    className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Optional comment..."
+                  />
+                </div>
+
+                {/* Commodity */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Commodity</label>
+                  <input
+                    type="text"
+                    value={editingLane.commodity || ''}
+                    onChange={(e) => setEditingLane({...editingLane, commodity: e.target.value})}
+                    className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Optional commodity..."
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={saveEditedLane}
+                  disabled={busy}
+                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {busy ? 'Saving...' : 'Save Changes'}
+                </button>
+                <button
+                  onClick={cancelEdit}
+                  disabled={busy}
+                  className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Randomize Weight Modal */}

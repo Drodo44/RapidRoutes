@@ -6,7 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 export default async function handler(req, res) {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    res.setHeader('Allow', 'GET, POST, PUT, DELETE');
+    res.setHeader('Allow', 'GET, POST, PUT, PATCH, DELETE');
     return res.status(200).end();
   }
 
@@ -140,8 +140,8 @@ export default async function handler(req, res) {
       return;
     }
     
-    // PUT - Update lane
-    if (req.method === 'PUT') {
+    // PUT/PATCH - Update lane
+    if (req.method === 'PUT' || req.method === 'PATCH') {
       const { id, ...updates } = req.body;
       
       if (!id) {
@@ -207,7 +207,7 @@ export default async function handler(req, res) {
     }
     
     // Method not allowed
-    res.setHeader('Allow', 'GET, POST, PUT, DELETE');
+    res.setHeader('Allow', 'GET, POST, PUT, PATCH, DELETE');
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (error) {
     console.error('Lane API error:', error);
