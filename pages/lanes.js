@@ -378,6 +378,10 @@ function LanesPage() {
       created_by: session.user.id
     };
 
+    console.log('🚀 Making POST request to /api/lanes');
+    console.log('🚀 Payload status:', payload.status);
+    console.log('🚀 Payload:', payload);
+    
     const response = await fetch('/api/lanes', {
       method: 'POST',
       headers: {
@@ -386,6 +390,9 @@ function LanesPage() {
       },
       body: JSON.stringify(payload)
     });
+
+    console.log('🚀 Response status:', response.status);
+    console.log('🚀 Response headers:', [...response.headers.entries()]);
 
     if (!response.ok) {
       const errorData = await response.json();
