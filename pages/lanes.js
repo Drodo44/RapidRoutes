@@ -80,6 +80,16 @@ function LanesPage() {
       }
       // If not intermodal eligible, continue with regular lane creation
       await createLaneFromData(laneData, authSession);
+      console.log('🚛 Direct lane creation completed, reloading lists...');
+      await loadLists();
+      console.log('🚛 Lists reloaded after direct lane creation');
+      
+      // Clear form for next entry
+      setOrigin(''); 
+      setDest('');
+      setWeight('');
+      setComment('');
+      setCommodity('');
     } catch (error) {
       setMsg(error.message || 'Failed to save lane.');
     } finally {
