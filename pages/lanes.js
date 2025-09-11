@@ -888,6 +888,9 @@ function LanesPage() {
                     const { data: { session: authSession } } = await supabase.auth.getSession();
                     if (authSession?.access_token) {
                       await createLaneFromData(pendingAction.data, authSession);
+                      console.log('🚛 Lane created successfully, reloading lists...');
+                      await loadLists();
+                      console.log('🚛 Lists reloaded, lane should now be visible in UI');
                     } else {
                       console.error('🚛 No auth session available');
                     }
@@ -896,6 +899,9 @@ function LanesPage() {
                     const { data: { session } } = await supabase.auth.getSession();
                     if (session?.access_token) {
                       await createPostAgainLane(pendingAction.lane, session);
+                      console.log('🚛 Post again completed, reloading lists...');
+                      await loadLists();
+                      console.log('🚛 Lists reloaded after post again');
                     }
                   }
                 } catch (error) {
