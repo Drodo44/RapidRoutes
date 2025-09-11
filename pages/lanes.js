@@ -45,15 +45,25 @@ function LanesPage() {
     try {
       const [oc, os] = origin.split(',').map(s => s.trim());
       const [dc, ds] = dest.split(',').map(s => s.trim());
-      // First check intermodal eligibility
+      // First check intermodal eligibility - include ALL required form data
       const laneData = {
         origin_city: oc,
         origin_state: os,
+        origin_zip: originZip || null,
         dest_city: dc,
         dest_state: ds,
+        dest_zip: destZip || null,
         equipment_code: equipment.toUpperCase(),
         length_ft: Number(lengthFt),
-        weight_lbs: randomize ? null : Number(weight)
+        full_partial: fullPartial === 'partial' ? 'partial' : 'full',
+        pickup_earliest: pickupEarliest,
+        pickup_latest: pickupLatest,
+        randomize_weight: !!randomize,
+        weight_lbs: randomize ? null : Number(weight),
+        weight_min: randomize ? Number(randMin) : null,
+        weight_max: randomize ? Number(randMax) : null,
+        comment: comment || null,
+        commodity: commodity || null
       };
       const eligibilityCheck = await checkIntermodalEligibility(laneData);
       if (eligibilityCheck?.eligible) {
@@ -244,21 +254,21 @@ function LanesPage() {
       const payload = {
         origin_city: laneData.origin_city,
         origin_state: laneData.origin_state,
-        origin_zip: originZip || null,
+        origin_zip: laneData.origin_zip,
         dest_city: laneData.dest_city,
         dest_state: laneData.dest_state,
-        dest_zip: destZip || null,
+        dest_zip: laneData.dest_zip,
         equipment_code: laneData.equipment_code,
         length_ft: laneData.length_ft,
-        full_partial: fullPartial === 'partial' ? 'partial' : 'full',
-        pickup_earliest: pickupEarliest,
-        pickup_latest: pickupLatest,
-        randomize_weight: !!randomize,
+        full_partial: laneData.full_partial,
+        pickup_earliest: laneData.pickup_earliest,
+        pickup_latest: laneData.pickup_latest,
+        randomize_weight: laneData.randomize_weight,
         weight_lbs: laneData.weight_lbs,
-        weight_min: randomize ? Number(randMin) : null,
-        weight_max: randomize ? Number(randMax) : null,
-        comment: comment || null,
-        commodity: commodity || null,
+        weight_min: laneData.weight_min,
+        weight_max: laneData.weight_max,
+        comment: laneData.comment,
+        commodity: laneData.commodity,
         status: 'pending',
         user_id: authSession.user.id,
         created_by: authSession.user.id
@@ -266,9 +276,10 @@ function LanesPage() {
       
       console.log('🚛 Final payload:', payload);
 
-      if (randomize && rememberSession) {
-        sessionStorage.setItem('rr_rand_min', randMin);
-        sessionStorage.setItem('rr_rand_max', randMax);
+      if (laneData.randomize_weight && laneData.weight_min && laneData.weight_max) {
+        // Only save to session if we have valid weight range data
+        sessionStorage.setItem('rr_rand_min', laneData.weight_min.toString());
+        sessionStorage.setItem('rr_rand_max', laneData.weight_max.toString());
       }
 
       const response = await fetch('/api/lanes', {
