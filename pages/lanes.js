@@ -237,6 +237,9 @@ function LanesPage() {
 
   // Helper function to create lane from data without intermodal check
   async function createLaneFromData(laneData, authSession) {
+    console.log('🚛 createLaneFromData called with:', laneData);
+    console.log('🚛 Form state - originZip:', originZip, 'destZip:', destZip);
+    console.log('🚛 Form state - pickupEarliest:', pickupEarliest, 'pickupLatest:', pickupLatest);
     try {
       const payload = {
         origin_city: laneData.origin_city,
@@ -260,6 +263,8 @@ function LanesPage() {
         user_id: authSession.user.id,
         created_by: authSession.user.id
       };
+      
+      console.log('🚛 Final payload:', payload);
 
       if (randomize && rememberSession) {
         sessionStorage.setItem('rr_rand_min', randMin);
@@ -835,26 +840,34 @@ function LanesPage() {
               setShowIntermodalNudge(false);
               
               // Continue with the pending action if user chose "Continue with Truck"
+              console.log('🚛 Continue with Truck clicked, pendingAction:', pendingAction);
               if (pendingAction) {
                 setBusy(true);
                 try {
                   if (pendingAction.type === 'createLane') {
+                    console.log('🚛 Creating lane from pending data:', pendingAction.data);
                     const { data: { session: authSession } } = await supabase.auth.getSession();
                     if (authSession?.access_token) {
                       await createLaneFromData(pendingAction.data, authSession);
+                    } else {
+                      console.error('🚛 No auth session available');
                     }
                   } else if (pendingAction.type === 'postAgain') {
+                    console.log('🚛 Post again from pending action');
                     const { data: { session } } = await supabase.auth.getSession();
                     if (session?.access_token) {
                       await createPostAgainLane(pendingAction.lane, session);
                     }
                   }
                 } catch (error) {
+                  console.error('🚛 Continue with truck error:', error);
                   setMsg(`❌ ${error.message}`);
                 } finally {
                   setBusy(false);
                   setPendingAction(null);
                 }
+              } else {
+                console.log('🚛 No pending action found');
               }
             }}
             onEmail={(lane) => {
