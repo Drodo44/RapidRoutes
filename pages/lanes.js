@@ -256,6 +256,17 @@ function LanesPage() {
     console.log('🚛 Form state - originZip:', originZip, 'destZip:', destZip);
     console.log('🚛 Form state - pickupEarliest:', pickupEarliest, 'pickupLatest:', pickupLatest);
     try {
+      console.log('🚛 Building payload...');
+      console.log('🚛 authSession:', authSession);
+      console.log('🚛 authSession.user:', authSession?.user);
+      console.log('🚛 authSession.user.id:', authSession?.user?.id);
+      
+      // Validate authSession early
+      if (!authSession?.user?.id) {
+        alert('⚠️ Authentication error: No user ID found');
+        throw new Error('Authentication error: No user ID found');
+      }
+      
       const payload = {
         origin_city: laneData.origin_city,
         origin_state: laneData.origin_state,
@@ -278,6 +289,8 @@ function LanesPage() {
         user_id: authSession.user.id,
         created_by: authSession.user.id
       };
+      
+      console.log('🚛 Payload built successfully');
       
       console.log('🚛 Final payload:', payload);
 
@@ -308,65 +321,53 @@ function LanesPage() {
       }
 
       const newLane = await response.json();
-      await loadLists();
-
+      
       setMsg('✅ Lane added successfully');
-      try {
-        console.log('Loading lane lists...');
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError) throw sessionError;
-        if (!session?.access_token) {
-          const { data: { session: refreshed }, error: refreshError } = await supabase.auth.refreshSession();
-          if (refreshError) throw refreshError;
-          if (!refreshed?.access_token) {
-            throw new Error('Failed to authenticate. Please log in again.');
-          }
-        }
-        const [{ data: p, error: pError }, { data: posted, error: postedError }, { data: r, error: rError }] = await Promise.all([
-          supabase.from('lanes').select('*').eq('status', 'pending').order('created_at', { ascending: false }).limit(200),
-          supabase.from('lanes').select('*').eq('status', 'posted').order('created_at', { ascending: false }).limit(200),
-          supabase.from('lanes').select('*').order('created_at', { ascending: false }).limit(50),
-        ]);
-        // Diagnostic: log user and loaded lanes
-        const userId = session?.user?.id;
-        console.log('[LANES] Current user id:', userId);
-        if (p) console.log('[LANES] Pending lanes user_ids:', p.map(l => l.user_id));
-        if (posted) console.log('[LANES] Posted lanes user_ids:', posted.map(l => l.user_id));
-        if (r) console.log('[LANES] Recent lanes user_ids:', r.map(l => l.user_id));
-        setPending(p || []); 
-        setPosted(posted || []); 
-        setRecent(r || []);
-      } catch (error) {
-        console.error('Failed to load lanes:', error);
-        setPending([]); 
-        setPosted([]); 
-        setRecent([]);
-        setMsg(`❌ Failed to load lanes: ${error.message}`);
-      }
-      const [dc, ds] = dest.split(',').map(s => s.trim());
       
-      // First check intermodal eligibility
-      const laneData = {
-        origin_city: oc,
-        origin_state: os,
-        dest_city: dc,
-        dest_state: ds,
-        equipment_code: equipment.toUpperCase(),
-        length_ft: Number(lengthFt),
-        weight_lbs: randomize ? null : Number(weight)
-      };
+      // Return the new lane for further processing
+      return newLane;
       
-      const eligibilityCheck = await checkIntermodalEligibility(laneData);
-      if (eligibilityCheck?.eligible) {
-        setIntermodalLane(laneData);
-        setPendingAction({ type: 'createLane', data: laneData });
-        setShowIntermodalNudge(true);
-        setBusy(false);
-        return;
-      }
-      
+    } catch (error) {
+      console.error('🚛 createLaneFromData FAILED:', error);
+      console.error('🚛 Error details:', error.message);
+      console.error('🚛 Error stack:', error.stack);
+      alert(`🚛 Lane Creation Failed: ${error.message}`);
+      setMsg(`❌ Failed to create lane: ${error.message}`);
+      throw error; // Re-throw so calling function can handle it
+    }
+  }
+
+  // Continue submitLane function - this code was broken from the main function
+  // This belongs back in submitLane after the destination parsing
+  async function continueSubmitLane(oc, os, authSession) {
+    const [dc, ds] = dest.split(',').map(s => s.trim());
+    
+    // First check intermodal eligibility
+    const laneData = {
+      origin_city: oc,
+      origin_state: os,
+      dest_city: dc,
+      dest_state: ds,
+      equipment_code: equipment.toUpperCase(),
+      length_ft: Number(lengthFt),
+      weight_lbs: randomize ? null : Number(weight)
+    };
+    
+    const eligibilityCheck = await checkIntermodalEligibility(laneData);
+    if (eligibilityCheck?.eligible) {
+      setIntermodalLane(laneData);
+      setPendingAction({ type: 'createLane', data: laneData });
+      setShowIntermodalNudge(true);
+      setBusy(false);
+      return;
+    }
+    
+    try {
       // If not intermodal eligible, continue with regular lane creation
-      await createLaneFromData(laneData, authSession);
+      const newLane = await createLaneFromData(laneData, authSession);
+      
+      // After successful creation, reload the lists
+      await loadLists();
     } catch (error) {
       setMsg(error.message || 'Failed to save lane.');
     } finally {
@@ -883,6 +884,9 @@ function LanesPage() {
                   }
                 } catch (error) {
                   console.error('🚛 Continue with truck error:', error);
+                  console.error('🚛 Error message:', error.message);
+                  console.error('🚛 Error stack:', error.stack);
+                  alert(`ERROR: ${error.message}`); // Make it visible!
                   setMsg(`❌ ${error.message}`);
                 } finally {
                   setBusy(false);
