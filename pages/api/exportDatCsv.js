@@ -162,18 +162,13 @@ export default async function handler(req, res) {
 
     // Update lane statuses to 'posted' after successful CSV generation
     try {
-      // Only users with Admin role can update lane status
       const laneIds = lanes.map(lane => lane.id);
       if (laneIds.length > 0) {
-        if (auth.profile.role === 'Admin') {
-          await adminSupabase
-            .from('lanes')
-            .update({ status: 'posted', posted_at: new Date().toISOString() })
-            .in('id', laneIds);
-          monitor.log('info', `Updated ${laneIds.length} lanes to 'posted' status`);
-        } else {
-          monitor.log('warn', `User ${auth.user.email} lacks permission to update lane status`);
-        }
+        await adminSupabase
+          .from('lanes')
+          .update({ status: 'posted', posted_at: new Date().toISOString() })
+          .in('id', laneIds);
+        monitor.log('info', `Updated ${laneIds.length} lanes to 'posted' status`);
       }
     } catch (updateError) {
       await monitor.logError(updateError, 'Failed to update lane statuses');

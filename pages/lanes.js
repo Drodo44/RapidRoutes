@@ -124,9 +124,10 @@ function LanesPage() {
 
   // Lists
   const [tab, setTab] = useState('active');
-  const [pending, setPending] = useState([]); // Now holds "Active" lanes (pending + posted)
-  const [posted, setPosted] = useState([]);   // Now holds "Covered" lanes
-  const [recent, setRecent] = useState([]);   // Now holds "Archived" lanes
+  const [pending, setPending] = useState([]); // Holds "Pending" lanes
+  const [posted, setPosted] = useState([]);   // Holds "Posted" lanes  
+  const [covered, setCovered] = useState([]); // Holds "Covered" lanes
+  const [recent, setRecent] = useState([]);   // Holds "Archived" lanes
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
 
@@ -259,27 +260,32 @@ function LanesPage() {
       }
       
       const [
-        { data: active = [], error: activeError },
+        { data: pendingLanes = [], error: pendingError },
+        { data: postedLanes = [], error: postedError },
         { data: covered = [], error: coveredError },
         { data: archived = [], error: archivedError }
       ] = await Promise.all([
-        supabase.from('lanes').select('*').in('status', ['pending', 'posted']).order('created_at', { ascending: false }).limit(200),
+        supabase.from('lanes').select('*').eq('status', 'pending').order('created_at', { ascending: false }).limit(200),
+        supabase.from('lanes').select('*').eq('status', 'posted').order('created_at', { ascending: false }).limit(200),
         supabase.from('lanes').select('*').eq('status', 'covered').order('created_at', { ascending: false }).limit(200),
         supabase.from('lanes').select('*').eq('status', 'archived').order('created_at', { ascending: false }).limit(50),
       ]);
 
-      if (activeError) throw activeError;
+      if (pendingError) throw pendingError;
+      if (postedError) throw postedError;
       if (coveredError) throw coveredError;
       if (archivedError) throw archivedError;
 
       console.log('Lists loaded successfully:', {
-        active: active.length,
+        pending: pendingLanes.length,
+        posted: postedLanes.length,
         covered: covered.length,
         archived: archived.length
       });
 
-      setPending(active);
-      setPosted(covered);
+      setPending(pendingLanes);
+      setPosted(postedLanes);
+      setCovered(covered);
       setRecent(archived);
     } catch (error) {
       console.error('Failed to load lanes:', error);
@@ -521,10 +527,7 @@ function LanesPage() {
       console.warn('API returned array, extracting first lane:', newLane);
       newLane = newLane[0];
     }
-  console.log('API response for postAgain:', newLane);
-    console.log('🔍 Lane status from API:', newLane.status);
-    console.log('🔍 Lane ID from API:', newLane.id);
-    console.log('🔍 Lane created_at from API:', newLane.created_at);
+    console.log('API response for postAgain:', newLane);
     if (!newLane || typeof newLane !== 'object') {
       console.error('Invalid server response:', newLane);
       throw new Error('Invalid response from server');
@@ -941,18 +944,21 @@ function LanesPage() {
             <div className="flex gap-2 items-center">
               <button 
                 onClick={generateCSV}
-                disabled={busy || pending.filter(l => l.status === 'pending').length === 0}
+                disabled={busy || pending.length === 0}
                 className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium text-sm"
-                title={`Generate DAT CSV for ${pending.filter(l => l.status === 'pending').length} active lane(s)`}
+                title={`Generate DAT CSV for ${pending.length} pending lane(s)`}
               >
-                {busy ? 'Generating...' : `📊 Generate CSV (${pending.filter(l => l.status === 'pending').length})`}
+                {busy ? 'Generating...' : `📊 Generate CSV (${pending.length})`}
               </button>
               <div className="flex gap-2">
                 <button className={`px-3 py-1 rounded-md ${tab === 'active' ? 'bg-blue-700 text-white' : 'text-gray-400 hover:bg-blue-700 hover:text-white'}`} onClick={() => setTab('active')}>
-                  Active ({pending.length})
+                  Pending ({pending.length})
+                </button>
+                <button className={`px-3 py-1 rounded-md ${tab === 'posted' ? 'bg-orange-700 text-white' : 'text-gray-400 hover:bg-orange-700 hover:text-white'}`} onClick={() => setTab('posted')}>
+                  Posted ({posted.length})
                 </button>
                 <button className={`px-3 py-1 rounded-md ${tab === 'covered' ? 'bg-green-700 text-white' : 'text-gray-400 hover:bg-green-700 hover:text-white'}`} onClick={() => setTab('covered')}>
-                  Covered ({posted.length})
+                  Covered ({covered.length})
                 </button>
                 <button className={`px-3 py-1 rounded-md ${tab === 'archived' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white'}`} onClick={() => setTab('archived')}>
                   Archived ({recent.length})
@@ -962,7 +968,7 @@ function LanesPage() {
           }
         >
           <div className="divide-y divide-gray-800">
-            {(tab === 'active' ? pending : tab === 'covered' ? posted : recent).map(l => (
+            {(tab === 'active' ? pending : tab === 'posted' ? posted : tab === 'covered' ? covered : recent).map(l => (
               <div key={l.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 py-3">
                 <div className="text-sm">
                   <div className="text-gray-100">
@@ -1014,7 +1020,7 @@ function LanesPage() {
                 </div>
               </div>
             ))}
-            {(tab === 'active' ? pending : tab === 'covered' ? posted : recent).length === 0 && (
+            {(tab === 'active' ? pending : tab === 'posted' ? posted : tab === 'covered' ? covered : recent).length === 0 && (
               <div className="py-6 text-sm text-gray-400">No lanes in this category.</div>
             )}
           </div>
