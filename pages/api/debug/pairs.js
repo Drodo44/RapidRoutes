@@ -4,7 +4,7 @@
 // Or: /api/debug/pairs?laneId=123&fill=1
 
 import { adminSupabase } from '../../../utils/supabaseClient';
-import { planPairsForLane } from '../../../lib/datCsvBuilder';
+import { planPairsForLane, MIN_PAIRS_REQUIRED, ROWS_PER_PAIR } from '../../../lib/datCsvBuilder';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });

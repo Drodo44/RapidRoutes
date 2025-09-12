@@ -5,7 +5,7 @@
 
 import { adminSupabase } from '../../utils/supabaseClient';
 import { DAT_HEADERS } from '../../lib/datHeaders.js';
-import { rowsFromBaseAndPairs, toCsv } from '../../lib/datCsvBuilder';
+import { rowsFromBaseAndPairs, toCsv, MIN_PAIRS_REQUIRED, ROWS_PER_PAIR } from '../../lib/datCsvBuilder';
 import { FreightIntelligence } from '../../lib/FreightIntelligence.js';
 import { validateApiAuth } from '../../middleware/auth.unified.js';
 
