@@ -11,11 +11,10 @@ export default async function handler(req, res) {
   }
 
   try {
-    // TODO: Temporarily skip auth to test intelligence generation
-    // const authResult = await validateApiAuth(req);
-    // if (!authResult.authenticated) {
-    //   return res.status(401).json({ error: 'Unauthorized' });
-    // }
+    const authResult = await validateApiAuth(req);
+    if (!authResult.authenticated) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
 
     const { origin, destination, equipment } = req.body;
 

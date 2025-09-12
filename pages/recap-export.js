@@ -107,7 +107,6 @@ export default function RecapExport() {
         }
         
         setPostedPairs(allPairs);
-        console.log('🔍 DEBUG: Loaded posted pairs for export:', allPairs.length, allPairs);
       }
     }
     
@@ -254,7 +253,6 @@ export default function RecapExport() {
               onChange={(e) => {
                 if (e.target.value) {
                   const selectedValue = e.target.value;
-                  console.log('🔍 EXPORT DEBUG: Selected value:', selectedValue);
                   
                   let targetLaneId;
                   
@@ -264,8 +262,6 @@ export default function RecapExport() {
                     const parts = selectedValue.split('-');
                     targetLaneId = parseInt(parts[1]);
                   }
-                  
-                  console.log('🔍 EXPORT DEBUG: Target lane ID:', targetLaneId);
                   
                   if (targetLaneId) {
                     scrollToLane(targetLaneId);
@@ -281,8 +277,6 @@ export default function RecapExport() {
                 const lanePostedPairs = postedPairs.filter(pair => pair.laneId === lane.id);
                 const basePair = lanePostedPairs.find(pair => pair.isBase);
                 const generatedPairs = lanePostedPairs.filter(pair => !pair.isBase);
-                
-                console.log('🔍 EXPORT DEBUG: Lane', lane.id, 'has', lanePostedPairs.length, 'pairs');
                 
                 return lanePostedPairs.length > 0 ? (
                   <optgroup key={lane.id} label={`${lane.origin_city}, ${lane.origin_state} → ${lane.dest_city}, ${lane.dest_state} • REF #${getDisplayReferenceId(lane)} • ${lanePostedPairs.length} pairs`}>

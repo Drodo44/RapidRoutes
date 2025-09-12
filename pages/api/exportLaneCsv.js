@@ -64,14 +64,10 @@ export default async function handler(req, res) {
     const baseDest = { city: lane.dest_city, state: lane.dest_state };
     const rows = rowsFromBaseAndPairs(lane, baseOrigin, baseDest, result.pairs, preferFillTo10, usedRefIds);
 
-    // Enhanced debug info
-    console.log(`🧠 INTELLIGENT EXPORT DEBUG:`);
-    console.log(`  preferFillTo10: ${preferFillTo10}`);
-    console.log(`  Generated pairs: ${result.pairs.length}`);
-    console.log(`  Total rows: ${rows.length} (minimum: 12, scales with market density)`);
-    console.log(`  Pairs details:`, result.pairs.map(p => 
-      `${p.pickup.city}, ${p.pickup.state} (KMA: ${p.geographic.pickup_kma}) -> ${p.delivery.city}, ${p.delivery.state} (KMA: ${p.geographic.delivery_kma})`
-    ));
+    // Log basic export stats for monitoring
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🧠 Intelligent export: ${result.pairs.length} pairs → ${rows.length} rows`);
+    }
     
     const csv = toCsv(DAT_HEADERS, rows);
     const filename = `DAT_Upload_${id}.csv`;

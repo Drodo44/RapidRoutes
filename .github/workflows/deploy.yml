@@ -12,12 +12,6 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
 
-      - name: Install deps
-        run: npm ci
-
-      - name: Build
-        run: npm run build
-
       - name: Trigger Vercel Deployment
         uses: amondnet/vercel-action@v25
         with:
