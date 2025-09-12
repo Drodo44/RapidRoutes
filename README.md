@@ -1,6 +1,6 @@
 # RapidRoutes
 
-Production-grade Next.js app for freight brokerage load posting, crawl generation, DAT bulk export, and shipper recap.
+Produc- **Crawl**: KMA-aware, 75→100→125 tiers, scoring blend, duplicate rules, minimum 6 unique KMAs required (no maximum).ion-grade Next.js app for freight brokerage load posting, crawl generation, DAT bulk export, and shipper recap.
 
 ## Stack
 - Next.js 14 (Pages Router)

@@ -22,7 +22,7 @@ RapidRoutes is a production-grade freight brokerage automation platform designed
 
 ### DAT CSV Export Requirements
 - **24 headers exactly** in specific order (see `lib/datCsvBuilder.js`)
-- **22 rows per lane**: 1 base + 10 pickup crawls + 10 delivery crawls, duplicated for "Email" and "Primary Phone" contact methods
+- **Row Generation**: Use all valid pairs found by intelligence system (minimum 6 unique KMAs required, no maximum limit). Each pair is duplicated for "Email" and "Primary Phone" contact methods.
 - **City selection logic**: Within 75-mile radius using freight-intelligent KMA codes
 - **499 row limit per CSV file** (automatic chunking required)
 - **Exact formatting**: Follow DAT_Upload_Batch2_FINAL.csv specification
