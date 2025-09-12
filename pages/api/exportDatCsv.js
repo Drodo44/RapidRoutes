@@ -7,7 +7,7 @@
 
 import { adminSupabase } from '../../utils/supabaseClient.js';
 import { DAT_HEADERS } from '../../lib/datHeaders.js';
-import { generateDatCsvRows, toCsv, chunkRows } from '../../lib/datCsvBuilder.js';
+import { generateDatCsvRows, toCsv, chunkRows, MIN_PAIRS_REQUIRED, ROWS_PER_PAIR } from '../../lib/datCsvBuilder.js';
 import { monitor } from '../../lib/monitor.js';
 import { validateApiAuth } from '../../middleware/auth.unified.js';
 
@@ -19,7 +19,7 @@ async function getPendingRowCount() {
     .eq('status', 'pending');
     
   if (error) throw error;
-  return (lanes?.length || 0) * 12; // 6 pairs × 2 contact methods = 12 rows minimum per lane
+  return (lanes?.length || 0) * (MIN_PAIRS_REQUIRED * ROWS_PER_PAIR); // Each lane needs minimum pairs × contact methods
 }
 
 function daysAgoUTC(n) {
