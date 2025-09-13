@@ -1,6 +1,18 @@
 # RapidRoutes
 
-Produc- **Crawl**: KMA-aware, 75→100→125 tiers, scoring blend, duplicate rules, minimum 6 unique KMAs required (no maximum).ion-grade Next.js app for freight brokerage load posting, crawl generation, DAT bulk export, and shipper recap.
+Prod## Key Features
+- **Lanes**: City autocomplete (12 results), equipment code-first, weight handling (randomize range), pending/recent tabs, per-lane export, bulk export (499 row parts).
+- **Crawl**: KMA-aware, 75→100→125 tiers, scoring blend, duplicate rules, minimum 6 unique KMAs required (no maximum).
+- **CSV**: DAT Bulk Upload (24 headers, ≥12 rows per lane input). For every lane you enter (City, State → City, State):
+  - The system generates **at least 5 entirely new, intelligent** full lane pairings — each with a **unique pickup and unique delivery city**
+  - This results in a **minimum of 6 full lane pairings per lane you enter** (1 original + 5+ generated) with **no maximum limit**
+  - The system continues generating additional intelligent pairings as long as:
+    - **Unique KMA compliance** is maintained (each pickup/delivery is from a distinct KMA)
+    - **Freight-intelligent logic** can identify viable cities (known freight markets, industrial zones, agricultural hubs)
+    - Hidden gem cities are prioritized over major metros unless freight-justified
+  - Each lane is **duplicated per contact method** (Phone + Email), resulting in **12+ CSV rows per lane input**
+  - The system uses your internal city database as the primary source. If it cannot generate sufficient intelligent pairings, it queries the HERE.com API, filters the results using freight intelligence, assigns KMA codes, and adds them to your internal database for future use — making the system smarter with each use.
+- **Recap**: Active lanes, search, print-ready export view.*Crawl**: KMA-aware, 75→100→125 tiers, scoring blend, duplicate rules, minimum 6 unique KMAs required (no maximum).ion-grade Next.js app for freight brokerage load posting, crawl generation, DAT bulk export, and shipper recap.
 
 ## Stack
 - Next.js 14 (Pages Router)
