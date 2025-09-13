@@ -123,7 +123,7 @@ export default async function handler(req, res) {
     
     const csv = toCsv(DAT_HEADERS, rows);
     
-    // FINAL VALIDATION: Ensure CSV output is actually CSV format
+    // FINAL VALIDATION: Ensure CSV output is DAT-compliant
     if (!csv || typeof csv !== 'string') {
       console.error('❌ CRITICAL: toCsv returned non-string data:', typeof csv);
       return res.status(500).json({ 
@@ -137,6 +137,33 @@ export default async function handler(req, res) {
         error: 'CSV generation failed: Output corrupted with JSON data'
       });
     }
+    
+    // Validate CSV has exactly 24 DAT headers
+    const lines = csv.split('\n').filter(line => line.trim());
+    if (lines.length === 0) {
+      console.error('❌ CRITICAL: CSV is empty after generation');
+      return res.status(500).json({ 
+        error: 'CSV generation failed: Empty CSV output'
+      });
+    }
+    
+    const headerLine = lines[0];
+    const headerCount = headerLine.split(',').length;
+    if (headerCount !== 24) {
+      console.error(`❌ CRITICAL: CSV has ${headerCount} headers, DAT requires exactly 24`);
+      console.error('Headers found:', headerLine);
+      return res.status(500).json({ 
+        error: `CSV generation failed: Invalid header count (${headerCount}/24)`,
+        debug: { expectedHeaders: 24, actualHeaders: headerCount, laneId: id }
+      });
+    }
+    
+    console.log('✅ SINGLE LANE CSV VALIDATION PASSED:');
+    console.log('  Lane ID:', id);
+    console.log('  Intelligence pairs:', result.pairs.length);
+    console.log('  CSV rows generated:', rows.length);
+    console.log('  Headers: 24/24 DAT-compliant');
+    console.log('  CSV size:', csv.length, 'characters');
     
     const filename = `DAT_Upload_${id}.csv`;
 
