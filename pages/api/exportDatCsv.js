@@ -6,8 +6,7 @@
 // - If part is specified for GET, returns only that part.
 
 import { adminSupabase } from '../../utils/supabaseClient.js';
-import { DAT_HEADERS } from '../../lib/datHeaders.js';
-import { generateDatCsvRows, toCsv, chunkRows, MIN_PAIRS_REQUIRED, ROWS_PER_PAIR } from '../../lib/datCsvBuilder.js';
+import { generateDatCsvRows, toCsv, chunkRows, MIN_PAIRS_REQUIRED, ROWS_PER_PAIR, DAT_HEADERS } from '../../lib/datCsvBuilder.js';
 import { monitor } from '../../lib/monitor.js';
 import { validateApiAuth } from '../../middleware/auth.unified.js';
 
