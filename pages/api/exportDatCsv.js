@@ -174,8 +174,73 @@ export default async function handler(req, res) {
       // Don't fail the export if status update fails
     }
 
+    // CRITICAL DEBUGGING: Log exactly what we're passing to toCsv
+    console.log('🔍 CRITICAL DEBUG - exportDatCsv.js:');
+    console.log('  selectedRows type:', typeof selectedRows);
+    console.log('  selectedRows array:', Array.isArray(selectedRows) ? `Array(${selectedRows.length})` : typeof selectedRows);
+    console.log('  DAT_HEADERS:', Array.isArray(DAT_HEADERS) ? `Array(${DAT_HEADERS.length})` : typeof DAT_HEADERS);
+    
+    if (Array.isArray(selectedRows) && selectedRows.length > 0) {
+      console.log('  First row keys:', Object.keys(selectedRows[0]));
+      console.log('  First row sample:', selectedRows[0]);
+    } else {
+      console.log('  ❌ PROBLEM: selectedRows is not a valid array or is empty!');
+    }
+    
+    // CRITICAL VALIDATION: Prevent JSON corruption in CSV output
+    if (!Array.isArray(selectedRows)) {
+      console.error('❌ CRITICAL: Non-array data passed to CSV generation:', typeof selectedRows);
+      return res.status(500).json({ 
+        error: 'CSV generation failed: Invalid row data structure',
+        debug: process.env.NODE_ENV === 'development' ? { dataType: typeof selectedRows } : undefined
+      });
+    }
+    
+    if (selectedRows.length === 0) {
+      console.error('❌ CRITICAL: Empty rows array passed to CSV generation');
+      return res.status(500).json({ 
+        error: 'CSV generation failed: No data rows in selected part',
+        debug: { totalParts: parts.length, totalRows: allRows.length, part }
+      });
+    }
+    
+    // Validate first row has proper CSV structure
+    const firstRow = selectedRows[0];
+    if (!firstRow || typeof firstRow !== 'object' || Array.isArray(firstRow)) {
+      console.error('❌ CRITICAL: Invalid row structure detected:', typeof firstRow);
+      return res.status(500).json({ 
+        error: 'CSV generation failed: Invalid row object structure',
+        debug: { firstRowType: typeof firstRow, isArray: Array.isArray(firstRow) }
+      });
+    }
+    
+    // Verify required CSV headers are present in row data
+    const missingHeaders = DAT_HEADERS.filter(header => !(header in firstRow));
+    if (missingHeaders.length > 0) {
+      console.error('❌ CRITICAL: Missing required CSV headers in row data:', missingHeaders);
+      return res.status(500).json({ 
+        error: 'CSV generation failed: Missing required headers in row data',
+        debug: { missingHeaders, availableKeys: Object.keys(firstRow) }
+      });
+    }
+
     // Generate and send CSV with descriptive filename
     const csv = toCsv(DAT_HEADERS, selectedRows);
+    
+    // FINAL VALIDATION: Ensure CSV output is actually CSV format
+    if (!csv || typeof csv !== 'string') {
+      console.error('❌ CRITICAL: toCsv returned non-string data:', typeof csv);
+      return res.status(500).json({ 
+        error: 'CSV generation failed: Invalid CSV output format'
+      });
+    }
+    
+    if (csv.startsWith('{') || csv.startsWith('[')) {
+      console.error('❌ CRITICAL: CSV output appears to be JSON!', csv.substring(0, 100));
+      return res.status(500).json({ 
+        error: 'CSV generation failed: Output corrupted with JSON data'
+      });
+    }
     const baseName = pending ? 'DAT_Pending' : all ? 'DAT_All' : days != null ? `DAT_Last${days}d` : 'DAT_Pending';
     const filename = parts.length > 1
       ? `${baseName}_part${partIndex + 1}-of-${parts.length}.csv`

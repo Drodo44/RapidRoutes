@@ -64,16 +64,84 @@ export default async function handler(req, res) {
     const baseDest = { city: lane.dest_city, state: lane.dest_state };
     const rows = rowsFromBaseAndPairs(lane, baseOrigin, baseDest, result.pairs, preferFillTo10, usedRefIds);
 
+    // CRITICAL DEBUGGING: Log exactly what we're passing to toCsv
+    console.log('🔍 CRITICAL DEBUG - exportLaneCsv.js:');
+    console.log('  result type:', typeof result);
+    console.log('  result.pairs:', Array.isArray(result?.pairs) ? `Array(${result.pairs.length})` : typeof result?.pairs);
+    console.log('  rows type:', typeof rows);
+    console.log('  rows array:', Array.isArray(rows) ? `Array(${rows.length})` : typeof rows);
+    console.log('  DAT_HEADERS:', Array.isArray(DAT_HEADERS) ? `Array(${DAT_HEADERS.length})` : typeof DAT_HEADERS);
+    
+    if (Array.isArray(rows) && rows.length > 0) {
+      console.log('  First row keys:', Object.keys(rows[0]));
+      console.log('  First row sample:', rows[0]);
+    } else {
+      console.log('  ❌ PROBLEM: rows is not a valid array or is empty!');
+    }
+    
     // Log basic export stats for monitoring
     if (process.env.NODE_ENV === 'development') {
       console.log(`🧠 Intelligent export: ${result.pairs.length} pairs → ${rows.length} rows`);
     }
     
+    // CRITICAL VALIDATION: Prevent JSON corruption in CSV output
+    if (!Array.isArray(rows)) {
+      console.error('❌ CRITICAL: Non-array data passed to CSV generation:', typeof rows);
+      return res.status(500).json({ 
+        error: 'CSV generation failed: Invalid row data structure',
+        debug: process.env.NODE_ENV === 'development' ? { dataType: typeof rows, dataValue: rows } : undefined
+      });
+    }
+    
+    if (rows.length === 0) {
+      console.error('❌ CRITICAL: Empty rows array passed to CSV generation');
+      return res.status(500).json({ 
+        error: 'CSV generation failed: No data rows generated',
+        debug: { pairsGenerated: result?.pairs?.length || 0, laneId: id }
+      });
+    }
+    
+    // Validate first row has proper CSV structure
+    const firstRow = rows[0];
+    if (!firstRow || typeof firstRow !== 'object' || Array.isArray(firstRow)) {
+      console.error('❌ CRITICAL: Invalid row structure detected:', typeof firstRow);
+      return res.status(500).json({ 
+        error: 'CSV generation failed: Invalid row object structure',
+        debug: { firstRowType: typeof firstRow, isArray: Array.isArray(firstRow) }
+      });
+    }
+    
+    // Verify required CSV headers are present in row data
+    const missingHeaders = DAT_HEADERS.filter(header => !(header in firstRow));
+    if (missingHeaders.length > 0) {
+      console.error('❌ CRITICAL: Missing required CSV headers in row data:', missingHeaders);
+      return res.status(500).json({ 
+        error: 'CSV generation failed: Missing required headers in row data',
+        debug: { missingHeaders, availableKeys: Object.keys(firstRow) }
+      });
+    }
+    
     const csv = toCsv(DAT_HEADERS, rows);
+    
+    // FINAL VALIDATION: Ensure CSV output is actually CSV format
+    if (!csv || typeof csv !== 'string') {
+      console.error('❌ CRITICAL: toCsv returned non-string data:', typeof csv);
+      return res.status(500).json({ 
+        error: 'CSV generation failed: Invalid CSV output format'
+      });
+    }
+    
+    if (csv.startsWith('{') || csv.startsWith('[')) {
+      console.error('❌ CRITICAL: CSV output appears to be JSON!', csv.substring(0, 100));
+      return res.status(500).json({ 
+        error: 'CSV generation failed: Output corrupted with JSON data'
+      });
+    }
+    
     const filename = `DAT_Upload_${id}.csv`;
 
     // Add debug headers
-    res.setHeader('X-Debug-Pairs', String(crawl.pairs.length));
+    res.setHeader('X-Debug-Pairs', String(result.pairs.length));
     res.setHeader('X-Debug-Rows', String(rows.length));
     res.setHeader('X-Debug-FillTo10', String(preferFillTo10));
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');

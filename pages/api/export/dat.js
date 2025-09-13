@@ -1,22 +1,17 @@
 // pages/api/export/dat.js
-
-import { generateChunkedCsv } from "../../../lib/csvChunker";
+// ❌ DEPRECATED AND BROKEN - DO NOT USE
+// This endpoint has been disabled due to critical CSV corruption issues
+// Use /api/exportDatCsv or /api/exportLaneCsv instead
 
 export default async function handler(req, res) {
-  const lanes = req.body.lanes || [];
-
-  const headers = [
-    "Pickup Earliest*", "Pickup Latest", "Length (ft)*", "Weight (lbs)*", "Full/Partial*", "Equipment*", "Use Private Network*",
-    "Private Network Rate", "Allow Private Network Booking", "Allow Private Network Bidding",
-    "Use DAT Loadboard*", "DAT Loadboard Rate", "Allow DAT Loadboard Booking", "Use Extended Network",
-    "Contact Method*", "Origin City*", "Origin State*", "Origin Postal Code",
-    "Destination City*", "Destination State*", "Destination Postal Code", "Comment", "Commodity", "Reference ID"
-  ];
-
-  const csvChunks = generateChunkedCsv(lanes, headers);
-  const mergedCsv = csvChunks.join("\n\n---NEXT FILE---\n\n");
-
-  res.setHeader("Content-Type", "text/csv");
-  res.setHeader("Content-Disposition", "attachment; filename=DAT_Postings.csv");
-  res.status(200).send(mergedCsv);
+  console.error('❌ CRITICAL: Attempted to use broken CSV export endpoint /api/export/dat');
+  console.error('This endpoint generates corrupted CSV data with dummy/fake content');
+  console.error('Use /api/exportDatCsv or /api/exportLaneCsv instead');
+  
+  return res.status(410).json({ 
+    error: 'This CSV export endpoint is deprecated and broken',
+    message: 'Use /api/exportDatCsv for bulk exports or /api/exportLaneCsv for single lane exports',
+    deprecated: true,
+    corruption_risk: 'This endpoint generates fake CSV data and should never be used'
+  });
 }
