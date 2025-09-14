@@ -1,5 +1,5 @@
 // utils/datExport.js
-// DAT CSV strict headers, 22 rows/lane when 10 pairs; manual CSV writer; 499-row chunking.
+// DAT CSV strict headers, variable rows per lane (minimum 12 rows for 6 pairs, no maximum); manual CSV writer; 499-row chunking.
 import { generateSmartCrawlCities } from "./smartCitySelector.js";
 
 // Import canonical headers to ensure consistency

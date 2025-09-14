@@ -15,7 +15,8 @@
     "test:coverage": "vitest run --coverage",
     "test:freight": "vitest run ./tests/freight-intelligence.test.js",
     "test:core": "vitest run ./tests/core-verification.test.js",
-    "test:ci": "vitest run --reporter=json --coverage --outputFile=./coverage/coverage.json"
+    "test:ci": "vitest run --reporter=json --coverage --outputFile=./coverage/coverage.json",
+    "diagnose:csv": "node ./phase9-csv-diagnostics.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.2",

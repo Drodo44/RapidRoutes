@@ -114,8 +114,8 @@ export default async function handler(req, res) {
     monitor.log('info', `Processing ${lanes.length} lanes...`);
     
     // Generate all rows with comprehensive validation logging
-    const allRows = [];
-    const errors = [];
+  const allRows = [];
+  const errors = [];
     const validationLog = {
       total: lanes.length,
       successful: 0,
@@ -168,11 +168,18 @@ export default async function handler(req, res) {
       } catch (error) {
         laneLog.status = 'failed';
         laneLog.error = error.message;
+        laneLog.details = {
+          equipment: lane.equipment_code,
+          origin: `${lane.origin_city}, ${lane.origin_state}`,
+          destination: `${lane.dest_city}, ${lane.dest_state}`,
+          weight: lane.randomize_weight ? `${lane.weight_min}-${lane.weight_max}` : lane.weight_lbs,
+          error_details: error.details || null
+        };
         validationLog.failed++;
         
         console.log(`❌ Lane ${lane.id}: Failed -`, error.message);
-        await monitor.logError(error, `Lane ${lane.id} failed`);
-        errors.push({ laneId: lane.id, error: error.message });
+        await monitor.logError(error, `Lane ${lane.id} failed`, laneLog.details);
+        errors.push({ laneId: lane.id, error: error.message, details: laneLog.details });
       }
       
       validationLog.details.push(laneLog);
@@ -234,8 +241,10 @@ export default async function handler(req, res) {
         },
         errors: errors.map(err => ({
           laneId: err.laneId,
-          error: err.error
-        }))
+          error: err.error,
+          details: err.details
+        })),
+        phase: 'phase9-csv-diagnostics'
       });
     }
 

@@ -6,7 +6,14 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321';
+// Prefer server URL if provided, fall back to NEXT_PUBLIC URL, then localhost
+let SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321';
+// Guard against unresolved shell placeholders accidentally exported as literals
+if (typeof SUPABASE_URL === 'string' && SUPABASE_URL.includes('${')) {
+  SUPABASE_URL = 'http://localhost:54321';
+}
+// Validate URL format and fall back if invalid
+try { new URL(SUPABASE_URL); } catch { SUPABASE_URL = 'http://localhost:54321'; }
 const SUPABASE_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'test-anon-key';
 
 // Browser/client: anon key
@@ -37,36 +44,40 @@ const isServer = typeof window === 'undefined' || process.env.NODE_ENV === 'test
 let adminSupabase = null;
 
 if (isServer) {
-  const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  // Only require service role key in non-test production environment
-  if (process.env.NODE_ENV !== 'test' && !SERVICE_ROLE) {
-    throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY on server');
+  // Allow a global override for diagnostics (set before importing this module)
+  if (globalThis.__RR_ADMIN_SUPABASE_OVERRIDE) {
+    adminSupabase = globalThis.__RR_ADMIN_SUPABASE_OVERRIDE;
+  } else {
+    const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    // Only require service role key in non-test production environment
+    if (process.env.NODE_ENV !== 'test' && !SERVICE_ROLE) {
+      throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY on server');
+    }
+    // Use mock for tests
+    adminSupabase = process.env.NODE_ENV === 'test'
+      ? {
+          from: () => ({
+            select: () => Promise.resolve({ 
+              data: [
+                { city: 'Mount Holly', state: 'NJ', kma_code: 'PHL', latitude: 40.0, longitude: -74.7 },
+                { city: 'Harrison', state: 'OH', kma_code: 'CIN', latitude: 39.2, longitude: -84.8 }
+              ], 
+              error: null 
+            }),
+            update: () => Promise.resolve({ data: null, error: null }),
+            upsert: () => Promise.resolve({ data: null, error: null })
+          })
+        }
+      : createClient(SUPABASE_URL, SERVICE_ROLE || 'test-mock-key', {
+          auth: {
+            persistSession: false,
+            autoRefreshToken: false,
+          },
+          global: {
+            headers: { 'X-Client-Info': 'RapidRoutes-Server' },
+          },
+        });
   }
-  
-  // Use mock for tests
-  adminSupabase = process.env.NODE_ENV === 'test'
-    ? {
-        from: () => ({
-          select: () => Promise.resolve({ 
-            data: [
-              { city: 'Mount Holly', state: 'NJ', kma_code: 'PHL', latitude: 40.0, longitude: -74.7 },
-              { city: 'Harrison', state: 'OH', kma_code: 'CIN', latitude: 39.2, longitude: -84.8 }
-            ], 
-            error: null 
-          }),
-          update: () => Promise.resolve({ data: null, error: null }),
-          upsert: () => Promise.resolve({ data: null, error: null })
-        })
-      }
-    : createClient(SUPABASE_URL, SERVICE_ROLE || 'test-mock-key', {
-        auth: {
-          persistSession: false,
-          autoRefreshToken: false,
-        },
-        global: {
-          headers: { 'X-Client-Info': 'RapidRoutes-Server' },
-        },
-      });
 }
 
 export { adminSupabase };
