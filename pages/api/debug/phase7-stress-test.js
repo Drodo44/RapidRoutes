@@ -12,9 +12,9 @@
 
 // Harmless comment to force Vercel clean build (2025-09-15)
 
-import { adminSupabase } from '../../utils/supabaseClient.js';
-import { generateDiversePairs } from '../../lib/FreightIntelligence.js';
-import { generateDatCsvRows, toCsv, DAT_HEADERS } from '../../lib/datCsvBuilder.js';
+import { adminSupabase } from '../../../utils/supabaseClient.js';
+import { generateDiversePairs } from '../../../lib/FreightIntelligence.js';
+import { generateDatCsvRows, toCsv, DAT_HEADERS } from '../../../lib/datCsvBuilder.js';
 
 // Test configuration constants
 const PHASE_7_CONFIG = {
