@@ -6,6 +6,7 @@
     "node": ">=18"
   },
   "scripts": {
+    "generate:dat": "node scripts/generateDATCsv.js",
     "dev": "next dev",
     "build": "next build",
     "start": "next start -p 3000",
