@@ -7,9 +7,11 @@
 
 import { adminSupabase } from '../../utils/supabaseClient.js';
 import { EnterpriseCsvGenerator } from '../../lib/enterpriseCsvGenerator.js';
-import { toCsv, chunkRows, DAT_HEADERS } from '../../lib/datCsvBuilder.js';
+import { toCsv, chunkRows, DAT_HEADERS, MIN_PAIRS_REQUIRED, ROWS_PER_PAIR } from '../../lib/datCsvBuilder.js';
 import { monitor } from '../../lib/monitor.js';
 import { validateApiAuth } from '../../middleware/auth.unified.js';
+import fs from 'fs';
+import path from 'path';
 
 // Helper to get pending row count for pagination
 async function getPendingRowCount() {
@@ -153,9 +155,7 @@ export default async function handler(req, res) {
     console.log('  Success rate:', `${((successful / lanes.length) * 100).toFixed(1)}%`);
     console.log('  Total rows generated:', allRows.length);
 
-    // Write CSV to /exports with correct naming
-    const fs = await import('fs');
-    const path = await import('path');
+  // Prepare chunking and selection
     const parts = chunkRows(allRows, 499);
     const partIndex = Math.max(0, part - 1);
     const selectedRows = parts[partIndex] || [];
@@ -171,16 +171,7 @@ export default async function handler(req, res) {
       }
     });
 
-    // Respond with CSV summary and lane status
-    return res.status(200).json({
-      message: 'Phase 9 export complete',
-      totalLanes: lanes.length,
-      successful,
-      failed,
-      totalRows: allRows.length,
-      file: filePath,
-      laneResults
-    });
+    // Continue to CSV building and file output below
     
     if (!selectedRows.length) {
       const result = { 
@@ -284,8 +275,8 @@ export default async function handler(req, res) {
       });
     }
 
-    // Generate and send CSV with descriptive filename
-    const csv = toCsv(DAT_HEADERS, selectedRows);
+  // Generate CSV string from selected rows
+  const csv = toCsv(DAT_HEADERS, selectedRows);
     
     // FINAL VALIDATION: Ensure CSV output is DAT-compliant
     if (!csv || typeof csv !== 'string') {
@@ -337,20 +328,22 @@ export default async function handler(req, res) {
     console.log('  Headers: 24/24 DAT-compliant');
     console.log('  Data rows:', lines.length - 1);
     console.log('  Total size:', csv.length, 'characters');
-    const baseName = pending ? 'DAT_Pending' : all ? 'DAT_All' : days != null ? `DAT_Last${days}d` : 'DAT_Pending';
-    const filename = parts.length > 1
-      ? `${baseName}_part${partIndex + 1}-of-${parts.length}.csv`
-      : `${baseName}.csv`;
+    // Write CSV to public directory and return JSON URL
+    const fileName = 'dat_output.csv';
+    const filePath = path.join(process.cwd(), 'public', fileName);
+    fs.writeFileSync(filePath, csv);
 
-    // Set response headers
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.setHeader('X-Total-Parts', String(parts.length));
-    res.setHeader('X-Debug-Lanes-Processed', String(lanes.length));
-    res.setHeader('X-Debug-Total-Rows', String(allRows.length));
-    res.setHeader('X-Debug-Selected-Rows', String(selectedRows.length));
-
-    return res.status(200).send(csv);
+    return res.status(200).json({
+      success: true,
+      url: `/${fileName}`,
+      totalLanes: lanes.length,
+      successful,
+      failed,
+      totalRows: allRows.length,
+      selectedRows: selectedRows.length,
+      parts: parts.length,
+      part: partIndex + 1
+    });
 
   } catch (error) {
     await monitor.logError(error, 'Export failed');
