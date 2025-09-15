@@ -12,7 +12,7 @@
 
 import { adminSupabase } from '../../utils/supabaseClient.js';
 import { generateDiversePairs } from '../../lib/FreightIntelligence.js';
-import { buildDatCompliantCSV } from '../../lib/datCsvBuilder.js';
+import { generateDatCsvRows, toCsv, DAT_HEADERS } from '../../lib/datCsvBuilder.js';
 
 // Test configuration constants
 const PHASE_7_CONFIG = {
@@ -63,35 +63,32 @@ async function testLane(lane, laneIndex, totalLanes) {
     );
 
     result.pairsGenerated = pairs.length;
-    
+
     // Validate KMA uniqueness
-    const originKMAs = new Set(pairs.map(p => p.origin.kma_code).filter(k => k));
-    const destKMAs = new Set(pairs.map(p => p.destination.kma_code).filter(k => k));
+    const originKMAs = new Set(pairs.map(p => p.origin?.kma_code || p.pickup?.kma_code).filter(k => k));
+    const destKMAs = new Set(pairs.map(p => p.destination?.kma_code || p.delivery?.kma_code).filter(k => k));
     result.uniqueKMAs = Math.min(originKMAs.size, destKMAs.size);
-    
+
     // Check minimum requirements
     if (result.pairsGenerated < PHASE_7_CONFIG.requiredPairsMinimum) {
       result.errors.push(`Insufficient pairs: ${result.pairsGenerated} < ${PHASE_7_CONFIG.requiredPairsMinimum}`);
     }
-    
+
     if (result.uniqueKMAs < PHASE_7_CONFIG.requiredPairsMinimum) {
       result.errors.push(`Insufficient KMAs: ${result.uniqueKMAs} < ${PHASE_7_CONFIG.requiredPairsMinimum}`);
     }
 
     // Generate and validate CSV
-    const csvContent = buildDatCompliantCSV([{
-      ...lane,
-      pairs: pairs
-    }]);
-
+    const csvRows = await generateDatCsvRows({ ...lane, pairs });
+    const csvContent = toCsv(DAT_HEADERS, csvRows);
     const csvLines = csvContent.split('\n').filter(line => line.trim());
     result.csvRows = csvLines.length - 1; // Subtract header
-    
+
     if (csvLines.length > 0) {
       const headers = csvLines[0].split(',');
       result.csvHeaders = headers.length;
       result.csvValid = headers.length === PHASE_7_CONFIG.requiredDatHeaders;
-      
+
       if (!result.csvValid) {
         result.errors.push(`Invalid headers: ${headers.length} != ${PHASE_7_CONFIG.requiredDatHeaders}`);
       }
