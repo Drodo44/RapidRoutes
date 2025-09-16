@@ -5,11 +5,13 @@ export default function DatExportDebug() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [debugOutput, setDebugOutput] = useState([]);
 
   const handleExport = async (params = {}) => {
     setLoading(true);
     setError(null);
     setResult(null);
+    setDebugOutput([]);
 
     try {
       const queryString = new URLSearchParams(params).toString();
@@ -25,11 +27,13 @@ export default function DatExportDebug() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || `HTTP ${response.status}`);
+        setError(data.error || `HTTP ${response.status}`);
+        toast.error(`❌ Export failed: ${data.error || 'Unknown error'}`);
+      } else {
+        setResult(data);
+        setDebugOutput(data.debug || []);
+        toast.success(`✅ Export complete: ${data.totalRows} rows generated`);
       }
-
-      setResult(data);
-      toast.success(`✅ Export complete: ${data.totalRows} rows generated`);
     } catch (err) {
       setError(err.message);
       toast.error(`❌ Export failed: ${err.message}`);
@@ -125,6 +129,17 @@ export default function DatExportDebug() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {debugOutput?.length > 0 && (
+          <div className="bg-gray-800 rounded-lg p-6 mb-8">
+            <h3 className="text-yellow-300 font-semibold mb-4">🚛 Lane Export Debug Logs</h3>
+            <div className="bg-gray-900 rounded p-4 max-h-96 overflow-y-auto">
+              <pre className="text-sm text-gray-300" style={{ whiteSpace: 'pre-wrap', fontSize: '0.9em' }}>
+                {debugOutput.join('\n')}
+              </pre>
+            </div>
           </div>
         )}
       </div>

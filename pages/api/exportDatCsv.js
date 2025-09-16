@@ -63,6 +63,13 @@ export default async function handler(req, res) {
     query: req.query
   });
 
+  // Capture debug logs for UI display
+  const debugLogs = [];
+  const debugLog = (message) => {
+    console.log(message);
+    debugLogs.push(message);
+  };
+
   // Validate user has necessary permissions
   const auth = await validateApiAuth(req, res);
   if (!auth) return;
@@ -108,7 +115,7 @@ export default async function handler(req, res) {
 
     // Get lanes to process
     const lanes = await selectLanes({ pending, days, all });
-    console.log(`📦 Found ${lanes?.length || 0} lanes to export`);
+    debugLog(`📦 Found ${lanes?.length || 0} lanes to export`);
 
     if (!lanes || lanes.length === 0) {
       monitor.log('warn', 'CSV export failed: No valid freight data found');
@@ -119,9 +126,9 @@ export default async function handler(req, res) {
     monitor.log('info', `Processing ${lanes.length} lanes with EnterpriseCsvGenerator...`);
 
     // Debug logging for each lane before processing
-    console.log('🔍 PRE-PROCESSING LANE DEBUG:');
+    debugLog('🔍 PRE-PROCESSING LANE DEBUG:');
     lanes.forEach((lane, i) => {
-      console.log(`📋 Lane [${i}] ID: ${lane.id}, Origin: ${lane.origin_city}, ${lane.origin_state}, Dest: ${lane.dest_city}, ${lane.dest_state}, Equipment: ${lane.equipment_code}`);
+      debugLog(`📋 Lane [${i}] ID: ${lane.id}, Origin: ${lane.origin_city}, ${lane.origin_state}, Dest: ${lane.dest_city}, ${lane.dest_state}, Equipment: ${lane.equipment_code}`);
     });
 
     // Use enterprise generator for full Phase 9 logic
@@ -139,10 +146,10 @@ export default async function handler(req, res) {
     const laneResults = result.laneResults || [];
 
     if (!allRows || allRows.length === 0) {
-      console.log(`❌ CSV export failed: CSV builder returned 0 rows from ${lanes.length} lanes`);
+      debugLog(`❌ CSV export failed: CSV builder returned 0 rows from ${lanes.length} lanes`);
       monitor.log('warn', 'CSV export failed: CSV builder returned 0 rows');
       monitor.endOperation(operationId, { success: false, lanes: lanes.length, rows: 0 });
-      return res.status(422).json({ error: 'CSV export failed: CSV builder returned 0 rows' });
+      return res.status(422).json({ error: 'CSV export failed: CSV builder returned 0 rows', debug: debugLogs });
     }
     const errors = [];
     let successful = 0;
@@ -163,12 +170,12 @@ export default async function handler(req, res) {
     }
 
     // Log summary
-    console.log('📊 PHASE 9 EXPORT SUMMARY:');
-    console.log('  Total lanes:', lanes.length);
-    console.log('  Successful:', successful);
-    console.log('  Failed:', failed);
-    console.log('  Success rate:', `${((successful / lanes.length) * 100).toFixed(1)}%`);
-    console.log('  Total rows generated:', allRows.length);
+    debugLog('📊 PHASE 9 EXPORT SUMMARY:');
+    debugLog('  Total lanes: ' + lanes.length);
+    debugLog('  Successful: ' + successful);
+    debugLog('  Failed: ' + failed);
+    debugLog('  Success rate: ' + ((successful / lanes.length) * 100).toFixed(1) + '%');
+    debugLog('  Total rows generated: ' + allRows.length);
 
   // Prepare chunking and selection
     const parts = chunkRows(allRows, 499);
@@ -177,15 +184,15 @@ export default async function handler(req, res) {
     // (Already declared in new logic above)
 
     // Output lane-by-lane CSV generation results
-    console.log('🔍 LANE-BY-LANE CSV GENERATION RESULTS:');
+    debugLog('🔍 LANE-BY-LANE CSV GENERATION RESULTS:');
     laneResults.forEach((laneResult, i) => {
       const originalLane = lanes.find(l => l.id === laneResult.lane_id) || lanes[i];
       if (laneResult.success) {
-        console.log(`✅ Lane [${i}] (ID: ${laneResult.lane_id}) generated ${laneResult.rows_generated || 0} CSV rows`);
-        console.log(`   └─ KMAs: ${laneResult.unique_kmas}, Pairs: ${laneResult.pairs_generated || 'N/A'}`);
+        debugLog(`✅ Lane [${i}] (ID: ${laneResult.lane_id}) generated ${laneResult.rows_generated || 0} CSV rows`);
+        debugLog(`   └─ KMAs: ${laneResult.unique_kmas}, Pairs: ${laneResult.pairs_generated || 'N/A'}`);
       } else {
-        console.log(`❌ Lane [${i}] (ID: ${laneResult.lane_id}) failed to generate CSV rows:`, originalLane ? `${originalLane.origin_city}-${originalLane.dest_city}` : 'Unknown');
-        console.log(`   └─ Error: ${laneResult.error}`);
+        debugLog(`❌ Lane [${i}] (ID: ${laneResult.lane_id}) failed to generate CSV rows: ${originalLane ? `${originalLane.origin_city}-${originalLane.dest_city}` : 'Unknown'}`);
+        debugLog(`   └─ Error: ${laneResult.error}`);
       }
     });
 
@@ -341,11 +348,11 @@ export default async function handler(req, res) {
       });
     }
     
-    console.log('✅ CSV VALIDATION PASSED:');
-    console.log('  Format: Valid CSV string');
-    console.log('  Headers: 24/24 DAT-compliant');
-    console.log('  Data rows:', lines.length - 1);
-    console.log('  Total size:', csv.length, 'characters');
+    debugLog('✅ CSV VALIDATION PASSED:');
+    debugLog('  Format: Valid CSV string');
+    debugLog('  Headers: 24/24 DAT-compliant');
+    debugLog('  Data rows: ' + (lines.length - 1));
+    debugLog('  Total size: ' + csv.length + ' characters');
     // Write CSV to public directory and return JSON URL
     const fileName = 'dat_output.csv';
     const filePath = path.join(process.cwd(), 'public', fileName);
@@ -360,7 +367,8 @@ export default async function handler(req, res) {
       totalRows: allRows.length,
       selectedRows: selectedRows.length,
       parts: parts.length,
-      part: partIndex + 1
+      part: partIndex + 1,
+      debug: debugLogs
     });
 
   } catch (error) {
