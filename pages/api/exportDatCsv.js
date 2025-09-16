@@ -108,10 +108,12 @@ export default async function handler(req, res) {
 
     // Get lanes to process
     const lanes = await selectLanes({ pending, days, all });
-    if (!lanes?.length) {
-      monitor.log('info', 'No lanes to export');
-      monitor.endOperation(operationId, { success: true, lanes: 0 });
-      return res.status(200).json({ rows: [], message: 'No matching lanes' });
+    console.log(`📦 Found ${lanes?.length || 0} lanes to export`);
+
+    if (!lanes || lanes.length === 0) {
+      monitor.log('warn', 'CSV export failed: No valid freight data found');
+      monitor.endOperation(operationId, { success: false, lanes: 0 });
+      return res.status(422).json({ error: 'CSV export failed: No valid freight data generated' });
     }
 
     monitor.log('info', `Processing ${lanes.length} lanes with EnterpriseCsvGenerator...`);
@@ -129,6 +131,13 @@ export default async function handler(req, res) {
     const result = await generator.generate(lanes);
     const allRows = result.csv?.rows || [];
     const laneResults = result.laneResults || [];
+
+    if (!allRows || allRows.length === 0) {
+      console.log(`❌ CSV export failed: CSV builder returned 0 rows from ${lanes.length} lanes`);
+      monitor.log('warn', 'CSV export failed: CSV builder returned 0 rows');
+      monitor.endOperation(operationId, { success: false, lanes: lanes.length, rows: 0 });
+      return res.status(422).json({ error: 'CSV export failed: CSV builder returned 0 rows' });
+    }
     const errors = [];
     let successful = 0;
     let failed = 0;
