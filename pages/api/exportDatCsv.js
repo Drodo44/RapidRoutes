@@ -118,6 +118,12 @@ export default async function handler(req, res) {
 
     monitor.log('info', `Processing ${lanes.length} lanes with EnterpriseCsvGenerator...`);
 
+    // Debug logging for each lane before processing
+    console.log('🔍 PRE-PROCESSING LANE DEBUG:');
+    lanes.forEach((lane, i) => {
+      console.log(`📋 Lane [${i}] ID: ${lane.id}, Origin: ${lane.origin_city}, ${lane.origin_state}, Dest: ${lane.dest_city}, ${lane.dest_state}, Equipment: ${lane.equipment_code}`);
+    });
+
     // Use enterprise generator for full Phase 9 logic
     const generator = new EnterpriseCsvGenerator({
       generation: {
@@ -170,13 +176,16 @@ export default async function handler(req, res) {
     const selectedRows = parts[partIndex] || [];
     // (Already declared in new logic above)
 
-    // Output lane-by-lane status summary
-    console.log('--- Lane-by-lane status ---');
-    laneResults.forEach(lane => {
-      if (lane.success) {
-        console.log(`✅ Lane ${lane.lane_id}: ${lane.rows_generated} rows, ${lane.unique_kmas} unique KMAs`);
+    // Output lane-by-lane CSV generation results
+    console.log('🔍 LANE-BY-LANE CSV GENERATION RESULTS:');
+    laneResults.forEach((laneResult, i) => {
+      const originalLane = lanes.find(l => l.id === laneResult.lane_id) || lanes[i];
+      if (laneResult.success) {
+        console.log(`✅ Lane [${i}] (ID: ${laneResult.lane_id}) generated ${laneResult.rows_generated || 0} CSV rows`);
+        console.log(`   └─ KMAs: ${laneResult.unique_kmas}, Pairs: ${laneResult.pairs_generated || 'N/A'}`);
       } else {
-        console.log(`❌ Lane ${lane.lane_id}: FAILED - ${lane.error}`);
+        console.log(`❌ Lane [${i}] (ID: ${laneResult.lane_id}) failed to generate CSV rows:`, originalLane ? `${originalLane.origin_city}-${originalLane.dest_city}` : 'Unknown');
+        console.log(`   └─ Error: ${laneResult.error}`);
       }
     });
 
