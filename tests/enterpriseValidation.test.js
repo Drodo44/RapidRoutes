@@ -611,4 +611,42 @@ describe('Integration Tests - End-to-End Scenarios', () => {
     const transaction = new CsvGenerationTransaction(testLanes);
     expect(transaction.getStatus().lanes_count).toBe(1);
   });
+
+  it('should ACCEPT ISO 8601 pickup dates (date-only and full datetime) and REJECT malformed variants', () => {
+    const base = {
+      id: 'iso-lane',
+      origin_city: 'Cincinnati',
+      origin_state: 'OH',
+      dest_city: 'Chicago',
+      dest_state: 'IL',
+      equipment_code: 'V',
+      length_ft: 53,
+      randomize_weight: false,
+      weight_lbs: 40000
+    };
+
+    const accepted = [
+      { pickup_earliest: '2025-09-16', pickup_latest: '2025-09-17', label: 'ISO date only' },
+      { pickup_earliest: '2025-09-16T00:00:00.000Z', pickup_latest: '2025-09-16T05:30:00.000Z', label: 'ISO full Z' },
+      { pickup_earliest: '2025-09-16T00:00:00Z', pickup_latest: '2025-09-16T01:00:00Z', label: 'ISO no ms Z' },
+      { pickup_earliest: '2025-09-16T00:00:00+00:00', pickup_latest: '2025-09-16T02:00:00+00:00', label: 'ISO offset +00:00' },
+      { pickup_earliest: '9/16/2025', pickup_latest: '9/17/2025', label: 'Legacy m/d/yyyy' }
+    ];
+
+    const rejected = [
+      { pickup_earliest: '2025/16/09', pickup_latest: '2025-13-40', reason: 'Swapped segments & invalid month/day' },
+      { pickup_earliest: '16/09/2025', pickup_latest: '17/09/2025', reason: 'DD/MM/YYYY not supported' },
+      { pickup_earliest: '2025-09-16T24:00:00Z', pickup_latest: '2025-09-17T00:00:00Z', reason: 'Invalid 24 hour' }
+    ];
+
+    accepted.forEach(sample => {
+      const lane = { ...base, pickup_earliest: sample.pickup_earliest, pickup_latest: sample.pickup_latest };
+      expect(() => validateLane(lane), `Should accept: ${sample.label}`).not.toThrow();
+    });
+
+    rejected.forEach(sample => {
+      const lane = { ...base, pickup_earliest: sample.pickup_earliest, pickup_latest: sample.pickup_latest };
+      expect(() => validateLane(lane), `Should reject: ${sample.reason}`).toThrow(ValidationError);
+    });
+  });
 });
