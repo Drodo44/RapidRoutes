@@ -50,7 +50,16 @@ if (isServer) {
   } else {
     const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY;
     // Only require service role key in non-test production environment
-    if (process.env.NODE_ENV !== 'test' && !SERVICE_ROLE) {
+    if (process.env.TEST_MODE_SIMPLE_ROWS === '1') {
+      // Provide a minimal mock admin client sufficient for test mode
+      adminSupabase = {
+        from: () => ({
+          select: () => Promise.resolve({ data: [], error: null }),
+          update: () => Promise.resolve({ data: null, error: null }),
+          upsert: () => Promise.resolve({ data: null, error: null })
+        })
+      };
+    } else if (process.env.NODE_ENV !== 'test' && !SERVICE_ROLE) {
       throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY on server');
     }
     // Use mock for tests

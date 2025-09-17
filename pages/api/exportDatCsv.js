@@ -72,7 +72,9 @@ export default async function handler(req, res) {
 
   // Validate user has necessary permissions
   const auth = await validateApiAuth(req, res);
-  if (!auth) return;
+  if (!auth) {
+    return res.status(401).json({ error: 'Unauthorized: API authentication required.' });
+  }
 
   // Check role permissions: Admin, Broker, and Support can export CSVs (Apprentice cannot)
   const allowedRoles = ['Admin', 'Administrator', 'Broker', 'Support'];
@@ -115,7 +117,13 @@ export default async function handler(req, res) {
 
     // Get lanes to process
     const lanes = await selectLanes({ pending, days, all });
-    debugLog(`📦 Found ${lanes?.length || 0} lanes to export`);
+    debugLog(`📦 [TRACE] Supabase returned ${lanes?.length || 0} lanes (pre-validation)`);
+    if (lanes && lanes.length) {
+      lanes.slice(0, 50).forEach((lane, i) => {
+        debugLog(`  ▶ Lane[${i}] id=${lane.id} status=${lane.status} pickup_earliest=${lane.pickup_earliest} pickup_latest=${lane.pickup_latest}`);
+      });
+      if (lanes.length > 50) debugLog(`  … (${lanes.length - 50} more lanes omitted)`);
+    }
 
     if (!lanes || lanes.length === 0) {
       monitor.log('warn', 'CSV export failed: No valid freight data found');
@@ -144,6 +152,20 @@ export default async function handler(req, res) {
     const result = await generator.generate(lanes);
     const allRows = result.csv?.rows || [];
     const laneResults = result.laneResults || [];
+
+    // TRACE: Summarize validation acceptance vs rejection
+    try {
+      const accepted = laneResults.filter(r => r.success).length;
+      const rejected = laneResults.filter(r => !r.success).length;
+      debugLog(`🧪 [TRACE] Lane validation summary: accepted=${accepted} rejected=${rejected}`);
+      if (rejected) {
+        laneResults.filter(r => !r.success).slice(0, 50).forEach((r, i) => {
+          debugLog(`  ❌ Rejected[${i}] laneId=${r.lane?.id || r.laneId} error=${r.error || r.message}`);
+        });
+      }
+    } catch (e) {
+      debugLog(`⚠️ [TRACE] Failed summarizing laneResults: ${e.message}`);
+    }
 
     if (!allRows || allRows.length === 0) {
       debugLog(`❌ CSV export failed: CSV builder returned 0 rows from ${lanes.length} lanes`);
@@ -199,22 +221,26 @@ export default async function handler(req, res) {
     // Continue to CSV building and file output below
     
     if (!selectedRows.length) {
+      const pairErrors = laneResults.filter(r => r.error).map((r, i) => ({
+        laneId: r.lane?.id || r.lane_id,
+        error: r.error,
+        details: r.details || {}
+      }));
       const result = { 
         message: 'No rows in selected part',
         totalParts: parts.length,
         totalRows: allRows.length,
-        errors 
+        errors,
+        pairErrors
       };
-      
       // 🚨 CRITICAL FIX: Return proper error response instead of JSON-as-CSV corruption
       console.error('❌ CSV EXPORT FAILED: No valid rows generated');
       console.error('  Total lanes processed:', lanes.length);
       console.error('  Total rows generated:', allRows.length);
       console.error('  Errors encountered:', errors.length);
+      console.error('  Pair generation errors:', pairErrors.length);
       console.error('  Selected part:', part, 'of', parts.length);
-      
       monitor.endOperation(operationId, { success: false, ...result });
-      
       // Return JSON error response with appropriate status - do NOT send as CSV
       return res.status(422).json({
         error: 'CSV export failed: No valid freight data generated',
@@ -222,15 +248,17 @@ export default async function handler(req, res) {
           lanesProcessed: lanes.length,
           totalRowsGenerated: allRows.length,
           errorsEncountered: errors.length,
+          pairErrorsEncountered: pairErrors.length,
           selectedPart: part,
           totalParts: parts.length,
-          reason: allRows.length === 0 ? 'All lanes failed intelligence requirements' : 'Selected part contains no data'
+          reason: allRows.length === 0 ? (pairErrors.length ? 'All lanes failed city pair generation' : 'All lanes failed intelligence requirements') : 'Selected part contains no data'
         },
         errors: errors.map(err => ({
           laneId: err.laneId,
           error: err.error,
           details: err.details
         })),
+        pairErrors,
         phase: 'phase9-csv-diagnostics'
       });
     }

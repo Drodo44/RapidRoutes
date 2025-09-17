@@ -649,4 +649,66 @@ describe('Integration Tests - End-to-End Scenarios', () => {
       expect(() => validateLane(lane), `Should reject: ${sample.reason}`).toThrow(ValidationError);
     });
   });
+
+  it('should generate CSV rows with full ISO datetime strings for pickup dates', async () => {
+    const lane = {
+      id: 'iso-row-lane-1',
+      origin_city: 'Cincinnati',
+      origin_state: 'OH',
+      dest_city: 'Chicago',
+      dest_state: 'IL',
+      equipment_code: 'V',
+      pickup_earliest: '2025-09-16', // date-only input
+      pickup_latest: '2025-09-17T05:30:00.000Z', // full ISO input
+      length_ft: 53,
+      randomize_weight: false,
+      weight_lbs: 40000,
+      full_partial: 'full'
+    };
+
+    // validate passes
+    expect(() => validateLane(lane)).not.toThrow();
+
+    // Dynamically import generator (avoid circular refs at top-level if any)
+    const { generateDatCsvRows } = await import('../lib/datCsvBuilder.js');
+    // Mock intelligent cache to guarantee >=5 diverse pairs so generation doesn't fail
+    const originalMock = globalThis.__MOCK_INTELLIGENT_CACHE;
+    globalThis.__MOCK_INTELLIGENT_CACHE = {
+      async getIntelligentPairs() {
+        return {
+          pairs: [
+            { pickup: { city: 'Cincinnati', state: 'OH', kma_code: 'KMA1' }, delivery: { city: 'Chicago', state: 'IL', kma_code: 'KMB1' } },
+            { pickup: { city: 'Hamilton', state: 'OH', kma_code: 'KMA2' }, delivery: { city: 'Aurora', state: 'IL', kma_code: 'KMB2' } },
+            { pickup: { city: 'Mason', state: 'OH', kma_code: 'KMA3' }, delivery: { city: 'Naperville', state: 'IL', kma_code: 'KMB3' } },
+            { pickup: { city: 'Lebanon', state: 'OH', kma_code: 'KMA4' }, delivery: { city: 'Elgin', state: 'IL', kma_code: 'KMB4' } },
+            { pickup: { city: 'Fairfield', state: 'OH', kma_code: 'KMA5' }, delivery: { city: 'Joliet', state: 'IL', kma_code: 'KMB5' } }
+          ],
+          cached: false,
+          source: 'mock'
+        };
+      }
+    };
+    let rows;
+    try {
+      rows = await generateDatCsvRows({ ...lane });
+    } finally {
+      // restore any previous mock
+      if (originalMock) {
+        globalThis.__MOCK_INTELLIGENT_CACHE = originalMock;
+      } else {
+        delete globalThis.__MOCK_INTELLIGENT_CACHE;
+      }
+    }
+    expect(Array.isArray(rows)).toBe(true);
+    // 5 pairs * 2 contact methods = 10 rows minimum
+    expect(rows.length).toBeGreaterThanOrEqual(10);
+
+    const isoPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+    rows.forEach((row, idx) => {
+      expect(row['Pickup Earliest*']).toMatch(isoPattern);
+      if (row['Pickup Latest']) {
+        expect(row['Pickup Latest']).toMatch(isoPattern);
+      }
+    });
+  });
 });
