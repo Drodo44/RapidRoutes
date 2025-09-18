@@ -26,12 +26,15 @@ export default async function handler(req, res) {
       destState
     );
 
-    console.log(`✅ INTELLIGENCE API: Generated ${result.length} pairs`);
+    const pairs = Array.isArray(result?.pairs) ? result.pairs : [];
+    const count = pairs.length;
+    console.log(`✅ INTELLIGENCE API: Generated ${count} pairs`);
 
     res.status(200).json({
       success: true,
-      pairs: result,
-      count: result.length
+      pairs,
+      count,
+      debug: result?.debug || {}
     });
 
   } catch (error) {
