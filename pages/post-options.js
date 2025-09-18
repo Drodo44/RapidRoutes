@@ -13,10 +13,30 @@ export default function PostOptions() {
   const [loading, setLoading] = useState(true);
   const [alert, setAlert] = useState(null);
 
+  // Safe pairing getter to ensure we always have an array
+  const getSafePairings = (laneId) => {
+    const lanePairings = pairings[laneId];
+    return Array.isArray(lanePairings) ? lanePairings : [];
+  };
+
   // Fetch pending lanes on component mount
   useEffect(() => {
     fetchPendingLanes();
   }, []);
+
+  // Error boundary for rendering
+  const renderWithErrorBoundary = (renderFn) => {
+    try {
+      return renderFn();
+    } catch (error) {
+      console.error('Render error:', error);
+      return (
+        <div className="bg-red-900 text-red-200 border border-red-700 p-4 rounded-lg">
+          ⚠️ Error rendering component: {error.message}
+        </div>
+      );
+    }
+  };
 
   const fetchPendingLanes = async () => {
     try {
@@ -63,7 +83,8 @@ export default function PostOptions() {
       setRRNumbers(prev => ({ ...prev, [lane.id]: rr }));
       setAlert({ type: 'success', message: `Pairings generated for lane ${lane.id}` });
     } catch (error) {
-      setAlert({ type: 'error', message: error.message });
+      console.error('Error generating pairings for lane:', error);
+      setAlert({ type: 'error', message: error.message || 'Failed to generate pairings' });
       setPairings(prev => ({ ...prev, [lane.id]: [] }));
     } finally {
       setGeneratingPairings(false);
@@ -99,7 +120,8 @@ export default function PostOptions() {
         const rr = rrResult.success ? rrResult.rrNumber : 'RR00000';
         newRRs[lane.id] = rr;
       } catch (error) {
-        setAlert({ type: 'error', message: error.message });
+        console.error('Error generating pairings for lane:', lane.id, error);
+        setAlert({ type: 'error', message: error.message || 'Failed to generate pairings' });
         newPairings[lane.id] = [];
       }
     }
@@ -212,18 +234,20 @@ export default function PostOptions() {
                     </button>
                   </div>
                   {/* City Pairings */}
-                  {pairings[lane.id] && (
-                    <div className="mt-6">
-                      <h3 className="text-lg font-semibold text-gray-100 mb-3">
-                        City Pairings ({pairings[lane.id].length})
-                      </h3>
-                      {pairings[lane.id].length === 0 ? (
-                        <div className="bg-red-900 text-red-200 border border-red-700 p-3 rounded-lg">
-                          No city pairings generated. Intelligence system may need attention.
-                        </div>
-                      ) : (
-                        <div className="grid gap-2 max-h-96 overflow-y-auto">
-                          {pairings[lane.id].map((pair, index) => {
+                  {pairings[lane.id] && renderWithErrorBoundary(() => {
+                    const safePairings = getSafePairings(lane.id);
+                    return (
+                      <div className="mt-6">
+                        <h3 className="text-lg font-semibold text-gray-100 mb-3">
+                          City Pairings ({safePairings.length})
+                        </h3>
+                        {safePairings.length === 0 ? (
+                          <div className="bg-red-900 text-red-200 border border-red-700 p-3 rounded-lg">
+                            No city pairings generated. Intelligence system may need attention.
+                          </div>
+                        ) : (
+                          <div className="grid gap-2 max-h-96 overflow-y-auto">
+                            {safePairings.map((pair, index) => {
                             // Protect against malformed data
                             if (!pair || !pair.origin || !pair.dest) {
                               return (
@@ -261,11 +285,12 @@ export default function PostOptions() {
                                 </button>
                               </div>
                             );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  )}
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               ))}
             </div>
