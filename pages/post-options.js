@@ -204,20 +204,45 @@ export default function PostOptions() {
                         </div>
                       ) : (
                         <div className="grid gap-2 max-h-96 overflow-y-auto">
-                          {pairings[lane.id].map((pair, index) => (
-                            <div key={index} className="flex items-center justify-between bg-gray-700 p-3 rounded text-sm font-mono">
-                              <span className="text-gray-100">
-                                {pair.origin.city}, {pair.origin.state}{pair.origin.zip ? `, ${pair.origin.zip}` : ''} → {pair.dest.city}, {pair.dest.state}{pair.dest.zip ? `, ${pair.dest.zip}` : ''}
-                              </span>
-                              <button
-                                onClick={() => copyToClipboard(`${pair.origin.city}, ${pair.origin.state}${pair.origin.zip ? `, ${pair.origin.zip}` : ''} → ${pair.dest.city}, ${pair.dest.state}${pair.dest.zip ? `, ${pair.dest.zip}` : ''}`)}
-                                className="ml-3 px-2 py-1 bg-blue-700 hover:bg-blue-800 text-white rounded text-xs"
-                                title="Copy pairing to clipboard"
-                              >
-                                Copy
-                              </button>
-                            </div>
-                          ))}
+                          {pairings[lane.id].map((pair, index) => {
+                            // Protect against malformed data
+                            if (!pair || !pair.origin || !pair.dest) {
+                              return (
+                                <div key={index} className="bg-yellow-900 text-yellow-200 border border-yellow-700 p-3 rounded text-sm">
+                                  ⚠️ Pair skipped due to incomplete data (missing city/state/zip)
+                                </div>
+                              );
+                            }
+                            
+                            const originCity = pair.origin.city || 'Unknown';
+                            const originState = pair.origin.state || 'Unknown';
+                            const originZip = pair.origin.zip ? `, ${pair.origin.zip}` : '';
+                            const destCity = pair.dest.city || 'Unknown';
+                            const destState = pair.dest.state || 'Unknown';
+                            const destZip = pair.dest.zip ? `, ${pair.dest.zip}` : '';
+                            
+                            const pairText = `${originCity}, ${originState}${originZip} → ${destCity}, ${destState}${destZip}`;
+                            
+                            return (
+                              <div key={index} className="flex items-center justify-between bg-gray-700 p-3 rounded text-sm font-mono">
+                                <span className="text-gray-100">
+                                  {pairText}
+                                  {pair.origin.kma && pair.dest.kma && (
+                                    <span className="ml-2 text-xs text-gray-400">
+                                      ({pair.origin.kma} → {pair.dest.kma})
+                                    </span>
+                                  )}
+                                </span>
+                                <button
+                                  onClick={() => copyToClipboard(pairText)}
+                                  className="ml-3 px-2 py-1 bg-blue-700 hover:bg-blue-800 text-white rounded text-xs"
+                                  title="Copy pairing to clipboard"
+                                >
+                                  Copy
+                                </button>
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
