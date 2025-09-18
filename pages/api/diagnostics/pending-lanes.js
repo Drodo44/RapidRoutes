@@ -83,24 +83,44 @@ async function diagnoseLane(lane) {
 }
 
 export default async function handler(req, res) {
+  // Always set JSON content-type
+  try {
+    res.setHeader('Content-Type', 'application/json');
+  } catch {}
+
   try {
     const limit = Math.max(1, Math.min(10, Number(req.query.limit) || 4));
     const lanes = await fetchPendingLanes(limit);
-    const results = [];
-    for (const lane of lanes) {
-      // Ensure strings for dates to avoid timezone issues in downstream logic
-      if (lane.pickup_earliest) lane.pickup_earliest = String(lane.pickup_earliest);
-      if (lane.pickup_latest) lane.pickup_latest = String(lane.pickup_latest);
-      const r = await diagnoseLane(lane);
-      results.push(r);
+
+    // No pending lanes found
+    if (!lanes || lanes.length === 0) {
+      return res.status(200).json({ lanes: 0, message: 'No pending lanes available' });
     }
-    res.status(200).json({
-      ok: true,
-      count: results.length,
-      lanes: results,
-      meta: { now: new Date().toISOString() }
-    });
+
+    const items = [];
+    for (const lane of lanes) {
+      try {
+        // Ensure strings for dates to avoid timezone issues in downstream logic
+        if (lane.pickup_earliest) lane.pickup_earliest = String(lane.pickup_earliest);
+        if (lane.pickup_latest) lane.pickup_latest = String(lane.pickup_latest);
+        const r = await diagnoseLane(lane);
+        items.push(r);
+      } catch (laneError) {
+        // Per-lane hard failure: still include a JSON entry for visibility
+        items.push({
+          id: lane?.id,
+          route: `${lane?.origin_city}, ${lane?.origin_state} → ${lane?.dest_city}, ${lane?.dest_state}`,
+          equipment: lane?.equipment_code,
+          error: true,
+          message: laneError?.message || String(laneError),
+          stack: laneError?.stack || undefined
+        });
+      }
+    }
+
+    return res.status(200).json({ lanes: items.length, items, meta: { now: new Date().toISOString() } });
   } catch (error) {
-    res.status(500).json({ ok: false, error: error.message });
+    // Global failure: still return JSON with error payload
+    return res.status(200).json({ error: true, message: error?.message || String(error), stack: error?.stack || undefined });
   }
 }
