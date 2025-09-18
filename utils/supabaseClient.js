@@ -1,68 +1,38 @@
 // utils/supabaseClient.js
-// Production-safe Supabase clients for browser (anon) and server (service role).
-// - NEVER import `adminSupabase` in client-side code.
-// - This module conditionally creates the admin client only on the server.
-// - RLS: keep policies as in your SQL; admin client is only for server routes.
-
 import { createClient } from '@supabase/supabase-js';
 
-// Prefer server URL if provided, fall back to NEXT_PUBLIC URL, then localhost
+// Environment variables
 let SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321';
-// Guard against unresolved shell placeholders accidentally exported as literals
 if (typeof SUPABASE_URL === 'string' && SUPABASE_URL.includes('${')) {
   SUPABASE_URL = 'http://localhost:54321';
 }
-// Validate URL format and fall back if invalid
 try { new URL(SUPABASE_URL); } catch { SUPABASE_URL = 'http://localhost:54321'; }
-const SUPABASE_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'test-anon-key';
 
-// Browser/client: anon key
-export const supabase = process.env.NODE_ENV === 'test' 
-  ? {
-      from: () => ({
-        select: () => Promise.resolve({ 
-          data: [
-            { city: 'Mount Holly', state: 'NJ', kma_code: 'PHL', latitude: 40.0, longitude: -74.7 },
-            { city: 'Harrison', state: 'OH', kma_code: 'CIN', latitude: 39.2, longitude: -84.8 }
-          ], 
-          error: null 
-        }),
-        update: () => Promise.resolve({ data: null, error: null }),
-        upsert: () => Promise.resolve({ data: null, error: null })
-      })
-    }
-  : createClient(SUPABASE_URL, SUPABASE_ANON, {
+const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'anon-key-placeholder';
+const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+// Client-side Supabase
+export const supabase = createClient(SUPABASE_URL, ANON_KEY, {
+  auth: {
+    persistSession: typeof window !== 'undefined',
+    autoRefreshToken: typeof window !== 'undefined',
+  },
+});
+
+// Server-side admin client
+let adminSupabase;
+if (typeof window === 'undefined') {
+  if (SERVICE_ROLE && SERVICE_ROLE !== 'your_service_role_key_here') {
+    adminSupabase = createClient(SUPABASE_URL, SERVICE_ROLE, {
       auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+      global: {
+        headers: { 'X-Client-Info': 'RapidRoutes-Server' },
       },
     });
-
-// Server-only admin client (guard so the service key is not bundled to the client)
-const isServer = typeof window === 'undefined' || process.env.NODE_ENV === 'test';
-let adminSupabase = null;
-
-if (isServer) {
-  // Allow a global override for diagnostics (set before importing this module)
-  if (globalThis.__RR_ADMIN_SUPABASE_OVERRIDE) {
-    adminSupabase = globalThis.__RR_ADMIN_SUPABASE_OVERRIDE;
   } else {
-    const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    // Only require service role key in non-test production environment
-    if (process.env.TEST_MODE_SIMPLE_ROWS === '1') {
-      // Provide a minimal mock admin client sufficient for test mode
-      adminSupabase = {
-        from: () => ({
-          select: () => Promise.resolve({ data: [], error: null }),
-          update: () => Promise.resolve({ data: null, error: null }),
-          upsert: () => Promise.resolve({ data: null, error: null })
-        })
-      };
-    } else if (process.env.NODE_ENV !== 'test' && !SERVICE_ROLE) {
-      throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY on server');
-    }
-    // Use mock for tests
     adminSupabase = process.env.NODE_ENV === 'test'
       ? {
           from: () => ({
@@ -90,6 +60,4 @@ if (isServer) {
 }
 
 export { adminSupabase };
-
-// Optional default export (for any legacy code that used `import supabase from ...`)
 export default supabase;

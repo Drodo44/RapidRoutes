@@ -13,6 +13,7 @@ export const DAT_EQUIPMENT = [
   { code: "RVENT",label: "Vented Reefer",          group: "Reefer" },
 
   { code: "F",    label: "Flatbed",                group: "Flatbed & Deck" },
+  { code: "FD",   label: "Flatbed or Step Deck",   group: "Flatbed & Deck" },
   { code: "FT",   label: "Flatbed (Tarped)",       group: "Flatbed & Deck" },
   { code: "SD",   label: "Step Deck",              group: "Flatbed & Deck" },
   { code: "DD",   label: "Double Drop",            group: "Flatbed & Deck" },
@@ -73,6 +74,11 @@ export const DAT_EQUIPMENT = [
   { code: "DRY",  label: "Dry Van (alias)",        group: "Aliases" },
   { code: "STEP", label: "Step Deck (alias)",      group: "Aliases" },
   { code: "CONES",label: "Conestoga (alias)",      group: "Aliases" },
+  
+  // Missing DAT codes from official reference
+  { code: "LB",   label: "Lowboy (Short)",         group: "Flatbed & Deck" },
+  { code: "AC",   label: "Auto Carrier",           group: "Specialized" },
+  { code: "MX",   label: "Mixed/Multi Equipment",  group: "Specialized" },
 
   // Additions (keep growing as needed)
   { code: "BALE", label: "Baled Commodities",      group: "Specialized" },
