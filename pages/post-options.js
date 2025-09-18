@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../utils/supabaseClient';
 import Header from '../components/Header';
-import { generateGeographicCrawlPairs } from '../lib/geographicCrawl';
-import { getNextRRNumber } from '../lib/rrNumberGenerator';
+// No direct import needed - using API endpoint
 
 export default function PostOptions() {
   const router = useRouter();
@@ -40,17 +39,27 @@ export default function PostOptions() {
     setGeneratingPairings(true);
     setAlert(null);
     try {
-      const result = await generateGeographicCrawlPairs(
-        lane.origin_city,
-        lane.origin_state,
-        lane.dest_city,
-        lane.dest_state
-      );
+      const response = await fetch('/api/intelligence-pairing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          originCity: lane.origin_city,
+          originState: lane.origin_state,
+          destCity: lane.dest_city,
+          destState: lane.dest_state
+        })
+      });
+      
+      const result = await response.json();
+      if (!result.success) throw new Error(result.error || 'Failed to generate pairings');
+      
       const pairs = result.pairs || [];
       if (pairs.length < 5) throw new Error('Intelligence system failed: fewer than 5 unique KMAs found');
       setPairings(prev => ({ ...prev, [lane.id]: pairs }));
       // Only generate RR number after pairings finalized
-      const rr = await getNextRRNumber();
+      const rrResponse = await fetch('/api/rr-number');
+      const rrResult = await rrResponse.json();
+      const rr = rrResult.success ? rrResult.rrNumber : 'RR00000';
       setRRNumbers(prev => ({ ...prev, [lane.id]: rr }));
       setAlert({ type: 'success', message: `Pairings generated for lane ${lane.id}` });
     } catch (error) {
@@ -68,16 +77,26 @@ export default function PostOptions() {
     const newRRs = {};
     for (const lane of lanes) {
       try {
-        const result = await generateGeographicCrawlPairs(
-          lane.origin_city,
-          lane.origin_state,
-          lane.dest_city,
-          lane.dest_state
-        );
+        const response = await fetch('/api/intelligence-pairing', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            originCity: lane.origin_city,
+            originState: lane.origin_state,
+            destCity: lane.dest_city,
+            destState: lane.dest_state
+          })
+        });
+        
+        const result = await response.json();
+        if (!result.success) throw new Error(result.error || 'Failed to generate pairings');
+        
         const pairs = result.pairs || [];
         if (pairs.length < 5) throw new Error('Intelligence system failed: fewer than 5 unique KMAs found');
         newPairings[lane.id] = pairs;
-        const rr = await getNextRRNumber();
+        const rrResponse = await fetch('/api/rr-number');
+        const rrResult = await rrResponse.json();
+        const rr = rrResult.success ? rrResult.rrNumber : 'RR00000';
         newRRs[lane.id] = rr;
       } catch (error) {
         setAlert({ type: 'error', message: error.message });
