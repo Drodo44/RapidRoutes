@@ -3,13 +3,16 @@ import { useRouter } from 'next/router';
 import { supabase } from '../utils/supabaseClient';
 import Header from '../components/Header';
 import { generateGeographicCrawlPairs } from '../lib/geographicCrawl';
+import { getNextRRNumber } from '../lib/rrNumberGenerator';
 
 export default function PostOptions() {
   const router = useRouter();
   const [lanes, setLanes] = useState([]);
   const [generatingPairings, setGeneratingPairings] = useState(false);
   const [pairings, setPairings] = useState({});
+  const [rrNumbers, setRRNumbers] = useState({});
   const [loading, setLoading] = useState(true);
+  const [alert, setAlert] = useState(null);
 
   // Fetch pending lanes on component mount
   useEffect(() => {
@@ -34,29 +37,25 @@ export default function PostOptions() {
   };
 
   const generatePairingsForLane = async (lane) => {
-    console.log('Generating pairings for lane:', lane.id);
     setGeneratingPairings(true);
-    
+    setAlert(null);
     try {
-      const pairs = await generateGeographicCrawlPairs(
+      const result = await generateGeographicCrawlPairs(
         lane.origin_city,
-        lane.origin_state, 
+        lane.origin_state,
         lane.dest_city,
         lane.dest_state
       );
-      
-      console.log(`Generated ${pairs.length} pairs for lane ${lane.id}`);
-      
-      setPairings(prev => ({
-        ...prev,
-        [lane.id]: pairs
-      }));
+      const pairs = result.pairs || [];
+      if (pairs.length < 5) throw new Error('Intelligence system failed: fewer than 5 unique KMAs found');
+      setPairings(prev => ({ ...prev, [lane.id]: pairs }));
+      // Only generate RR number after pairings finalized
+      const rr = await getNextRRNumber();
+      setRRNumbers(prev => ({ ...prev, [lane.id]: rr }));
+      setAlert({ type: 'success', message: `Pairings generated for lane ${lane.id}` });
     } catch (error) {
-      console.error('Error generating pairings for lane:', lane.id, error);
-      setPairings(prev => ({
-        ...prev,
-        [lane.id]: []
-      }));
+      setAlert({ type: 'error', message: error.message });
+      setPairings(prev => ({ ...prev, [lane.id]: [] }));
     } finally {
       setGeneratingPairings(false);
     }
@@ -64,28 +63,31 @@ export default function PostOptions() {
 
   const generateAllPairings = async () => {
     setGeneratingPairings(true);
+    setAlert(null);
     const newPairings = {};
-    
+    const newRRs = {};
     for (const lane of lanes) {
       try {
-        console.log('Generating pairings for lane:', lane.id);
-        const pairs = await generateGeographicCrawlPairs(
+        const result = await generateGeographicCrawlPairs(
           lane.origin_city,
-          lane.origin_state, 
+          lane.origin_state,
           lane.dest_city,
           lane.dest_state
         );
-        
-        console.log(`Generated ${pairs.length} pairs for lane ${lane.id}`);
+        const pairs = result.pairs || [];
+        if (pairs.length < 5) throw new Error('Intelligence system failed: fewer than 5 unique KMAs found');
         newPairings[lane.id] = pairs;
+        const rr = await getNextRRNumber();
+        newRRs[lane.id] = rr;
       } catch (error) {
-        console.error('Error generating pairings for lane:', lane.id, error);
+        setAlert({ type: 'error', message: error.message });
         newPairings[lane.id] = [];
       }
     }
-    
     setPairings(newPairings);
+    setRRNumbers(newRRs);
     setGeneratingPairings(false);
+    setAlert({ type: 'success', message: 'Pairings generated for all lanes.' });
   };
 
   const generateReferenceId = () => {
@@ -97,17 +99,15 @@ export default function PostOptions() {
   const formatLaneCard = (lane) => {
     const originZip = lane.origin_zip ? `, ${lane.origin_zip}` : '';
     const destZip = lane.dest_zip ? `, ${lane.dest_zip}` : '';
-    const refId = generateReferenceId();
-    
-    return `${lane.origin_city}, ${lane.origin_state}${originZip} → ${lane.dest_city}, ${lane.dest_state}${destZip} | ${lane.equipment_code} | ${refId}`;
+    const rr = rrNumbers[lane.id] || 'RR#####';
+    return `${lane.origin_city}, ${lane.origin_state}${originZip} → ${lane.dest_city}, ${lane.dest_state}${destZip} | ${lane.equipment_code} | ${rr}`;
   };
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text).then(() => {
-      // Could add toast notification here
-      console.log('Copied to clipboard:', text);
+      setAlert({ type: 'success', message: 'Copied to clipboard.' });
     }).catch(err => {
-      console.error('Failed to copy:', err);
+      setAlert({ type: 'error', message: 'Failed to copy.' });
     });
   };
 
@@ -156,7 +156,10 @@ export default function PostOptions() {
               </button>
             </div>
           </div>
-
+          {/* Alert */}
+          {alert && (
+            <div className={`mb-6 px-4 py-3 rounded-lg font-medium text-sm ${alert.type === 'success' ? 'bg-green-900 text-green-200 border border-green-700' : 'bg-red-900 text-red-200 border border-red-700'}`}>{alert.message}</div>
+          )}
           {/* Lane Cards */}
           {lanes.length === 0 ? (
             <div className="text-center py-12">
@@ -177,7 +180,7 @@ export default function PostOptions() {
                     <div 
                       className="bg-gray-700 p-4 rounded-lg font-mono text-sm text-gray-100 cursor-pointer hover:bg-gray-600 transition-colors"
                       onClick={() => copyToClipboard(formatLaneCard(lane))}
-                      title="Click to copy to clipboard"
+                      title="Click to copy lane card"
                     >
                       {formatLaneCard(lane)}
                     </div>
@@ -189,27 +192,6 @@ export default function PostOptions() {
                       {generatingPairings ? '🔄' : '🎯'} Generate Pairings
                     </button>
                   </div>
-
-                  {/* Lane Details */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 text-sm">
-                    <div>
-                      <div className="text-gray-400">Weight</div>
-                      <div className="text-gray-200">{lane.weight_lbs?.toLocaleString()} lbs</div>
-                    </div>
-                    <div>
-                      <div className="text-gray-400">Equipment</div>
-                      <div className="text-gray-200">{lane.equipment_code}</div>
-                    </div>
-                    <div>
-                      <div className="text-gray-400">Pickup Earliest</div>
-                      <div className="text-gray-200">{lane.pickup_earliest || 'Not set'}</div>
-                    </div>
-                    <div>
-                      <div className="text-gray-400">Pickup Latest</div>
-                      <div className="text-gray-200">{lane.pickup_latest || 'Not set'}</div>
-                    </div>
-                  </div>
-
                   {/* City Pairings */}
                   {pairings[lane.id] && (
                     <div className="mt-6">
@@ -217,29 +199,23 @@ export default function PostOptions() {
                         City Pairings ({pairings[lane.id].length})
                       </h3>
                       {pairings[lane.id].length === 0 ? (
-                        <div className="text-red-400 bg-red-900/20 p-3 rounded-lg">
-                          ⚠️ No city pairings generated. Intelligence system may need attention.
+                        <div className="bg-red-900 text-red-200 border border-red-700 p-3 rounded-lg">
+                          No city pairings generated. Intelligence system may need attention.
                         </div>
                       ) : (
                         <div className="grid gap-2 max-h-96 overflow-y-auto">
                           {pairings[lane.id].map((pair, index) => (
-                            <div 
-                              key={index}
-                              className="bg-gray-700 p-3 rounded text-sm font-mono cursor-pointer hover:bg-gray-600 transition-colors"
-                              onClick={() => copyToClipboard(`${pair.origin.city}, ${pair.origin.state} → ${pair.destination.city}, ${pair.destination.state}`)}
-                              title="Click to copy to clipboard"
-                            >
-                              <div className="flex justify-between items-center">
-                                <span className="text-gray-100">
-                                  {pair.origin.city}, {pair.origin.state} → {pair.destination.city}, {pair.destination.state}
-                                </span>
-                                <div className="flex gap-2 text-xs text-gray-400">
-                                  <span>KMA: {pair.origin.kma_code} → {pair.destination.kma_code}</span>
-                                  {pair.freight_score && (
-                                    <span>Score: {pair.freight_score.toFixed(1)}</span>
-                                  )}
-                                </div>
-                              </div>
+                            <div key={index} className="flex items-center justify-between bg-gray-700 p-3 rounded text-sm font-mono">
+                              <span className="text-gray-100">
+                                {pair.origin.city}, {pair.origin.state}{pair.origin.zip ? `, ${pair.origin.zip}` : ''} → {pair.dest.city}, {pair.dest.state}{pair.dest.zip ? `, ${pair.dest.zip}` : ''}
+                              </span>
+                              <button
+                                onClick={() => copyToClipboard(`${pair.origin.city}, ${pair.origin.state}${pair.origin.zip ? `, ${pair.origin.zip}` : ''} → ${pair.dest.city}, ${pair.dest.state}${pair.dest.zip ? `, ${pair.dest.zip}` : ''}`)}
+                                className="ml-3 px-2 py-1 bg-blue-700 hover:bg-blue-800 text-white rounded text-xs"
+                                title="Copy pairing to clipboard"
+                              >
+                                Copy
+                              </button>
                             </div>
                           ))}
                         </div>
