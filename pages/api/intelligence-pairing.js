@@ -1,7 +1,7 @@
 // pages/api/intelligence-pairing.js
 // API endpoint for geographic crawl intelligence pairing
 
-import { generateGeographicCrawlPairs } from '../../lib/geographicCrawl.js';
+const { generateGeographicCrawlPairs } = require('../../lib/geographicCrawl.js');
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
