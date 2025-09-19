@@ -26,8 +26,9 @@ if (typeof window === 'undefined' && (!SERVICE_ROLE || SERVICE_ROLE === 'your_se
 // Client-side Supabase
 export const supabase = createClient(SUPABASE_URL, ANON_KEY, {
   auth: {
-    persistSession: typeof window !== 'undefined',
-    autoRefreshToken: typeof window !== 'undefined',
+    persistSession: false,
+    autoRefreshToken: false,
+    detectSessionInUrl: false,
   },
 });
 

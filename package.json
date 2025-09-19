@@ -20,8 +20,9 @@
     "diagnose:csv": "node ./phase9-csv-diagnostics.js"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.57.2",
+    "@supabase/supabase-js": "^2.57.4",
     "axios": "^1.11.0",
+    "cross-fetch": "^4.1.0",
     "dotenv": "^17.2.2",
     "formidable": "^3.5.4",
     "next": "14.2.3",
@@ -29,7 +30,9 @@
     "papaparse": "^5.4.1",
     "react": "18.2.0",
     "react-dom": "18.2.0",
-    "react-hot-toast": "^2.6.0"
+    "react-hot-toast": "^2.6.0",
+    "undici": "^7.16.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.19",

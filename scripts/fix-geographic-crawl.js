@@ -1,8 +1,16 @@
-// lib/geographicCrawl.js
+// scripts/fix-geographic-crawl.js
+import fs from 'fs/promises';
+import path from 'path';
+
+async function fixGeographicCrawl() {
+  const filePath = path.resolve(process.cwd(), 'lib/geographicCrawl.js');
+  
+  const content = `// lib/geographicCrawl.js
 // Smart radius crawl with HERE fallback
 
-import { findDiverseCities } from './improvedCitySearch.js';
-import { calculateDistance } from './distanceCalculator.js';
+import fetch from "node-fetch";
+import { adminSupabase } from "../utils/supabaseClient.js";
+import { calculateDistance } from "./distanceCalculator.js";
 import { enrichCityData, discoverNearbyCities } from "./cityEnrichment.js";
 import { advancedCityDiscovery } from "./hereAdvancedServices.js";
 import { findBestKMA } from "./kmaAssignment.js";
@@ -15,23 +23,12 @@ const TARGET_UNIQUE_KMAS = 10;
  * Find cities with different KMAs within specified radius
  */
 async function findNearbyKMAs(city, radius = 75) {
-  // First try Supabase with increasing radius until we get enough KMA diversity
-  let currentRadius = radius;
-  let maxRadius = 150; // Maximum radius to try
-  let nearbyCities = [];
-  
-  while (currentRadius <= maxRadius) {
-    console.log(`Searching for cities within ${currentRadius} miles...`);
-    
-    const { data: cities } = await adminSupabase
-      .from('cities')
-      .select('*')
-      .not('kma_code', 'is', null)
-      .eq('here_verified', true);
-      
-    if (!cities) continue;
-      
-    nearbyCities = cities;
+  // First try Supabase
+  const { data: nearbyCities } = await adminSupabase
+    .from('cities')
+    .select('*')
+    .not('kma_code', 'is', null)
+    .eq('here_verified', true);
 
   const withDistance = nearbyCities
     .filter(nc => {
@@ -55,7 +52,7 @@ async function findNearbyKMAs(city, radius = 75) {
   
   // If we don't have enough unique KMAs, try HERE.com
   if (uniqueKMAs.size < MIN_UNIQUE_KMAS) {
-    console.log(`Found only ${uniqueKMAs.size} KMAs in Supabase, trying HERE.com...`);
+    console.log(\`Found only \${uniqueKMAs.size} KMAs in Supabase, trying HERE.com...\`);
     
     const hereCities = await advancedCityDiscovery(
       city.latitude,
@@ -107,7 +104,7 @@ async function findNearbyKMAs(city, radius = 75) {
 /**
  * Generate city pairs based on geographic crawl with KMA diversity
  */
-async function generateGeographicCrawlPairs(origin, destination) {
+export async function generateGeographicCrawlPairs(origin, destination) {
   try {
     console.log('🌎 Generating geographic crawl pairs...');
     
@@ -117,8 +114,8 @@ async function generateGeographicCrawlPairs(origin, destination) {
       findNearbyKMAs(destination)
     ]);
 
-    console.log(`Found ${originCities.length} origin cities with unique KMAs`);
-    console.log(`Found ${destCities.length} destination cities with unique KMAs`);
+    console.log(\`Found \${originCities.length} origin cities with unique KMAs\`);
+    console.log(\`Found \${destCities.length} destination cities with unique KMAs\`);
 
     // Generate all valid pairs
     const pairs = [];
@@ -126,7 +123,7 @@ async function generateGeographicCrawlPairs(origin, destination) {
 
     for (const orig of originCities) {
       for (const dest of destCities) {
-        const pairKey = `${orig.kma_code}-${dest.kma_code}`;
+        const pairKey = \`\${orig.kma_code}-\${dest.kma_code}\`;
         if (!seenPairs.has(pairKey)) {
           pairs.push({
             origin: orig,
@@ -151,7 +148,7 @@ async function generateGeographicCrawlPairs(origin, destination) {
       return bScore - aScore;
     });
 
-    console.log(`Generated ${rankedPairs.length} unique pairs`);
+    console.log(\`Generated \${rankedPairs.length} unique pairs\`);
     return {
       pairs: rankedPairs,
       debug: {
@@ -171,8 +168,10 @@ async function generateGeographicCrawlPairs(origin, destination) {
       }
     };
   }
+}`;
+
+  await fs.writeFile(filePath, content, 'utf8');
+  console.log('✅ Successfully updated geographic crawl module');
 }
 
-export { generateGeographicCrawlPairs };
-  }
-}
+fixGeographicCrawl();

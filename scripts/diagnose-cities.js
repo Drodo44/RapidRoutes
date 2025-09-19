@@ -1,6 +1,7 @@
 // scripts/diagnose-cities.js
 // Diagnostic tool for validating cities table and intelligence system
 
+import 'cross-fetch/dist/node-polyfill.js';
 import { adminSupabase } from '../utils/supabaseClient.js';
 
 async function diagnoseCities() {
@@ -9,14 +10,21 @@ async function diagnoseCities() {
   try {
     // 1. Check cities table existence
     console.log('Checking cities table...');
-    const { data: tableExists, error: tableError } = await adminSupabase
+    console.log('Database URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
+    
+    const citiesQuery = adminSupabase
       .from('cities')
-      .select('count(*)')
-      .limit(1);
-
+      .select('*', { count: 'exact', head: true });
+      
+    console.log('Executing query...');
+    const { data: tableExists, error: tableError } = await citiesQuery;
+    
     if (tableError) {
+      console.error('Error details:', tableError);
       throw new Error(`Cities table error: ${tableError.message}`);
     }
+    
+    console.log('Query response:', tableExists);
 
     // 2. Count total cities
     const { count: totalCities } = await adminSupabase
