@@ -5,13 +5,13 @@
 // - Splits into ≤499 rows per part; HEAD returns X-Total-Parts for pagination
 // - If part is specified for GET, returns only that part.
 
-import { adminSupabase } from '../../utils/supabaseClient.js';
-import { EnterpriseCsvGenerator } from '../../lib/enterpriseCsvGenerator.js';
-import { toCsv, chunkRows, DAT_HEADERS, MIN_PAIRS_REQUIRED, ROWS_PER_PAIR } from '../../lib/datCsvBuilder.js';
-import { monitor } from '../../lib/monitor.js';
-import { validateApiAuth } from '../../middleware/auth.unified.js';
-import fs from 'fs';
-import path from 'path';
+const { adminSupabase } = require('../../utils/supabaseClient.js');
+const { EnterpriseCsvGenerator } = require('../../lib/enterpriseCsvGenerator.js');
+const { toCsv, chunkRows, DAT_HEADERS, MIN_PAIRS_REQUIRED, ROWS_PER_PAIR } = require('../../lib/datCsvBuilder.js');
+const { monitor } = require('../../lib/monitor.js');
+const { validateApiAuth } = require('../../middleware/auth.unified.js');
+const fs = require('fs');
+const path = require('path');
 
 // Helper to get pending row count for pagination
 async function getPendingRowCount() {
