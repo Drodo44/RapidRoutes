@@ -1,7 +1,8 @@
 // pages/api/intelligence-pairing.js
 // API endpoint for geographic crawl intelligence pairing
 
-const { generateGeographicCrawlPairs } = require('../../lib/geographicCrawl.js');
+import { generateGeographicCrawlPairs } from '../../lib/geographicCrawl.js';
+import { validateApiAuth } from '../../middleware/auth.unified.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -17,17 +18,37 @@ export default async function handler(req, res) {
       });
     }
 
+    // Verify API authentication
+    const authResult = await validateApiAuth(req);
+    if (!authResult.authenticated) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
     console.log(`🎯 INTELLIGENCE API: Starting pairing for ${originCity}, ${originState} → ${destCity}, ${destState}`);
 
-    const result = await generateGeographicCrawlPairs(
-      originCity,
-      originState,
-      destCity,
-      destState
-    );
+    const result = await generateGeographicCrawlPairs({
+      origin: { city: originCity, state: originState },
+      destination: { city: destCity, state: destState },
+      preferFillTo10: true
+    });
 
-    const pairs = Array.isArray(result?.pairs) ? result.pairs : [];
+    if (!result || !Array.isArray(result.pairs)) {
+      throw new Error('Invalid response from intelligence system');
+    }
+
+    const pairs = result.pairs;
     const count = pairs.length;
+
+    if (count < 6) {
+      console.warn(`⚠️ INTELLIGENCE API: Generated only ${count} pairs, minimum required is 6`);
+      return res.status(422).json({
+        error: 'Insufficient pairs generated',
+        pairs: [],
+        count: 0,
+        minRequired: 6
+      });
+    }
+
     console.log(`✅ INTELLIGENCE API: Generated ${count} pairs`);
 
     res.status(200).json({
