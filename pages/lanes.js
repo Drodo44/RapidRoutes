@@ -1,8 +1,8 @@
 // pages/lanes.js
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import CityAutocomplete from '../components/CityAutocomplete.jsx';
-import EquipmentPicker from '../components/EquipmentPicker.jsx';
+import CityAutocomplete from '../components/CityAutocomplete';
+import EquipmentPicker from '../components/EquipmentPicker';
 import IntermodalNudge from '../components/IntermodalNudge';
 import IntermodalEmailModal from '../components/IntermodalEmailModal';
 import { supabase } from '../utils/supabaseClient';
