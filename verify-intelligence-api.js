@@ -48,9 +48,16 @@ async function verifyIntelligencePairing() {
     
     // Handle error response
     if (!response.ok) {
-      console.error(`❌ API error: ${result.message || 'Unknown error'}`);
+      console.error(`❌ API error (Status ${response.status}):`);
+      console.error(JSON.stringify(result, null, 2));
+      if (result.message) {
+        console.error(`Message: ${result.message}`);
+      }
       if (result.stack) {
         console.error(`Stack trace: ${result.stack}`);
+      }
+      if (result.error) {
+        console.error(`Error: ${typeof result.error === 'string' ? result.error : JSON.stringify(result.error)}`);
       }
       process.exit(1);
     }
