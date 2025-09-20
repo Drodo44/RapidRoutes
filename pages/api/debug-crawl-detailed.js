@@ -1,6 +1,6 @@
 // pages/api/debug-crawl-detailed.js
-const { adminSupabase } = require('../../utils/supabaseClient');
-const { generateGeographicCrawlPairs } = require('../../lib/geographicCrawl');
+import { adminSupabase } from '../../utils/supabaseClient.js';
+import { generateGeographicCrawlPairs } from '../../lib/geographicCrawl.js';
 
 export default async function handler(req, res) {
   console.log('🔍 DETAILED CRAWL DEBUG - Starting analysis...');
