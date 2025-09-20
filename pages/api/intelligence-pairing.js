@@ -2,7 +2,7 @@
 // API endpoint for geographic crawl intelligence pairing
 
 import { generateGeographicCrawlPairs } from '../../lib/geographicCrawl.js';
-import { validateApiAuth } from '../../middleware/auth.unified.js';
+import { createClient } from '@supabase/supabase-js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -18,18 +18,43 @@ export default async function handler(req, res) {
       });
     }
 
-    // Verify API authentication
-    const authResult = await validateApiAuth(req, res);
-    if (!authResult) {
-      // If validateApiAuth returns null, it means authorization failed
-      // and the function has already sent a response, so we exit early
-      return;
+    // Extract token from either Bearer header or cookies
+    const authHeader = req.headers.authorization || '';
+    const bearer = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    const cookieToken =
+      req.cookies?.['sb-access-token'] ||
+      req.cookies?.['supabase-auth-token'] ||
+      req.cookies?.['sb:token'] || null;
+    const accessToken = bearer || cookieToken;
+    
+    if (!accessToken) {
+      return res.status(401).json({ 
+        error: true, 
+        message: 'Missing Supabase access token' 
+      });
     }
+    
+    // Import Supabase client once
+    const { adminSupabase } = await import('../../utils/supabaseClient.js');
+    
+    // Verify the token with Supabase
+    const { data: { user }, error: userError } = await adminSupabase.auth.getUser(accessToken);
+    
+    if (userError || !user) {
+      return res.status(401).json({ 
+        error: true, 
+        message: userError?.message || 'Invalid authentication token' 
+      });
+    }
+    
+    // Add debug log
+    console.log({
+      route: '/api/intelligence-pairing',
+      userId: user.id,
+      hasToken: true
+    });
 
     console.log(`🎯 INTELLIGENCE API: Starting pairing for ${originCity}, ${originState} → ${destCity}, ${destState}`);
-
-    // Fetch coordinates for origin and destination cities
-    const { adminSupabase } = await import('../../utils/supabaseClient.js');
     
     // Fetch origin coordinates
     const { data: originData, error: originError } = await adminSupabase
