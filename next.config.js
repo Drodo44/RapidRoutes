@@ -3,16 +3,23 @@
 const nextConfig = {
   reactStrictMode: true,
   webpack: (config) => {
-    config.resolve.extensions = ['.js', '.json', '.ts', '.tsx']
-    // Allow ESM imports
+    config.resolve.extensions = ['.js', '.jsx', '.json', '.ts', '.tsx']
     config.resolve.extensionAlias = {
-      '.js': ['.js', '.ts', '.tsx'],
-      '.mjs': ['.mjs', '.mts']
+      '.js': ['.js', '.jsx', '.ts', '.tsx'],
+      '.jsx': ['.jsx']
+    }
+    config.module = {
+      ...config.module,
+      rules: [
+        ...config.module.rules,
+        {
+          test: /\.(js|jsx)$/,
+          exclude: /node_modules/,
+          use: ['babel-loader']
+        }
+      ]
     }
     return config
-  },
-  experimental: {
-    esmExternals: true
   }
 }
 

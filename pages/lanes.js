@@ -1,10 +1,10 @@
 // pages/lanes.js
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import CityAutocomplete from '../components/CityAutocomplete';
-import EquipmentPicker from '../components/EquipmentPicker';
-import IntermodalNudge from '../components/IntermodalNudge';
-import IntermodalEmailModal from '../components/IntermodalEmailModal';
+import CityAutocomplete from '../components/CityAutocomplete.jsx';
+import EquipmentPicker from '../components/EquipmentPicker.jsx';
+import IntermodalNudge from '../components/IntermodalNudge.jsx';
+import IntermodalEmailModal from '../components/IntermodalEmailModal.jsx';
 import { supabase } from '../utils/supabaseClient';
 // Removed direct import - now using API call for server-side intelligence generation
 import { useAuth } from '../contexts/AuthContext';

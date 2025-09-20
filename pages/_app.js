@@ -3,7 +3,7 @@ import '../styles/globals.css';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
-import NavBar from '../components/NavBar';
+import NavBar from '../components/NavBar.jsx';
 import Head from 'next/head';
 
 const PUBLIC_ROUTES = new Set(['/login', '/signup', '/']);
