@@ -39,18 +39,37 @@ export default function PostOptions() {
     setGeneratingPairings(true);
     setAlert(null);
     try {
+      console.debug(`Generating pairings for lane ID: ${lane.id}`);
+      
+      // Get Supabase auth session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        setAlert({ type: 'error', message: 'Not authenticated' });
+        return;
+      }
+      
+      console.debug(`Have token: ${!!session.access_token}`);
+      
       const response = await fetch('/api/intelligence-pairing', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        credentials: 'include', // ensure cookies also flow
         body: JSON.stringify({
           originCity: lane.origin_city,
           originState: lane.origin_state,
+          originZip: lane.origin_zip,
           destCity: lane.dest_city,
-          destState: lane.dest_state
+          destState: lane.dest_state,
+          destZip: lane.dest_zip,
+          equipmentCode: lane.equipment_code
         })
       });
       
-  const result = await response.json();
+      console.debug(`Response status: ${response.status}`);
+      const result = await response.json();
   if (!result.success) throw new Error(result.error || 'Failed to generate pairings');
       
   const pairs = Array.isArray(result.pairs) ? result.pairs : [];
@@ -75,20 +94,40 @@ export default function PostOptions() {
     setAlert(null);
     const newPairings = {};
     const newRRs = {};
+    
+    // Get Supabase auth session
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      setAlert({ type: 'error', message: 'Not authenticated' });
+      setGeneratingPairings(false);
+      return;
+    }
+    
+    console.debug(`Have token for batch generation: ${!!session.access_token}`);
+    
     for (const lane of lanes) {
       try {
+        console.debug(`Generating pairings for lane ID: ${lane.id}`);
         const response = await fetch('/api/intelligence-pairing', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          credentials: 'include', // ensure cookies also flow
           body: JSON.stringify({
             originCity: lane.origin_city,
             originState: lane.origin_state,
+            originZip: lane.origin_zip,
             destCity: lane.dest_city,
-            destState: lane.dest_state
+            destState: lane.dest_state,
+            destZip: lane.dest_zip,
+            equipmentCode: lane.equipment_code
           })
         });
         
-  const result = await response.json();
+        console.debug(`Response status for lane ${lane.id}: ${response.status}`);
+        const result = await response.json();
   if (!result.success) throw new Error(result.error || 'Failed to generate pairings');
         
   const pairs = Array.isArray(result.pairs) ? result.pairs : [];
