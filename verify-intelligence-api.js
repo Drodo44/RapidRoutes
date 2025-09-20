@@ -4,39 +4,79 @@
  * This script tests the /api/intelligence-pairing endpoint in production
  * 
  * Usage: 
- * node verify-intelligence-api.js <vercel-url> [api-key]
+ * node verify-intelligence-api.js <vercel-url> [supabase-url] [supabase-service-key]
  * 
  * Example:
- * node verify-intelligence-api.js https://rapidroutes.vercel.app your-api-key
+ * node verify-intelligence-api.js https://rapidroutes.vercel.app https://abc.supabase.co eyJhbGci...
  */
 
 import fetch from 'node-fetch';
+import { createClient } from '@supabase/supabase-js';
 
-const [,, vercelUrl = 'http://localhost:3000', apiKey = ''] = process.argv;
+const [,, vercelUrl = 'http://localhost:3000', supabaseUrl, serviceKey] = process.argv;
 
 async function verifyIntelligencePairing() {
   console.log(`🔍 Verifying intelligence-pairing API at ${vercelUrl}`);
   
+  // Check if we have the required Supabase credentials
+  if (!supabaseUrl || !serviceKey) {
+    console.error('❌ Missing Supabase URL or service key. Both are required for authentication.');
+    console.error('Usage: node verify-intelligence-api.js <vercel-url> <supabase-url> <service-key>');
+    process.exit(1);
+  }
+
+  // Create Supabase admin client to authenticate
+  console.log(`🔐 Creating Supabase admin client with service key`);
+  const supabase = createClient(supabaseUrl, serviceKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
+
+  console.log(`🔑 Getting authenticated session...`);
+  const { data: authData, error: authError } = await supabase.auth.admin.generateLink({
+    type: 'magiclink',
+    email: 'serviceaccount@rapidroutes.app',
+    options: {
+      redirectTo: `${vercelUrl}/dashboard`,
+    },
+  });
+
+  if (authError) {
+    console.error('❌ Authentication failed:', authError.message);
+    process.exit(1);
+  }
+
+  const { properties } = authData;
+  const accessToken = properties?.access_token;
+
+  if (!accessToken) {
+    console.error('❌ Failed to get access token');
+    process.exit(1);
+  }
+
+  console.log(`✅ Successfully obtained authentication token`);
+
   const testData = {
     originCity: 'Chicago',
     originState: 'IL',
+    originZip: '60601',
     destCity: 'Atlanta',
-    destState: 'GA'
+    destState: 'GA',
+    destZip: '30303',
+    equipmentCode: 'FD'
   };
   
   console.log(`📤 Sending request with test data: ${JSON.stringify(testData)}`);
   
   try {
     const headers = {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`
     };
     
-    // Add API key if provided
-    if (apiKey) {
-      headers['x-api-key'] = apiKey;
-    }
-    
-    const response = await fetch(`${vercelUrl}/api/test-intelligence-pairing`, {
+    const response = await fetch(`${vercelUrl}/api/intelligence-pairing`, {
       method: 'POST',
       headers,
       body: JSON.stringify(testData),
@@ -97,13 +137,21 @@ async function verifyIntelligencePairing() {
         console.warn(`⚠️ Warning: ${result.pairs.length - validPairs.length} invalid pairs detected`);
       }
       
-      // Print first pair as sample
-      if (validPairs.length > 0) {
-        console.log('\n📋 Sample pair:');
-        const sample = validPairs[0];
-        console.log(`Origin: ${sample.origin.city}, ${sample.origin.state} (KMA: ${sample.origin.kma})`);
-        console.log(`Destination: ${sample.destination.city}, ${sample.destination.state} (KMA: ${sample.destination.kma})`);
+      // Print pairs as sample
+      console.log('\n📋 Sample pairs:');
+      const sampleSize = Math.min(3, validPairs.length);
+      
+      for (let i = 0; i < sampleSize; i++) {
+        const pair = validPairs[i];
+        console.log(`\nPAIR ${i+1}:`);
+        console.log(`Origin: ${pair.origin.city}, ${pair.origin.state}, ${pair.origin.zip} (KMA: ${pair.origin.kma})`);
+        console.log(`Destination: ${pair.destination.city}, ${pair.destination.state}, ${pair.destination.zip} (KMA: ${pair.destination.kma})`);
+        if (pair.distance) console.log(`Distance: ${pair.distance} miles`);
       }
+      
+      // Print full JSON response in a formatted way
+      console.log('\n📄 Full Response JSON:');
+      console.log(JSON.stringify(result, null, 2));
     } else {
       console.error('❌ No pairs returned from API');
       process.exit(1);
