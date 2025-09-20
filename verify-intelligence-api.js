@@ -36,7 +36,7 @@ async function verifyIntelligencePairing() {
       headers['x-api-key'] = apiKey;
     }
     
-    const response = await fetch(`${vercelUrl}/api/intelligence-pairing`, {
+    const response = await fetch(`${vercelUrl}/api/test-intelligence-pairing`, {
       method: 'POST',
       headers,
       body: JSON.stringify(testData),
