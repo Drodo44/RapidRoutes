@@ -26,17 +26,73 @@ export default async function handler(req, res) {
 
     console.log(`🎯 INTELLIGENCE API: Starting pairing for ${originCity}, ${originState} → ${destCity}, ${destState}`);
 
-    const result = await generateGeographicCrawlPairs({
-      origin: { city: originCity, state: originState },
-      destination: { city: destCity, state: destState },
-      preferFillTo10: true
-    });
+    // Fetch coordinates for origin and destination cities
+    const { adminSupabase } = await import('../../utils/supabaseClient.js');
+    
+    // Fetch origin coordinates
+    const { data: originData, error: originError } = await adminSupabase
+      .from('cities')
+      .select('latitude, longitude, zip')
+      .eq('city', originCity)
+      .eq('state_or_province', originState)
+      .limit(1);
+      
+    if (originError) {
+      throw new Error(`Failed to fetch origin coordinates: ${originError.message}`);
+    }
+    
+    if (!originData || originData.length === 0) {
+      throw new Error(`Origin city not found: ${originCity}, ${originState}`);
+    }
+    
+    // Fetch destination coordinates
+    const { data: destData, error: destError } = await adminSupabase
+      .from('cities')
+      .select('latitude, longitude, zip')
+      .eq('city', destCity)
+      .eq('state_or_province', destState)
+      .limit(1);
+      
+    if (destError) {
+      throw new Error(`Failed to fetch destination coordinates: ${destError.message}`);
+    }
+    
+    if (!destData || destData.length === 0) {
+      throw new Error(`Destination city not found: ${destCity}, ${destState}`);
+    }
+    
+    const origin = {
+      city: originCity,
+      state: originState,
+      latitude: Number(originData[0].latitude),
+      longitude: Number(originData[0].longitude),
+      zip: originData[0].zip
+    };
+    
+    const destination = {
+      city: destCity,
+      state: destState,
+      latitude: Number(destData[0].latitude),
+      longitude: Number(destData[0].longitude),
+      zip: destData[0].zip
+    };
+
+    // Now call with complete data
+    const result = await generateGeographicCrawlPairs(origin, destination);
 
     if (!result || !Array.isArray(result.pairs)) {
       throw new Error('Invalid response from intelligence system');
     }
 
-    const pairs = result.pairs;
+    // Import the normalization function
+    const { normalizePairing } = await import('../../lib/validatePairings.js');
+    
+    // Normalize all pairs to ensure consistent format
+    let pairs = result.pairs.map(pair => normalizePairing(pair));
+    
+    // Filter out any null/invalid pairs after normalization
+    pairs = pairs.filter(pair => pair !== null);
+    
     const count = pairs.length;
 
     if (count < 6) {
@@ -59,9 +115,15 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
+    // Enhanced error logging with full stack trace for Vercel debugging
     console.error('❌ Intelligence API error:', error);
+    console.error('Stack trace:', error.stack);
+    
+    // Return detailed error information in JSON response
     res.status(500).json({ 
-      error: error.message || 'Failed to generate intelligence pairs',
+      error: true,
+      message: error.message || 'Failed to generate intelligence pairs',
+      stack: process.env.NODE_ENV === 'production' ? undefined : error.stack,
       success: false,
       pairs: []
     });
