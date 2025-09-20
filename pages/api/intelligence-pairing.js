@@ -19,9 +19,11 @@ export default async function handler(req, res) {
     }
 
     // Verify API authentication
-    const authResult = await validateApiAuth(req);
-    if (!authResult.authenticated) {
-      return res.status(401).json({ error: 'Unauthorized' });
+    const authResult = await validateApiAuth(req, res);
+    if (!authResult) {
+      // If validateApiAuth returns null, it means authorization failed
+      // and the function has already sent a response, so we exit early
+      return;
     }
 
     console.log(`🎯 INTELLIGENCE API: Starting pairing for ${originCity}, ${originState} → ${destCity}, ${destState}`);
