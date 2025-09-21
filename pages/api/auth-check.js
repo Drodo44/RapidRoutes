@@ -1,7 +1,7 @@
 // Modified endpoint for manual testing of the authentication flow
 // This will return the Supabase URL, token claims, and authentication details for debugging
 
-import { supabase } from '../../utils/supabaseClient';
+import { supabase } from '../../utils/supabaseClient.js';
 
 export default async function handler(req, res) {
   // Check if a token is in the request
