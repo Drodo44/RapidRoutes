@@ -43,12 +43,13 @@ export default function PostOptions() {
       
       // Get Supabase auth session - CRITICAL for authentication
       // Force refresh to ensure we have a valid token
-      const { data, error } = await supabase.auth.getSession();
+      const { data, error } = await supabase.auth.getSession({ forceRefresh: true });
       const accessToken = data?.session?.access_token;
       
       // Enhanced logging for debugging authentication issues
       console.debug(`Auth check for lane ${lane.id}: session=${!!data?.session}, token=${accessToken ? `${accessToken.substring(0, 5)}...` : 'MISSING'}`);
       console.debug(`Lane details: ${lane.origin_city}, ${lane.origin_state} → ${lane.dest_city}, ${lane.dest_state}`);
+      console.debug('Token expiry:', data?.session?.expires_at ? new Date(data.session.expires_at * 1000).toISOString() : 'unknown');
       
       if (error) {
         console.error('Authentication error:', error.message);
@@ -127,7 +128,8 @@ export default function PostOptions() {
     const newRRs = {};
     
     // Get Supabase auth session - CRITICAL for authentication
-    const { data, error } = await supabase.auth.getSession();
+    // Force refresh to ensure we have a valid token
+    const { data, error } = await supabase.auth.getSession({ forceRefresh: true });
     const accessToken = data?.session?.access_token;
     
     // Enhanced logging for debugging authentication issues

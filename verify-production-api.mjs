@@ -65,6 +65,7 @@ function analyzeKmas(pairs) {
   
   const originKmas = {};
   const destKmas = {};
+  const allKmas = new Set();
   
   pairs.forEach(pair => {
     // Support both snake_case and camelCase formats
@@ -74,11 +75,13 @@ function analyzeKmas(pairs) {
     if (originKma) {
       if (!originKmas[originKma]) originKmas[originKma] = 0;
       originKmas[originKma]++;
+      allKmas.add(originKma);
     }
     
     if (destKma) {
       if (!destKmas[destKma]) destKmas[destKma] = 0;
       destKmas[destKma]++;
+      allKmas.add(destKma);
     }
   });
   
@@ -88,7 +91,8 @@ function analyzeKmas(pairs) {
   return {
     origins: originKmaArray,
     destinations: destKmaArray,
-    uniqueCount: new Set([...Object.keys(originKmas), ...Object.keys(destKmas)]).size
+    uniqueCount: allKmas.size,
+    allKmas: Array.from(allKmas)
   };
 }
 
@@ -232,6 +236,7 @@ async function callApi(token, url) {
       console.log();
       
       console.log(`- Total unique KMAs: ${kmaAnalysis.uniqueCount}`);
+      console.log(`- KMA codes: ${kmaAnalysis.allKmas.join(', ')}`);
       
       if (kmaAnalysis.uniqueCount >= 5) {
         console.log(`✅ REQUIREMENT MET: ${kmaAnalysis.uniqueCount} unique KMAs (minimum 5)`);

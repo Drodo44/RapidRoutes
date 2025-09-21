@@ -240,40 +240,46 @@ export default async function handler(req, res) {
     // Import the normalization function
     const { normalizePairing } = await import('../../lib/validatePairings.js');
     
-    // Normalize all pairs to ensure consistent format
+    // Normalize all pairs to ensure consistent format and include BOTH naming conventions
+    // This ensures maximum compatibility with all client implementations
     let pairs = result.pairs.map(pair => {
-      const normalized = normalizePairing(pair);
-      
-      // Ensure all required fields exist in both formats for maximum compatibility
-      if (normalized) {
-        // Ensure both camelCase and snake_case formats exist for all fields
-        return {
-          // Original snake_case format
-          origin_city: normalized.origin_city || normalized.originCity,
-          origin_state: normalized.origin_state || normalized.originState,
-          origin_zip: normalized.origin_zip || normalized.originZip,
-          origin_kma: normalized.origin_kma || normalized.originKma,
-          dest_city: normalized.dest_city || normalized.destCity,
-          dest_state: normalized.dest_state || normalized.destState,
-          dest_zip: normalized.dest_zip || normalized.destZip,
-          dest_kma: normalized.dest_kma || normalized.destKma,
-          distance_miles: normalized.distance_miles || normalized.distanceMiles,
-          equipment_code: normalized.equipment_code || normalized.equipmentCode,
-          
-          // Additional camelCase format
-          originCity: normalized.origin_city || normalized.originCity,
-          originState: normalized.origin_state || normalized.originState,
-          originZip: normalized.origin_zip || normalized.originZip,
-          originKma: normalized.origin_kma || normalized.originKma,
-          destCity: normalized.dest_city || normalized.destCity,
-          destState: normalized.dest_state || normalized.destState,
-          destZip: normalized.dest_zip || normalized.destZip,
-          destKma: normalized.dest_kma || normalized.destKma,
-          distanceMiles: normalized.distance_miles || normalized.distanceMiles,
-          equipmentCode: normalized.equipment_code || normalized.equipmentCode
-        };
+      try {
+        const normalized = normalizePairing(pair);
+        
+        // Ensure all required fields exist in both formats for maximum compatibility
+        if (normalized) {
+          // Ensure both camelCase and snake_case formats exist for all fields
+          return {
+            // Original snake_case format
+            origin_city: normalized.origin_city || normalized.originCity,
+            origin_state: normalized.origin_state || normalized.originState,
+            origin_zip: normalized.origin_zip || normalized.originZip,
+            origin_kma: normalized.origin_kma || normalized.originKma,
+            dest_city: normalized.dest_city || normalized.destCity,
+            dest_state: normalized.dest_state || normalized.destState,
+            dest_zip: normalized.dest_zip || normalized.destZip,
+            dest_kma: normalized.dest_kma || normalized.destKma,
+            distance_miles: normalized.distance_miles || normalized.distanceMiles,
+            equipment_code: normalized.equipment_code || normalized.equipmentCode,
+            
+            // Additional camelCase format
+            originCity: normalized.origin_city || normalized.originCity,
+            originState: normalized.origin_state || normalized.originState,
+            originZip: normalized.origin_zip || normalized.originZip,
+            originKma: normalized.origin_kma || normalized.originKma,
+            destCity: normalized.dest_city || normalized.destCity,
+            destState: normalized.dest_state || normalized.destState,
+            destZip: normalized.dest_zip || normalized.destZip,
+            destKma: normalized.dest_kma || normalized.destKma,
+            distanceMiles: normalized.distance_miles || normalized.distanceMiles,
+            equipmentCode: normalized.equipment_code || normalized.equipmentCode
+          };
+        }
+        return null;
+      } catch (error) {
+        console.error('Error normalizing pair:', error);
+        return null;
       }
-      return null;
     });
     
     // Filter out any null/invalid pairs after normalization
@@ -285,9 +291,31 @@ export default async function handler(req, res) {
       console.warn(`⚠️ INTELLIGENCE API: Generated only ${count} pairs, minimum required is 6`);
       return res.status(422).json({
         error: 'Insufficient pairs generated',
+        details: `Only ${count} pairs were generated. At least 6 pairs are required.`,
         pairs: [],
         count: 0,
-        minRequired: 6
+        minRequired: 6,
+        success: false
+      });
+    }
+    
+    // Count unique KMAs to ensure we meet the minimum requirement
+    const kmas = new Set();
+    pairs.forEach(pair => {
+      if (pair.origin_kma) kmas.add(pair.origin_kma);
+      if (pair.dest_kma) kmas.add(pair.dest_kma);
+    });
+    
+    if (kmas.size < 5) {
+      console.warn(`⚠️ INTELLIGENCE API: Only ${kmas.size} unique KMAs found, minimum required is 5`);
+      return res.status(422).json({
+        error: 'Insufficient KMA diversity',
+        details: `Only ${kmas.size} unique KMAs were found. At least 5 unique KMAs are required.`,
+        pairs: [],
+        count: 0,
+        uniqueKmas: kmas.size,
+        minRequired: 5,
+        success: false
       });
     }
 
