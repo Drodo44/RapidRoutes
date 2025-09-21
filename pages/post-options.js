@@ -42,19 +42,23 @@ export default function PostOptions() {
       console.debug(`Generating pairings for lane ID: ${lane.id}`);
       
       // Get Supabase auth session
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) {
+      const { data } = await supabase.auth.getSession();
+      const accessToken = data?.session?.access_token;
+      
+      if (!accessToken) {
+        console.error('Authentication error: No access token available');
         setAlert({ type: 'error', message: 'Not authenticated' });
+        setGeneratingPairings(false);
         return;
       }
       
-      console.debug(`Have token: ${!!session.access_token}`);
+      console.debug(`Have token: ${!!accessToken}`);
       
       const response = await fetch('/api/intelligence-pairing', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
+          'Authorization': `Bearer ${accessToken}`
         },
         credentials: 'include', // ensure cookies also flow
         body: JSON.stringify({
@@ -96,14 +100,17 @@ export default function PostOptions() {
     const newRRs = {};
     
     // Get Supabase auth session
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) {
+    const { data } = await supabase.auth.getSession();
+    const accessToken = data?.session?.access_token;
+    
+    if (!accessToken) {
+      console.error('Authentication error: No access token available for batch generation');
       setAlert({ type: 'error', message: 'Not authenticated' });
       setGeneratingPairings(false);
       return;
     }
     
-    console.debug(`Have token for batch generation: ${!!session.access_token}`);
+    console.debug(`Have token for batch generation: ${!!accessToken}`);
     
     for (const lane of lanes) {
       try {
@@ -112,7 +119,7 @@ export default function PostOptions() {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`
+            'Authorization': `Bearer ${accessToken}`
           },
           credentials: 'include', // ensure cookies also flow
           body: JSON.stringify({

@@ -27,7 +27,22 @@ export default async function handler(req, res) {
       req.cookies?.['sb:token'] || null;
     const accessToken = bearer || cookieToken;
     
+    // Log authentication details (without exposing token)
+    console.log({
+      route: '/api/intelligence-pairing',
+      hasAuthHeader: !!authHeader,
+      hasBearer: !!bearer,
+      hasCookieToken: !!cookieToken,
+      hasToken: !!accessToken,
+      cookies: Object.keys(req.cookies || {})
+    });
+    
     if (!accessToken) {
+      console.error('Authentication error: No valid token provided', {
+        authHeaderExists: !!authHeader,
+        bearerFormat: authHeader ? authHeader.startsWith('Bearer ') : false,
+        cookiesPresent: Object.keys(req.cookies || {})
+      });
       return res.status(401).json({ 
         error: true, 
         message: 'Missing Supabase access token' 
@@ -38,23 +53,49 @@ export default async function handler(req, res) {
     const { adminSupabase } = await import('../../utils/supabaseClient.js');
     
     // Verify the token with Supabase
-    const { data: { user }, error: userError } = await adminSupabase.auth.getUser(accessToken);
-    
-    if (userError || !user) {
+    try {
+      const { data, error } = await adminSupabase.auth.getUser(accessToken);
+      
+      if (error || !data?.user) {
+        console.error('Token validation error:', {
+          errorType: error?.name,
+          errorMessage: error?.message,
+          status: error?.status,
+          hasUser: !!data?.user
+        });
+        
+        return res.status(401).json({ 
+          error: true, 
+          message: error?.message || 'Invalid authentication token',
+          code: error?.code || 'AUTH_INVALID_TOKEN'
+        });
+      }
+      
+      // Authentication successful
+      const user = data.user;
+      console.log('Authentication successful:', {
+        userId: user.id,
+        email: user.email,
+        route: '/api/intelligence-pairing'
+      });
+    } catch (authError) {
+      console.error('Token validation exception:', authError);
       return res.status(401).json({ 
         error: true, 
-        message: userError?.message || 'Invalid authentication token' 
+        message: 'Authentication validation failed',
+        code: 'AUTH_VALIDATION_ERROR'
       });
     }
     
-    // Add debug log
-    console.log({
-      route: '/api/intelligence-pairing',
-      userId: user.id,
-      hasToken: true
+    console.log(`🎯 INTELLIGENCE API: Starting pairing for ${originCity}, ${originState} → ${destCity}, ${destState}`, {
+      userId: data?.user?.id,
+      email: data?.user?.email,
+      originCity,
+      originState,
+      destCity,
+      destState,
+      hasEquipment: !!req.body.equipmentCode
     });
-
-    console.log(`🎯 INTELLIGENCE API: Starting pairing for ${originCity}, ${originState} → ${destCity}, ${destState}`);
     
     // Fetch origin coordinates
     const { data: originData, error: originError } = await adminSupabase
@@ -146,10 +187,18 @@ export default async function handler(req, res) {
     console.error('❌ Intelligence API error:', error);
     console.error('Stack trace:', error.stack);
     
+    // Determine if this is an auth error or another type
+    const isAuthError = error.message?.toLowerCase().includes('auth') || 
+                        error.message?.toLowerCase().includes('token') ||
+                        error.message?.toLowerCase().includes('unauthorized');
+    
+    const statusCode = isAuthError ? 401 : 500;
+    
     // Return detailed error information in JSON response
-    res.status(500).json({ 
+    res.status(statusCode).json({ 
       error: true,
       message: error.message || 'Failed to generate intelligence pairs',
+      code: isAuthError ? 'AUTH_ERROR' : 'PROCESSING_ERROR',
       stack: process.env.NODE_ENV === 'production' ? undefined : error.stack,
       success: false,
       pairs: []
