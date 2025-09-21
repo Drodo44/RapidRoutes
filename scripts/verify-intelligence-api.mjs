@@ -16,9 +16,9 @@ import fetch from 'node-fetch';
 import { createClient } from '@supabase/supabase-js';
 import chalk from 'chalk';
 
-// Configuration
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://vywvmhdyyhkdpmbfzkgx.supabase.co';
-const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ5d3ZtaGR5eWhrZHBtYmZ6a2d4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2ODk0NTU3MTYsImV4cCI6MjAwNTAzMTcxNn0.BL_eQYpTPP9DW_hd1_X1Nm10K86kx9QSZ37ZRRi7icQ';
+// Configuration - Use production Supabase URL and key
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://lbcydtbyqxorycrhehao.supabase.co';
+const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxiY3lkdGJ5cXhvcnljcmhlaGFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTc0MzA2NjksImV4cCI6MjAzMzAwNjY2OX0.JIliP9R_YO2nM9UFkXzLrEmZvVsN5dfukwb0axP4sWQ';
 const EMAIL = process.env.TEST_USER_EMAIL;
 const PASSWORD = process.env.TEST_USER_PASSWORD;
 
