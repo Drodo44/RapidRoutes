@@ -1,4 +1,8 @@
 {
+  "version": 2,
+  "framework": "nextjs",
+  "buildCommand": "next build",
+  "outputDirectory": ".next",
   "crons": [
     {
       "path": "/api/fetchDatBlog",
