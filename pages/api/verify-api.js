@@ -1,16 +1,19 @@
 // /pages/api/verify-api.js
 // This endpoint will verify the intelligence-pairing API directly in the production environment
+// Version 2.0: Enhanced with full diagnostics
 
 import { createClient } from '@supabase/supabase-js';
 
 export default async function handler(req, res) {
-  // Only allow POST requests with proper authorization
-  if (req.method !== 'POST') {
+  // Allow GET for simplified testing with query params, POST for secure body
+  if (req.method !== 'POST' && req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Extract email and password from request body
-  const { email, password } = req.body;
+  // Extract email and password from request body or query params
+  // NOTE: Query params only for testing - real applications should use POST body
+  const email = req.body?.email || req.query?.email;
+  const password = req.body?.password || req.query?.password;
   
   if (!email || !password) {
     return res.status(400).json({ error: 'Missing email or password' });
@@ -26,17 +29,23 @@ export default async function handler(req, res) {
       HERE_API_KEY: Boolean(process.env.HERE_API_KEY)
     },
     auth: {
-      attempted: false,
-      successful: false,
+      status: 'pending',
+      method: 'password',
+      token_ok: false,
       error: null
     },
     api: {
-      attempted: false,
-      successful: false,
-      error: null,
-      pairs: 0,
-      uniqueKmas: 0
+      url: '/api/intelligence-pairing',
+      status: null,
+      time_ms: null,
+      error: null
     },
+    pairs_count: 0,
+    unique_kmas: 0,
+    kma_details: [],
+    sample_pairs: [],
+    fixes_applied: [],
+    suggested_next_steps: [],
     timestamp: new Date().toISOString()
   };
 
@@ -65,60 +74,147 @@ export default async function handler(req, res) {
     );
 
     // Step 2: Authenticate with Supabase
-    results.auth.attempted = true;
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-
-    if (error) {
-      results.auth.error = error.message;
-      return res.status(401).json(results);
+    const authStartTime = Date.now();
+    let authData;
+    
+    // Try password authentication
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      
+      if (error) {
+        results.auth.error = error.message;
+        results.auth.status = 'fail';
+        results.suggested_next_steps.push(
+          'Check user credentials',
+          'Verify Supabase authentication configuration'
+        );
+        return res.status(401).json(results);
+      }
+      
+      authData = data;
+      results.auth.status = 'ok';
+      results.auth.method = 'password';
+    } catch (authError) {
+      results.auth.error = authError.message;
+      results.auth.status = 'error';
+      results.suggested_next_steps.push('Check Supabase connectivity');
+      return res.status(500).json(results);
     }
-
-    results.auth.successful = true;
-    const token = data.session.access_token;
+    
+    results.auth.time_ms = Date.now() - authStartTime;
+    results.auth.token_ok = true;
+    const token = authData.session.access_token;
 
     // Step 3: Call intelligence-pairing API
-    results.api.attempted = true;
-    const apiResponse = await fetch(`${req.headers.host.startsWith('localhost') ? 'http' : 'https'}://${req.headers.host}/api/intelligence-pairing`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify(testLane)
-    });
-
-    if (!apiResponse.ok) {
-      const errorText = await apiResponse.text();
-      results.api.error = `API returned ${apiResponse.status}: ${errorText}`;
-      return res.status(500).json(results);
+    const apiUrl = `${req.headers.host.startsWith('localhost') ? 'http' : 'https'}://${req.headers.host}/api/intelligence-pairing`;
+    results.api.url = apiUrl;
+    
+    const apiStartTime = Date.now();
+    let apiResponse, apiResponseText, apiData;
+    
+    try {
+      apiResponse = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(testLane)
+      });
+      
+      results.api.status = apiResponse.status;
+      results.api.time_ms = Date.now() - apiStartTime;
+      
+      // Get full response text
+      apiResponseText = await apiResponse.text();
+      
+      if (!apiResponse.ok) {
+        results.api.error = `API returned ${apiResponse.status}: ${apiResponseText.substring(0, 500)}`;
+        
+        if (apiResponse.status === 401) {
+          results.auth.token_ok = false;
+          results.suggested_next_steps.push(
+            'Check token extraction in intelligence-pairing.js',
+            'Verify Bearer prefix handling in API authentication'
+          );
+        } else if (apiResponse.status === 500) {
+          results.suggested_next_steps.push(
+            'Check server logs for detailed error',
+            'Verify error handling in intelligence-pairing.js'
+          );
+        }
+        
+        return res.status(200).json(results); // Return 200 with diagnostic info
+      }
+      
+      // Try to parse as JSON
+      try {
+        apiData = JSON.parse(apiResponseText);
+      } catch (jsonError) {
+        results.api.error = `Invalid JSON response: ${jsonError.message}`;
+        results.api.response_sample = apiResponseText.substring(0, 1000);
+        results.suggested_next_steps.push('Fix JSON syntax in API response');
+        return res.status(200).json(results);
+      }
+      
+      // Check response format
+      if (!apiData.success || !apiData.pairs || !Array.isArray(apiData.pairs)) {
+        results.api.error = 'Invalid API response format';
+        results.api.response_format = Object.keys(apiData);
+        results.suggested_next_steps.push('Fix API response format - ensure "success" and "pairs" fields are present');
+        return res.status(200).json(results);
+      }
+    } catch (apiError) {
+      results.api.status = 'error';
+      results.api.error = apiError.message;
+      results.api.time_ms = Date.now() - apiStartTime;
+      results.suggested_next_steps.push('Check API endpoint availability', 'Verify network connectivity');
+      return res.status(200).json(results);
     }
 
-    // Step 4: Process API response
-    const apiData = await apiResponse.json();
-    if (!apiData.success || !apiData.pairs || !Array.isArray(apiData.pairs)) {
-      results.api.error = 'Invalid API response format';
-      return res.status(500).json(results);
-    }
-
-    // Step 5: Count unique KMAs
+    // Step 5: Analyze KMAs
     const uniqueKmas = new Set();
+    const kmaStats = {};
+    
     apiData.pairs.forEach(pair => {
       const originKma = pair.origin_kma || pair.originKma;
       const destKma = pair.dest_kma || pair.destKma;
       
       if (originKma) uniqueKmas.add(originKma);
       if (destKma) uniqueKmas.add(destKma);
+      
+      // Track detailed KMA statistics
+      if (originKma) {
+        if (!kmaStats[originKma]) kmaStats[originKma] = { code: originKma, origin_count: 0, dest_count: 0 };
+        kmaStats[originKma].origin_count++;
+      }
+      
+      if (destKma) {
+        if (!kmaStats[destKma]) kmaStats[destKma] = { code: destKma, origin_count: 0, dest_count: 0 };
+        kmaStats[destKma].dest_count++;
+      }
     });
+    
+    // Check if minimum KMA requirement is met
+    const kmaCount = uniqueKmas.size;
+    if (kmaCount < 5) {
+      results.suggested_next_steps.push(
+        'Check geographicCrawl.js to ensure minimum 5 unique KMAs',
+        'Verify search radius configuration (should be up to 100 miles)',
+        'Check KMA diversity requirements in intelligence pairing'
+      );
+    }
 
     // Set success results
     results.api.successful = true;
-    results.api.pairs = apiData.pairs.length;
-    results.api.uniqueKmas = uniqueKmas.size;
-    results.api.kmas = Array.from(uniqueKmas);
-
+    results.pairs_count = apiData.pairs.length;
+    results.unique_kmas = uniqueKmas.size;
+    results.kma_details = Object.values(kmaStats);
+    results.sample_pairs = apiData.pairs.slice(0, 10);
+    
     // Return results
     return res.status(200).json(results);
   } catch (error) {
