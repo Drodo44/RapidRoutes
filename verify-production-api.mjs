@@ -43,7 +43,7 @@ function formatKmaData(kmas) {
   return kmas.map(kma => `  - ${kma.code}: ${kma.count} pairs`).join('\n');
 }
 
-// Helper function to show sample pairs
+  // Helper function to show sample pairs
 function formatSamplePairs(pairs, count = 3) {
   if (!pairs || pairs.length === 0) return "No pairs found";
   
@@ -52,16 +52,14 @@ function formatSamplePairs(pairs, count = 3) {
   for (let i = 0; i < Math.min(count, pairs.length); i++) {
     const pair = pairs[i];
     result += `\nPair #${i+1}:\n`;
-    result += `- Origin: ${pair.origin_city}, ${pair.origin_state} ${pair.origin_zip} (KMA: ${pair.origin_kma})\n`;
-    result += `- Destination: ${pair.dest_city}, ${pair.dest_state} ${pair.dest_zip} (KMA: ${pair.dest_kma})\n`;
-    result += `- Distance: ${pair.distance_miles} miles\n`;
-    result += `- Equipment: ${pair.equipment_code || 'unknown'}\n`;
+    result += `- Origin: ${pair.origin_city || pair.originCity}, ${pair.origin_state || pair.originState} ${pair.origin_zip || pair.originZip} (KMA: ${pair.origin_kma || pair.originKma})\n`;
+    result += `- Destination: ${pair.dest_city || pair.destCity}, ${pair.dest_state || pair.destState} ${pair.dest_zip || pair.destZip} (KMA: ${pair.dest_kma || pair.destKma})\n`;
+    result += `- Distance: ${pair.distance_miles || pair.distanceMiles || 'unknown'} miles\n`;
+    result += `- Equipment: ${pair.equipment_code || pair.equipmentCode || 'unknown'}\n`;
   }
   
   return result;
-}
-
-// Helper function to analyze KMA codes in the response
+}// Helper function to analyze KMA codes in the response
 function analyzeKmas(pairs) {
   if (!pairs || pairs.length === 0) return { origins: [], destinations: [], uniqueCount: 0 };
   
@@ -69,14 +67,18 @@ function analyzeKmas(pairs) {
   const destKmas = {};
   
   pairs.forEach(pair => {
-    if (pair.origin_kma) {
-      if (!originKmas[pair.origin_kma]) originKmas[pair.origin_kma] = 0;
-      originKmas[pair.origin_kma]++;
+    // Support both snake_case and camelCase formats
+    const originKma = pair.origin_kma || pair.originKma;
+    const destKma = pair.dest_kma || pair.destKma;
+    
+    if (originKma) {
+      if (!originKmas[originKma]) originKmas[originKma] = 0;
+      originKmas[originKma]++;
     }
     
-    if (pair.dest_kma) {
-      if (!destKmas[pair.dest_kma]) destKmas[pair.dest_kma] = 0;
-      destKmas[pair.dest_kma]++;
+    if (destKma) {
+      if (!destKmas[destKma]) destKmas[destKma] = 0;
+      destKmas[destKma]++;
     }
   });
   

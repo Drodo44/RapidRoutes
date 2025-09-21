@@ -14,28 +14,78 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { originCity, originState, destCity, destState } = req.body;
+    // Support both camelCase (frontend) and snake_case field naming conventions
+    const originCity = req.body.originCity || req.body.origin_city;
+    const originState = req.body.originState || req.body.origin_state;
+    const originZip = req.body.originZip || req.body.origin_zip;
+    const destCity = req.body.destCity || req.body.dest_city;
+    const destState = req.body.destState || req.body.dest_state;
+    const destZip = req.body.destZip || req.body.dest_zip;
+    const equipmentCode = req.body.equipmentCode || req.body.equipment_code;
 
     if (!originCity || !originState || !destCity || !destState) {
       return res.status(400).json({ 
         error: 'Bad Request',
-        details: 'Missing required fields: originCity, originState, destCity, destState',
+        details: 'Missing required fields: originCity/origin_city, originState/origin_state, destCity/dest_city, destState/dest_state',
         success: false
       });
     }
 
-    // IMPORTANT: Extract token from either Bearer header or cookies
+    // IMPROVED: Extract token from multiple potential sources with fallbacks
+    // 1. Authorization header (Bearer token)
     const authHeader = req.headers.authorization || '';
     const bearer = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-    const cookieToken =
-      req.cookies?.['sb-access-token'] ||
-      req.cookies?.['supabase-auth-token'] ||
-      req.cookies?.['sb:token'] || 
-      // Try parsing JWT from cookie objects that might contain the token
-      (req.cookies?.['supabase-auth-token'] ? 
-        JSON.parse(req.cookies['supabase-auth-token'])?.access_token : null);
     
-    const accessToken = bearer || cookieToken;
+    // 2. Various cookie formats that might contain the token
+    let cookieToken = null;
+    try {
+      // Direct cookie access for standard formats
+      cookieToken = req.cookies?.['sb-access-token'] ||
+        req.cookies?.['sb:token'] ||
+        req.cookies?.['supabase-auth-token'];
+      
+      // Parse JSON cookie formats if present
+      if (!cookieToken && req.cookies?.['supabase-auth-token']) {
+        try {
+          const parsed = JSON.parse(req.cookies['supabase-auth-token']);
+          cookieToken = parsed?.access_token || parsed?.[0]?.access_token;
+          console.log('✅ Parsed standard Supabase cookie:', cookieToken ? 'token found' : 'no token');
+        } catch (e) {
+          console.warn('Failed to parse supabase-auth-token cookie:', e.message);
+        }
+      }
+      
+      // Try to parse the 'sb-' prefixed cookies which might contain tokens
+      if (!cookieToken) {
+        const possibleTokenCookies = Object.keys(req.cookies || {})
+          .filter(key => key.startsWith('sb-'));
+          
+        console.log(`🔍 Checking ${possibleTokenCookies.length} sb- prefixed cookies for tokens`);
+        for (const key of possibleTokenCookies) {
+          try {
+            const parsed = JSON.parse(req.cookies[key]);
+            if (parsed?.access_token) {
+              cookieToken = parsed.access_token;
+              console.log(`✅ Found token in cookie: ${key}`);
+              break;
+            }
+          } catch (e) {
+            // Ignore parsing errors and continue
+            console.debug(`Could not parse cookie ${key}: ${e.message}`);
+          }
+        }
+      }
+    } catch (cookieError) {
+      console.warn('Cookie parsing error:', cookieError.message);
+    }
+    
+    // 3. Query parameter for development/testing only
+    const mockEnabled = process.env.ENABLE_MOCK_AUTH === 'true';
+    const mockParam = req.query?.mock_auth || req.body?.mock_auth;
+    const mockToken = mockEnabled && mockParam ? 'mock-token' : null;
+    
+    // Use the first available token source in order of preference
+    const accessToken = bearer || cookieToken || mockToken;
     
     // Enhanced logging for authentication debugging
     console.log('🔐 API Authentication check:', {
@@ -43,24 +93,25 @@ export default async function handler(req, res) {
       hasAuthHeader: !!authHeader,
       hasBearer: !!bearer,
       hasCookieToken: !!cookieToken,
+      mockAuthEnabled: mockEnabled && !!mockParam,
       hasToken: !!accessToken,
       method: req.method,
-      cookieKeys: Object.keys(req.cookies || {}),
-      contentType: req.headers['content-type'],
-      headerKeys: Object.keys(req.headers || {})
+      cookieCount: Object.keys(req.cookies || {}).length,
+      tokenSource: bearer ? 'bearer' : (cookieToken ? 'cookie' : (mockToken ? 'mock' : 'none'))
     });
     
     if (!accessToken) {
       console.error('❌ Authentication error: No valid token provided', {
         authHeaderExists: !!authHeader,
         bearerFormat: authHeader ? authHeader.startsWith('Bearer ') : false,
-        cookiesPresent: Object.keys(req.cookies || {}),
+        cookiesPresent: Object.keys(req.cookies || {}).length > 0,
         headers: Object.keys(req.headers || {})
       });
       
       return res.status(401).json({ 
         error: 'Unauthorized',
-        details: 'Missing Supabase authentication token',
+        details: 'Missing authentication token. Please provide a valid token via Authorization header or cookies.',
+        code: 'AUTH_TOKEN_MISSING',
         success: false
       });
     }
@@ -72,27 +123,38 @@ export default async function handler(req, res) {
     let authenticatedUser;
     
     try {
-      // Use adminSupabase to validate the token
-      const { data, error } = await adminSupabase.auth.getUser(accessToken);
-      
-      if (error || !data?.user) {
-        console.error('❌ Token validation error:', {
-          errorType: error?.name,
-          errorMessage: error?.message,
-          status: error?.status,
-          hasUser: !!data?.user
-        });
+      // Handle mock auth in development/testing environments
+      if (mockToken === accessToken) {
+        console.log('⚠️ Using mock authentication (development only)');
+        authenticatedUser = { 
+          id: 'mock-user-id',
+          email: 'mock@example.com',
+          role: 'mock_user'
+        };
+      } else {
+        // Use adminSupabase to validate the token
+        const { data, error } = await adminSupabase.auth.getUser(accessToken);
         
-        return res.status(401).json({ 
-          error: 'Unauthorized',
-          details: error?.message || 'Invalid authentication token',
-          code: error?.code || 'AUTH_INVALID_TOKEN',
-          success: false
-        });
+        if (error || !data?.user) {
+          console.error('❌ Token validation error:', {
+            errorType: error?.name,
+            errorMessage: error?.message,
+            status: error?.status,
+            hasUser: !!data?.user,
+            tokenStart: accessToken.substring(0, 10) + '...'
+          });
+          
+          return res.status(401).json({ 
+            error: 'Unauthorized',
+            details: error?.message || 'Invalid authentication token',
+            code: error?.code || 'AUTH_INVALID_TOKEN',
+            success: false
+          });
+        }
+        
+        // Authentication successful - save the user
+        authenticatedUser = data.user;
       }
-      
-      // Authentication successful - save the user
-      authenticatedUser = data.user;
       
       console.log('✅ Authentication successful:', {
         userId: authenticatedUser.id,
@@ -179,7 +241,40 @@ export default async function handler(req, res) {
     const { normalizePairing } = await import('../../lib/validatePairings.js');
     
     // Normalize all pairs to ensure consistent format
-    let pairs = result.pairs.map(pair => normalizePairing(pair));
+    let pairs = result.pairs.map(pair => {
+      const normalized = normalizePairing(pair);
+      
+      // Ensure all required fields exist in both formats for maximum compatibility
+      if (normalized) {
+        // Ensure both camelCase and snake_case formats exist for all fields
+        return {
+          // Original snake_case format
+          origin_city: normalized.origin_city || normalized.originCity,
+          origin_state: normalized.origin_state || normalized.originState,
+          origin_zip: normalized.origin_zip || normalized.originZip,
+          origin_kma: normalized.origin_kma || normalized.originKma,
+          dest_city: normalized.dest_city || normalized.destCity,
+          dest_state: normalized.dest_state || normalized.destState,
+          dest_zip: normalized.dest_zip || normalized.destZip,
+          dest_kma: normalized.dest_kma || normalized.destKma,
+          distance_miles: normalized.distance_miles || normalized.distanceMiles,
+          equipment_code: normalized.equipment_code || normalized.equipmentCode,
+          
+          // Additional camelCase format
+          originCity: normalized.origin_city || normalized.originCity,
+          originState: normalized.origin_state || normalized.originState,
+          originZip: normalized.origin_zip || normalized.originZip,
+          originKma: normalized.origin_kma || normalized.originKma,
+          destCity: normalized.dest_city || normalized.destCity,
+          destState: normalized.dest_state || normalized.destState,
+          destZip: normalized.dest_zip || normalized.destZip,
+          destKma: normalized.dest_kma || normalized.destKma,
+          distanceMiles: normalized.distance_miles || normalized.distanceMiles,
+          equipmentCode: normalized.equipment_code || normalized.equipmentCode
+        };
+      }
+      return null;
+    });
     
     // Filter out any null/invalid pairs after normalization
     pairs = pairs.filter(pair => pair !== null);

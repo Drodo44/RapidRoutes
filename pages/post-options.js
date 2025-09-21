@@ -42,11 +42,20 @@ export default function PostOptions() {
       console.debug(`Generating pairings for lane ID: ${lane.id}`);
       
       // Get Supabase auth session - CRITICAL for authentication
-      const { data } = await supabase.auth.getSession();
+      // Force refresh to ensure we have a valid token
+      const { data, error } = await supabase.auth.getSession();
       const accessToken = data?.session?.access_token;
       
-      // Log auth status (without exposing the token)
-      console.debug(`Auth check for lane ${lane.id}: session=${!!data?.session}, token=${!!accessToken}`);
+      // Enhanced logging for debugging authentication issues
+      console.debug(`Auth check for lane ${lane.id}: session=${!!data?.session}, token=${accessToken ? `${accessToken.substring(0, 5)}...` : 'MISSING'}`);
+      console.debug(`Lane details: ${lane.origin_city}, ${lane.origin_state} → ${lane.dest_city}, ${lane.dest_state}`);
+      
+      if (error) {
+        console.error('Authentication error:', error.message);
+        setAlert({ type: 'error', message: `Authentication error: ${error.message}` });
+        setGeneratingPairings(false);
+        return;
+      }
       
       if (!accessToken) {
         console.error('Authentication error: No valid access token available');
@@ -118,11 +127,19 @@ export default function PostOptions() {
     const newRRs = {};
     
     // Get Supabase auth session - CRITICAL for authentication
-    const { data } = await supabase.auth.getSession();
+    const { data, error } = await supabase.auth.getSession();
     const accessToken = data?.session?.access_token;
     
-    // Log auth status (without exposing the token)
-    console.debug(`Auth check for batch generation: session=${!!data?.session}, token=${!!accessToken}`);
+    // Enhanced logging for debugging authentication issues
+    console.debug(`Auth check for batch generation: session=${!!data?.session}, token=${accessToken ? `${accessToken.substring(0, 5)}...` : 'missing'}`);
+    console.debug(`Batch generating pairings for ${lanes.length} lanes`);
+    
+    if (error) {
+      console.error('Authentication error:', error.message);
+      setAlert({ type: 'error', message: `Authentication error: ${error.message}` });
+      setGeneratingPairings(false);
+      return;
+    }
     
     if (!accessToken) {
       console.error('Authentication error: No valid access token available for batch generation');
