@@ -41,19 +41,21 @@ export default function PostOptions() {
     try {
       console.debug(`Generating pairings for lane ID: ${lane.id}`);
       
-      // Get Supabase auth session
+      // Get Supabase auth session - CRITICAL for authentication
       const { data } = await supabase.auth.getSession();
       const accessToken = data?.session?.access_token;
       
+      // Log auth status (without exposing the token)
+      console.debug(`Auth check for lane ${lane.id}: session=${!!data?.session}, token=${!!accessToken}`);
+      
       if (!accessToken) {
-        console.error('Authentication error: No access token available');
-        setAlert({ type: 'error', message: 'Not authenticated' });
+        console.error('Authentication error: No valid access token available');
+        setAlert({ type: 'error', message: 'Not authenticated - please log in again' });
         setGeneratingPairings(false);
         return;
       }
       
-      console.debug(`Have token: ${!!accessToken}`);
-      
+      // Properly format the request with all required authentication
       const response = await fetch('/api/intelligence-pairing', {
         method: 'POST',
         headers: { 
@@ -64,17 +66,33 @@ export default function PostOptions() {
         body: JSON.stringify({
           originCity: lane.origin_city,
           originState: lane.origin_state,
-          originZip: lane.origin_zip,
+          originZip: lane.origin_zip || '',
           destCity: lane.dest_city,
           destState: lane.dest_state,
-          destZip: lane.dest_zip,
-          equipmentCode: lane.equipment_code
+          destZip: lane.dest_zip || '',
+          equipmentCode: lane.equipment_code || 'V'
         })
       });
       
-      console.debug(`Response status: ${response.status}`);
+      console.debug(`API response for lane ${lane.id}: status=${response.status}`);
+      
+      // Parse the response
       const result = await response.json();
-  if (!result.success) throw new Error(result.error || 'Failed to generate pairings');
+      
+      // Handle authentication errors specifically
+      if (response.status === 401) {
+        console.error('Authentication failed:', result.message || 'Unauthorized');
+        setAlert({ type: 'error', message: 'Authentication failed - please log in again' });
+        setGeneratingPairings(false);
+        return;
+      }
+      
+      // Handle other API errors
+      if (!response.ok || !result.success) {
+        const errorMsg = result.message || result.error || 'Failed to generate pairings';
+        console.error(`API error for lane ${lane.id}:`, errorMsg);
+        throw new Error(errorMsg);
+      }
       
   const pairs = Array.isArray(result.pairs) ? result.pairs : [];
       if (pairs.length < 5) throw new Error('Intelligence system failed: fewer than 5 unique KMAs found');
@@ -99,22 +117,25 @@ export default function PostOptions() {
     const newPairings = {};
     const newRRs = {};
     
-    // Get Supabase auth session
+    // Get Supabase auth session - CRITICAL for authentication
     const { data } = await supabase.auth.getSession();
     const accessToken = data?.session?.access_token;
     
+    // Log auth status (without exposing the token)
+    console.debug(`Auth check for batch generation: session=${!!data?.session}, token=${!!accessToken}`);
+    
     if (!accessToken) {
-      console.error('Authentication error: No access token available for batch generation');
-      setAlert({ type: 'error', message: 'Not authenticated' });
+      console.error('Authentication error: No valid access token available for batch generation');
+      setAlert({ type: 'error', message: 'Not authenticated - please log in again' });
       setGeneratingPairings(false);
       return;
     }
     
-    console.debug(`Have token for batch generation: ${!!accessToken}`);
-    
     for (const lane of lanes) {
       try {
         console.debug(`Generating pairings for lane ID: ${lane.id}`);
+        
+        // Properly format the request with all required authentication
         const response = await fetch('/api/intelligence-pairing', {
           method: 'POST',
           headers: { 
@@ -125,17 +146,32 @@ export default function PostOptions() {
           body: JSON.stringify({
             originCity: lane.origin_city,
             originState: lane.origin_state,
-            originZip: lane.origin_zip,
+            originZip: lane.origin_zip || '',
             destCity: lane.dest_city,
             destState: lane.dest_state,
-            destZip: lane.dest_zip,
-            equipmentCode: lane.equipment_code
+            destZip: lane.dest_zip || '',
+            equipmentCode: lane.equipment_code || 'V'
           })
         });
         
-        console.debug(`Response status for lane ${lane.id}: ${response.status}`);
+        console.debug(`API response for lane ${lane.id}: status=${response.status}`);
+        
+        // Parse the response
         const result = await response.json();
-  if (!result.success) throw new Error(result.error || 'Failed to generate pairings');
+        
+        // Handle authentication errors specifically
+        if (response.status === 401) {
+          console.error('Authentication failed:', result.message || 'Unauthorized');
+          setAlert({ type: 'error', message: 'Authentication failed - please log in again' });
+          break; // Stop processing more lanes
+        }
+        
+        // Handle other API errors
+        if (!response.ok || !result.success) {
+          const errorMsg = result.message || result.error || 'Failed to generate pairings';
+          console.error(`API error for lane ${lane.id}:`, errorMsg);
+          throw new Error(errorMsg);
+        }
         
   const pairs = Array.isArray(result.pairs) ? result.pairs : [];
         if (pairs.length < 5) throw new Error('Intelligence system failed: fewer than 5 unique KMAs found');
