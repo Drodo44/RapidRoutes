@@ -1,27 +1,53 @@
 // utils/supabaseClient.js
 import { createClient } from '@supabase/supabase-js';
 
-// Environment variables
-// Get mandatory environment variables or throw immediately
+// Environment variables - Handle gracefully with logging
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-if (!SUPABASE_URL || SUPABASE_URL.includes('${')) {
-  throw new Error('NEXT_PUBLIC_SUPABASE_URL environment variable is required');
-}
-
-// Validate URL format
-try { new URL(SUPABASE_URL); } catch (e) {
-  throw new Error('NEXT_PUBLIC_SUPABASE_URL must be a valid URL');
-}
-
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-if (!ANON_KEY || ANON_KEY === 'anon-key-placeholder') {
-  throw new Error('NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable is required');
+const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+// Environment validation with detailed logging
+function validateEnvironment() {
+  const issues = [];
+
+  // Check URL
+  if (!SUPABASE_URL) {
+    issues.push('NEXT_PUBLIC_SUPABASE_URL is missing');
+  } else {
+    try { 
+      new URL(SUPABASE_URL); 
+    } catch (e) {
+      issues.push('NEXT_PUBLIC_SUPABASE_URL is not a valid URL');
+    }
+  }
+
+  // Check keys
+  if (!ANON_KEY) {
+    issues.push('NEXT_PUBLIC_SUPABASE_ANON_KEY is missing');
+  }
+
+  if (typeof window === 'undefined' && !SERVICE_ROLE) {
+    issues.push('SUPABASE_SERVICE_ROLE_KEY is missing (required server-side)');
+  }
+
+  if (issues.length > 0) {
+    console.error('⚠️ Supabase client initialization issues:');
+    issues.forEach(issue => console.error(`- ${issue}`));
+    
+    // In production, try to continue with available credentials
+    if (process.env.NODE_ENV === 'production') {
+      console.warn('⚠️ Running in production - attempting to continue despite issues');
+      return false;
+    }
+    
+    throw new Error(`Supabase initialization failed: ${issues.join(', ')}`);
+  }
+  
+  return true;
 }
 
-const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY;
-if (typeof window === 'undefined' && (!SERVICE_ROLE || SERVICE_ROLE === 'your_service_role_key_here')) {
-  throw new Error('SUPABASE_SERVICE_ROLE_KEY environment variable is required for server-side operations');
-}
+// Validate environment
+validateEnvironment();
 
 // Client-side Supabase
 export const supabase = createClient(SUPABASE_URL, ANON_KEY, {

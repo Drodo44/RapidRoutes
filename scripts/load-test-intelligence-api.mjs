@@ -3,101 +3,145 @@
  * RapidRoutes Intelligence API Load Test
  * 
  * This script tests the performance and reliability of the intelligence-pairing API
- * under load by making multiple requests in parallel.
+ * under load by making multiple requests in parallel using production credentials.
  */
 
 import fetch from 'node-fetch';
 import { createClient } from '@supabase/supabase-js';
+import fs from 'fs/promises';
 
-// Configuration - Use production Supabase URL and key
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://lbcydtbyqxorycrhehao.supabase.co';
-const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxiY3lkdGJ5cXhvcnljcmhlaGFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTc0MzA2NjksImV4cCI6MjAzMzAwNjY2OX0.JIliP9R_YO2nM9UFkXzLrEmZvVsN5dfukwb0axP4sWQ';
-const EMAIL = process.env.TEST_USER_EMAIL;
-const PASSWORD = process.env.TEST_USER_PASSWORD;
+// Configuration - Use Vercel environment variables directly
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 // Test configuration
-const API_URL = process.env.API_URL || 'http://localhost:3000/api/intelligence-pairing';
-const CONCURRENT_REQUESTS = process.env.CONCURRENT_REQUESTS ? parseInt(process.env.CONCURRENT_REQUESTS) : 5;
+const API_URL = 'https://rapid-routes.vercel.app/api/intelligence-pairing';
+const CONCURRENT_REQUESTS = 3; // Reduced to avoid rate limiting
+const MIN_UNIQUE_KMAS = 6; // Required minimum unique KMAs
+
+// Test lanes with diverse geographic coverage
 const TEST_LANES = [
   {
-    originCity: 'Chicago',
-    originState: 'IL',
-    originZip: '60601',
-    destCity: 'Atlanta', 
-    destState: 'GA',
-    destZip: '30303',
-    equipmentCode: 'FD'
+    name: "Chicago to Atlanta (Flatbed)",
+    data: {
+      originCity: 'Chicago',
+      originState: 'IL',
+      originZip: '60601',
+      destCity: 'Atlanta', 
+      destState: 'GA',
+      destZip: '30303',
+      equipmentCode: 'FD'
+    }
   },
   {
-    originCity: 'Dallas',
-    originState: 'TX',
-    originZip: '75201',
-    destCity: 'Phoenix', 
-    destState: 'AZ',
-    destZip: '85001',
-    equipmentCode: 'FD'
+    name: "Dallas to Phoenix (Flatbed)",
+    data: {
+      originCity: 'Dallas',
+      originState: 'TX',
+      originZip: '75201',
+      destCity: 'Phoenix', 
+      destState: 'AZ',
+      destZip: '85001',
+      equipmentCode: 'FD'
+    }
   },
   {
-    originCity: 'New York',
-    originState: 'NY',
-    originZip: '10001',
-    destCity: 'Boston', 
-    destState: 'MA',
-    destZip: '02108',
-    equipmentCode: 'V'
+    name: "New York to Boston (Van)",
+    data: {
+      originCity: 'New York',
+      originState: 'NY',
+      originZip: '10001',
+      destCity: 'Boston', 
+      destState: 'MA',
+      destZip: '02108',
+      equipmentCode: 'V'
+    }
   },
   {
-    originCity: 'Los Angeles',
-    originState: 'CA',
-    originZip: '90001',
-    destCity: 'Seattle', 
-    destState: 'WA',
-    destZip: '98101',
-    equipmentCode: 'R'
+    name: "Los Angeles to Seattle (Reefer)",
+    data: {
+      originCity: 'Los Angeles',
+      originState: 'CA',
+      originZip: '90001',
+      destCity: 'Seattle', 
+      destState: 'WA',
+      destZip: '98101',
+      equipmentCode: 'R'
+    }
   },
   {
-    originCity: 'Miami',
-    originState: 'FL',
-    originZip: '33101',
-    destCity: 'Detroit', 
-    destState: 'MI',
-    destZip: '48201',
-    equipmentCode: 'FD'
+    name: "Miami to Detroit (Flatbed)",
+    data: {
+      originCity: 'Miami',
+      originState: 'FL',
+      originZip: '33101',
+      destCity: 'Detroit', 
+      destState: 'MI',
+      destZip: '48201',
+      equipmentCode: 'FD'
+    }
   }
 ];
 
 /**
- * Authenticate with Supabase
+ * Helper function to count unique KMAs in response
+ */
+function countUniqueKmas(pairs) {
+  if (!pairs || !Array.isArray(pairs)) return { uniqueCount: 0, kmas: [] };
+  
+  const allKmas = new Set();
+  
+  pairs.forEach(pair => {
+    // Handle both snake_case and camelCase formats
+    const originKma = pair.origin?.kma_code || pair.origin?.kmaCode || 
+                     pair.originKma || pair.origin_kma;
+    const destKma = pair.destination?.kma_code || pair.destination?.kmaCode || 
+                   pair.destKma || pair.dest_kma;
+    
+    if (originKma) allKmas.add(originKma);
+    if (destKma) allKmas.add(destKma);
+  });
+  
+  return {
+    uniqueCount: allKmas.size,
+    kmas: Array.from(allKmas)
+  };
+}
+
+/**
+ * Authenticate with Supabase using service role
  */
 async function authenticate() {
-  console.log('🔑 Authenticating with Supabase...');
+  console.log('🔑 Authenticating with Supabase using service role...');
   
-  if (!EMAIL || !PASSWORD) {
-    console.log('❌ Error: TEST_USER_EMAIL and TEST_USER_PASSWORD environment variables are required');
-    console.log('Please set these environment variables before running:');
-    console.log('export TEST_USER_EMAIL=your@email.com TEST_USER_PASSWORD=yourpassword');
+  if (!SUPABASE_URL || !SERVICE_KEY) {
+    console.log('❌ Error: Required environment variables missing');
+    console.log('Please ensure these environment variables are set:');
+    console.log('- NEXT_PUBLIC_SUPABASE_URL');
+    console.log('- SUPABASE_SERVICE_ROLE_KEY');
     return null;
   }
   
   try {
-    const supabase = createClient(SUPABASE_URL, ANON_KEY, {
+    // Create admin client with service role key
+    const adminSupabase = createClient(SUPABASE_URL, SERVICE_KEY, {
       auth: {
         persistSession: false,
         autoRefreshToken: false,
       }
     });
     
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: EMAIL,
-      password: PASSWORD
+    // Create a test user
+    const testEmail = `test-user-${Date.now()}@rapidroutes-verify.com`;
+    const testPassword = `Test${Date.now()}!`;
+    
+    console.log(`Creating test user: ${testEmail}...`);
+    
+    const { data, error } = await adminSupabase.auth.admin.createUser({
+      email: testEmail,
+      password: testPassword,
+      email_confirm: true
     });
-    
-    if (error) {
-      console.log(`❌ Authentication failed: ${error.message}`);
-      return null;
-    }
-    
-    const session = data.session;
     if (!session?.access_token) {
       console.log('❌ No access token in session');
       return null;

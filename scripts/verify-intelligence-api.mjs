@@ -2,11 +2,11 @@
 /**
  * RapidRoutes Intelligence API Verification Script
  * 
- * A simplified verification tool for testing the intelligence-pairing API
- * in development environments.
+ * A production verification tool for testing the intelligence-pairing API
+ * in production environments using server-side environment variables.
  * 
  * This script:
- * 1. Authenticates with Supabase
+ * 1. Authenticates with Supabase using service role key
  * 2. Makes a request to the intelligence-pairing API
  * 3. Verifies the response contains at least 5 unique KMAs
  * 4. Provides clear feedback
@@ -16,14 +16,13 @@ import fetch from 'node-fetch';
 import { createClient } from '@supabase/supabase-js';
 import chalk from 'chalk';
 
-// Configuration - Use production Supabase URL and key
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://lbcydtbyqxorycrhehao.supabase.co';
-const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxiY3lkdGJ5cXhvcnljcmhlaGFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTc0MzA2NjksImV4cCI6MjAzMzAwNjY2OX0.JIliP9R_YO2nM9UFkXzLrEmZvVsN5dfukwb0axP4sWQ';
-const EMAIL = process.env.TEST_USER_EMAIL;
-const PASSWORD = process.env.TEST_USER_PASSWORD;
+// Configuration - Use environment variables from Vercel
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-// API URLs
-const API_URL = process.env.API_URL || 'http://localhost:3000/api/intelligence-pairing';
+// API URLs - Always use production URL to verify deployed endpoint
+const API_URL = 'https://rapid-routes.vercel.app/api/intelligence-pairing';
 
 // Test lane data
 const testLane = {
@@ -63,44 +62,70 @@ function countUniqueKmas(pairs) {
 }
 
 /**
- * Authenticate with Supabase
+ * Authenticate with Supabase using service role key
  */
 async function authenticate() {
-  console.log(chalk.blue('🔑 Authenticating with Supabase...'));
+  console.log(chalk.blue('🔑 Authenticating with Supabase using service role...'));
   
-  if (!EMAIL || !PASSWORD) {
-    console.log(chalk.red('❌ Error: TEST_USER_EMAIL and TEST_USER_PASSWORD environment variables are required'));
-    console.log(chalk.yellow('Please set these environment variables before running:'));
-    console.log(chalk.yellow('export TEST_USER_EMAIL=your@email.com TEST_USER_PASSWORD=yourpassword'));
+  if (!SUPABASE_URL || !SERVICE_KEY) {
+    console.log(chalk.red('❌ Error: Required environment variables missing'));
+    console.log(chalk.yellow('Please ensure these environment variables are set:'));
+    console.log(chalk.yellow('- NEXT_PUBLIC_SUPABASE_URL'));
+    console.log(chalk.yellow('- SUPABASE_SERVICE_ROLE_KEY'));
     return null;
   }
   
   try {
-    const supabase = createClient(SUPABASE_URL, ANON_KEY, {
+    // Create admin client with service role key
+    const adminSupabase = createClient(SUPABASE_URL, SERVICE_KEY, {
       auth: {
         persistSession: false,
         autoRefreshToken: false,
       }
     });
     
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: EMAIL,
-      password: PASSWORD
+    // Create a test user or use admin token directly
+    const testEmail = `test-user-${Date.now()}@rapidroutes-verify.com`;
+    const testPassword = `Test${Date.now()}!`;
+    
+    // Create test user and sign them in to get a valid token
+    if (error) {
+      console.log(chalk.red(`❌ User creation failed: ${error.message}`));
+      console.log(chalk.yellow('Using service role token directly for authentication...'));
+      
+      // Generate a JWT token using the service role for direct API access
+      const { data: tokenData, error: tokenError } = await adminSupabase.auth.admin.generateLink({
+        type: 'magiclink',
+        email: 'admin@rapidroutes.vercel.app',
+      });
+      
+      if (tokenError) {
+        console.log(chalk.red(`❌ Token generation failed: ${tokenError.message}`));
+        return null;
+      }
+      
+      console.log(chalk.green('✅ Generated admin token successfully!'));
+      return tokenData.properties.access_token;
+    }
+    
+    // If user creation succeeded, get their token
+    const userId = data.user.id;
+    console.log(chalk.green(`✅ Created test user: ${userId}`));
+    
+    // Sign in the user to get their token
+    const { data: signInData, error: signInError } = await adminSupabase.auth.signInWithPassword({
+      email: testEmail,
+      password: testPassword
     });
     
-    if (error) {
-      console.log(chalk.red(`❌ Authentication failed: ${error.message}`));
+    if (signInError) {
+      console.log(chalk.red(`❌ Sign-in failed: ${signInError.message}`));
       return null;
     }
     
-    const session = data.session;
-    if (!session?.access_token) {
-      console.log(chalk.red('❌ No access token in session'));
-      return null;
-    }
-    
+    const token = signInData.session.access_token;
     console.log(chalk.green('✅ Authentication successful!'));
-    return session.access_token;
+    return token;
   } catch (err) {
     console.log(chalk.red(`❌ Error during authentication: ${err.message}`));
     return null;

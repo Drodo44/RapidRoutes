@@ -182,10 +182,20 @@ export default async function handler(req, res) {
       hasEquipment: !!req.body.equipmentCode
     });
     
+    // Enhanced logging for Supabase client validation
+    console.log('🔄 Validating Supabase client connection...');
+    const testQuery = await adminSupabase.from('cities').select('count').limit(1);
+    if (testQuery.error) {
+      console.error('❌ Supabase connection error:', testQuery.error);
+      throw new Error(`Database connection error: ${testQuery.error.message}`);
+    } else {
+      console.log('✅ Supabase connection valid');
+    }
+    
     // Fetch origin coordinates
     const { data: originData, error: originError } = await adminSupabase
       .from('cities')
-      .select('latitude, longitude, zip')
+      .select('latitude, longitude, zip, kma_code, kma_name')
       .eq('city', originCity)
       .eq('state_or_province', originState)
       .limit(1);
