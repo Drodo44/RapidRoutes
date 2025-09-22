@@ -107,15 +107,15 @@ export default function PostOptions() {
     setGeneratingPairings(true);
     setAlert(null);
     try {
-      console.log(`🔄 Generating pairings for lane ID: ${lane.id} - ${lane.origin_city}, ${lane.origin_state} → ${lane.dest_city}, ${lane.dest_state}`);
+      console.log(`🔄 Generating pairings for lane ID: ${lane.id} - ${lane.origin_city || lane.originCity}, ${lane.origin_state || lane.originState} → ${lane.dest_city || lane.destinationCity}, ${lane.dest_state || lane.destinationState}`);
       
       // Validate required input fields first
       const requiredFields = [
-        { name: 'Origin City', value: lane.origin_city },
-        { name: 'Origin State', value: lane.origin_state },
-        { name: 'Destination City', value: lane.dest_city },
-        { name: 'Destination State', value: lane.dest_state },
-        { name: 'Equipment Code', value: lane.equipment_code }
+        { name: 'Origin City', value: lane.origin_city || lane.originCity },
+        { name: 'Origin State', value: lane.origin_state || lane.originState },
+        { name: 'Destination City', value: lane.dest_city || lane.destination_city || lane.destinationCity },
+        { name: 'Destination State', value: lane.dest_state || lane.destination_state || lane.destinationState },
+        { name: 'Equipment Code', value: lane.equipment_code || lane.equipmentCode }
       ];
       
       // Check for missing required fields
@@ -164,13 +164,14 @@ export default function PostOptions() {
         },
         credentials: 'include', // ensure cookies also flow
         body: JSON.stringify({
-          originCity: lane.origin_city,
-          originState: lane.origin_state,
-          originZip: lane.origin_zip || '',
-          destCity: lane.dest_city,
-          destState: lane.dest_state,
-          destZip: lane.dest_zip || '',
-          equipmentCode: lane.equipment_code || 'V'
+          laneId: lane.id,
+          originCity: lane.origin_city || lane.originCity,
+          originState: lane.origin_state || lane.originState,
+          originZip: lane.origin_zip || lane.originZip || '',
+          destinationCity: lane.dest_city || lane.destination_city || lane.destinationCity,
+          destinationState: lane.dest_state || lane.destination_state || lane.destinationState,
+          destinationZip: lane.dest_zip || lane.destination_zip || lane.destinationZip || '',
+          equipmentCode: lane.equipment_code || lane.equipmentCode || 'V'
         })
       });
       
@@ -255,19 +256,21 @@ export default function PostOptions() {
     
     // Pre-validate all lanes to ensure they have required data
     const invalidLanes = lanes.filter(lane => {
-      const missing = !lane.origin_city || 
-             !lane.origin_state || 
-             !lane.dest_city || 
-             !lane.dest_state || 
-             !lane.equipment_code;
+      const originCity = lane.origin_city || lane.originCity;
+      const originState = lane.origin_state || lane.originState;
+      const destinationCity = lane.dest_city || lane.destination_city || lane.destinationCity;
+      const destinationState = lane.dest_state || lane.destination_state || lane.destinationState;
+      const equipmentCode = lane.equipment_code || lane.equipmentCode;
+      
+      const missing = !originCity || !originState || !destinationCity || !destinationState || !equipmentCode;
              
       if (missing) {
         console.warn(`⚠️ Lane ${lane.id} has missing required fields:`, {
-          origin_city: !!lane.origin_city,
-          origin_state: !!lane.origin_state,
-          dest_city: !!lane.dest_city,
-          dest_state: !!lane.dest_state,
-          equipment_code: !!lane.equipment_code
+          originCity: !!originCity,
+          originState: !!originState,
+          destinationCity: !!destinationCity,
+          destinationState: !!destinationState,
+          equipmentCode: !!equipmentCode
         });
       }
       return missing;
@@ -313,7 +316,7 @@ export default function PostOptions() {
         try {
           // Generate a unique request ID for tracing
           const requestId = `req-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
-          console.log(`🔄 [${requestId}] Processing lane ${lane.id} (${++processedCount}/${lanes.length}): ${lane.origin_city}, ${lane.origin_state} → ${lane.dest_city}, ${lane.dest_state}`);
+          console.log(`🔄 [${requestId}] Processing lane ${lane.id} (${++processedCount}/${lanes.length}): ${lane.origin_city || lane.originCity}, ${lane.origin_state || lane.originState} → ${lane.dest_city || lane.destinationCity}, ${lane.dest_state || lane.destinationState}`);
           
           // Properly format the request with all required authentication
           const response = await fetch('/api/intelligence-pairing', {
@@ -325,13 +328,14 @@ export default function PostOptions() {
             },
             credentials: 'include', // ensure cookies also flow
             body: JSON.stringify({
-              originCity: lane.origin_city,
-              originState: lane.origin_state,
-              originZip: lane.origin_zip || '',
-              destCity: lane.dest_city,
-              destState: lane.dest_state,
-              destZip: lane.dest_zip || '',
-              equipmentCode: lane.equipment_code || 'V'
+              laneId: lane.id,
+              originCity: lane.origin_city || lane.originCity,
+              originState: lane.origin_state || lane.originState,
+              originZip: lane.origin_zip || lane.originZip || '',
+              destinationCity: lane.dest_city || lane.destination_city || lane.destinationCity,
+              destinationState: lane.dest_state || lane.destination_state || lane.destinationState,
+              destinationZip: lane.dest_zip || lane.destination_zip || lane.destinationZip || '',
+              equipmentCode: lane.equipment_code || lane.equipmentCode || 'V'
             })
           });
           
