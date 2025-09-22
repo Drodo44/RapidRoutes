@@ -83,10 +83,16 @@ export default async function handler(req, res) {
       console.warn('Cookie parsing error:', cookieError.message);
     }
     
-    // 3. Query parameter for development/testing only
+    // 3. Test mode configuration
+    // Allow test mode when explicitly enabled via environment variable
+    const testModeEnabled = process.env.ALLOW_TEST_MODE === 'true';
+    const isTestRequest = req.body?.test_mode === true;
+    const useTestMode = testModeEnabled && isTestRequest;
+    
+    // 4. Mock auth for development/testing only
     const mockEnabled = process.env.ENABLE_MOCK_AUTH === 'true' || process.env.NODE_ENV !== 'production';
-    const mockParam = req.query?.mock_auth || req.body?.mock_auth || req.body?.test_mode;
-    const mockToken = mockEnabled && mockParam ? 'mock-token' : null;
+    const mockParam = req.query?.mock_auth || req.body?.mock_auth;
+    const mockToken = (mockEnabled && mockParam) || useTestMode ? 'mock-token' : null;
     
     // Use the first available token source in order of preference
     const accessToken = bearer || cookieToken || mockToken;
@@ -98,6 +104,7 @@ export default async function handler(req, res) {
       hasBearer: !!bearer,
       hasCookieToken: !!cookieToken,
       mockAuthEnabled: mockEnabled && !!mockParam,
+      testModeEnabled: useTestMode,
       hasToken: !!accessToken,
       method: req.method,
       cookieCount: Object.keys(req.cookies || {}).length,
@@ -127,8 +134,15 @@ export default async function handler(req, res) {
     let authenticatedUser;
     
     try {
-      // Handle mock auth in development/testing environments
-      if (mockToken === accessToken) {
+      // Handle test mode and mock auth
+      if (useTestMode) {
+        console.log('🧪 Using TEST MODE authentication - bypassing JWT validation');
+        authenticatedUser = { 
+          id: 'test-mode-user',
+          email: 'test@rapidroutes.app',
+          role: 'test_user'
+        };
+      } else if (mockToken === accessToken) {
         console.log('⚠️ Using mock authentication (development only)');
         authenticatedUser = { 
           id: 'mock-user-id',

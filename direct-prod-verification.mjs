@@ -13,6 +13,9 @@ import path from 'path';
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://gwuhjxomavulwduhvgvi.supabase.co";
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd3dWhqeG9tYXZ1bHdkdWh2Z3ZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE5Mzk2MjksImV4cCI6MjA2NzUxNTYyOX0.fM8EeVag9MREyjBVv2asGpIgI_S7k_889kDDbE-8oUs";
 
+// Test mode should be enabled on the server with ALLOW_TEST_MODE=true
+const USE_TEST_MODE = true;
+
 // Production API endpoint
 const API_URL = 'https://rapid-routes.vercel.app/api/intelligence-pairing';
 
@@ -32,8 +35,7 @@ const TEST_LANES = [
       destState: "GA",
       destZip: "30303",
       equipmentCode: "FD",
-      mock_auth: true,  // Enable mock auth if available
-      test_mode: true   // Enable test mode for development
+      test_mode: USE_TEST_MODE // Use test mode to bypass auth (requires ALLOW_TEST_MODE=true on server)
     }
   },
   {
@@ -46,8 +48,7 @@ const TEST_LANES = [
       destState: "TX",
       destZip: "75201",
       equipmentCode: "V",
-      mock_auth: true,
-      test_mode: true
+      test_mode: USE_TEST_MODE
     }
   },
   {
@@ -60,8 +61,7 @@ const TEST_LANES = [
       destState: "FL",
       destZip: "33101",
       equipmentCode: "R",
-      mock_auth: true,
-      test_mode: true
+      test_mode: USE_TEST_MODE
     }
   }
 ];

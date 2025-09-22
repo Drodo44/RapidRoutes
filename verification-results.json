@@ -1,0 +1,37 @@
+{
+  "timestamp": "2025-09-21T22:36:46.427Z",
+  "results": [
+    {
+      "name": "Chicago to Atlanta (Flatbed)",
+      "success": false,
+      "status": 405,
+      "error": "",
+      "responseTime": 92
+    },
+    {
+      "name": "Los Angeles to Dallas (Van)",
+      "success": false,
+      "status": 405,
+      "error": "",
+      "responseTime": 31
+    },
+    {
+      "name": "New York to Miami (Reefer)",
+      "success": false,
+      "status": 405,
+      "error": "",
+      "responseTime": 9
+    }
+  ],
+  "statistics": {
+    "successful": 0,
+    "meetRequirement": 0,
+    "total": 3,
+    "averageResponseTime": 0
+  },
+  "overall": {
+    "success": false,
+    "meetsRequirements": true,
+    "status": "FAILURE - Some API calls failed completely"
+  }
+}
