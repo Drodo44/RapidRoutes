@@ -105,9 +105,18 @@ export function decodeToken(token) {
       return null;
     }
     
-    // Decode the token payload
+    // Decode the token payload using browser-compatible base64 decoding
     const payload = token.split('.')[1];
-    const decoded = JSON.parse(Buffer.from(payload, 'base64').toString());
+    // Convert base64url to base64
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    // Decode the payload
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    const decoded = JSON.parse(jsonPayload);
     
     return {
       sub: decoded.sub,

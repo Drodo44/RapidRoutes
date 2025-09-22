@@ -152,9 +152,19 @@ export function decodeToken(token) {
   try {
     // Split the token and get the middle part (payload)
     const base64Payload = token.split('.')[1];
-    // Replace characters and decode
-    const payload = Buffer.from(base64Payload, 'base64').toString('utf8');
-    return JSON.parse(payload);
+    
+    // Use browser-compatible base64 decoding
+    // Convert base64url to base64
+    const base64 = base64Payload.replace(/-/g, '+').replace(/_/g, '/');
+    // Decode the payload
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    
+    return JSON.parse(jsonPayload);
   } catch (error) {
     console.error('Failed to decode token', error);
     return null;

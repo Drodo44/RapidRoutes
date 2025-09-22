@@ -312,15 +312,18 @@ export default async function handler(req, res) {
       if (pair.dest_kma) kmas.add(pair.dest_kma);
     });
     
-    if (kmas.size < 5) {
-      console.warn(`⚠️ INTELLIGENCE API: Only ${kmas.size} unique KMAs found, minimum required is 5`);
+    // Match the MIN_UNIQUE_KMAS requirement from geographicCrawl.js (6 unique KMAs)
+    const MIN_REQUIRED_KMAS = 6;
+    
+    if (kmas.size < MIN_REQUIRED_KMAS) {
+      console.warn(`⚠️ INTELLIGENCE API: Only ${kmas.size} unique KMAs found, minimum required is ${MIN_REQUIRED_KMAS}`);
       return res.status(422).json({
         error: 'Insufficient KMA diversity',
-        details: `Only ${kmas.size} unique KMAs were found. At least 5 unique KMAs are required.`,
+        details: `Only ${kmas.size} unique KMAs were found. At least ${MIN_REQUIRED_KMAS} unique KMAs are required.`,
         pairs: [],
         count: 0,
         uniqueKmas: kmas.size,
-        minRequired: 5,
+        minRequired: MIN_REQUIRED_KMAS,
         success: false
       });
     }
