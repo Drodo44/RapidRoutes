@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../utils/supabaseClient';
 import Header from '../components/Header';
-// No direct import needed - using API endpoint
+// Auth utilities for token management
+import { getCurrentToken, getTokenInfo } from '../utils/authUtils';
 
 export default function PostOptions() {
   const router = useRouter();
@@ -41,36 +42,36 @@ export default function PostOptions() {
     try {
       console.debug(`Generating pairings for lane ID: ${lane.id}`);
       
-      // Get Supabase auth session - CRITICAL for authentication
-      // Force refresh to ensure we have a valid token
-      const { data, error } = await supabase.auth.getSession({ forceRefresh: true });
-      const accessToken = data?.session?.access_token;
+      // Import the auth utilities
+      const { getCurrentToken, getTokenInfo } = await import('../utils/authUtils');
       
-      // Enhanced logging for debugging authentication issues
-      console.debug(`Auth check for lane ${lane.id}: session=${!!data?.session}, token=${accessToken ? `${accessToken.substring(0, 5)}...` : 'MISSING'}`);
-      console.debug(`Lane details: ${lane.origin_city}, ${lane.origin_state} → ${lane.dest_city}, ${lane.dest_state}`);
-      console.debug('Token expiry:', data?.session?.expires_at ? new Date(data.session.expires_at * 1000).toISOString() : 'unknown');
+      // Get current token with auto-refresh capability
+      const { token, user, error: authError } = await getCurrentToken();
       
-      if (error) {
-        console.error('Authentication error:', error.message);
-        setAlert({ type: 'error', message: `Authentication error: ${error.message}` });
+      // Enhanced error handling for authentication issues
+      if (authError || !token) {
+        console.error('Authentication error:', authError?.message || 'No valid token');
+        setAlert({ type: 'error', message: `Authentication error: ${authError?.message || 'Please log in again'}` });
         setGeneratingPairings(false);
         return;
       }
       
-      if (!accessToken) {
-        console.error('Authentication error: No valid access token available');
-        setAlert({ type: 'error', message: 'Not authenticated - please log in again' });
-        setGeneratingPairings(false);
-        return;
-      }
+      // Debug logging for authentication state
+      const tokenInfo = getTokenInfo(token);
+      console.debug(`Auth check for lane ${lane.id}:`, {
+        userId: user?.id,
+        tokenValid: tokenInfo.valid,
+        tokenExpiry: tokenInfo.expiresAt,
+        timeRemaining: tokenInfo.timeLeft,
+        laneDetails: `${lane.origin_city}, ${lane.origin_state} → ${lane.dest_city}, ${lane.dest_state}`
+      });
       
       // Properly format the request with all required authentication
       const response = await fetch('/api/intelligence-pairing', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
+          'Authorization': `Bearer ${token}`
         },
         credentials: 'include', // ensure cookies also flow
         body: JSON.stringify({
@@ -127,28 +128,29 @@ export default function PostOptions() {
     const newPairings = {};
     const newRRs = {};
     
-    // Get Supabase auth session - CRITICAL for authentication
-    // Force refresh to ensure we have a valid token
-    const { data, error } = await supabase.auth.getSession({ forceRefresh: true });
-    const accessToken = data?.session?.access_token;
+    // Import the auth utilities
+    const { getCurrentToken, getTokenInfo } = await import('../utils/authUtils');
+      
+    // Get current token with auto-refresh capability
+    const { token, user, error: authError } = await getCurrentToken();
     
-    // Enhanced logging for debugging authentication issues
-    console.debug(`Auth check for batch generation: session=${!!data?.session}, token=${accessToken ? `${accessToken.substring(0, 5)}...` : 'missing'}`);
-    console.debug(`Batch generating pairings for ${lanes.length} lanes`);
-    
-    if (error) {
-      console.error('Authentication error:', error.message);
-      setAlert({ type: 'error', message: `Authentication error: ${error.message}` });
+    // Enhanced error handling for authentication issues
+    if (authError || !token) {
+      console.error('Authentication error:', authError?.message || 'No valid token');
+      setAlert({ type: 'error', message: `Authentication error: ${authError?.message || 'Please log in again'}` });
       setGeneratingPairings(false);
       return;
     }
     
-    if (!accessToken) {
-      console.error('Authentication error: No valid access token available for batch generation');
-      setAlert({ type: 'error', message: 'Not authenticated - please log in again' });
-      setGeneratingPairings(false);
-      return;
-    }
+    // Debug logging for authentication state
+    const tokenInfo = getTokenInfo(token);
+    console.debug(`Auth check for batch generation:`, {
+      userId: user?.id,
+      tokenValid: tokenInfo.valid,
+      tokenExpiry: tokenInfo.expiresAt,
+      timeRemaining: tokenInfo.timeLeft,
+      laneCount: lanes.length
+    });
     
     for (const lane of lanes) {
       try {
@@ -159,7 +161,7 @@ export default function PostOptions() {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${accessToken}`
+            'Authorization': `Bearer ${token}`
           },
           credentials: 'include', // ensure cookies also flow
           body: JSON.stringify({
@@ -274,6 +276,27 @@ export default function PostOptions() {
                   : `🎯 Generate All Pairings (${lanes.length})`
                 }
               </button>
+              {process.env.NODE_ENV !== 'production' && (
+                <button
+                  onClick={async () => {
+                    try {
+                      setAlert({ type: 'info', message: 'Testing authentication flow...' });
+                      const { testAuthFlow } = await import('../utils/testAuthFlow');
+                      const result = await testAuthFlow();
+                      if (result.success) {
+                        setAlert({ type: 'success', message: 'Auth flow test completed - check console for details' });
+                      } else {
+                        setAlert({ type: 'error', message: `Auth flow test failed: ${result.error}` });
+                      }
+                    } catch (error) {
+                      setAlert({ type: 'error', message: `Auth test error: ${error.message}` });
+                    }
+                  }}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium"
+                >
+                  🔍 Test Auth Flow
+                </button>
+              )}
             </div>
           </div>
           {/* Alert */}

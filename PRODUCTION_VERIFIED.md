@@ -9,6 +9,23 @@
 - ✅ Middleware security has been implemented
 - ✅ Vercel environment variables configured correctly
 - ✅ Missing intelligenceApi.js module created and deployed
+- ✅ Frontend Auth Confirmed
+
+## Authentication Implementation
+
+### Token Strategy Used
+
+- Primary token source: `supabase.auth.getSession()`
+- Fallback: `supabase.auth.getUser()`
+- Token delivery: `Authorization: Bearer <token>` + `credentials: 'include'`
+- Centralized auth utility for consistent token management
+
+### Session Refresh Logic
+
+- Auto-refresh tokens when expired or expiring within 5 minutes
+- `supabase.auth.refreshSession()` for token renewal
+- Graceful fallback when refresh fails
+- Enhanced error handling for authentication failures
 
 ## KMA Diversity Implementation
 

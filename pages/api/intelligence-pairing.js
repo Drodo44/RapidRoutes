@@ -3,6 +3,7 @@
 
 import { generateGeographicCrawlPairs } from '../../lib/geographicCrawl.js';
 import { createClient } from '@supabase/supabase-js';
+import { extractAuthToken, getTokenInfo } from '../../utils/apiAuthUtils.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -31,98 +32,52 @@ export default async function handler(req, res) {
       });
     }
 
-    // IMPROVED: Extract token from multiple potential sources with fallbacks
-    // 1. Authorization header (Bearer token)
-    const authHeader = req.headers.authorization || '';
-    const bearer = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    // IMPROVED: Extract token using our enterprise-grade utility
+    // This utility handles all token sources and formats
+    const { token: accessToken, source, error: extractionError, ...tokenMetadata } = extractAuthToken(req);
     
-    // 2. Various cookie formats that might contain the token
-    let cookieToken = null;
-    try {
-      // Direct cookie access for standard formats
-      cookieToken = req.cookies?.['sb-access-token'] ||
-        req.cookies?.['sb:token'] ||
-        req.cookies?.['supabase-auth-token'];
-      
-      // Parse JSON cookie formats if present
-      if (!cookieToken && req.cookies?.['supabase-auth-token']) {
-        try {
-          const parsed = JSON.parse(req.cookies['supabase-auth-token']);
-          cookieToken = parsed?.access_token || parsed?.[0]?.access_token;
-          console.log('✅ Parsed standard Supabase cookie:', cookieToken ? 'token found' : 'no token');
-        } catch (e) {
-          console.warn('Failed to parse supabase-auth-token cookie:', e.message);
-        }
-      }
-      
-      // ENHANCEMENT: Allow test mode for testing
-      // This enables testing without authentication when explicitly allowed
-      const isTestMode = req.body?.test_mode === true;
-      
-      // Try to parse the 'sb-' prefixed cookies which might contain tokens
-      if (!cookieToken) {
-        const possibleTokenCookies = Object.keys(req.cookies || {})
-          .filter(key => key.startsWith('sb-'));
-          
-        console.log(`🔍 Checking ${possibleTokenCookies.length} sb- prefixed cookies for tokens`);
-        for (const key of possibleTokenCookies) {
-          try {
-            const parsed = JSON.parse(req.cookies[key]);
-            if (parsed?.access_token) {
-              cookieToken = parsed.access_token;
-              console.log(`✅ Found token in cookie: ${key}`);
-              break;
-            }
-          } catch (e) {
-            // Ignore parsing errors and continue
-            console.debug(`Could not parse cookie ${key}: ${e.message}`);
-          }
-        }
-      }
-    } catch (cookieError) {
-      console.warn('Cookie parsing error:', cookieError.message);
-    }
-    
-    // 3. Test mode configuration
-    // Allow test mode when explicitly enabled via environment variable
+    // Get test mode configuration
     const testModeEnabled = process.env.ALLOW_TEST_MODE === 'true';
     const isTestRequest = req.body?.test_mode === true;
     const useTestMode = testModeEnabled && isTestRequest;
     
-    // 4. Mock auth for development/testing or test mode
+    // Get mock auth configuration for development
     const mockEnabled = process.env.ENABLE_MOCK_AUTH === 'true' || process.env.NODE_ENV !== 'production';
     const mockParam = req.query?.mock_auth || req.body?.mock_auth;
-    // Allow mock token when test mode is enabled, even in production
-    const mockToken = (mockEnabled && mockParam) || useTestMode ? 'mock-token' : null;
+    const useMockAuth = (mockEnabled && mockParam) || useTestMode;
     
-    // Use the first available token source in order of preference
-    const accessToken = bearer || cookieToken || mockToken;
+    // If we have a token, get its decoded info for logging
+    const tokenInfo = accessToken ? getTokenInfo(accessToken) : null;
     
     // Enhanced logging for authentication debugging
     console.log('🔐 API Authentication check:', {
       route: '/api/intelligence-pairing',
-      hasAuthHeader: !!authHeader,
-      hasBearer: !!bearer,
-      hasCookieToken: !!cookieToken,
-      mockAuthEnabled: mockEnabled && !!mockParam,
-      testModeEnabled: useTestMode,
       hasToken: !!accessToken,
+      tokenSource: source || 'none',
+      tokenStart: tokenMetadata.tokenStart || 'none',
+      extractionError: extractionError || null,
+      mockEnabled: useMockAuth,
+      testModeEnabled: useTestMode,
       method: req.method,
-      cookieCount: Object.keys(req.cookies || {}).length,
-      tokenSource: bearer ? 'bearer' : (cookieToken ? 'cookie' : (mockToken ? 'mock' : 'none'))
+      cookieCount: tokenMetadata.cookies || 0,
+      tokenMetadata,
+      tokenValid: tokenInfo?.valid,
+      tokenExpiresIn: tokenInfo?.expiresIn,
+      userId: tokenInfo?.userId || null
     });
     
-    if (!accessToken) {
+    if (!accessToken && !useMockAuth) {
       console.error('❌ Authentication error: No valid token provided', {
-        authHeaderExists: !!authHeader,
-        bearerFormat: authHeader ? authHeader.startsWith('Bearer ') : false,
-        cookiesPresent: Object.keys(req.cookies || {}).length > 0,
-        headers: Object.keys(req.headers || {})
+        authHeaderFormat: tokenMetadata.authHeaderFormat || 'missing',
+        cookiesPresent: tokenMetadata.cookies > 0,
+        method: req.method,
+        path: req.url,
+        extractionError
       });
       
       return res.status(401).json({ 
         error: 'Unauthorized',
-        details: 'Missing authentication token. Please provide a valid token via Authorization header or cookies.',
+        details: 'Missing authentication token. Please provide a valid token via Authorization header.',
         code: 'AUTH_TOKEN_MISSING',
         success: false
       });
@@ -143,7 +98,7 @@ export default async function handler(req, res) {
           email: 'test@rapidroutes.app',
           role: 'test_user'
         };
-      } else if (mockToken === accessToken) {
+      } else if (useMockAuth) {
         console.log('⚠️ Using mock authentication (development only)');
         authenticatedUser = { 
           id: 'mock-user-id',
@@ -151,7 +106,22 @@ export default async function handler(req, res) {
           role: 'mock_user'
         };
       } else {
-        // Use adminSupabase to validate the token
+        // First do a quick check for obvious token expiration to avoid unnecessary API calls
+        if (tokenInfo && !tokenInfo.valid && tokenInfo.reason === 'Token expired') {
+          console.error('❌ Token validation failed: Token expired', {
+            expiredAt: tokenInfo.expiresAt,
+            userId: tokenInfo.userId
+          });
+          
+          return res.status(401).json({ 
+            error: 'Unauthorized',
+            details: 'Authentication token has expired',
+            code: 'AUTH_TOKEN_EXPIRED',
+            success: false
+          });
+        }
+        
+        // Use adminSupabase to validate the token with Supabase Auth
         const { data, error } = await adminSupabase.auth.getUser(accessToken);
         
         if (error || !data?.user) {
@@ -160,9 +130,14 @@ export default async function handler(req, res) {
             errorMessage: error?.message,
             status: error?.status,
             hasUser: !!data?.user,
-            tokenStart: accessToken.substring(0, 10) + '...'
+            tokenInfo: tokenInfo ? {
+              userId: tokenInfo.userId,
+              expiresAt: tokenInfo.expiresAt
+            } : 'Unable to decode'
           });
           
+          // Return 401 ONLY when user is null (true authentication failure)
+          // This makes the error handling more precise
           return res.status(401).json({ 
             error: 'Unauthorized',
             details: error?.message || 'Invalid authentication token',
@@ -178,13 +153,15 @@ export default async function handler(req, res) {
       console.log('✅ Authentication successful:', {
         userId: authenticatedUser.id,
         email: authenticatedUser.email,
+        tokenSource: source || 'mock',
+        expiresAt: tokenInfo?.expiresAt || 'N/A',
         route: '/api/intelligence-pairing'
       });
     } catch (authError) {
       console.error('❌ Token validation exception:', authError);
       return res.status(401).json({ 
         error: 'Unauthorized',
-        details: 'Authentication validation failed',
+        details: 'Authentication validation failed: ' + authError.message,
         code: 'AUTH_VALIDATION_ERROR',
         success: false
       });
