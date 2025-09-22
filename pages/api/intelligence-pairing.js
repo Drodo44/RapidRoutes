@@ -2,7 +2,6 @@
 // API endpoint for geographic crawl intelligence pairing
 
 import { generateGeographicCrawlPairs } from '../../lib/geographicCrawl.js';
-import { createClient } from '@supabase/supabase-js';
 import { extractAuthToken, getTokenInfo } from '../../utils/apiAuthUtils.js';
 
 export default async function handler(req, res) {
@@ -39,57 +38,66 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 1. Validate that req.body exists
+    // Early validation of request body
     if (!req.body) {
-      const errorResponse = {
-        error: 'Bad Request',
-        details: 'Missing request body',
+      return res.status(400).json({
+        error: 'Missing request body',
         status: 400,
         success: false
-      };
-      console.error('❌ API Error: Missing request body');
-      return res.status(400).json(errorResponse);
+      });
+    }
+
+    // Normalize and validate required fields
+    const body = req.body;
+    const requiredFields = {
+      laneId: body.laneId || body.lane_id,
+      originCity: body.originCity || body.origin_city,
+      originState: body.originState || body.origin_state,
+      destinationCity: body.destinationCity || body.destination_city || body.destCity || body.dest_city,
+      destinationState: body.destinationState || body.destination_state || body.destState || body.dest_state,
+      equipmentCode: body.equipmentCode || body.equipment_code,
+    };
+    
+    // Build missing fields object
+    const missing = Object.entries(requiredFields)
+      .filter(([_, val]) => !val)
+      .reduce((acc, [key]) => ({ ...acc, [key]: true }), {});
+    
+    // Fast-fail if any required fields are missing
+    if (Object.keys(missing).length > 0) {
+      return res.status(400).json({
+        error: 'Missing required fields',
+        missing,
+        status: 400,
+        success: false
+      });
     }
     
+    // Destructure validated fields
+    const {
+      laneId,
+      originCity,
+      originState,
+      destinationCity,
+      destinationState,
+      equipmentCode
+    } = requiredFields;
+
     console.log('📦 Processing payload:', JSON.stringify(req.body));
     
-    // 2. Support both camelCase (frontend) and snake_case field naming conventions
-    const originCity = req.body.originCity || req.body.origin_city;
-    const originState = req.body.originState || req.body.origin_state;
-    const originZip = req.body.originZip || req.body.origin_zip || '';
-    const destCity = req.body.destCity || req.body.dest_city;
-    const destState = req.body.destState || req.body.dest_state;
-    const destZip = req.body.destZip || req.body.dest_zip || '';
-    const equipmentCode = req.body.equipmentCode || req.body.equipment_code || 'V'; // Default to Van if not provided
+    // Additional optional fields
+    const originZip = body.originZip || body.origin_zip || '';
+    const destinationZip = body.destinationZip || body.destination_zip || body.destZip || body.dest_zip || '';
     
-    // 3. Enhanced validation with specific field errors
-    const missingFields = [];
-    if (!originCity) missingFields.push('originCity/origin_city');
-    if (!originState) missingFields.push('originState/origin_state');
-    if (!destCity) missingFields.push('destCity/dest_city');
-    if (!destState) missingFields.push('destState/dest_state');
-    
-    // 4. Detailed validation errors
-    if (missingFields.length > 0) {
-      const errorResponse = { 
-        error: 'Bad Request',
-        details: `Missing required fields: ${missingFields.join(', ')}`,
-        status: 400,
-        missingFields,
-        success: false
-      };
-      console.error('❌ API Validation Error:', errorResponse);
-      return res.status(400).json(errorResponse);
-    }
-    
-    // 5. Log the validated fields for debugging
+    // Log the validated fields for debugging
     console.log('✅ Validated payload fields:', {
+      laneId,
       originCity,
       originState,
       originZip,
-      destCity, 
-      destState,
-      destZip,
+      destinationCity,
+      destinationState,
+      destinationZip,
       equipmentCode
     });
 
@@ -258,17 +266,16 @@ export default async function handler(req, res) {
     }
     
     // Now we can safely use the authenticated user information
-    console.log(`🎯 INTELLIGENCE API: Starting pairing for ${originCity}, ${originState} → ${destCity}, ${destState}`, {
-      userId: authenticatedUser?.id,
-      email: authenticatedUser?.email,
+    console.log(`🎯 INTELLIGENCE API: Starting pairing for ${originCity}, ${originState} → ${destinationCity}, ${destinationState}`, {
+      laneId,
       originCity,
       originState,
-      destCity,
-      destState,
-      hasEquipment: !!req.body.equipmentCode
-    });
-    
-    // Enhanced logging for Supabase client validation
+      originZip,
+      destinationCity,
+      destinationState,
+      destinationZip,
+      equipmentCode
+    });    // Enhanced logging for Supabase client validation
     console.log('🔄 Validating Supabase client connection...');
     const testQuery = await adminSupabase.from('cities').select('count').limit(1);
     if (testQuery.error) {
@@ -295,19 +302,19 @@ export default async function handler(req, res) {
     }
     
     // Fetch destination coordinates
-    const { data: destData, error: destError } = await adminSupabase
+    const { data: destinationData, error: destinationError } = await adminSupabase
       .from('cities')
       .select('latitude, longitude, zip')
-      .eq('city', destCity)
-      .eq('state_or_province', destState)
+      .eq('city', destinationCity)
+      .eq('state_or_province', destinationState)
       .limit(1);
       
-    if (destError) {
-      throw new Error(`Failed to fetch destination coordinates: ${destError.message}`);
+    if (destinationError) {
+      throw new Error(`Failed to fetch destination coordinates: ${destinationError.message}`);
     }
     
-    if (!destData || destData.length === 0) {
-      throw new Error(`Destination city not found: ${destCity}, ${destState}`);
+    if (!destinationData || destinationData.length === 0) {
+      throw new Error(`Destination city not found: ${destinationCity}, ${destinationState}`);
     }
     
     const origin = {
@@ -319,15 +326,15 @@ export default async function handler(req, res) {
     };
     
     const destination = {
-      city: destCity,
-      state: destState,
-      latitude: Number(destData[0].latitude),
-      longitude: Number(destData[0].longitude),
-      zip: destData[0].zip
+      city: destinationCity,
+      state: destinationState,
+      latitude: Number(destinationData[0].latitude),
+      longitude: Number(destinationData[0].longitude),
+      zip: destinationData[0].zip
     };
 
     // Now call with complete data
-    const result = await generateGeographicCrawlPairs(origin, destination);
+    const result = await generateGeographicCrawlPairs(origin, destination, equipmentCode);
 
     if (!result || !Array.isArray(result.pairs)) {
       throw new Error('Invalid response from intelligence system');
@@ -344,9 +351,21 @@ export default async function handler(req, res) {
         
         // Ensure all required fields exist in both formats for maximum compatibility
         if (normalized) {
-          // Ensure both camelCase and snake_case formats exist for all fields
           return {
-            // Original snake_case format
+            // Standard camelCase format (primary)
+            laneId,
+            originCity: normalized.origin_city || normalized.originCity,
+            originState: normalized.origin_state || normalized.originState,
+            originZip: normalized.origin_zip || normalized.originZip,
+            originKma: normalized.origin_kma || normalized.originKma,
+            destinationCity: normalized.dest_city || normalized.destCity || normalized.destinationCity,
+            destinationState: normalized.dest_state || normalized.destState || normalized.destinationState,
+            destinationZip: normalized.dest_zip || normalized.destZip || normalized.destinationZip,
+            destinationKma: normalized.dest_kma || normalized.destKma || normalized.destinationKma,
+            distanceMiles: normalized.distance_miles || normalized.distanceMiles,
+            equipmentCode: normalized.equipment_code || normalized.equipmentCode,
+            
+            // Legacy snake_case format for backward compatibility
             origin_city: normalized.origin_city || normalized.originCity,
             origin_state: normalized.origin_state || normalized.originState,
             origin_zip: normalized.origin_zip || normalized.originZip,
@@ -358,17 +377,11 @@ export default async function handler(req, res) {
             distance_miles: normalized.distance_miles || normalized.distanceMiles,
             equipment_code: normalized.equipment_code || normalized.equipmentCode,
             
-            // Additional camelCase format
-            originCity: normalized.origin_city || normalized.originCity,
-            originState: normalized.origin_state || normalized.originState,
-            originZip: normalized.origin_zip || normalized.originZip,
-            originKma: normalized.origin_kma || normalized.originKma,
+            // Legacy camelCase format with "dest" prefix for backward compatibility
             destCity: normalized.dest_city || normalized.destCity,
             destState: normalized.dest_state || normalized.destState,
             destZip: normalized.dest_zip || normalized.destZip,
-            destKma: normalized.dest_kma || normalized.destKma,
-            distanceMiles: normalized.distance_miles || normalized.distanceMiles,
-            equipmentCode: normalized.equipment_code || normalized.equipmentCode
+            destKma: normalized.dest_kma || normalized.destKma
           };
         }
         return null;
@@ -398,8 +411,8 @@ export default async function handler(req, res) {
     // Count unique KMAs to ensure we meet the minimum requirement
     const kmas = new Set();
     pairs.forEach(pair => {
-      if (pair.origin_kma) kmas.add(pair.origin_kma);
-      if (pair.dest_kma) kmas.add(pair.dest_kma);
+      if (pair.originKma) kmas.add(pair.originKma);
+      if (pair.destinationKma) kmas.add(pair.destinationKma);
     });
     
     // Match the MIN_UNIQUE_KMAS requirement from geographicCrawl.js (6 unique KMAs)
