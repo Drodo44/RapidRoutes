@@ -22,8 +22,8 @@ const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 // API URLs - Always use production URL to verify deployed endpoint
-// Use the simulate-test-mode endpoint until ALLOW_TEST_MODE is set in Vercel
-const API_URL = 'https://rapid-routes.vercel.app/api/simulate-test-mode';
+// Use the main intelligence-pairing endpoint
+const API_URL = 'https://rapid-routes.vercel.app/api/intelligence-pairing';
 
 // Test lanes for comprehensive coverage
 const testLanes = [
