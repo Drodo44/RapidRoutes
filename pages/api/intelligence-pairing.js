@@ -4,6 +4,22 @@
 import { generateGeographicCrawlPairs } from '../../lib/geographicCrawl.js';
 import { extractAuthToken, getTokenInfo } from '../../utils/apiAuthUtils.js';
 
+// Function to normalize field names from various input formats
+const normalizeFields = (body) => {
+  return {
+    laneId: body.lane_id || body.laneId || '',
+    originCity: body.origin_city || body.originCity || '',
+    originState: body.origin_state || body.originState || '',
+    originZip: body.origin_zip || body.originZip || '',
+    destinationCity: body.destination_city || body.destCity || body.dest_city || body.destinationCity || '',
+    destinationState: body.destination_state || body.destState || body.dest_state || body.destinationState || '',
+    destinationZip: body.destination_zip || body.destZip || body.dest_zip || body.destinationZip || '',
+    equipmentCode: body.equipment_code || body.equipmentCode || 'V',
+    test_mode: body.test_mode || false,
+    mock_auth: body.mock_auth || null,
+  };
+};
+
 export default async function handler(req, res) {
   // Track request handling time for performance monitoring
   const startTime = Date.now();
@@ -47,36 +63,21 @@ export default async function handler(req, res) {
       });
     }
 
-    // Normalize and validate required fields
-    const body = req.body;
+    // Log raw input body for debugging
+    console.log("📦 API input body:", req.body);
     
-    // Direct destructuring with fallbacks for all naming conventions
-    const {
-      laneId = body.lane_id,
-      originCity = body.origin_city,
-      originState = body.origin_state,
-      destinationCity = body.destination_city || body.destCity || body.dest_city,
-      destinationState = body.destination_state || body.destState || body.dest_state,
-      equipmentCode = body.equipment_code || 'V', // Default to Van if not provided
-    } = body;
+    // Normalize all fields in one step
+    const fields = normalizeFields(req.body);
     
-    // Create required fields object from destructured values
-    const requiredFields = {
-      laneId,
-      originCity,
-      originState,
-      destinationCity,
-      destinationState,
-      equipmentCode,
-    };
+    console.log('📦 Payload:', JSON.stringify(fields));
     
-    // Build missing fields object
-    const missing = Object.entries(requiredFields)
+    // Check for missing required fields
+    const missing = Object.entries(fields)
       .filter(([_, val]) => !val)
-      .reduce((acc, [key]) => ({ ...acc, [key]: true }), {});
+      .map(([key]) => key);
     
     // Fast-fail if any required fields are missing
-    if (Object.keys(missing).length > 0) {
+    if (missing.length > 0) {
       return res.status(400).json({
         error: 'Missing required fields',
         missing,
@@ -85,24 +86,13 @@ export default async function handler(req, res) {
       });
     }
     
-    // Destructure validated fields
-    const {
-      laneId,
-      originCity,
-      originState,
-      destinationCity,
-      destinationState,
-      equipmentCode
-    } = requiredFields;
+    // Destructure the normalized fields for use in the rest of the function
+    const { laneId, originCity, originState, originZip, destinationCity, destinationState, destinationZip, equipmentCode } = fields;
 
     console.log('📦 Processing payload:', JSON.stringify(req.body));
     
     // Debug log for normalized input values
     console.log("📥 Normalized origin input:", originCity, originState);
-    
-    // Additional optional fields
-    const originZip = body.originZip || body.origin_zip || '';
-    const destinationZip = body.destinationZip || body.destination_zip || body.destZip || body.dest_zip || '';
     
     // Log the validated fields for debugging
     console.log('✅ Validated payload fields:', {
@@ -122,12 +112,12 @@ export default async function handler(req, res) {
     
     // Get test mode configuration
     const testModeEnabled = process.env.ALLOW_TEST_MODE === 'true';
-    const isTestRequest = req.body?.test_mode === true;
+    const isTestRequest = fields.test_mode === true;
     const useTestMode = testModeEnabled && isTestRequest;
     
     // Get mock auth configuration for development
     const mockEnabled = process.env.ENABLE_MOCK_AUTH === 'true' || process.env.NODE_ENV !== 'production';
-    const mockParam = req.query?.mock_auth || req.body?.mock_auth;
+    const mockParam = req.query?.mock_auth || fields.mock_auth;
     const useMockAuth = (mockEnabled && mockParam) || useTestMode;
     
     // If we have a token, get its decoded info for logging
@@ -290,7 +280,9 @@ export default async function handler(req, res) {
       destinationState,
       destinationZip,
       equipmentCode
-    });    // Enhanced logging for Supabase client validation
+    });
+    
+    // Enhanced logging for Supabase client validation
     console.log('🔄 Validating Supabase client connection...');
     const testQuery = await adminSupabase.from('cities').select('count').limit(1);
     if (testQuery.error) {
@@ -358,13 +350,11 @@ export default async function handler(req, res) {
     // Import the normalization function
     const { normalizePairing } = await import('../../lib/validatePairings.js');
     
-    // Normalize all pairs to ensure consistent format and include BOTH naming conventions
-    // This ensures maximum compatibility with all client implementations
+    // Normalize all pairs to ensure consistent format with camelCase field names
     let pairs = result.pairs.map(pair => {
       try {
         const normalized = normalizePairing(pair);
         
-        // Ensure all required fields exist in both formats for maximum compatibility
         if (normalized) {
           return {
             // Standard camelCase format (primary)
