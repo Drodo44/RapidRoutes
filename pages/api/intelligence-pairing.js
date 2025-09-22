@@ -55,6 +55,10 @@ export default async function handler(req, res) {
         }
       }
       
+      // ENHANCEMENT: Allow test mode for local development
+      // This enables testing without authentication in non-production environments
+      const isTestMode = process.env.NODE_ENV !== 'production' && req.body?.test_mode === true;
+      
       // Try to parse the 'sb-' prefixed cookies which might contain tokens
       if (!cookieToken) {
         const possibleTokenCookies = Object.keys(req.cookies || {})
@@ -80,8 +84,8 @@ export default async function handler(req, res) {
     }
     
     // 3. Query parameter for development/testing only
-    const mockEnabled = process.env.ENABLE_MOCK_AUTH === 'true';
-    const mockParam = req.query?.mock_auth || req.body?.mock_auth;
+    const mockEnabled = process.env.ENABLE_MOCK_AUTH === 'true' || process.env.NODE_ENV !== 'production';
+    const mockParam = req.query?.mock_auth || req.body?.mock_auth || req.body?.test_mode;
     const mockToken = mockEnabled && mockParam ? 'mock-token' : null;
     
     // Use the first available token source in order of preference
