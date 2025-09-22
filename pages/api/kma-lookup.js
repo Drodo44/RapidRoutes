@@ -4,7 +4,7 @@ export default async function handler(req, res) {
   }
 
   const requestId = `req-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
-  console.log(`[${requestId}] 🔍 Incoming request:`, req.body);
+  console.log(`[${requestId}] 🔍 KMA Lookup request:`, req.body);
 
   const body = req.body || {};
   const {
