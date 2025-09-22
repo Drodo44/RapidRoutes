@@ -6,31 +6,87 @@ import { createClient } from '@supabase/supabase-js';
 import { extractAuthToken, getTokenInfo } from '../../utils/apiAuthUtils.js';
 
 export default async function handler(req, res) {
+  // Enhanced request logging with timestamp
+  console.log(`🔄 API Request [${new Date().toISOString()}]: /api/intelligence-pairing`, {
+    method: req.method,
+    headers: {
+      contentType: req.headers['content-type'],
+      hasAuth: !!req.headers['authorization'],
+      hasCredentials: !!req.headers['cookie']
+    },
+    query: req.query || {},
+    hasBody: !!req.body,
+    bodyKeys: req.body ? Object.keys(req.body) : []
+  });
+
   if (req.method !== 'POST') {
-    return res.status(405).json({ 
+    const errorResponse = { 
       error: 'Method not allowed',
       details: 'Only POST requests are supported',
+      status: 405,
       success: false
+    };
+    console.error('❌ API Error: Method not allowed:', {
+      method: req.method,
+      error: errorResponse
     });
+    return res.status(405).json(errorResponse);
   }
 
   try {
-    // Support both camelCase (frontend) and snake_case field naming conventions
+    // 1. Validate that req.body exists
+    if (!req.body) {
+      const errorResponse = {
+        error: 'Bad Request',
+        details: 'Missing request body',
+        status: 400,
+        success: false
+      };
+      console.error('❌ API Error: Missing request body');
+      return res.status(400).json(errorResponse);
+    }
+    
+    console.log('📦 Processing payload:', JSON.stringify(req.body));
+    
+    // 2. Support both camelCase (frontend) and snake_case field naming conventions
     const originCity = req.body.originCity || req.body.origin_city;
     const originState = req.body.originState || req.body.origin_state;
-    const originZip = req.body.originZip || req.body.origin_zip;
+    const originZip = req.body.originZip || req.body.origin_zip || '';
     const destCity = req.body.destCity || req.body.dest_city;
     const destState = req.body.destState || req.body.dest_state;
-    const destZip = req.body.destZip || req.body.dest_zip;
-    const equipmentCode = req.body.equipmentCode || req.body.equipment_code;
-
-    if (!originCity || !originState || !destCity || !destState) {
-      return res.status(400).json({ 
+    const destZip = req.body.destZip || req.body.dest_zip || '';
+    const equipmentCode = req.body.equipmentCode || req.body.equipment_code || 'V'; // Default to Van if not provided
+    
+    // 3. Enhanced validation with specific field errors
+    const missingFields = [];
+    if (!originCity) missingFields.push('originCity/origin_city');
+    if (!originState) missingFields.push('originState/origin_state');
+    if (!destCity) missingFields.push('destCity/dest_city');
+    if (!destState) missingFields.push('destState/dest_state');
+    
+    // 4. Detailed validation errors
+    if (missingFields.length > 0) {
+      const errorResponse = { 
         error: 'Bad Request',
-        details: 'Missing required fields: originCity/origin_city, originState/origin_state, destCity/dest_city, destState/dest_state',
+        details: `Missing required fields: ${missingFields.join(', ')}`,
+        status: 400,
+        missingFields,
         success: false
-      });
+      };
+      console.error('❌ API Validation Error:', errorResponse);
+      return res.status(400).json(errorResponse);
     }
+    
+    // 5. Log the validated fields for debugging
+    console.log('✅ Validated payload fields:', {
+      originCity,
+      originState,
+      originZip,
+      destCity, 
+      destState,
+      destZip,
+      equipmentCode
+    });
 
     // IMPROVED: Extract token using our enterprise-grade utility
     // This utility handles all token sources and formats
@@ -107,47 +163,76 @@ export default async function handler(req, res) {
         };
       } else {
         // First do a quick check for obvious token expiration to avoid unnecessary API calls
-        if (tokenInfo && !tokenInfo.valid && tokenInfo.reason === 'Token expired') {
-          console.error('❌ Token validation failed: Token expired', {
+        if (tokenInfo && !tokenInfo.valid) {
+          const errorResponse = {
+            error: 'Unauthorized',
+            details: `Authentication token validation failed: ${tokenInfo.reason}`,
+            code: tokenInfo.reason === 'Token expired' ? 'AUTH_TOKEN_EXPIRED' : 'AUTH_TOKEN_INVALID',
+            status: 401,
+            success: false
+          };
+          
+          console.error('❌ Token validation failed:', {
+            reason: tokenInfo.reason,
             expiredAt: tokenInfo.expiresAt,
-            userId: tokenInfo.userId
+            userId: tokenInfo.userId,
+            tokenStart: tokenMetadata.tokenStart
           });
           
-          return res.status(401).json({ 
-            error: 'Unauthorized',
-            details: 'Authentication token has expired',
-            code: 'AUTH_TOKEN_EXPIRED',
-            success: false
+          return res.status(401).json(errorResponse);
+        }
+        
+        // Validate that adminSupabase is available
+        if (!adminSupabase) {
+          console.error('❌ Critical server error: adminSupabase client not initialized');
+          return res.status(500).json({ 
+            error: 'Internal Server Error', 
+            details: 'Authentication service unavailable',
+            code: 'AUTH_SERVICE_UNAVAILABLE',
+            status: 500,
+            success: false 
           });
         }
         
-        // Use adminSupabase to validate the token with Supabase Auth
-        const { data, error } = await adminSupabase.auth.getUser(accessToken);
-        
-        if (error || !data?.user) {
-          console.error('❌ Token validation error:', {
-            errorType: error?.name,
-            errorMessage: error?.message,
-            status: error?.status,
-            hasUser: !!data?.user,
-            tokenInfo: tokenInfo ? {
-              userId: tokenInfo.userId,
-              expiresAt: tokenInfo.expiresAt
-            } : 'Unable to decode'
-          });
+        try {
+          // Use adminSupabase to validate the token with Supabase Auth
+          const { data, error } = await adminSupabase.auth.getUser(accessToken);
           
-          // Return 401 ONLY when user is null (true authentication failure)
-          // This makes the error handling more precise
-          return res.status(401).json({ 
-            error: 'Unauthorized',
-            details: error?.message || 'Invalid authentication token',
-            code: error?.code || 'AUTH_INVALID_TOKEN',
+          if (error || !data?.user) {
+            const errorResponse = {
+              error: 'Unauthorized',
+              details: error?.message || 'Invalid authentication token',
+              code: error?.code || 'AUTH_INVALID_TOKEN',
+              status: 401,
+              success: false
+            };
+            
+            console.error('❌ Token validation error:', {
+              errorType: error?.name,
+              errorMessage: error?.message,
+              status: error?.status,
+              hasUser: !!data?.user,
+              tokenInfo: tokenInfo ? {
+                userId: tokenInfo.userId,
+                expiresAt: tokenInfo.expiresAt
+              } : 'Unable to decode'
+            });
+            
+            return res.status(401).json(errorResponse);
+          }
+          
+          // Authentication successful - save the user
+          authenticatedUser = data.user;
+        } catch (supabaseError) {
+          console.error('❌ Supabase authentication error:', supabaseError);
+          return res.status(500).json({
+            error: 'Internal Server Error',
+            details: 'Authentication service error',
+            code: 'AUTH_SERVICE_ERROR',
+            status: 500,
             success: false
           });
         }
-        
-        // Authentication successful - save the user
-        authenticatedUser = data.user;
       }
       
       console.log('✅ Authentication successful:', {

@@ -42,16 +42,51 @@ export default function PostOptions() {
     try {
       console.debug(`Generating pairings for lane ID: ${lane.id}`);
       
+      // Validate required input fields first
+      const requiredFields = [
+        { name: 'Origin City', value: lane.origin_city },
+        { name: 'Origin State', value: lane.origin_state },
+        { name: 'Destination City', value: lane.dest_city },
+        { name: 'Destination State', value: lane.dest_state },
+        { name: 'Equipment Code', value: lane.equipment_code }
+      ];
+      
+      // Check for missing required fields
+      const missingFields = requiredFields.filter(field => !field.value);
+      if (missingFields.length > 0) {
+        const missingFieldNames = missingFields.map(f => f.name).join(', ');
+        console.error(`Validation error: Missing required fields: ${missingFieldNames}`, lane);
+        setAlert({ 
+          type: 'error', 
+          message: `Missing required data: ${missingFieldNames}. Please complete the lane details before generating pairings.` 
+        });
+        setGeneratingPairings(false);
+        return;
+      }
+
       // Import the auth utilities
       const { getCurrentToken, getTokenInfo } = await import('../utils/authUtils');
       
       // Get current token with auto-refresh capability
+      console.log('Awaiting authentication session...');
       const { token, user, error: authError } = await getCurrentToken();
       
       // Enhanced error handling for authentication issues
       if (authError || !token) {
         console.error('Authentication error:', authError?.message || 'No valid token');
         setAlert({ type: 'error', message: `Authentication error: ${authError?.message || 'Please log in again'}` });
+        setGeneratingPairings(false);
+        return;
+      }
+      
+      // Verify that the token is still valid
+      const tokenStatus = getTokenInfo(token);
+      if (!tokenStatus.valid) {
+        console.error(`Token validation failed: ${tokenStatus.reason}`, {
+          timeLeft: tokenStatus.timeLeft,
+          expiresAt: tokenStatus.expiresAt
+        });
+        setAlert({ type: 'error', message: `Session expired: ${tokenStatus.reason}. Please refresh the page and try again.` });
         setGeneratingPairings(false);
         return;
       }
@@ -128,16 +163,56 @@ export default function PostOptions() {
     const newPairings = {};
     const newRRs = {};
     
+    // Validate that we have lanes to process
+    if (!lanes || lanes.length === 0) {
+      console.warn('No lanes available to generate pairings for');
+      setAlert({ type: 'warning', message: 'No lanes available to generate pairings for' });
+      setGeneratingPairings(false);
+      return;
+    }
+    
+    // Pre-validate all lanes to ensure they have required data
+    const invalidLanes = lanes.filter(lane => {
+      return !lane.origin_city || 
+             !lane.origin_state || 
+             !lane.dest_city || 
+             !lane.dest_state || 
+             !lane.equipment_code;
+    });
+    
+    if (invalidLanes.length > 0) {
+      console.error(`Found ${invalidLanes.length} lanes with missing required data`, invalidLanes);
+      setAlert({ 
+        type: 'error', 
+        message: `Cannot process batch: ${invalidLanes.length} lanes are missing required data. Please complete all lane details.` 
+      });
+      setGeneratingPairings(false);
+      return;
+    }
+    
     // Import the auth utilities
     const { getCurrentToken, getTokenInfo } = await import('../utils/authUtils');
       
     // Get current token with auto-refresh capability
+    console.log('Awaiting authentication session...');
     const { token, user, error: authError } = await getCurrentToken();
     
     // Enhanced error handling for authentication issues
     if (authError || !token) {
       console.error('Authentication error:', authError?.message || 'No valid token');
       setAlert({ type: 'error', message: `Authentication error: ${authError?.message || 'Please log in again'}` });
+      setGeneratingPairings(false);
+      return;
+    }
+    
+    // Verify that the token is still valid
+    const tokenStatus = getTokenInfo(token);
+    if (!tokenStatus.valid) {
+      console.error(`Token validation failed: ${tokenStatus.reason}`, {
+        timeLeft: tokenStatus.timeLeft,
+        expiresAt: tokenStatus.expiresAt
+      });
+      setAlert({ type: 'error', message: `Session expired: ${tokenStatus.reason}. Please refresh the page and try again.` });
       setGeneratingPairings(false);
       return;
     }

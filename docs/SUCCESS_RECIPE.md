@@ -43,6 +43,29 @@ RapidRoutes implements an enterprise-grade authentication strategy:
 
 3. **Browser Compatibility**: Uses browser-compatible base64 decoding for tokens
 
+### Auth Initialization Safeguards
+
+1. **Pre-Request Validation**:
+   - Frontend validates auth session BEFORE sending API requests
+   - Confirms token exists and is not expired
+   - Prevents 401 errors by validating before making network calls
+
+2. **Token Validation Workflow**:
+   - Check token presence → Check token expiration → Refresh if needed → Verify with Supabase
+   - Thorough logging at each validation step
+   - Friendly error messages for authentication failures
+
+3. **Auth Guard Implementation**:
+
+   ```javascript
+   // Verify auth before proceeding
+   const { token, error: authError } = await getCurrentToken();
+   if (!token || authError) {
+     console.error('Authentication error:', authError?.message);
+     return; // Prevent API calls without valid auth
+   }
+   ```
+
 ## 🌎 KMA Requirements
 
 Key Market Area (KMA) diversity is a critical business requirement:
@@ -107,6 +130,64 @@ Confirms:
 - Automatic token refresh when tokens expire or are about to expire
 - Enhanced error handling for authentication failures
 - No 401 errors in verified flow
+
+## 🔍 Payload Validation Safeguards
+
+### Frontend Input Validation
+
+- **Required Field Checks**:
+  - Origin City/State, Destination City/State, Equipment Code
+  - Validation occurs BEFORE authentication check to fail fast
+  - Provides user-friendly error messages for missing fields
+
+- **Lane Batch Validation**:
+  - All lanes validated before processing any batch operations
+  - Prevents partial processing of invalid data sets
+
+### Backend Data Validation
+
+- **Field Presence Checks**:
+  - Individual validation for each required field
+  - Specific error messages identifying exactly which fields are missing
+
+- **Field Format Validation**:
+  - City/state values verified against database
+  - Coordinate validation ensures data integrity
+  - Equipment code standardization
+
+- **Explicit Error Responses**:
+  - HTTP 400: Missing or malformed request data
+  - HTTP 422: Valid request but unprocessable (e.g., city not found)
+  - HTTP 500: Server-side processing failures
+
+## 🚨 Error Handling & Recovery
+
+### Production-Safe Error Handling
+
+- **Consistent Error Format**:
+
+  ```json
+  {
+    "error": "Unauthorized",
+    "details": "Authentication token has expired",
+    "status": 401,
+    "success": false
+  }
+  ```
+
+- **Recovery Steps by Error Type**:
+
+| Error Code | Common Cause | Recovery Action |
+|------------|--------------|-----------------|
+| 400 | Missing required fields | Complete all lane details |
+| 401 | Token expired/invalid | Refresh page and log in again |
+| 422 | Insufficient KMAs | Try different origin/destination with more cities |
+| 500 | Server processing error | Check logs, verify database connection |
+
+- **Graceful Degradation**:
+  - All errors captured and logged
+  - User-friendly messages displayed
+  - Prevent cascading failures
 
 ## 📦 Deployment Details
 
