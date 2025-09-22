@@ -6,18 +6,23 @@ import { createClient } from '@supabase/supabase-js';
 import { extractAuthToken, getTokenInfo } from '../../utils/apiAuthUtils.js';
 
 export default async function handler(req, res) {
-  // Enhanced request logging with timestamp
-  console.log(`🔄 API Request [${new Date().toISOString()}]: /api/intelligence-pairing`, {
-    method: req.method,
-    headers: {
-      contentType: req.headers['content-type'],
-      hasAuth: !!req.headers['authorization'],
-      hasCredentials: !!req.headers['cookie']
-    },
-    query: req.query || {},
-    hasBody: !!req.body,
-    bodyKeys: req.body ? Object.keys(req.body) : []
-  });
+  // Track request handling time for performance monitoring
+  const startTime = Date.now();
+  const requestId = `req-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
+
+  try {
+    // Enhanced request logging with timestamp and request ID
+    console.log(`🔄 API Request [${new Date().toISOString()}] ID:${requestId}: /api/intelligence-pairing`, {
+      method: req.method,
+      headers: {
+        contentType: req.headers['content-type'],
+        hasAuth: !!req.headers['authorization'],
+        hasCredentials: !!req.headers['cookie']
+      },
+      query: req.query || {},
+      hasBody: !!req.body,
+      bodyKeys: req.body ? Object.keys(req.body) : []
+    });
 
   if (req.method !== 'POST') {
     const errorResponse = { 
@@ -424,24 +429,59 @@ export default async function handler(req, res) {
 
   } catch (error) {
     // Enhanced error logging with full stack trace for Vercel debugging
-    console.error('❌ Intelligence API error:', error);
+    console.error(`❌ Intelligence API error [ID:${requestId}]:`, error);
     console.error('Stack trace:', error.stack);
+    
+    // Log detailed request information for debugging production issues
+    console.error(`📊 Failed request details [ID:${requestId}]:`, {
+      method: req.method,
+      url: req.url,
+      body: req.body ? JSON.stringify(req.body).substring(0, 1000) : null, // Truncate for logs
+      headers: {
+        contentType: req.headers['content-type'],
+        hasAuth: !!req.headers['authorization'],
+        authStart: req.headers['authorization'] 
+          ? req.headers['authorization'].substring(0, 15) + '...' 
+          : 'none'
+      },
+      processingTime: `${Date.now() - startTime}ms`,
+      errorType: error.name,
+      statusCode: error.status || 500
+    });
     
     // Determine if this is an auth error or another type
     const isAuthError = error.message?.toLowerCase().includes('auth') || 
                         error.message?.toLowerCase().includes('token') ||
                         error.message?.toLowerCase().includes('unauthorized');
     
-    const statusCode = isAuthError ? 401 : 500;
+    const statusCode = isAuthError ? 401 : (error.status || 500);
     
     // Return detailed error information in JSON response that matches our success format
     res.status(statusCode).json({ 
       error: isAuthError ? 'Unauthorized' : 'Processing Error',
       details: error.message || 'Failed to generate intelligence pairs',
       code: isAuthError ? 'AUTH_ERROR' : 'PROCESSING_ERROR',
+      status: statusCode,
+      requestId: requestId,
+      timestamp: new Date().toISOString(),
       stack: process.env.NODE_ENV === 'production' ? undefined : error.stack,
       success: false,
       pairs: []
+    });
+  }
+  } catch (outerError) {
+    // Ultimate fallback for any uncaught errors
+    console.error(`💥 CRITICAL: Uncaught error in API handler [ID:${requestId}]:`, outerError);
+    console.error('Outer stack trace:', outerError.stack);
+    
+    // Return a safe error response
+    res.status(500).json({
+      error: 'Critical Server Error',
+      details: 'An unexpected error occurred while processing your request',
+      status: 500,
+      requestId: requestId,
+      timestamp: new Date().toISOString(),
+      success: false
     });
   }
 }

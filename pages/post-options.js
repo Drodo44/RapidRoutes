@@ -36,11 +36,78 @@ export default function PostOptions() {
     }
   };
 
+  /**
+   * Ensures that the authentication session is fully initialized and ready
+   * @returns {Promise<{ready: boolean, token: string|null, user: object|null, error: Error|null}>}
+   */
+  const ensureAuthReady = async () => {
+    console.log('🔒 Ensuring authentication is ready...');
+    try {
+      // First, check if Supabase client is loaded
+      if (!supabase?.auth) {
+        console.error('Authentication client not initialized');
+        return { ready: false, token: null, user: null, error: new Error('Authentication client not initialized') };
+      }
+      
+      // Import the auth utilities
+      const { getCurrentToken, getTokenInfo } = await import('../utils/authUtils');
+      
+      // Wait for a session to be available - retry up to 3 times with a short delay
+      let attempts = 0;
+      let token = null;
+      let user = null;
+      let authError = null;
+      
+      while (attempts < 3 && !token) {
+        if (attempts > 0) {
+          console.log(`Authentication retry attempt ${attempts + 1}/3...`);
+          // Small delay between retries (200ms, 400ms)
+          await new Promise(resolve => setTimeout(resolve, attempts * 200));
+        }
+        
+        const result = await getCurrentToken();
+        token = result.token;
+        user = result.user;
+        authError = result.error;
+        
+        if (token) break;
+        attempts++;
+      }
+      
+      // Enhanced error handling for authentication issues
+      if (authError || !token) {
+        console.error('Authentication error after retries:', authError?.message || 'No valid token');
+        return { ready: false, token: null, user: null, error: authError || new Error('No valid token available') };
+      }
+      
+      // Verify that the token is still valid
+      const tokenStatus = getTokenInfo(token);
+      if (!tokenStatus.valid) {
+        console.error(`Token validation failed: ${tokenStatus.reason}`, {
+          timeLeft: tokenStatus.timeLeft,
+          expiresAt: tokenStatus.expiresAt
+        });
+        return { 
+          ready: false, 
+          token: null, 
+          user: null, 
+          error: new Error(`Token invalid: ${tokenStatus.reason}`)
+        };
+      }
+      
+      console.log('✅ Authentication ready with valid token');
+      return { ready: true, token, user, error: null, tokenInfo: tokenStatus };
+    } catch (error) {
+      console.error('Failed to initialize authentication:', error);
+      return { ready: false, token: null, user: null, error };
+    }
+  };
+  
   const generatePairingsForLane = async (lane) => {
     setGeneratingPairings(true);
     setAlert(null);
     try {
-      console.debug(`Generating pairings for lane ID: ${lane.id}`);
+      console.log(`🔄 Generating pairings for lane ID: ${lane.id} - ${lane.origin_city}, ${lane.origin_state} → ${lane.dest_city}, ${lane.dest_state}`);
       
       // Validate required input fields first
       const requiredFields = [
@@ -55,7 +122,7 @@ export default function PostOptions() {
       const missingFields = requiredFields.filter(field => !field.value);
       if (missingFields.length > 0) {
         const missingFieldNames = missingFields.map(f => f.name).join(', ');
-        console.error(`Validation error: Missing required fields: ${missingFieldNames}`, lane);
+        console.error(`❌ Validation error: Missing required fields: ${missingFieldNames}`, lane);
         setAlert({ 
           type: 'error', 
           message: `Missing required data: ${missingFieldNames}. Please complete the lane details before generating pairings.` 
@@ -64,49 +131,36 @@ export default function PostOptions() {
         return;
       }
 
-      // Import the auth utilities
-      const { getCurrentToken, getTokenInfo } = await import('../utils/authUtils');
+      // Ensure authentication is ready before making API calls
+      const { ready, token, user, error: authError, tokenInfo: authTokenInfo } = await ensureAuthReady();
       
-      // Get current token with auto-refresh capability
-      console.log('Awaiting authentication session...');
-      const { token, user, error: authError } = await getCurrentToken();
-      
-      // Enhanced error handling for authentication issues
-      if (authError || !token) {
-        console.error('Authentication error:', authError?.message || 'No valid token');
+      if (!ready || authError || !token) {
+        console.error('❌ Authentication not ready:', authError?.message || 'No valid token');
         setAlert({ type: 'error', message: `Authentication error: ${authError?.message || 'Please log in again'}` });
         setGeneratingPairings(false);
         return;
       }
       
-      // Verify that the token is still valid
-      const tokenStatus = getTokenInfo(token);
-      if (!tokenStatus.valid) {
-        console.error(`Token validation failed: ${tokenStatus.reason}`, {
-          timeLeft: tokenStatus.timeLeft,
-          expiresAt: tokenStatus.expiresAt
-        });
-        setAlert({ type: 'error', message: `Session expired: ${tokenStatus.reason}. Please refresh the page and try again.` });
-        setGeneratingPairings(false);
-        return;
-      }
-      
       // Debug logging for authentication state
-      const tokenInfo = getTokenInfo(token);
-      console.debug(`Auth check for lane ${lane.id}:`, {
+      console.log(`🔐 Auth check for lane ${lane.id}:`, {
         userId: user?.id,
-        tokenValid: tokenInfo.valid,
-        tokenExpiry: tokenInfo.expiresAt,
-        timeRemaining: tokenInfo.timeLeft,
+        tokenValid: authTokenInfo.valid,
+        tokenExpiry: authTokenInfo.expiresAt,
+        timeRemaining: authTokenInfo.timeLeft,
         laneDetails: `${lane.origin_city}, ${lane.origin_state} → ${lane.dest_city}, ${lane.dest_state}`
       });
+      
+      // Generate a unique request ID for tracing
+      const requestId = `req-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
+      console.log(`📤 [${requestId}] Sending pairing request for lane ${lane.id}...`);
       
       // Properly format the request with all required authentication
       const response = await fetch('/api/intelligence-pairing', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'X-Request-ID': requestId
         },
         credentials: 'include', // ensure cookies also flow
         body: JSON.stringify({
@@ -120,24 +174,43 @@ export default function PostOptions() {
         })
       });
       
-      console.debug(`API response for lane ${lane.id}: status=${response.status}`);
+      // Log the exact response code and status text
+      console.log(`📥 [${requestId}] API response for lane ${lane.id}: ${response.status} ${response.statusText}`);
       
       // Parse the response
       const result = await response.json();
       
       // Handle authentication errors specifically
       if (response.status === 401) {
-        console.error('Authentication failed:', result.message || 'Unauthorized');
+        console.error(`❌ [${requestId}] Authentication failed:`, result.error || result.message || 'Unauthorized');
         setAlert({ type: 'error', message: 'Authentication failed - please log in again' });
+        setGeneratingPairings(false);
+        return;
+      }
+      
+      // Handle 422 KMA diversity errors as soft warnings
+      if (response.status === 422 && 
+          (result.error?.includes('KMA') || result.details?.includes('KMA') || 
+           result.error?.includes('unique') || result.details?.includes('unique'))) {
+        console.warn(`⚠️ [${requestId}] KMA diversity requirement not met for lane ${lane.id}:`, result.details || result.error);
+        setAlert({ 
+          type: 'warning', 
+          message: `Lane ${lane.id}: ${result.details || 'Insufficient KMA diversity'} - skipped`
+        });
+        setPairings(prev => ({ ...prev, [lane.id]: [] }));
         setGeneratingPairings(false);
         return;
       }
       
       // Handle other API errors
       if (!response.ok || !result.success) {
-        const errorMsg = result.message || result.error || 'Failed to generate pairings';
-        console.error(`API error for lane ${lane.id}:`, errorMsg);
-        throw new Error(errorMsg);
+        const errorMsg = result.details || result.error || result.message || 'Failed to generate pairings';
+        console.error(`❌ [${requestId}] API error for lane ${lane.id}:`, {
+          status: response.status,
+          error: errorMsg,
+          details: result
+        });
+        throw new Error(`${errorMsg} (Status: ${response.status})`);
       }
       
   const pairs = Array.isArray(result.pairs) ? result.pairs : [];
@@ -162,26 +235,46 @@ export default function PostOptions() {
     setAlert(null);
     const newPairings = {};
     const newRRs = {};
+    let successCount = 0;
+    let skipCount = 0;
+    let errorCount = 0;
+    
+    // Start time for performance measurement
+    const batchStartTime = Date.now();
+    console.log('🚀 Starting batch pairing generation...');
     
     // Validate that we have lanes to process
     if (!lanes || lanes.length === 0) {
-      console.warn('No lanes available to generate pairings for');
+      console.warn('⚠️ No lanes available to generate pairings for');
       setAlert({ type: 'warning', message: 'No lanes available to generate pairings for' });
       setGeneratingPairings(false);
       return;
     }
     
+    console.log(`📋 Pre-validating ${lanes.length} lanes before processing`);
+    
     // Pre-validate all lanes to ensure they have required data
     const invalidLanes = lanes.filter(lane => {
-      return !lane.origin_city || 
+      const missing = !lane.origin_city || 
              !lane.origin_state || 
              !lane.dest_city || 
              !lane.dest_state || 
              !lane.equipment_code;
+             
+      if (missing) {
+        console.warn(`⚠️ Lane ${lane.id} has missing required fields:`, {
+          origin_city: !!lane.origin_city,
+          origin_state: !!lane.origin_state,
+          dest_city: !!lane.dest_city,
+          dest_state: !!lane.dest_state,
+          equipment_code: !!lane.equipment_code
+        });
+      }
+      return missing;
     });
     
     if (invalidLanes.length > 0) {
-      console.error(`Found ${invalidLanes.length} lanes with missing required data`, invalidLanes);
+      console.error(`❌ Found ${invalidLanes.length} lanes with missing required data`, invalidLanes);
       setAlert({ 
         type: 'error', 
         message: `Cannot process batch: ${invalidLanes.length} lanes are missing required data. Please complete all lane details.` 
@@ -190,101 +283,194 @@ export default function PostOptions() {
       return;
     }
     
-    // Import the auth utilities
-    const { getCurrentToken, getTokenInfo } = await import('../utils/authUtils');
-      
-    // Get current token with auto-refresh capability
-    console.log('Awaiting authentication session...');
-    const { token, user, error: authError } = await getCurrentToken();
+    // Ensure authentication is ready before making API calls
+    console.log('🔒 Initializing authentication for batch processing...');
+    const { ready, token, user, error: authError, tokenInfo: authTokenInfo } = await ensureAuthReady();
     
-    // Enhanced error handling for authentication issues
-    if (authError || !token) {
-      console.error('Authentication error:', authError?.message || 'No valid token');
+    if (!ready || authError || !token) {
+      console.error('❌ Authentication not ready:', authError?.message || 'No valid token');
       setAlert({ type: 'error', message: `Authentication error: ${authError?.message || 'Please log in again'}` });
       setGeneratingPairings(false);
       return;
     }
     
-    // Verify that the token is still valid
-    const tokenStatus = getTokenInfo(token);
-    if (!tokenStatus.valid) {
-      console.error(`Token validation failed: ${tokenStatus.reason}`, {
-        timeLeft: tokenStatus.timeLeft,
-        expiresAt: tokenStatus.expiresAt
-      });
-      setAlert({ type: 'error', message: `Session expired: ${tokenStatus.reason}. Please refresh the page and try again.` });
-      setGeneratingPairings(false);
-      return;
-    }
-    
     // Debug logging for authentication state
-    const tokenInfo = getTokenInfo(token);
-    console.debug(`Auth check for batch generation:`, {
+    console.log(`🔐 Auth check for batch generation:`, {
       userId: user?.id,
-      tokenValid: tokenInfo.valid,
-      tokenExpiry: tokenInfo.expiresAt,
-      timeRemaining: tokenInfo.timeLeft,
+      tokenValid: authTokenInfo.valid,
+      tokenExpiry: authTokenInfo.expiresAt,
+      timeRemaining: authTokenInfo.timeLeft,
       laneCount: lanes.length
     });
     
-    for (const lane of lanes) {
-      try {
-        console.debug(`Generating pairings for lane ID: ${lane.id}`);
-        
-        // Properly format the request with all required authentication
-        const response = await fetch('/api/intelligence-pairing', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          credentials: 'include', // ensure cookies also flow
-          body: JSON.stringify({
-            originCity: lane.origin_city,
-            originState: lane.origin_state,
-            originZip: lane.origin_zip || '',
-            destCity: lane.dest_city,
-            destState: lane.dest_state,
-            destZip: lane.dest_zip || '',
-            equipmentCode: lane.equipment_code || 'V'
-          })
-        });
-        
-        console.debug(`API response for lane ${lane.id}: status=${response.status}`);
-        
-        // Parse the response
-        const result = await response.json();
-        
-        // Handle authentication errors specifically
-        if (response.status === 401) {
-          console.error('Authentication failed:', result.message || 'Unauthorized');
-          setAlert({ type: 'error', message: 'Authentication failed - please log in again' });
-          break; // Stop processing more lanes
+    const validLanes = [...lanes];
+    let processedCount = 0;
+    
+    // Process lanes in batches of 5 to avoid overloading the API
+    while (validLanes.length > 0) {
+      const batchLanes = validLanes.splice(0, 5);
+      const batchPromises = batchLanes.map(async lane => {
+        try {
+          // Generate a unique request ID for tracing
+          const requestId = `req-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
+          console.log(`🔄 [${requestId}] Processing lane ${lane.id} (${++processedCount}/${lanes.length}): ${lane.origin_city}, ${lane.origin_state} → ${lane.dest_city}, ${lane.dest_state}`);
+          
+          // Properly format the request with all required authentication
+          const response = await fetch('/api/intelligence-pairing', {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+              'X-Request-ID': requestId
+            },
+            credentials: 'include', // ensure cookies also flow
+            body: JSON.stringify({
+              originCity: lane.origin_city,
+              originState: lane.origin_state,
+              originZip: lane.origin_zip || '',
+              destCity: lane.dest_city,
+              destState: lane.dest_state,
+              destZip: lane.dest_zip || '',
+              equipmentCode: lane.equipment_code || 'V'
+            })
+          });
+          
+          // Log the exact response code and status text
+          console.log(`📥 [${requestId}] API response for lane ${lane.id}: ${response.status} ${response.statusText}`);
+          
+          // Parse the response
+          const result = await response.json();
+          
+          // Handle authentication errors specifically
+          if (response.status === 401) {
+            console.error(`❌ [${requestId}] Authentication failed:`, result.error || result.message || 'Unauthorized');
+            errorCount++;
+            return { 
+              laneId: lane.id, 
+              success: false, 
+              error: 'Authentication failed',
+              stop: true // Signal to stop processing
+            };
+          }
+          
+          // Handle 422 KMA diversity errors as soft warnings
+          if (response.status === 422 && 
+              (result.error?.includes('KMA') || result.details?.includes('KMA') || 
+              result.error?.includes('unique') || result.details?.includes('unique'))) {
+            console.warn(`⚠️ [${requestId}] KMA diversity requirement not met for lane ${lane.id}:`, result.details || result.error);
+            skipCount++;
+            return { 
+              laneId: lane.id, 
+              success: false, 
+              error: result.details || 'Insufficient KMA diversity',
+              pairs: [],
+              skipped: true
+            };
+          }
+          
+          // Handle other API errors
+          if (!response.ok || !result.success) {
+            const errorMsg = result.details || result.error || result.message || 'Failed to generate pairings';
+            console.error(`❌ [${requestId}] API error for lane ${lane.id}:`, {
+              status: response.status,
+              error: errorMsg,
+              details: result
+            });
+            errorCount++;
+            return { 
+              laneId: lane.id, 
+              success: false, 
+              error: `${errorMsg} (Status: ${response.status})`,
+              pairs: []
+            };
+          }
+          
+          // Success path
+          const pairs = Array.isArray(result.pairs) ? result.pairs : [];
+          if (pairs.length < 6) {
+            console.warn(`⚠️ [${requestId}] Insufficient pairs (${pairs.length}) for lane ${lane.id}`);
+            skipCount++;
+            return { 
+              laneId: lane.id, 
+              success: false, 
+              error: `Only ${pairs.length} pairs found (minimum 6 required)`,
+              pairs: [],
+              skipped: true
+            };
+          }
+          
+          // Generate reference number
+          const rrResponse = await fetch('/api/rr-number');
+          const rrResult = await rrResponse.json();
+          const rr = rrResult.success ? rrResult.rrNumber : 'RR00000';
+          
+          console.log(`✅ [${requestId}] Successfully generated ${pairs.length} pairs for lane ${lane.id}`);
+          successCount++;
+          return { 
+            laneId: lane.id, 
+            success: true, 
+            pairs, 
+            rr,
+            uniqueKmas: result.uniqueKmas || 'unknown'
+          };
+        } catch (error) {
+          console.error(`❌ Error processing lane ${lane.id}:`, error);
+          errorCount++;
+          return { 
+            laneId: lane.id, 
+            success: false, 
+            error: error.message || 'Unknown error',
+            pairs: []
+          };
         }
-        
-        // Handle other API errors
-        if (!response.ok || !result.success) {
-          const errorMsg = result.message || result.error || 'Failed to generate pairings';
-          console.error(`API error for lane ${lane.id}:`, errorMsg);
-          throw new Error(errorMsg);
+      });
+      
+      // Wait for all lanes in this batch to complete
+      const results = await Promise.all(batchPromises);
+      
+      // Process results
+      for (const result of results) {
+        if (result.success) {
+          newPairings[result.laneId] = result.pairs;
+          newRRs[result.laneId] = result.rr;
+        } else {
+          newPairings[result.laneId] = [];
+          
+          // If authentication failed, stop processing
+          if (result.stop) {
+            setAlert({ type: 'error', message: 'Authentication failed - please log in again' });
+            setPairings(newPairings);
+            setRRNumbers(newRRs);
+            setGeneratingPairings(false);
+            return;
+          }
         }
-        
-  const pairs = Array.isArray(result.pairs) ? result.pairs : [];
-        if (pairs.length < 5) throw new Error('Intelligence system failed: fewer than 5 unique KMAs found');
-        newPairings[lane.id] = pairs;
-        const rrResponse = await fetch('/api/rr-number');
-        const rrResult = await rrResponse.json();
-        const rr = rrResult.success ? rrResult.rrNumber : 'RR00000';
-        newRRs[lane.id] = rr;
-      } catch (error) {
-        setAlert({ type: 'error', message: error.message });
-        newPairings[lane.id] = [];
+      }
+      
+      // Small delay to avoid rate limits
+      if (validLanes.length > 0) {
+        await new Promise(resolve => setTimeout(resolve, 300));
       }
     }
+    
+    // Calculate performance stats
+    const totalTime = Date.now() - batchStartTime;
+    const avgTimePerLane = Math.round(totalTime / lanes.length);
+    
+    console.log(`✨ Batch processing complete: ${successCount} success, ${skipCount} skipped, ${errorCount} errors in ${totalTime}ms (avg: ${avgTimePerLane}ms/lane)`);
+    
     setPairings(newPairings);
     setRRNumbers(newRRs);
     setGeneratingPairings(false);
-    setAlert({ type: 'success', message: 'Pairings generated for all lanes.' });
+    
+    // Set appropriate alert message based on results
+    if (errorCount === 0 && skipCount === 0) {
+      setAlert({ type: 'success', message: `Pairings generated for all ${lanes.length} lanes successfully.` });
+    } else if (errorCount === 0 && skipCount > 0) {
+      setAlert({ type: 'warning', message: `Completed with ${successCount} successful lanes. ${skipCount} lanes skipped due to KMA requirements.` });
+    } else {
+      setAlert({ type: 'warning', message: `Completed with mixed results: ${successCount} success, ${skipCount} skipped, ${errorCount} errors.` });
+    }
   };
 
   const generateReferenceId = () => {
