@@ -49,13 +49,25 @@ export default async function handler(req, res) {
 
     // Normalize and validate required fields
     const body = req.body;
+    
+    // Direct destructuring with fallbacks for all naming conventions
+    const {
+      laneId = body.lane_id,
+      originCity = body.origin_city,
+      originState = body.origin_state,
+      destinationCity = body.destination_city || body.destCity || body.dest_city,
+      destinationState = body.destination_state || body.destState || body.dest_state,
+      equipmentCode = body.equipment_code || 'V', // Default to Van if not provided
+    } = body;
+    
+    // Create required fields object from destructured values
     const requiredFields = {
-      laneId: body.laneId || body.lane_id,
-      originCity: body.originCity || body.origin_city,
-      originState: body.originState || body.origin_state,
-      destinationCity: body.destinationCity || body.destination_city || body.destCity || body.dest_city,
-      destinationState: body.destinationState || body.destination_state || body.destState || body.dest_state,
-      equipmentCode: body.equipmentCode || body.equipment_code,
+      laneId,
+      originCity,
+      originState,
+      destinationCity,
+      destinationState,
+      equipmentCode,
     };
     
     // Build missing fields object
@@ -84,6 +96,9 @@ export default async function handler(req, res) {
     } = requiredFields;
 
     console.log('📦 Processing payload:', JSON.stringify(req.body));
+    
+    // Debug log for normalized input values
+    console.log("📥 Normalized origin input:", originCity, originState);
     
     // Additional optional fields
     const originZip = body.originZip || body.origin_zip || '';

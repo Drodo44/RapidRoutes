@@ -109,6 +109,14 @@ export default function PostOptions() {
     try {
       console.log(`🔄 Generating pairings for lane ID: ${lane.id} - ${lane.origin_city || lane.originCity}, ${lane.origin_state || lane.originState} → ${lane.dest_city || lane.destinationCity}, ${lane.dest_state || lane.destinationState}`);
       
+      // Debug log to track exact data being sent to API
+      console.log("🧪 Sending lane to API:", {
+        originCity: lane.originCity || lane.origin_city,
+        originState: lane.originState || lane.origin_state,
+        destinationCity: lane.destinationCity || lane.destination_city || lane.dest_city,
+        destinationState: lane.destinationState || lane.destination_state || lane.dest_state,
+      });
+      
       // Validate required input fields first
       const requiredFields = [
         { name: 'Origin City', value: lane.origin_city || lane.originCity },
@@ -317,6 +325,14 @@ export default function PostOptions() {
           // Generate a unique request ID for tracing
           const requestId = `req-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
           console.log(`🔄 [${requestId}] Processing lane ${lane.id} (${++processedCount}/${lanes.length}): ${lane.origin_city || lane.originCity}, ${lane.origin_state || lane.originState} → ${lane.dest_city || lane.destinationCity}, ${lane.dest_state || lane.destinationState}`);
+          
+          // Debug log to track exact data being sent to API
+          console.log("🧪 Sending lane to API:", {
+            originCity: lane.originCity || lane.origin_city,
+            originState: lane.originState || lane.origin_state,
+            destinationCity: lane.destinationCity || lane.destination_city || lane.dest_city,
+            destinationState: lane.destinationState || lane.destination_state || lane.dest_state,
+          });
           
           // Properly format the request with all required authentication
           const response = await fetch('/api/intelligence-pairing', {
