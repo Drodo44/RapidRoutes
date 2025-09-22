@@ -1,20 +1,22 @@
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method Not Allowed', allowed: 'POST' });
+  // Accept both GET and POST methods for easier testing
+  if (req.method !== 'POST' && req.method !== 'GET') {
+    return res.status(405).json({ error: 'Method Not Allowed', allowed: ['POST', 'GET'] });
   }
 
   const requestId = `req-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
-  console.log(`[${requestId}] 🔍 KMA Lookup request:`, req.body);
+  console.log(`[${requestId}] 🔍 KMA Lookup request:`, req.method === 'GET' ? req.query : req.body);
 
-  const body = req.body || {};
+  // Handle both GET and POST parameters
+  const params = req.method === 'GET' ? req.query : (req.body || {});
   const {
-    lane_id = body.laneId,
-    origin_city = body.originCity,
-    origin_state = body.originState,
-    destination_city = body.destinationCity,
-    destination_state = body.destinationState,
-    equipment_code = body.equipmentCode || 'V'
-  } = body;
+    lane_id = params.laneId,
+    origin_city = params.originCity,
+    origin_state = params.originState,
+    destination_city = params.destinationCity,
+    destination_state = params.destinationState,
+    equipment_code = params.equipmentCode || 'V'
+  } = params;
 
   const required = { lane_id, origin_city, origin_state, destination_city, destination_state, equipment_code };
   const missing = Object.entries(required).filter(([_, v]) => !v).map(([k]) => k);
