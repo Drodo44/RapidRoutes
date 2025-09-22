@@ -8,5 +8,15 @@
       "path": "/api/fetchDatBlog",
       "schedule": "0 10 * * 1"
     }
+  ],
+  "routes": [
+    {
+      "src": "/api/kma-lookup",
+      "dest": "/api/kma-lookup"
+    },
+    {
+      "src": "/api/test",
+      "dest": "/api/test"
+    }
   ]
 }
