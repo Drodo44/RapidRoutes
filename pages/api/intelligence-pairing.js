@@ -58,6 +58,7 @@ export default async function handler(req, res) {
       equipment_code,
       equipmentCode = 'V',
       test_mode = false,
+      mock_auth = false,
     } = req.body;
 
     // Normalize field names 
@@ -68,7 +69,8 @@ export default async function handler(req, res) {
       destination_city: destination_city || destinationCity || dest_city,
       destination_state: destination_state || destinationState || dest_state,
       equipment_code: equipment_code || equipmentCode || 'V',
-      test_mode: test_mode || false,
+      test_mode: test_mode === true,
+      mock_auth: mock_auth === true,
     };
 
     console.log('📦 Normalized payload:', JSON.stringify(normalizedFields));
@@ -99,8 +101,17 @@ export default async function handler(req, res) {
     
     // Get mock auth configuration for development
     const mockEnabled = process.env.ENABLE_MOCK_AUTH === 'true' || process.env.NODE_ENV !== 'production';
-    const mockParam = req.query?.mock_auth || req.body?.mock_auth;
+    const mockParam = req.query?.mock_auth || normalizedFields.mock_auth;
     const useMockAuth = (mockEnabled && mockParam) || useTestMode;
+    
+    console.log('🔐 Auth Configuration:', { 
+      testModeEnabled, 
+      isTestRequest, 
+      useTestMode, 
+      mockEnabled, 
+      mockParam, 
+      useMockAuth
+    });
     
     if (!accessToken && !useMockAuth) {
       console.error('❌ Authentication error: No valid token provided');
