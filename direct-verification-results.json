@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-09-22T01:29:07.709Z",
+  "timestamp": "2025-09-22T01:34:02.856Z",
   "apiUrl": "https://rapid-routes.vercel.app/api/intelligence-pairing",
   "laneTests": [
     {
@@ -7,21 +7,21 @@
       "success": false,
       "status": 401,
       "error": "{\"error\":\"Unauthorized\",\"details\":\"Missing Supabase authentication token\",\"success\":false}",
-      "responseTime": 617
+      "responseTime": 68
     },
     {
       "name": "Los Angeles to Dallas (Van)",
       "success": false,
       "status": 401,
       "error": "{\"error\":\"Unauthorized\",\"details\":\"Missing Supabase authentication token\",\"success\":false}",
-      "responseTime": 56
+      "responseTime": 33
     },
     {
       "name": "New York to Miami (Reefer)",
       "success": false,
       "status": 401,
       "error": "{\"error\":\"Unauthorized\",\"details\":\"Missing Supabase authentication token\",\"success\":false}",
-      "responseTime": 29
+      "responseTime": 32
     }
   ],
   "debugEndpoints": [
