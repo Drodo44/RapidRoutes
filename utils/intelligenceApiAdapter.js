@@ -20,9 +20,8 @@ export async function callIntelligencePairingApi(lane, options = {}) {
     ? options.useTestMode 
     : isTestModeAllowed();
   
-  // Format parameters properly to match what the API expects
-  // Use the direct format that matches what geographicCrawl expects
-  const payload = {
+  // First gather parameters in camelCase format
+  const camelCasePayload = {
     laneId: lane.id,
     originCity: lane.origin_city || lane.originCity,
     originState: lane.origin_state || lane.originState,
@@ -34,10 +33,26 @@ export async function callIntelligencePairingApi(lane, options = {}) {
     equipmentCode: lane.equipment_code || lane.equipmentCode || 'V',
     test_mode: useTestMode
   };
+  
+  // Helper function to convert camelCase keys to snake_case
+  const toSnakeCase = (str) => str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+  
+  // Convert all keys to snake_case for the backend
+  const payload = Object.entries(camelCasePayload).reduce((acc, [key, value]) => {
+    // test_mode is already snake_case
+    const snakeKey = key === 'test_mode' ? key : toSnakeCase(key);
+    acc[snakeKey] = value;
+    return acc;
+  }, {});
+  
+  console.log('Intelligence API call with transformed payload:', payload);
 
-  console.log('Intelligence API call with payload:', payload);
+  console.log('Intelligence API call with transformed payload:', payload);
 
   try {
+    // For debugging/logging - show the final payload that will be sent
+    console.log('Final snake_case payload to API:', JSON.stringify(payload, null, 2));
+    
     const response = await fetch('/api/intelligence-pairing', {
       method: 'POST',
       headers: {
