@@ -42,6 +42,7 @@ Confirms:
 ## 🧰 Production Patterns
 
 - ✅ Adapter pattern implemented for parameter normalization
+- ✅ Adapter now converts all API parameters to backend-required snake_case
 - Use `/utils/intelligenceApiAdapter.js` for all API calls
 - Parameter transformation handled in adapter layer
 

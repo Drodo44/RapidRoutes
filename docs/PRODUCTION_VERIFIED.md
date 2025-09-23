@@ -31,11 +31,12 @@ The root cause of the issue was a parameter name mismatch:
 4. ✅ Tested in development environment with ALLOW_TEST_MODE=true
 5. ✅ Verified proper error handling for various scenarios
 6. ✅ Confirmed that parameters are correctly transformed:
-   - `destinationCity` → `destCity`
-   - `destinationState` → `destState`
-   - `originCity` → `originCity` (unchanged)
-   - `originState` → `originState` (unchanged)
-   - `equipmentCode` → `equipmentCode` (unchanged)
+   - `destinationCity` → `dest_city` (renamed + snake_case)
+   - `destinationState` → `dest_state` (renamed + snake_case)
+   - `originCity` → `origin_city` (snake_case)
+   - `originState` → `origin_state` (snake_case)
+   - `equipmentCode` → `equipment_code` (snake_case)
+   - `laneId` → `lane_id` (snake_case)
 7. ✅ Removed debug-only files not needed for production
 
 ### Key Files Modified
