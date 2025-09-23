@@ -3,6 +3,18 @@
  * 
  * This adapter ensures that requests to the intelligence-pairing API
  * are formatted correctly to avoid 400 Bad Request errors.
+ * 
+ * Key transformations:
+ * 1. Renames dest_city/dest_state to destination_city/destination_state
+ * 2. Converts all keys from camelCase to snake_case
+ * 3. Ensures all required fields are present and non-empty
+ * 
+ * Required API parameters (snake_case):
+ * - origin_city
+ * - origin_state
+ * - destination_city  (NOT dest_city)
+ * - destination_state (NOT dest_state)
+ * - equipment_code
  */
 
 /**
@@ -20,19 +32,31 @@ export async function callIntelligencePairingApi(lane, options = {}) {
     ? options.useTestMode 
     : isTestModeAllowed();
   
-  // First gather parameters in camelCase format
+  // First gather parameters in camelCase format and ensure defaults for critical fields
   const camelCasePayload = {
     laneId: lane.id,
-    originCity: lane.origin_city || lane.originCity,
-    originState: lane.origin_state || lane.originState,
+    originCity: lane.origin_city || lane.originCity || '',
+    originState: lane.origin_state || lane.originState || '',
     originZip: lane.origin_zip || lane.originZip || '',
-    // Use destCity/destState instead of destinationCity/destinationState
-    destCity: lane.dest_city || lane.destination_city || lane.destinationCity,
-    destState: lane.dest_state || lane.destination_state || lane.destinationState,
-    destZip: lane.dest_zip || lane.destination_zip || lane.destinationZip || '',
+    // Use destinationCity/destinationState to match backend validation
+    destinationCity: lane.dest_city || lane.destination_city || lane.destinationCity || '',
+    destinationState: lane.dest_state || lane.destination_state || lane.destinationState || '',
+    destinationZip: lane.dest_zip || lane.destination_zip || lane.destinationZip || '',
+    // Make sure equipment_code is NEVER empty - default to 'V' (Van)
     equipmentCode: lane.equipment_code || lane.equipmentCode || 'V',
     test_mode: useTestMode
   };
+  
+  // Debug log for initial values
+  console.log('🔎 Raw lane data received:', {
+    id: lane.id,
+    origin_city: lane.origin_city,
+    originCity: lane.originCity,
+    origin_state: lane.origin_state,
+    originState: lane.originState,
+    equipment_code: lane.equipment_code,
+    equipmentCode: lane.equipmentCode
+  });
   
   // Helper function to convert camelCase keys to snake_case
   const toSnakeCase = (str) => str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
@@ -45,13 +69,34 @@ export async function callIntelligencePairingApi(lane, options = {}) {
     return acc;
   }, {});
   
-  console.log('Intelligence API call with transformed payload:', payload);
-
-  console.log('Intelligence API call with transformed payload:', payload);
+  // Validate required fields are present and non-null
+  const requiredFields = ['origin_city', 'origin_state', 'dest_city', 'dest_state', 'equipment_code'];
+  const missingFields = requiredFields.filter(field => !payload[field] || payload[field] === '');
+  
+  if (missingFields.length > 0) {
+    console.warn('🚨 WARNING: Missing required fields in payload:', missingFields);
+    console.warn('Current payload:', payload);
+  }
+  
+  console.log('🔍 Intelligence API call with transformed payload:', payload);
 
   try {
     // For debugging/logging - show the final payload that will be sent
-    console.log('Final snake_case payload to API:', JSON.stringify(payload, null, 2));
+    console.log('🟡 Final payload being sent to API:');
+    console.log(JSON.stringify(payload, null, 2));
+    
+    // Additional debug info to help compare with working curl example
+    console.log('📋 Required fields status:');
+    console.log({
+      origin_city: !!payload.origin_city ? '✅' : '❌',
+      origin_state: !!payload.origin_state ? '✅' : '❌',
+      dest_city: !!payload.dest_city ? '✅' : '❌',
+      dest_state: !!payload.dest_state ? '✅' : '❌',
+      equipment_code: !!payload.equipment_code ? '✅' : '❌',
+      origin_zip: payload.origin_zip || '(optional)',
+      dest_zip: payload.dest_zip || '(optional)',
+      lane_id: payload.lane_id || '(optional)'
+    });
     
     const response = await fetch('/api/intelligence-pairing', {
       method: 'POST',
@@ -63,8 +108,9 @@ export async function callIntelligencePairingApi(lane, options = {}) {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`API error (${response.status}):`, errorText);
-      throw new Error(`API responded with status: ${response.status}`);
+      console.error(`🔴 API error (${response.status}):`, errorText);
+      console.error(`🔴 Failed payload:`, JSON.stringify(payload, null, 2));
+      throw new Error(`API responded with status: ${response.status} - ${errorText}`);
     }
 
     return await response.json();
