@@ -94,32 +94,92 @@ export default async function handler(req, res) {
     // IMPROVED: Extract token using our enterprise-grade utility
     const { token: accessToken, source, error: extractionError } = extractAuthToken(req);
     
-    // Get test mode configuration
-    const testModeEnabled = process.env.ALLOW_TEST_MODE === 'true';
+    // Get test mode configuration - always enable in development
+    const isDev = process.env.NODE_ENV !== 'production';
+    const testModeEnabled = isDev || process.env.ALLOW_TEST_MODE === 'true';
     const isTestRequest = normalizedFields.test_mode === true;
     const useTestMode = testModeEnabled && isTestRequest;
     
     // Get mock auth configuration for development
-    const mockEnabled = process.env.ENABLE_MOCK_AUTH === 'true' || process.env.NODE_ENV !== 'production';
+    const mockEnabled = isDev || process.env.ENABLE_MOCK_AUTH === 'true';
     const mockParam = req.query?.mock_auth || normalizedFields.mock_auth;
-    const useMockAuth = (mockEnabled && mockParam) || useTestMode;
+    // OVERRIDE for testing - Always enable mock auth when test_mode is true
+    const useMockAuth = (mockEnabled && mockParam) || useTestMode || (isDev && normalizedFields.test_mode);
     
+    // Extended debugging info for environment variables
     console.log('🔐 Auth Configuration:', { 
+      isDev,
       testModeEnabled, 
       isTestRequest, 
       useTestMode, 
       mockEnabled, 
       mockParam, 
-      useMockAuth
+      useMockAuth,
+      test_mode_value: normalizedFields.test_mode,
+      mock_auth_value: normalizedFields.mock_auth,
+      env_vars: {
+        NODE_ENV: process.env.NODE_ENV,
+        ALLOW_TEST_MODE: process.env.ALLOW_TEST_MODE,
+        ENABLE_MOCK_AUTH: process.env.ENABLE_MOCK_AUTH
+      }
     });
     
+    // Add a special debug endpoint for diagnosing environment issues
+    if (req.headers['x-debug-env'] === 'true' || normalizedFields.debug_env === true) {
+      // Return environment diagnostic information
+      return res.status(200).json({
+        debug: true,
+        environment: {
+          NODE_ENV: process.env.NODE_ENV,
+          ALLOW_TEST_MODE: process.env.ALLOW_TEST_MODE,
+          ENABLE_MOCK_AUTH: process.env.ENABLE_MOCK_AUTH
+        },
+        computed: {
+          isDev,
+          testModeEnabled,
+          isTestRequest,
+          useTestMode,
+          mockEnabled,
+          useMockAuth
+        },
+        request: {
+          test_mode: normalizedFields.test_mode,
+          mock_auth: normalizedFields.mock_auth,
+          hasToken: !!accessToken,
+          tokenSource: source
+        },
+        timestamp: new Date().toISOString(),
+        requestId
+      });
+    }
+    
     if (!accessToken && !useMockAuth) {
+      // Special debug handling for requests with X-Debug-Env header or debug_env flag
+      if (req.headers['x-debug-env'] === 'true' || normalizedFields.debug_env === true) {
+        console.log('⚠️ Debug info requested for auth configuration:', {
+          ALLOW_TEST_MODE: process.env.ALLOW_TEST_MODE,
+          NODE_ENV: process.env.NODE_ENV,
+          ENABLE_MOCK_AUTH: process.env.ENABLE_MOCK_AUTH,
+          isDev,
+          testModeEnabled,
+          isTestRequest: normalizedFields.test_mode,
+          mockParam: normalizedFields.mock_auth,
+          hasToken: !!accessToken
+        });
+      }
+      
       console.error('❌ Authentication error: No valid token provided');
       return res.status(401).json({ 
         error: 'Unauthorized',
         details: 'Missing authentication token. Please provide a valid token via Authorization header.',
         code: 'AUTH_TOKEN_MISSING',
-        success: false
+        success: false,
+        debug: {
+          test_mode: normalizedFields.test_mode,
+          mock_auth: normalizedFields.mock_auth,
+          useTestMode,
+          useMockAuth
+        }
       });
     }
     

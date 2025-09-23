@@ -11,11 +11,6 @@ const nextConfig = {
   },
   experimental: {
     esmExternals: true
-  },
-  // Explicitly enable API routes
-  api: {
-    bodyParser: true,
-    externalResolver: false
   }
 };
 

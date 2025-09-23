@@ -39,14 +39,23 @@ Confirms:
 - `geographicCrawl.js`
 - `verify-deployment-fix.mjs`
 
+## 🧰 Production Patterns
+
+- ✅ Adapter pattern implemented for parameter normalization
+- Use `/utils/intelligenceApiAdapter.js` for all API calls
+- Parameter transformation handled in adapter layer
+
 ## 📦 Deployment Details
 
-- Verified commit: `853bc46`
+- Verified commits: 
+  - `853bc46` - Initial verification
+  - Current branch SHA - API adapter implementation
 - Deployment confirmed working on Vercel
 - Docs updated:
   - `PRODUCTION_VERIFIED.md`
   - `DEPLOYMENT_FIX_SUMMARY.md`
   - `DISABLE_TEST_MODE.md`
+  - `400-BAD-REQUEST-DEBUG.md`
 
 ## 🛡️ Restore Instructions
 

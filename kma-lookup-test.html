@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KMA Lookup Test</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #1e1e1e;
+      color: #e0e0e0;
+    }
+    button {
+      background-color: #3a3a3a;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 10px 0;
+    }
+    button:hover {
+      background-color: #4a4a4a;
+    }
+    pre {
+      background-color: #2a2a2a;
+      padding: 10px;
+      border-radius: 4px;
+      overflow: auto;
+    }
+    .success {
+      color: #4caf50;
+    }
+    .error {
+      color: #f44336;
+    }
+    .panel {
+      background-color: #2a2a2a;
+      padding: 15px;
+      border-radius: 4px;
+      margin: 15px 0;
+    }
+    input[type="text"] {
+      background-color: #3a3a3a;
+      color: white;
+      border: 1px solid #4a4a4a;
+      padding: 8px;
+      width: 100%;
+      margin: 5px 0;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <h1>KMA Lookup Test</h1>
+  
+  <div class="panel">
+    <h2>API Endpoint</h2>
+    <input type="text" id="endpoint" value="https://rapid-routes.vercel.app/api/kma-lookup" />
+  </div>
+  
+  <div class="panel">
+    <h2>Authentication</h2>
+    <input type="text" id="token" placeholder="Bearer token" />
+    <button id="testAuth">Test Authentication</button>
+  </div>
+  
+  <div class="panel">
+    <h2>Test Payload</h2>
+    <pre id="payload">{
+  "lane_id": "61f287f5-278a-4277-b3fe-9055aad1fec8",
+  "origin_city": "Riegelwood",
+  "origin_state": "NC",
+  "destination_city": "Massillon",
+  "destination_state": "OH",
+  "equipment_code": "V"
+}</pre>
+  </div>
+  
+  <button id="runTest">Run KMA Lookup Test</button>
+  
+  <div class="panel">
+    <h2>Response</h2>
+    <div id="status"></div>
+    <pre id="response">Results will appear here...</pre>
+  </div>
+  
+  <script>
+    document.getElementById('runTest').addEventListener('click', async () => {
+      const endpoint = document.getElementById('endpoint').value;
+      const token = document.getElementById('token').value;
+      const payloadText = document.getElementById('payload').textContent;
+      const statusEl = document.getElementById('status');
+      const responseEl = document.getElementById('response');
+      
+      try {
+        // Parse the payload
+        const payload = JSON.parse(payloadText);
+        
+        // Show loading state
+        statusEl.innerHTML = 'Sending request...';
+        statusEl.className = '';
+        
+        // Send the request
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token.startsWith('Bearer ') ? token : `Bearer ${token}`
+          },
+          body: JSON.stringify(payload)
+        });
+        
+        // Parse the response
+        const result = await response.json();
+        
+        // Display the status
+        if (response.ok && result.success) {
+          statusEl.innerHTML = `✅ Success: ${response.status} ${response.statusText}`;
+          statusEl.className = 'success';
+        } else {
+          statusEl.innerHTML = `❌ Error: ${response.status} ${response.statusText}`;
+          statusEl.className = 'error';
+        }
+        
+        // Display the response
+        responseEl.textContent = JSON.stringify(result, null, 2);
+        
+      } catch (error) {
+        statusEl.innerHTML = `❌ Exception: ${error.message}`;
+        statusEl.className = 'error';
+        responseEl.textContent = error.stack || error.message;
+      }
+    });
+    
+    document.getElementById('testAuth').addEventListener('click', () => {
+      const token = document.getElementById('token').value;
+      if (!token) {
+        alert('Please enter a token first');
+        return;
+      }
+      
+      try {
+        // Try to decode the token (JWT)
+        const tokenParts = token.replace('Bearer ', '').split('.');
+        if (tokenParts.length !== 3) {
+          alert('Invalid token format. JWT tokens should have 3 parts.');
+          return;
+        }
+        
+        // Decode the payload
+        const payload = JSON.parse(atob(tokenParts[1]));
+        const expiry = new Date(payload.exp * 1000);
+        const now = new Date();
+        
+        if (expiry < now) {
+          alert(`Token has expired on ${expiry.toLocaleString()}`);
+        } else {
+          const timeLeft = Math.round((expiry - now) / 1000 / 60);
+          alert(`Token is valid. Expires in ${timeLeft} minutes (${expiry.toLocaleString()})`);
+        }
+      } catch (error) {
+        alert(`Error parsing token: ${error.message}`);
+      }
+    });
+  </script>
+</body>
+</html>
