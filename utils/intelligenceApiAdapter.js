@@ -17,6 +17,8 @@
  * - equipment_code
  */
 
+import { getCurrentToken } from './authUtils';
+
 /**
  * Call the intelligence-pairing API with properly formatted parameters
  * to avoid 400 Bad Request errors
@@ -32,90 +34,51 @@ export async function callIntelligencePairingApi(lane, options = {}) {
     ? options.useTestMode 
     : isTestModeAllowed();
   
-  // First gather parameters in camelCase format and ensure defaults for critical fields
-  const camelCasePayload = {
-    laneId: lane.id,
-    originCity: lane.origin_city || lane.originCity || '',
-    originState: lane.origin_state || lane.originState || '',
-    originZip: lane.origin_zip || lane.originZip || '',
-    // Use destinationCity/destinationState to match backend validation
-    destinationCity: lane.dest_city || lane.destination_city || lane.destinationCity || '',
-    destinationState: lane.dest_state || lane.destination_state || lane.destinationState || '',
-    destinationZip: lane.dest_zip || lane.destination_zip || lane.destinationZip || '',
-    // Make sure equipment_code is NEVER empty - default to 'V' (Van)
-    equipmentCode: lane.equipment_code || lane.equipmentCode || 'V',
-    test_mode: useTestMode
+  // Fetch the token
+  const { token, error } = await getCurrentToken();
+  if (error || !token) {
+    console.error('❌ Failed to fetch token:', error?.message || 'No token available');
+    throw new Error('Authentication token is missing');
+  }
+
+  // Prepare headers
+  const headers = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${token}`,
+  };
+
+  // Prepare payload in snake_case
+  const payload = {
+    lane_id: lane.id,
+    origin_city: lane.origin_city || lane.originCity || '',
+    origin_state: lane.origin_state || lane.originState || '',
+    destination_city: lane.destination_city || lane.destinationCity || '',
+    destination_state: lane.destination_state || lane.destinationState || '',
+    equipment_code: lane.equipment_code || lane.equipmentCode || 'V',
+    test_mode: useTestMode,
   };
   
-  // Debug log for initial values
-  console.log('🔎 Raw lane data received:', {
-    id: lane.id,
-    origin_city: lane.origin_city,
-    originCity: lane.originCity,
-    origin_state: lane.origin_state,
-    originState: lane.originState,
-    equipment_code: lane.equipment_code,
-    equipmentCode: lane.equipmentCode
-  });
-  
-  // Helper function to convert camelCase keys to snake_case
-  const toSnakeCase = (str) => str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
-  
-  // Convert all keys to snake_case for the backend
-  const payload = Object.entries(camelCasePayload).reduce((acc, [key, value]) => {
-    // test_mode is already snake_case
-    const snakeKey = key === 'test_mode' ? key : toSnakeCase(key);
-    acc[snakeKey] = value;
-    return acc;
-  }, {});
-  
-  // Validate required fields are present and non-null
-  const requiredFields = ['origin_city', 'origin_state', 'dest_city', 'dest_state', 'equipment_code'];
-  const missingFields = requiredFields.filter(field => !payload[field] || payload[field] === '');
-  
-  if (missingFields.length > 0) {
-    console.warn('🚨 WARNING: Missing required fields in payload:', missingFields);
-    console.warn('Current payload:', payload);
-  }
-  
-  console.log('🔍 Intelligence API call with transformed payload:', payload);
+  // Debug logs
+  console.log('🔐 Token being used:', token);
+  console.log('📤 Headers being sent:', headers);
+  console.log('📦 Payload being sent:', payload);
 
   try {
-    // For debugging/logging - show the final payload that will be sent
-    console.log('🟡 Final payload being sent to API:');
-    console.log(JSON.stringify(payload, null, 2));
-    
-    // Additional debug info to help compare with working curl example
-    console.log('📋 Required fields status:');
-    console.log({
-      origin_city: !!payload.origin_city ? '✅' : '❌',
-      origin_state: !!payload.origin_state ? '✅' : '❌',
-      dest_city: !!payload.dest_city ? '✅' : '❌',
-      dest_state: !!payload.dest_state ? '✅' : '❌',
-      equipment_code: !!payload.equipment_code ? '✅' : '❌',
-      origin_zip: payload.origin_zip || '(optional)',
-      dest_zip: payload.dest_zip || '(optional)',
-      lane_id: payload.lane_id || '(optional)'
-    });
-    
     const response = await fetch('/api/intelligence-pairing', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`🔴 API error (${response.status}):`, errorText);
-      console.error(`🔴 Failed payload:`, JSON.stringify(payload, null, 2));
-      throw new Error(`API responded with status: ${response.status} - ${errorText}`);
+      const errorDetails = await response.json();
+      console.error(`❌ API Error [${response.status}]:`, errorDetails);
+      throw new Error(`API responded with status ${response.status}: ${JSON.stringify(errorDetails)}`);
     }
 
     return await response.json();
   } catch (error) {
-    console.error('Intelligence API error:', error);
+    console.error('❌ API Request Failed:', error);
     throw error;
   }
 }

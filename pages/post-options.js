@@ -109,7 +109,7 @@ export default function PostOptions() {
     setGeneratingPairings(true);
     setAlert(null);
     try {
-      console.log(`🔄 Generating pairings for lane ID: ${lane.id} - ${lane.origin_city || lane.originCity}, ${lane.origin_state || lane.originState} → ${lane.dest_city || lane.destinationCity}, ${lane.dest_state || lane.destinationState}`);
+      console.log(`🔄 Generating pairings for lane ID: ${lane.id} - ${lane.origin_city || lane.originCity}, ${lane.origin_state || lane.originState} → ${lane.destination_city || lane.destinationCity}, ${lane.destination_state || lane.destinationState}`);
       
       // Complete lane payload logging
       console.log("🚚 Lane payload:", lane);
@@ -126,8 +126,8 @@ export default function PostOptions() {
       const requiredFields = [
         { name: 'Origin City', value: lane.origin_city || lane.originCity },
         { name: 'Origin State', value: lane.origin_state || lane.originState },
-        { name: 'Destination City', value: lane.dest_city || lane.destination_city || lane.destinationCity },
-        { name: 'Destination State', value: lane.dest_state || lane.destination_state || lane.destinationState },
+        { name: 'Destination City', value: lane.destination_city || lane.destinationCity },
+        { name: 'Destination State', value: lane.destination_state || lane.destinationState },
         { name: 'Equipment Code', value: lane.equipment_code || lane.equipmentCode }
       ];
       
@@ -173,7 +173,7 @@ export default function PostOptions() {
         const result = await callIntelligencePairingApi(lane, {
           // Don't automatically use test mode in production
           useTestMode: false
-        });
+        }, token); // Pass the token from ensureAuthReady
         
         console.log(`📥 [${requestId}] API success for lane ${lane.id}: ${result.pairs?.length || 0} pairs generated`);
         
@@ -290,7 +290,7 @@ export default function PostOptions() {
       const originCity = lane.origin_city || lane.originCity;
       const originState = lane.origin_state || lane.originState;
       const destinationCity = lane.dest_city || lane.destination_city || lane.destinationCity;
-      const destinationState = lane.dest_state || lane.destination_state || lane.destinationState;
+      const destinationState = lane.dest_state || lane.destination_state || lane.dest_state;
       const equipmentCode = lane.equipment_code || lane.equipmentCode;
       
       const missing = !originCity || !originState || !destinationCity || !destinationState || !equipmentCode;
@@ -347,7 +347,7 @@ export default function PostOptions() {
         try {
           // Generate a unique request ID for tracing
           const requestId = `req-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
-          console.log(`🔄 [${requestId}] Processing lane ${lane.id} (${++processedCount}/${lanes.length}): ${lane.origin_city || lane.originCity}, ${lane.origin_state || lane.originState} → ${lane.dest_city || lane.destinationCity}, ${lane.dest_state || lane.destinationState}`);
+          console.log(`🔄 [${requestId}] Processing lane ${lane.id} (${++processedCount}/${lanes.length}): ${lane.origin_city || lane.originCity}, ${lane.origin_state || lane.originState} → ${lane.destination_city || lane.destinationCity}, ${lane.destination_state || lane.destinationState}`);
           
           // Complete lane payload logging
           console.log("🚚 Lane payload:", lane);
@@ -568,7 +568,7 @@ export default function PostOptions() {
     const originZip = lane.origin_zip ? `, ${lane.origin_zip}` : '';
     const destZip = lane.dest_zip ? `, ${lane.dest_zip}` : '';
     const rr = rrNumbers[lane.id] || 'RR#####';
-    return `${lane.origin_city}, ${lane.origin_state}${originZip} → ${lane.dest_city}, ${lane.dest_state}${destZip} | ${lane.equipment_code} | ${rr}`;
+    return `${lane.origin_city}, ${lane.origin_state}${originZip} → ${lane.destination_city}, ${lane.destination_state}${destZip} | ${lane.equipment_code} | ${rr}`;
   };
 
   const copyToClipboard = (text) => {

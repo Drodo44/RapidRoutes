@@ -8,3 +8,24 @@ vi.mock('../../utils/supabaseClient.js', () => ({
   supabaseUrl: 'https://gwuhjxomavulwduhvgvi.supabase.co',
   supabaseKey: 'test-key'
 }));
+
+vi.mock('@supabase/supabase-js', () => ({
+  createClient: () => ({
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          single: () => ({ data: null, error: null })
+        })
+      }),
+      insert: () => ({
+        select: () => ({
+          single: () => ({ data: { id: 'mock-id' }, error: null })
+        })
+      })
+    }),
+    auth: {
+      signIn: vi.fn(),
+      signOut: vi.fn()
+    }
+  })
+}));

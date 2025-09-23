@@ -2,13 +2,26 @@
 import { createClient } from '@supabase/supabase-js';
 
 // Environment variables - Handle gracefully with logging
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY;
+let SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+let ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+let SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+// If in test mode, hardcode dummy values
+if (process.env.NODE_ENV === 'test') {
+  SUPABASE_URL = 'https://dummy.supabase.test';
+  ANON_KEY = 'test-anon-key';
+  SERVICE_ROLE = 'test-service-role-key';
+}
 
 // Environment validation with detailed logging
 function validateEnvironment() {
   const issues = [];
+
+  // Skip validation in test environment
+  if (process.env.NODE_ENV === 'test') {
+    console.warn('⚠️ Skipping Supabase environment validation in test mode');
+    return true;
+  }
 
   // Check URL
   if (!SUPABASE_URL) {
@@ -49,8 +62,12 @@ function validateEnvironment() {
 // Validate environment
 validateEnvironment();
 
+let supabase;
+let adminSupabase;
+
+
 // Client-side Supabase
-export const supabase = createClient(SUPABASE_URL, ANON_KEY, {
+supabase = createClient(SUPABASE_URL, ANON_KEY, {
   auth: {
     persistSession: false,
     autoRefreshToken: false,
@@ -59,7 +76,7 @@ export const supabase = createClient(SUPABASE_URL, ANON_KEY, {
 });
 
 // Server-side admin client with strict initialization
-const adminSupabase = typeof window === 'undefined' 
+adminSupabase = typeof window === 'undefined' 
   ? createClient(SUPABASE_URL, SERVICE_ROLE, {
       auth: {
         persistSession: false,
@@ -80,5 +97,4 @@ const adminSupabase = typeof window === 'undefined'
     })
   : null; // Explicitly null on client-side to prevent misuse
 
-export { adminSupabase };
-export default supabase;
+export { supabase, adminSupabase };
