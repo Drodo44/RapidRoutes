@@ -1,0 +1,22 @@
+# Protected files that should not be modified without careful consideration
+# These files are critical for the proper functioning of the RapidRoutes application
+
+# Core API and intelligence files
+pages/api/intelligence-pairing.js linguist-sensitive=true
+lib/geographicCrawl.js linguist-sensitive=true
+lib/intelligenceApi.js linguist-sensitive=true
+verify-deployment-fix.mjs linguist-sensitive=true
+
+# Documentation files
+docs/SUCCESS_RECIPE.md linguist-documentation=true linguist-generated=false
+PRODUCTION_VERIFIED.md linguist-documentation=true linguist-generated=false
+DEPLOYMENT_FIX_SUMMARY.md linguist-documentation=true linguist-generated=false
+DISABLE_TEST_MODE.md linguist-documentation=true linguist-generated=false
+
+# AI Protection - hint for AI tools to avoid modifying these files
+# (requires compatible AI tools that respect these hints)
+pages/api/intelligence-pairing.js AI_PROTECTED=true
+lib/geographicCrawl.js AI_PROTECTED=true
+lib/intelligenceApi.js AI_PROTECTED=true
+verify-deployment-fix.mjs AI_PROTECTED=true
+docs/SUCCESS_RECIPE.md AI_PROTECTED=true
