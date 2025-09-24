@@ -123,11 +123,16 @@ export default function PostOptions() {
       });
       
       // Validate required input fields first
+      const destinationCity = lane.destination_city || lane.destinationCity;
+      const destinationState = lane.destination_state || lane.destinationState;
+      
+      const hasDestinationData = destinationCity || destinationState;
+      
       const requiredFields = [
         { name: 'Origin City', value: lane.origin_city || lane.originCity },
         { name: 'Origin State', value: lane.origin_state || lane.originState },
-        { name: 'Destination City', value: lane.destination_city || lane.destinationCity },
-        { name: 'Destination State', value: lane.destination_state || lane.destinationState },
+        // Only require both destination fields if both are missing
+        { name: 'Destination Data', value: hasDestinationData },
         { name: 'Equipment Code', value: lane.equipment_code || lane.equipmentCode }
       ];
       
@@ -135,10 +140,17 @@ export default function PostOptions() {
       const missingFields = requiredFields.filter(field => !field.value);
       if (missingFields.length > 0) {
         const missingFieldNames = missingFields.map(f => f.name).join(', ');
-        console.error(`❌ Validation error: Missing required fields: ${missingFieldNames}`, lane);
+        console.error(`❌ Validation error for Lane ${lane.id}: Missing ${missingFieldNames}`, {
+          laneId: lane.id,
+          originCity: lane.origin_city || lane.originCity,
+          originState: lane.origin_state || lane.originState,
+          destinationCity,
+          destinationState,
+          equipmentCode: lane.equipment_code || lane.equipmentCode
+        });
         setAlert({ 
           type: 'error', 
-          message: `Missing required data: ${missingFieldNames}. Please complete the lane details before generating pairings.` 
+          message: `Missing required data: ${missingFieldNames}. Please provide at least partial origin and destination info.` 
         });
         setGeneratingPairings(false);
         return;
@@ -293,12 +305,17 @@ export default function PostOptions() {
       const destinationState = lane.destination_state || lane.destinationState;
       const equipmentCode = lane.equipment_code || lane.equipmentCode;
       
-      const missing = !originCity || !originState || !destinationCity || !destinationState || !equipmentCode;
+      // Allow partial destination data (either city or state is acceptable)
+      const hasDestinationData = destinationCity || destinationState;
+      
+      const missing = !originCity || !originState || !hasDestinationData || !equipmentCode;
              
       if (missing) {
-        console.warn(`⚠️ Lane ${lane.id} has missing required fields:`, {
+        console.error(`❌ Lane ${lane.id} invalid: Missing required fields`, {
+          laneId: lane.id,
           originCity: !!originCity,
           originState: !!originState,
+          hasDestinationData: !!hasDestinationData,
           destinationCity: !!destinationCity,
           destinationState: !!destinationState,
           equipmentCode: !!equipmentCode
