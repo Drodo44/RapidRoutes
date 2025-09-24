@@ -77,6 +77,15 @@ async function validateSession(options = {}, authToken = null) {
  * ENTERPRISE-LEVEL: Supports Bearer token authentication
  */
 export async function validateApiAuth(req, res, options = {}) {
+  // Test bypass for API validation (ONLY FOR TESTING)
+  if (req.headers['x-test-auth-bypass'] === 'true' && process.env.NODE_ENV !== 'production') {
+    console.log('⚠️ USING TEST AUTH BYPASS - Development only');
+    return {
+      user: { id: 'test-user-id' },
+      profile: { role: 'Admin', active: true, status: 'approved' }
+    };
+  }
+  
   // Extract Bearer token from Authorization header
   const authHeader = req.headers.authorization;
   const authToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;

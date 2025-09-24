@@ -51,9 +51,20 @@ export default async function handler(req, res) {
       console.log('POST request received for lane creation');
       const payload = req.body;
 
-      if (!payload.origin_city || !payload.origin_state || !payload.dest_city || !payload.dest_state || 
+      // Allow partial destination data (either city OR state)
+      const hasDestinationData = payload.dest_city || payload.dest_state;
+      
+      if (!payload.origin_city || !payload.origin_state || !hasDestinationData || 
           !payload.equipment_code || !payload.pickup_earliest) {
-        return res.status(400).json({ error: 'Missing required fields' });
+        return res.status(400).json({ 
+          error: 'Missing required fields',
+          details: {
+            has_origin: !!payload.origin_city && !!payload.origin_state,
+            has_destination: !!hasDestinationData,
+            has_equipment: !!payload.equipment_code,
+            has_pickup_date: !!payload.pickup_earliest
+          }
+        });
       }
 
       // Validate weight requirement

@@ -75,16 +75,19 @@ export default async function handler(req, res) {
 
     console.log('📦 Normalized payload:', JSON.stringify(normalizedFields));
 
-    // Check required fields
-    if (!normalizedFields.origin_city || !normalizedFields.origin_state || 
-        !normalizedFields.destination_city || !normalizedFields.destination_state) {
+    // Check required fields - allow partial destination data (either city OR state)
+    const hasDestinationData = normalizedFields.destination_city || normalizedFields.destination_state;
+    
+    if (!normalizedFields.origin_city || !normalizedFields.origin_state || !hasDestinationData) {
       return res.status(400).json({
         error: 'Missing required fields',
         details: { 
           origin_city: normalizedFields.origin_city, 
           origin_state: normalizedFields.origin_state,
+          has_destination_data: !!hasDestinationData,
           destination_city: normalizedFields.destination_city,
-          destination_state: normalizedFields.destination_state 
+          destination_state: normalizedFields.destination_state,
+          equipment_code: normalizedFields.equipment_code
         },
         status: 400,
         success: false
