@@ -23,6 +23,7 @@ export default function PostOptions() {
 
   const fetchPendingLanes = async () => {
     try {
+      console.log('🔄 Fetching pending lanes from database...');
       const { data, error } = await supabase
         .from('lanes')
         .select('*')
@@ -30,7 +31,55 @@ export default function PostOptions() {
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      setLanes(data || []);
+      
+      console.log(`📥 Received ${data?.length || 0} lanes from database`);
+      
+      // Normalize lane data to have both snake_case and camelCase fields
+      const normalizedLanes = (data || []).map(lane => {
+        // Log the raw lane data to trace field availability
+        console.log(`🔍 Raw lane data from DB (ID: ${lane.id}):`, {
+          id: lane.id,
+          origin_city: lane.origin_city,
+          origin_state: lane.origin_state,
+          destination_city: lane.destination_city,
+          destination_state: lane.destination_state,
+          equipment_code: lane.equipment_code,
+          // Check if camelCase variants exist in raw data (they shouldn't)
+          hasOriginCity: !!lane.originCity,
+          hasDestinationCity: !!lane.destinationCity
+        });
+        
+        // Create normalized lane with both formats
+        const normalizedLane = {
+          ...lane,
+          // Add camelCase variants if not present
+          originCity: lane.originCity || lane.origin_city,
+          originState: lane.originState || lane.origin_state,
+          destinationCity: lane.destinationCity || lane.destination_city,
+          destinationState: lane.destinationState || lane.destination_state,
+          equipmentCode: lane.equipmentCode || lane.equipment_code
+        };
+        
+        // Log the normalized lane to confirm field availability
+        console.log(`🔄 Normalized lane (ID: ${lane.id}):`, {
+          id: lane.id,
+          // Snake case fields
+          origin_city: normalizedLane.origin_city,
+          origin_state: normalizedLane.origin_state,
+          destination_city: normalizedLane.destination_city,
+          destination_state: normalizedLane.destination_state,
+          // Camel case fields
+          originCity: normalizedLane.originCity,
+          originState: normalizedLane.originState,
+          destinationCity: normalizedLane.destinationCity,
+          destinationState: normalizedLane.destinationState
+        });
+        
+        return normalizedLane;
+      });
+      
+      console.log(`📊 Normalized ${normalizedLanes.length} lanes with both snake_case and camelCase fields`);
+      setLanes(normalizedLanes);
     } catch (error) {
       console.error('Error fetching lanes:', error);
     } finally {
@@ -299,6 +348,18 @@ export default function PostOptions() {
     
     // Pre-validate all lanes to ensure they have required data
     const invalidLanes = lanes.filter(lane => {
+      console.log(`🔍 Validating lane ID ${lane.id} with field availability:`, {
+        // Raw field values to check exactly what's present
+        raw_origin_city: lane.origin_city,
+        raw_originCity: lane.originCity,
+        raw_origin_state: lane.origin_state, 
+        raw_originState: lane.originState,
+        raw_destination_city: lane.destination_city,
+        raw_destinationCity: lane.destinationCity,
+        raw_destination_state: lane.destination_state,
+        raw_destinationState: lane.destinationState
+      });
+      
       const originCity = lane.origin_city || lane.originCity;
       const originState = lane.origin_state || lane.originState;
       const destinationCity = lane.destination_city || lane.destinationCity;
@@ -319,6 +380,14 @@ export default function PostOptions() {
           destinationCity: !!destinationCity,
           destinationState: !!destinationState,
           equipmentCode: !!equipmentCode
+        });
+      } else {
+        console.log(`✅ Lane ${lane.id} passed validation with fields:`, {
+          originCity,
+          originState,
+          destinationCity,
+          destinationState,
+          equipmentCode
         });
       }
       return missing;

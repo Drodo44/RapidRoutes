@@ -32,6 +32,21 @@ export async function callIntelligencePairingApi(lane, options = {}) {
     ? options.useTestMode 
     : isTestModeAllowed();
   
+  // Log incoming lane object to verify field availability
+  console.log(`🔍 Intelligence adapter received lane ${lane.id} with fields:`, {
+    id: lane.id,
+    // Snake case
+    origin_city: lane.origin_city,
+    origin_state: lane.origin_state,
+    destination_city: lane.destination_city,
+    destination_state: lane.destination_state,
+    // Camel case
+    originCity: lane.originCity,
+    originState: lane.originState,
+    destinationCity: lane.destinationCity,
+    destinationState: lane.destinationState
+  });
+
   // First gather parameters in camelCase format and ensure defaults for critical fields
   const camelCasePayload = {
     laneId: lane.id,
@@ -46,6 +61,8 @@ export async function callIntelligencePairingApi(lane, options = {}) {
     equipmentCode: lane.equipment_code || lane.equipmentCode || 'V',
     test_mode: useTestMode
   };
+  
+  console.log(`🔄 Normalized camelCase payload for lane ${lane.id}:`, camelCasePayload);
   
   // Convert raw data to proper format
   
