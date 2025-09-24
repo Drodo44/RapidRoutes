@@ -36,43 +36,45 @@ export default function PostOptions() {
       
       // Normalize lane data to have both snake_case and camelCase fields
       const normalizedLanes = (data || []).map(lane => {
-        // Log the raw lane data to trace field availability
         console.log(`🔍 Raw lane data from DB (ID: ${lane.id}):`, {
           id: lane.id,
           origin_city: lane.origin_city,
           origin_state: lane.origin_state,
           destination_city: lane.destination_city,
           destination_state: lane.destination_state,
-          equipment_code: lane.equipment_code,
-          // Check if camelCase variants exist in raw data (they shouldn't)
-          hasOriginCity: !!lane.originCity,
-          hasDestinationCity: !!lane.destinationCity
+          equipment_code: lane.equipment_code
         });
         
-        // Create normalized lane with both formats
+        // IMPORTANT: Create a new lane object with both snake_case and camelCase properties
+        // This ensures all validation checks will find the fields regardless of format used
         const normalizedLane = {
-          ...lane,
-          // Add camelCase variants if not present
-          originCity: lane.originCity || lane.origin_city,
-          originState: lane.originState || lane.origin_state,
-          destinationCity: lane.destinationCity || lane.destination_city,
-          destinationState: lane.destinationState || lane.destination_state,
-          equipmentCode: lane.equipmentCode || lane.equipment_code
+          ...lane, // preserve all original fields
+          
+          // Explicitly assign camelCase variants even if undefined
+          // This forces the camelCase properties to exist in the object
+          originCity: lane.origin_city || '',  // Derive from snake_case directly
+          originState: lane.origin_state || '',
+          destinationCity: lane.destination_city || '',
+          destinationState: lane.destination_state || '',
+          equipmentCode: lane.equipment_code || ''
         };
         
-        // Log the normalized lane to confirm field availability
-        console.log(`🔄 Normalized lane (ID: ${lane.id}):`, {
-          id: lane.id,
-          // Snake case fields
+        console.log(`✅ Normalized lane (ID: ${normalizedLane.id}):`, {
+          // Both formats to verify successful normalization
           origin_city: normalizedLane.origin_city,
-          origin_state: normalizedLane.origin_state,
-          destination_city: normalizedLane.destination_city,
-          destination_state: normalizedLane.destination_state,
-          // Camel case fields
           originCity: normalizedLane.originCity,
+          
+          origin_state: normalizedLane.origin_state, 
           originState: normalizedLane.originState,
+          
+          destination_city: normalizedLane.destination_city,
           destinationCity: normalizedLane.destinationCity,
-          destinationState: normalizedLane.destinationState
+          
+          destination_state: normalizedLane.destination_state,
+          destinationState: normalizedLane.destinationState,
+          
+          equipment_code: normalizedLane.equipment_code,
+          equipmentCode: normalizedLane.equipmentCode
         });
         
         return normalizedLane;
@@ -348,16 +350,29 @@ export default function PostOptions() {
     
     // Pre-validate all lanes to ensure they have required data
     const invalidLanes = lanes.filter(lane => {
-      console.log(`🔍 Validating lane ID ${lane.id} with field availability:`, {
-        // Raw field values to check exactly what's present
-        raw_origin_city: lane.origin_city,
-        raw_originCity: lane.originCity,
-        raw_origin_state: lane.origin_state, 
-        raw_originState: lane.originState,
-        raw_destination_city: lane.destination_city,
-        raw_destinationCity: lane.destinationCity,
-        raw_destination_state: lane.destination_state,
-        raw_destinationState: lane.destinationState
+      // Log detailed information about each lane's fields
+      console.log(`🔍 Validating lane ID ${lane.id}:`, {
+        // Values and types to diagnose any serialization/undefined issues
+        origin_city: {
+          value: lane.origin_city,
+          type: typeof lane.origin_city,
+          exists: lane.hasOwnProperty('origin_city')
+        },
+        originCity: {
+          value: lane.originCity, 
+          type: typeof lane.originCity,
+          exists: lane.hasOwnProperty('originCity')
+        },
+        destination_city: {
+          value: lane.destination_city,
+          type: typeof lane.destination_city,
+          exists: lane.hasOwnProperty('destination_city')
+        },
+        destinationCity: {
+          value: lane.destinationCity,
+          type: typeof lane.destinationCity,
+          exists: lane.hasOwnProperty('destinationCity')
+        }
       });
       
       const originCity = lane.origin_city || lane.originCity;
