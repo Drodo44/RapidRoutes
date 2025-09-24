@@ -75,23 +75,64 @@ export default async function handler(req, res) {
 
     console.log('📦 Normalized payload:', JSON.stringify(normalizedFields));
 
-    // Check required fields - allow partial destination data (either city OR state)
+    // Check required fields - requires origin fields + equipment, allows EITHER destination_city OR destination_state
     const hasDestinationData = normalizedFields.destination_city || normalizedFields.destination_state;
     
-    if (!normalizedFields.origin_city || !normalizedFields.origin_state || !hasDestinationData) {
+    // Log validation details for monitoring
+    console.log(`🔍 Lane ${normalizedFields.lane_id || 'new'} validation check:`, {
+      origin_city: !!normalizedFields.origin_city,
+      origin_state: !!normalizedFields.origin_state,
+      destination_city: !!normalizedFields.destination_city, 
+      destination_state: !!normalizedFields.destination_state,
+      has_destination_data: !!hasDestinationData,
+      equipment_code: !!normalizedFields.equipment_code
+    });
+    
+    // Log actual values for debugging in development mode
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🔍 Lane ${normalizedFields.lane_id || 'new'} field values:`, {
+        origin_city: normalizedFields.origin_city,
+        origin_state: normalizedFields.origin_state,
+        destination_city: normalizedFields.destination_city,
+        destination_state: normalizedFields.destination_state,
+        equipment_code: normalizedFields.equipment_code
+      });
+    }
+    
+    // NEW VALIDATION LOGIC: Requires origin fields + equipment, allows EITHER destination_city OR destination_state
+    if (!normalizedFields.origin_city || !normalizedFields.origin_state || !hasDestinationData || !normalizedFields.equipment_code) {
+      console.error("❌ Lane invalid:", { 
+        lane_id: normalizedFields.lane_id, 
+        origin_city: !!normalizedFields.origin_city, 
+        origin_state: !!normalizedFields.origin_state, 
+        destination_city: !!normalizedFields.destination_city, 
+        destination_state: !!normalizedFields.destination_state, 
+        has_destination_data: !!hasDestinationData, 
+        equipment_code: !!normalizedFields.equipment_code 
+      });
+      
       return res.status(400).json({
         error: 'Missing required fields',
         details: { 
-          origin_city: normalizedFields.origin_city, 
-          origin_state: normalizedFields.origin_state,
+          origin_city: !!normalizedFields.origin_city, 
+          origin_state: !!normalizedFields.origin_state,
+          destination_city: !!normalizedFields.destination_city,
+          destination_state: !!normalizedFields.destination_state,
           has_destination_data: !!hasDestinationData,
-          destination_city: normalizedFields.destination_city,
-          destination_state: normalizedFields.destination_state,
-          equipment_code: normalizedFields.equipment_code
+          equipment_code: !!normalizedFields.equipment_code,
+          // Include actual values for diagnostic purposes
+          origin_city_value: normalizedFields.origin_city,
+          origin_state_value: normalizedFields.origin_state,
+          destination_city_value: normalizedFields.destination_city,
+          destination_state_value: normalizedFields.destination_state,
+          equipment_code_value: normalizedFields.equipment_code
         },
         status: 400,
         success: false
       });
+    } else {
+      // Log successful validation
+      console.log(`✅ Lane ${normalizedFields.lane_id || 'new'} validation passed - proceeding with ${hasDestinationData ? (normalizedFields.destination_city && normalizedFields.destination_state ? 'complete' : 'partial') : 'no'} destination data`);
     }
     
     // IMPROVED: Extract token using our enterprise-grade utility

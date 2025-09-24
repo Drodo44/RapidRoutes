@@ -78,14 +78,33 @@ export async function callIntelligencePairingApi(lane, options = {}) {
   }, {});
   
   // Validate required fields are present and non-null
-  const requiredFields = ['origin_city', 'origin_state', 'destination_city', 'destination_state', 'equipment_code'];
-  const missingFields = requiredFields.filter(field => !payload[field] || payload[field] === '');
+  // Updated validation: requires origin fields + equipment, allows EITHER destination_city OR destination_state
+  const hasDestinationData = payload.destination_city || payload.destination_state;
   
-  if (missingFields.length > 0) {
-    // Log warning only in development
+  if (!payload.origin_city || !payload.origin_state || !hasDestinationData || !payload.equipment_code) {
+    console.error("❌ Lane invalid:", { 
+      lane_id: payload.lane_id, 
+      origin_city: !!payload.origin_city, 
+      origin_state: !!payload.origin_state, 
+      destination_city: !!payload.destination_city, 
+      destination_state: !!payload.destination_state, 
+      has_destination_data: !!hasDestinationData, 
+      equipment_code: !!payload.equipment_code 
+    });
+    
+    const missingFields = [];
+    if (!payload.origin_city) missingFields.push('origin_city');
+    if (!payload.origin_state) missingFields.push('origin_state');
+    if (!hasDestinationData) missingFields.push('destination data (either city or state)');
+    if (!payload.equipment_code) missingFields.push('equipment_code');
+    
     if (process.env.NODE_ENV === 'development') {
-      console.warn('Missing required fields in payload:', missingFields);
+      console.warn('⚠️ Missing required fields in payload:', missingFields);
+      console.warn('⚠️ Lane will likely fail validation in API');
     }
+  } else {
+    // Log successful validation
+    console.log(`✅ Lane ${payload.lane_id || 'new'} passed adapter validation with ${hasDestinationData ? (payload.destination_city && payload.destination_state ? 'complete' : 'partial') : 'no'} destination data`);
   }
 
   try {

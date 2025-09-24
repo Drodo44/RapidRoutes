@@ -174,38 +174,55 @@ export default function PostOptions() {
       });
       
       // Validate required input fields first
+      const originCity = lane.origin_city || lane.originCity;
+      const originState = lane.origin_state || lane.originState;
       const destinationCity = lane.destination_city || lane.destinationCity;
       const destinationState = lane.destination_state || lane.destinationState;
+      const equipmentCode = lane.equipment_code || lane.equipmentCode;
       
       const hasDestinationData = destinationCity || destinationState;
       
-      const requiredFields = [
-        { name: 'Origin City', value: lane.origin_city || lane.originCity },
-        { name: 'Origin State', value: lane.origin_state || lane.originState },
-        // Only require both destination fields if both are missing
-        { name: 'Destination Data', value: hasDestinationData },
-        { name: 'Equipment Code', value: lane.equipment_code || lane.equipmentCode }
-      ];
-      
-      // Check for missing required fields
-      const missingFields = requiredFields.filter(field => !field.value);
-      if (missingFields.length > 0) {
-        const missingFieldNames = missingFields.map(f => f.name).join(', ');
-        console.error(`❌ Validation error for Lane ${lane.id}: Missing ${missingFieldNames}`, {
-          laneId: lane.id,
-          originCity: lane.origin_city || lane.originCity,
-          originState: lane.origin_state || lane.originState,
-          destinationCity,
-          destinationState,
-          equipmentCode: lane.equipment_code || lane.equipmentCode
+      // NEW VALIDATION LOGIC: Requires origin fields + equipment, allows EITHER destinationCity OR destinationState
+      if (!originCity || !originState || !hasDestinationData || !equipmentCode) {
+        console.error("❌ Lane invalid:", { 
+          laneId: lane.id, 
+          originCity: !!originCity, 
+          originState: !!originState, 
+          destinationCity: !!destinationCity, 
+          destinationState: !!destinationState, 
+          hasDestinationData, 
+          equipmentCode: !!equipmentCode 
         });
+        
+        const missingFields = [];
+        if (!originCity) missingFields.push('Origin City');
+        if (!originState) missingFields.push('Origin State');
+        if (!hasDestinationData) missingFields.push('Destination Data (either city or state)');
+        if (!equipmentCode) missingFields.push('Equipment Code');
+        
+        const missingFieldNames = missingFields.join(', ');
         setAlert({ 
           type: 'error', 
-          message: `Missing required data: ${missingFieldNames}. Please provide at least partial origin and destination info.` 
+          message: `Missing required data: ${missingFieldNames}. At least one destination field is required.` 
         });
         setGeneratingPairings(false);
         return;
       }
+      
+      console.log("✅ Pre-validation passed:", {
+        laneId: lane.id,
+        originCity: !!originCity,
+        originState: !!originState,
+        destinationCity: !!destinationCity,
+        destinationState: !!destinationState,
+        hasDestinationData,
+        equipmentCode: !!equipmentCode,
+        // Include actual values for better debugging
+        originCityValue: originCity,
+        originStateValue: originState,
+        destinationCityValue: destinationCity,
+        destinationStateValue: destinationState
+      });
 
       // Ensure authentication is ready before making API calls
       const { ready, token, user, error: authError, tokenInfo: authTokenInfo } = await ensureAuthReady();
@@ -233,90 +250,104 @@ export default function PostOptions() {
       try {
         // Use the intelligenceApiAdapter to make the API call
         // This ensures correct parameter formatting (destinationCity → destCity)
-        const result = await callIntelligencePairingApi(lane, {
-          // Don't automatically use test mode in production
-          useTestMode: false
+        const response = await fetch('/api/intelligence-pairing', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token ? `Bearer ${token}` : '',
+          },
+          body: JSON.stringify({
+            lane_id: lane.id,
+            origin_city: originCity,
+            origin_state: originState,
+            destination_city: destinationCity,
+            destination_state: destinationState,
+            equipment_code: equipmentCode,
+            test_mode: false
+          }),
         });
+        
+        // Parse the response
+        const result = await response.json();
+        
+        // Handle 422 KMA diversity errors as soft warnings
+        if (response.status === 422 && 
+            (result.error?.includes('KMA') || result.details?.includes('KMA') || 
+            result.error?.includes('unique') || result.details?.includes('unique'))) {
+          console.warn(`⚠️ [${requestId}] KMA diversity requirement not met for lane ${lane.id}:`, result.details || result.error);
+          setAlert({ 
+            type: 'warning', 
+            message: `Lane ${lane.id}: ${result.details || 'Insufficient KMA diversity'} - skipped`
+          });
+          setPairings(prev => ({ ...prev, [lane.id]: [] }));
+          setGeneratingPairings(false);
+          return;
+        }
+        
+        // Handle city lookup errors with detailed information
+        if (response.status === 400 && 
+            (result.error?.includes('city not found') || result.error?.includes('city lookup'))) {
+          console.error(`❌ [${requestId}] City lookup failed for lane ${lane.id}:`, {
+            status: response.status,
+            error: result.error,
+            details: result.details || {}
+          });
+          
+          // Format a more useful error message showing which city was not found
+          const cityDetails = result.details || {};
+          const errorCity = cityDetails.origin_city && cityDetails.origin_state 
+            ? `${cityDetails.origin_city}, ${cityDetails.origin_state}` 
+            : (cityDetails.destination_city && cityDetails.destination_state 
+              ? `${cityDetails.destination_city}, ${cityDetails.destination_state}`
+              : 'Unknown city');
+              
+          throw new Error(`City not found in database: ${errorCity} (Status: ${response.status})`);
+        }
+        
+        // Handle other API errors
+        if (!response.ok || !result.success) {
+          const errorMsg = result.details || result.error || result.message || 'Failed to generate pairings';
+          console.error(`❌ [${requestId}] API error for lane ${lane.id}:`, {
+            status: response.status,
+            error: errorMsg,
+            details: result
+          });
+          throw new Error(`${errorMsg} (Status: ${response.status})`);
+        }
         
         console.log(`📥 [${requestId}] API success for lane ${lane.id}: ${result.pairs?.length || 0} pairs generated`);
         
         // Process the result and update UI
-        const pairs = result.pairs || [];
+        const pairs = Array.isArray(result.pairs) ? result.pairs : [];
+        if (pairs.length < 5) {
+          throw new Error('Intelligence system failed: fewer than 5 unique KMAs found');
+        }
+        
         setPairings(prev => ({ ...prev, [lane.id]: pairs }));
         setGeneratedLaneId(lane.id);
         setGeneratedEquipmentCode(lane.equipment_code || lane.equipmentCode);
         setShowPairings(true);
-        setGeneratingPairings(false);
         
+        // Only generate RR number after pairings finalized
+        const rrResponse = await fetch('/api/rr-number');
+        const rrResult = await rrResponse.json();
+        const rr = rrResult.success ? rrResult.rrNumber : 'RR00000';
+        setRRNumbers(prev => ({ ...prev, [lane.id]: rr }));
+        
+        setAlert({ type: 'success', message: `Pairings generated for lane ${lane.id}` });
       } catch (error) {
         console.error(`❌ [${requestId}] API error:`, error);
         
         // Check if it's an authentication error
         if (error.message && error.message.includes('401')) {
           setAlert({ type: 'error', message: 'Authentication failed - please log in again' });
-          setGeneratingPairings(false);
-          return;
+        } else {
+          // Handle general errors
+          setAlert({ type: 'error', message: `Failed to generate pairings: ${error.message}` });
         }
         
-        // Handle general errors
-        setAlert({ type: 'error', message: `Failed to generate pairings: ${error.message}` });
-        setGeneratingPairings(false);
-      }
-      
-      // Handle 422 KMA diversity errors as soft warnings
-      if (response.status === 422 && 
-          (result.error?.includes('KMA') || result.details?.includes('KMA') || 
-           result.error?.includes('unique') || result.details?.includes('unique'))) {
-        console.warn(`⚠️ [${requestId}] KMA diversity requirement not met for lane ${lane.id}:`, result.details || result.error);
-        setAlert({ 
-          type: 'warning', 
-          message: `Lane ${lane.id}: ${result.details || 'Insufficient KMA diversity'} - skipped`
-        });
         setPairings(prev => ({ ...prev, [lane.id]: [] }));
-        setGeneratingPairings(false);
-        return;
       }
-      
-      // Handle city lookup errors with detailed information
-      if (response.status === 400 && 
-          (result.error?.includes('city not found') || result.error?.includes('city lookup'))) {
-        console.error(`❌ [${requestId}] City lookup failed for lane ${lane.id}:`, {
-          status: response.status,
-          error: result.error,
-          details: result.details || {}
-        });
-        
-        // Format a more useful error message showing which city was not found
-        const cityDetails = result.details || {};
-        const errorCity = cityDetails.origin_city && cityDetails.origin_state 
-          ? `${cityDetails.origin_city}, ${cityDetails.origin_state}` 
-          : (cityDetails.destination_city && cityDetails.destination_state 
-            ? `${cityDetails.destination_city}, ${cityDetails.destination_state}`
-            : 'Unknown city');
-            
-        throw new Error(`City not found in database: ${errorCity} (Status: ${response.status})`);
-      }
-      
-      // Handle other API errors
-      if (!response.ok || !result.success) {
-        const errorMsg = result.details || result.error || result.message || 'Failed to generate pairings';
-        console.error(`❌ [${requestId}] API error for lane ${lane.id}:`, {
-          status: response.status,
-          error: errorMsg,
-          details: result
-        });
-        throw new Error(`${errorMsg} (Status: ${response.status})`);
-      }
-      
-  const pairs = Array.isArray(result.pairs) ? result.pairs : [];
-      if (pairs.length < 5) throw new Error('Intelligence system failed: fewer than 5 unique KMAs found');
-      setPairings(prev => ({ ...prev, [lane.id]: pairs }));
-      // Only generate RR number after pairings finalized
-      const rrResponse = await fetch('/api/rr-number');
-      const rrResult = await rrResponse.json();
-      const rr = rrResult.success ? rrResult.rrNumber : 'RR00000';
-      setRRNumbers(prev => ({ ...prev, [lane.id]: rr }));
-      setAlert({ type: 'success', message: `Pairings generated for lane ${lane.id}` });
     } catch (error) {
       setAlert({ type: 'error', message: error.message });
       setPairings(prev => ({ ...prev, [lane.id]: [] }));
