@@ -17,17 +17,17 @@ export function generateDatCsvRows(lanes) {
 
   lanes.forEach((lane) => {
     const crawlCities = generateSmartCrawlCities(lane.origin_city);
-    const crawlDest = generateSmartCrawlCities(lane.dest_city);
+    const crawlDest = generateSmartCrawlCities(lane.destination_city || "");
 
     const crawls = [lane.origin_city].concat(crawlCities.slice(0, 10));
-    const dests = [lane.dest_city].concat(crawlDest.slice(0, 10));
+    const dests = [lane.destination_city || ""].concat(crawlDest.slice(0, 10));
 
     for (let i = 0; i < crawls.length; i++) {
       const rowBase = [
         lane.date, lane.date, lane.length, randomWeight(),
         "Full", lane.equipment, "YES", "", "NO", "NO",
         "YES", "", "NO", "NO", "", crawls[i], lane.origin_state,
-        "", dests[i], lane.dest_state, "", "", "", ""
+        "", dests[i], lane.destination_state || "", "", "", "", ""
       ];
 
       output.push([...rowBase.slice(0, 14), "Email", ...rowBase.slice(15)]);

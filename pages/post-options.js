@@ -109,7 +109,7 @@ export default function PostOptions() {
     setGeneratingPairings(true);
     setAlert(null);
     try {
-      console.log(`🔄 Generating pairings for lane ID: ${lane.id} - ${lane.origin_city || lane.originCity}, ${lane.origin_state || lane.originState} → ${lane.dest_city || lane.destinationCity}, ${lane.dest_state || lane.destinationState}`);
+      console.log(`🔄 Generating pairings for lane ID: ${lane.id} - ${lane.origin_city || lane.originCity}, ${lane.origin_state || lane.originState} → ${lane.destination_city || lane.destinationCity}, ${lane.destination_state || lane.destinationState}`);
       
       // Complete lane payload logging
       console.log("🚚 Lane payload:", lane);
@@ -118,16 +118,16 @@ export default function PostOptions() {
       console.log("🧪 Sending lane to API:", {
         originCity: lane.originCity || lane.origin_city,
         originState: lane.originState || lane.origin_state,
-        destinationCity: lane.destinationCity || lane.destination_city || lane.dest_city,
-        destinationState: lane.destinationState || lane.destination_state || lane.dest_state,
+        destinationCity: lane.destinationCity || lane.destination_city,
+        destinationState: lane.destinationState || lane.destination_state,
       });
       
       // Validate required input fields first
       const requiredFields = [
         { name: 'Origin City', value: lane.origin_city || lane.originCity },
         { name: 'Origin State', value: lane.origin_state || lane.originState },
-        { name: 'Destination City', value: lane.dest_city || lane.destination_city || lane.destinationCity },
-        { name: 'Destination State', value: lane.dest_state || lane.destination_state || lane.destinationState },
+        { name: 'Destination City', value: lane.destination_city || lane.destinationCity },
+        { name: 'Destination State', value: lane.destination_state || lane.destinationState },
         { name: 'Equipment Code', value: lane.equipment_code || lane.equipmentCode }
       ];
       
@@ -160,7 +160,7 @@ export default function PostOptions() {
         tokenValid: authTokenInfo.valid,
         tokenExpiry: authTokenInfo.expiresAt,
         timeRemaining: authTokenInfo.timeLeft,
-        laneDetails: `${lane.origin_city}, ${lane.origin_state} → ${lane.dest_city}, ${lane.dest_state}`
+        laneDetails: `${lane.origin_city}, ${lane.origin_state} → ${lane.destination_city}, ${lane.destination_state}`
       });
       
       // Generate a unique request ID for tracing
@@ -289,8 +289,8 @@ export default function PostOptions() {
     const invalidLanes = lanes.filter(lane => {
       const originCity = lane.origin_city || lane.originCity;
       const originState = lane.origin_state || lane.originState;
-      const destinationCity = lane.dest_city || lane.destination_city || lane.destinationCity;
-      const destinationState = lane.dest_state || lane.destination_state || lane.destinationState;
+      const destinationCity = lane.destination_city || lane.destinationCity;
+      const destinationState = lane.destination_state || lane.destinationState;
       const equipmentCode = lane.equipment_code || lane.equipmentCode;
       
       const missing = !originCity || !originState || !destinationCity || !destinationState || !equipmentCode;
@@ -347,7 +347,15 @@ export default function PostOptions() {
         try {
           // Generate a unique request ID for tracing
           const requestId = `req-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
-          console.log(`🔄 [${requestId}] Processing lane ${lane.id} (${++processedCount}/${lanes.length}): ${lane.origin_city || lane.originCity}, ${lane.origin_state || lane.originState} → ${lane.dest_city || lane.destinationCity}, ${lane.dest_state || lane.destinationState}`);
+          console.log(`🔄 [${requestId}] Processing lane ${lane.id} (${++processedCount}/${lanes.length}): ${lane.origin_city || lane.originCity}, ${lane.origin_state || lane.originState} → ${lane.destination_city || lane.destinationCity}, ${lane.destination_state || lane.destinationState}`);
+          
+          // Prepare API request body for each lane
+          const requestBody = {
+            lane_id: lane.id,
+            origin_city: lane.originCity || lane.origin_city,
+            origin_state: lane.originState || lane.origin_state,
+            destination_city: lane.destinationCity || lane.destination_city,
+            destination_state: lane.destinationState || lane.destination_state,
           
           // Complete lane payload logging
           console.log("🚚 Lane payload:", lane);
@@ -356,8 +364,8 @@ export default function PostOptions() {
           console.log("🧪 Sending lane to API:", {
             originCity: lane.originCity || lane.origin_city,
             originState: lane.originState || lane.origin_state,
-            destCity: lane.destinationCity || lane.destination_city || lane.dest_city,
-            destState: lane.destinationState || lane.destination_state || lane.dest_state,
+            destCity: lane.destinationCity || lane.destination_city,
+            destState: lane.destinationState || lane.destination_state,
           });
           
           // Use the intelligenceApiAdapter to make the API call with proper parameter formatting
@@ -568,7 +576,7 @@ export default function PostOptions() {
     const originZip = lane.origin_zip ? `, ${lane.origin_zip}` : '';
     const destZip = lane.dest_zip ? `, ${lane.dest_zip}` : '';
     const rr = rrNumbers[lane.id] || 'RR#####';
-    return `${lane.origin_city}, ${lane.origin_state}${originZip} → ${lane.dest_city}, ${lane.dest_state}${destZip} | ${lane.equipment_code} | ${rr}`;
+    return `${lane.origin_city}, ${lane.origin_state}${originZip} → ${lane.destination_city}, ${lane.destination_state}${destZip} | ${lane.equipment_code} | ${rr}`;
   };
 
   const copyToClipboard = (text) => {

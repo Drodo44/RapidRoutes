@@ -39,9 +39,9 @@ export async function callIntelligencePairingApi(lane, options = {}) {
     originState: lane.origin_state || lane.originState || '',
     originZip: lane.origin_zip || lane.originZip || '',
     // Use destinationCity/destinationState to match backend validation
-    destinationCity: lane.dest_city || lane.destination_city || lane.destinationCity || '',
-    destinationState: lane.dest_state || lane.destination_state || lane.destinationState || '',
-    destinationZip: lane.dest_zip || lane.destination_zip || lane.destinationZip || '',
+    destinationCity: lane.destination_city || lane.destinationCity || '',
+    destinationState: lane.destination_state || lane.destinationState || '',
+    destinationZip: lane.destination_zip || lane.destinationZip || '',
     // Make sure equipment_code is NEVER empty - default to 'V' (Van)
     equipmentCode: lane.equipment_code || lane.equipmentCode || 'V',
     test_mode: useTestMode
@@ -70,7 +70,7 @@ export async function callIntelligencePairingApi(lane, options = {}) {
   }, {});
   
   // Validate required fields are present and non-null
-  const requiredFields = ['origin_city', 'origin_state', 'dest_city', 'dest_state', 'equipment_code'];
+  const requiredFields = ['origin_city', 'origin_state', 'destination_city', 'destination_state', 'equipment_code'];
   const missingFields = requiredFields.filter(field => !payload[field] || payload[field] === '');
   
   if (missingFields.length > 0) {
@@ -90,18 +90,22 @@ export async function callIntelligencePairingApi(lane, options = {}) {
     console.log({
       origin_city: !!payload.origin_city ? '✅' : '❌',
       origin_state: !!payload.origin_state ? '✅' : '❌',
-      dest_city: !!payload.dest_city ? '✅' : '❌',
-      dest_state: !!payload.dest_state ? '✅' : '❌',
+      destination_city: !!payload.destination_city ? '✅' : '❌',
+      destination_state: !!payload.destination_state ? '✅' : '❌',
       equipment_code: !!payload.equipment_code ? '✅' : '❌',
       origin_zip: payload.origin_zip || '(optional)',
-      dest_zip: payload.dest_zip || '(optional)',
+      destination_zip: payload.destination_zip || '(optional)',
       lane_id: payload.lane_id || '(optional)'
     });
+    
+    // Get the user's session token for authorization
+    const token = localStorage.getItem('supabase.auth.token');
     
     const response = await fetch('/api/intelligence-pairing', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : '',
       },
       body: JSON.stringify(payload),
     });
