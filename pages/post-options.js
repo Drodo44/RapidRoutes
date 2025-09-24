@@ -355,7 +355,8 @@ export default function PostOptions() {
             origin_city: lane.originCity || lane.origin_city,
             origin_state: lane.originState || lane.origin_state,
             destination_city: lane.destinationCity || lane.destination_city,
-            destination_state: lane.destinationState || lane.destination_state,
+            destination_state: lane.destinationState || lane.destination_state
+          };
           
           // Complete lane payload logging
           console.log("🚚 Lane payload:", lane);
