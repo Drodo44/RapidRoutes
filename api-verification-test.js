@@ -9,11 +9,14 @@ import 'dotenv/config';
 const API_URL = 'https://rapid-routes.vercel.app/api/intelligence-pairing';
 const LOCAL_URL = 'http://localhost:3000/api/intelligence-pairing';
 
+// Test if we can use test_mode for verification without auth
+const USE_TEST_MODE = true;
+
 // Get auth token from environment or command line
 const AUTH_TOKEN = process.env.AUTH_TOKEN || process.argv[2];
 
-// Verify we have an auth token
-if (!AUTH_TOKEN) {
+// Verify we have an auth token if not using test_mode
+if (!AUTH_TOKEN && !USE_TEST_MODE) {
   console.error('❌ No auth token provided. Please set AUTH_TOKEN env var or provide as argument.');
   console.error('Usage: node api-verification-test.js YOUR_AUTH_TOKEN');
   process.exit(1);
@@ -78,13 +81,19 @@ async function testApiEndpoint() {
     try {
       console.log(`\n🔄 Testing lane: ${lane.id} - ${lane.originCity}, ${lane.originState} → ${lane.destinationCity}, ${lane.destinationState}`);
       
-      // Make the request
+      // Make the request with appropriate headers
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+      
+      // Add auth token if available
+      if (AUTH_TOKEN) {
+        headers['Authorization'] = `Bearer ${AUTH_TOKEN}`;
+      }
+      
       const response = await fetch(API_URL, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${AUTH_TOKEN}`
-        },
+        headers,
         body: JSON.stringify({
           lane_id: lane.id,
           origin_city: lane.originCity,
@@ -92,7 +101,8 @@ async function testApiEndpoint() {
           destination_city: lane.destinationCity,
           destination_state: lane.destinationState,
           equipment_code: lane.equipmentCode,
-          debug: true  // Enable debug mode for more details
+          debug: true,  // Enable debug mode for more details
+          test_mode: USE_TEST_MODE  // Enable test mode if no auth token
         })
       });
       
