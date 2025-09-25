@@ -51,9 +51,16 @@ export default async function handler(req, res) {
       console.log('POST request received for lane creation');
       const payload = req.body;
 
-      // Allow partial destination data (either city OR state)
-      const hasDestinationData = payload.dest_city || payload.dest_state;
+      // Check for destination data across all possible field variants
+      const hasDestinationData = 
+        payload.destination_city || 
+        payload.destination_state || 
+        payload.dest_city || 
+        payload.dest_state ||
+        payload.destCity ||
+        payload.destState;
       
+      // Validate required fields: origin + equipment + pickup date + at least one destination field
       if (!payload.origin_city || !payload.origin_state || !hasDestinationData || 
           !payload.equipment_code || !payload.pickup_earliest) {
         return res.status(400).json({ 
@@ -62,7 +69,18 @@ export default async function handler(req, res) {
             has_origin: !!payload.origin_city && !!payload.origin_state,
             has_destination: !!hasDestinationData,
             has_equipment: !!payload.equipment_code,
-            has_pickup_date: !!payload.pickup_earliest
+            has_pickup_date: !!payload.pickup_earliest,
+            // Include detailed field presence information for debugging
+            field_status: {
+              origin_city: !!payload.origin_city,
+              origin_state: !!payload.origin_state,
+              destination_city: !!payload.destination_city,
+              destination_state: !!payload.destination_state,
+              dest_city: !!payload.dest_city,
+              dest_state: !!payload.dest_state,
+              destCity: !!payload.destCity,
+              destState: !!payload.destState
+            }
           }
         });
       }
@@ -88,16 +106,52 @@ export default async function handler(req, res) {
         return `RR${year}${month}${day}${random}`;
       }
 
-      // Handle defaults
+      // Handle defaults and field mapping
       // Never trust client for user_id/created_by, always generate new reference_id
+      // Extract all possible destination field variants
+      const { 
+        dest_city, 
+        dest_state, 
+        destCity, 
+        destState, 
+        destination_city: payloadDestinationCity, 
+        destination_state: payloadDestinationState,
+        ...payloadWithoutDestFields 
+      } = payload;
+      
+      // Map all destination variations to the canonical destination_* fields
+      // Using nullish coalescing to try each possible source in priority order
+      const destinationCity = payloadDestinationCity ?? dest_city ?? destCity ?? null;
+      const destinationState = payloadDestinationState ?? dest_state ?? destState ?? null;
+      
+      // Create the final lane object with standardized fields only
       const lane = {
-        ...payload,
+        ...payloadWithoutDestFields, // Base fields excluding any dest_* variants
         status: payload.status || 'pending',
         reference_id: generateReferenceId(),
         created_at: new Date().toISOString(),
         created_by: auth.user.id,
         user_id: auth.user.id,
+        // Always use destination_* fields for database consistency
+        destination_city: destinationCity,
+        destination_state: destinationState
       };
+      
+      // Detailed logging of the mapping process
+      console.log('[API] Destination field mapping:', {
+        original_fields: {
+          dest_city,
+          dest_state,
+          destCity,
+          destState,
+          destination_city: payloadDestinationCity,
+          destination_state: payloadDestinationState
+        },
+        final_fields: {
+          destination_city: lane.destination_city,
+          destination_state: lane.destination_state
+        }
+      });
       console.log('[API] Auth user id:', auth.user.id, 'Inserting lane:', lane);
 
       // Insert with admin client and get inserted row
@@ -138,27 +192,55 @@ export default async function handler(req, res) {
       console.log('🚀 API sending response - Status:', laneData.status, 'ID:', laneData.id);
       res.status(201).json(laneData);
       return;
-      
-      if (error) {
-        console.error('Lane creation error:', error);
-        throw error;
-      }
-      if (!data?.id) {
-        console.error('Lane created but no ID returned:', data);
-        throw new Error('Lane creation failed - database did not return an ID');
-      }
-      console.log('Lane created successfully:', data);
-      res.status(201).json(data);
-      return;
     }
     
     // PUT/PATCH - Update lane
     if (req.method === 'PUT' || req.method === 'PATCH') {
-      const { id, ...updates } = req.body;
+      const { 
+        id, 
+        dest_city, 
+        dest_state, 
+        destCity, 
+        destState, 
+        destination_city: updatesDestinationCity, 
+        destination_state: updatesDestinationState, 
+        ...updatesWithoutDestFields 
+      } = req.body;
       
       if (!id) {
         return res.status(400).json({ error: 'Lane ID required' });
       }
+      
+      // Create a clean updates object without any dest_* variants
+      const updates = {
+        ...updatesWithoutDestFields
+      };
+      
+      // Map all destination field variants to the canonical destination_* fields
+      // Using nullish coalescing to try each possible source in priority order
+      if (updatesDestinationCity !== undefined || dest_city !== undefined || destCity !== undefined) {
+        updates.destination_city = updatesDestinationCity ?? dest_city ?? destCity ?? null;
+      }
+      
+      if (updatesDestinationState !== undefined || dest_state !== undefined || destState !== undefined) {
+        updates.destination_state = updatesDestinationState ?? dest_state ?? destState ?? null;
+      }
+      
+      console.log('[API] Update lane with mapped destination fields:', {
+        id,
+        original_fields: {
+          dest_city,
+          dest_state,
+          destCity,
+          destState,
+          destination_city: updatesDestinationCity,
+          destination_state: updatesDestinationState
+        },
+        final_fields: {
+          destination_city: updates.destination_city,
+          destination_state: updates.destination_state
+        }
+      });
 
       // Verify ownership or admin status
       const { data: existingLane } = await adminSupabase
