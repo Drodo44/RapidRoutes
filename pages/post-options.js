@@ -580,13 +580,29 @@ export default function PostOptions() {
             destState: lane.destinationState || lane.destination_state,
           });
           
+          // Create auth session object with the token
+          // CRITICAL FIX: This is the key change that ensures token is passed
+          const authSession = token ? { access_token: token } : null;
+          
+          // Debug log the auth token being used
+          console.log(`🔑 Using auth token for lane ${lane.id}:`, {
+            hasToken: !!token,
+            tokenStart: token ? token.substring(0, 10) + '...' : 'none',
+            expiresAt: authTokenInfo?.expiresAt || 'unknown'
+          });
+          
           // Use the intelligenceApiAdapter to make the API call with proper parameter formatting
           try {
             // Use adapter to ensure correct parameter naming (destinationCity → destCity)
-            const result = await callIntelligencePairingApi(lane, {
-              // Don't automatically use test mode in production
-              useTestMode: false
-            });
+            const result = await callIntelligencePairingApi(
+              lane, 
+              {
+                // Don't automatically use test mode in production
+                useTestMode: false
+              },
+              // Pass the token we already validated
+              authSession
+            );
             
             // Log success
             console.log(`📥 [${requestId}] API success for lane ${lane.id}: ${result.pairs?.length || 0} pairs generated`);

@@ -26,13 +26,31 @@ export function extractAuthToken(req) {
     // 1. Extract from Authorization header (preferred method)
     const authHeader = req?.headers?.authorization || '';
     if (authHeader) {
-      result.authHeaderFormat = authHeader.startsWith('Bearer ') ? 'Bearer' : 'Invalid';
-      
+      // Check for Bearer token format
       if (authHeader.startsWith('Bearer ')) {
-        result.token = authHeader.slice(7);
+        result.authHeaderFormat = 'Bearer';
+        result.token = authHeader.slice(7).trim();
         result.source = 'header';
         result.tokenStart = result.token.substring(0, 10);
-        return result;
+        
+        // Validate that the token looks like a JWT (contains two dots)
+        if (result.token && result.token.split('.').length === 3) {
+          console.log(`✅ Valid Bearer token found in Authorization header`);
+          return result;
+        } else {
+          console.warn(`⚠️ Invalid JWT format in Authorization header`);
+        }
+      } else {
+        result.authHeaderFormat = 'Invalid';
+        // Try to extract token without 'Bearer ' prefix (older clients might send just the token)
+        const possibleToken = authHeader.trim();
+        if (possibleToken && possibleToken.split('.').length === 3) {
+          result.token = possibleToken;
+          result.source = 'header:raw';
+          result.tokenStart = result.token.substring(0, 10);
+          console.log(`✅ Raw token found in Authorization header`);
+          return result;
+        }
       }
     }
     

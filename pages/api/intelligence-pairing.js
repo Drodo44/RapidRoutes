@@ -169,6 +169,15 @@ export default async function handler(req, res) {
     // IMPROVED: Extract token using our enterprise-grade utility
     const { token: accessToken, source, error: extractionError } = extractAuthToken(req);
     
+    // Enhanced logging for token extraction to diagnose authentication issues
+    console.log(`🔐 Auth token extraction result:`, {
+      success: !!accessToken,
+      source,
+      hasError: !!extractionError,
+      errorMessage: extractionError ? extractionError.message : null,
+      tokenStart: accessToken ? accessToken.substring(0, 10) + '...' : 'none'
+    });
+    
     // Get test mode configuration - always enable in development
     const isDev = process.env.NODE_ENV !== 'production';
     const testModeEnabled = isDev || process.env.ALLOW_TEST_MODE === 'true';
@@ -179,7 +188,9 @@ export default async function handler(req, res) {
     const mockEnabled = isDev || process.env.ENABLE_MOCK_AUTH === 'true';
     const mockParam = req.query?.mock_auth || normalizedFields.mock_auth;
     // OVERRIDE for testing - Always enable mock auth when test_mode is true
-    const useMockAuth = (mockEnabled && mockParam) || useTestMode || (isDev && normalizedFields.test_mode);
+    // For production, use more strict authentication validation
+    const useMockAuth = process.env.NODE_ENV !== 'production' && 
+                      ((mockEnabled && mockParam) || useTestMode || (isDev && normalizedFields.test_mode));
     
     // Extended debugging info for environment variables
     console.log('🔐 Auth Configuration:', { 

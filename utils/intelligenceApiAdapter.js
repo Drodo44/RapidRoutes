@@ -126,11 +126,30 @@ export async function callIntelligencePairingApi(lane, options = {}, authSession
       tokenStart: authSession?.access_token ? authSession.access_token.substring(0, 10) + '...' : 'none'
     });
     
+    // We need to get the current authentication token if none was passed
+    let accessToken = authSession?.access_token;
+    
+    if (!accessToken) {
+      try {
+        // Import the auth utilities dynamically to avoid circular dependencies
+        const { getCurrentToken } = await import('./authUtils');
+        const tokenResult = await getCurrentToken();
+        accessToken = tokenResult.token;
+        
+        console.log('🔒 Retrieved token from getCurrentToken:', {
+          success: !!accessToken,
+          tokenStart: accessToken ? accessToken.substring(0, 10) + '...' : 'none'
+        });
+      } catch (tokenError) {
+        console.error('❌ Failed to retrieve auth token:', tokenError);
+      }
+    }
+    
     const response = await fetch('/api/intelligence-pairing', {
       method: 'POST',
       headers: {
         "Content-Type": "application/json",
-        "Authorization": authSession?.access_token ? `Bearer ${authSession.access_token}` : ''
+        "Authorization": accessToken ? `Bearer ${accessToken}` : ''
       },
       body: JSON.stringify(payload),
     });
