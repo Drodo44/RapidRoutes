@@ -1,46 +1,20 @@
 #!/bin/bash
-# build-and-deploy-changes.sh - Script to build and prepare lane validation fixes for deployment
+# Build and deploy script for validation changes
 
-set -e  # Exit on error
-
-echo "========= LANE VALIDATION FIX DEPLOYMENT ========="
-echo "Starting build and preparation process..."
-
-# Step 1: Run sanity check to verify file changes
-echo
-echo "1. Verifying file changes..."
-echo "   - post-options.js has updated validation"
-grep -A 5 "hasDestinationData" /workspaces/RapidRoutes/pages/post-options.js
-echo "   - intelligence-pairing.js has updated validation"
-grep -A 5 "hasDestinationData" /workspaces/RapidRoutes/pages/api/intelligence-pairing.js
-echo "   - intelligenceApiAdapter.js has updated validation"
-grep -A 5 "hasDestinationData" /workspaces/RapidRoutes/utils/intelligenceApiAdapter.js
-
-# Step 2: Lint the project
-echo
-echo "2. Linting project..."
-npm run lint || echo "Lint may have warnings, continuing..."
-
-# Step 3: Build the project
-echo
-echo "3. Building project..."
+echo "🔄 Building Next.js project..."
+cd /workspaces/RapidRoutes
 npm run build
 
-# Step 4: Output summary
-echo
-echo "========= DEPLOYMENT SUMMARY ========="
-echo "✅ Validation logic updated in all files"
-echo "✅ Logging enhanced for both success and failure paths"
-echo "✅ Build completed"
-echo
-echo "Changes summary:"
-echo "1. Lanes now require: origin_city, origin_state, and equipment_code"
-echo "2. Lanes accept either destination_city OR destination_state (partial destination)"
-echo "3. Enhanced logging at all validation points"
-echo "4. Clear success/failure indicators in logs for better debugging"
-echo
-echo "Next steps:"
-echo "1. Commit and push changes to GitHub"
-echo "2. Trigger deployment to production environment"
-echo "3. Monitor for validation patterns in production logs"
-echo "========================================"
+if [ $? -eq 0 ]; then
+    echo "✅ Build successful!"
+    echo "📝 Validation changes summary:"
+    echo "  - Updated lane validation in post-options.js, intelligence-pairing.js, and intelligenceApiAdapter.js"
+    echo "  - Lanes now require: origin_city, origin_state, equipment_code"
+    echo "  - Lanes now accept EITHER destination_city OR destination_state (not both required)"
+    echo "  - Enhanced logging for validation success/failure"
+    echo ""
+    echo "Ready for deployment! Push changes to main branch to deploy to production."
+else
+    echo "❌ Build failed! Please check the logs above for errors."
+    exit 1
+fi
