@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RapidRoutes API Tester</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #e0e0e0;
+            background-color: #1e1e2e;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1, h2, h3 {
+            color: #89b4fa;
+            margin-top: 20px;
+        }
+        pre {
+            background-color: #313244;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            margin: 20px 0;
+        }
+        button {
+            background-color: #89b4fa;
+            color: #1e1e2e;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #b4befe;
+        }
+        .success {
+            background-color: rgba(166, 227, 161, 0.2);
+            border-left: 4px solid #a6e3a1;
+            padding: 10px 15px;
+            margin: 20px 0;
+        }
+        .error {
+            background-color: rgba(243, 139, 168, 0.2);
+            border-left: 4px solid #f38ba8;
+            padding: 10px 15px;
+            margin: 20px 0;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        input, textarea, select {
+            background-color: #313244;
+            border: 1px solid #45475a;
+            color: #e0e0e0;
+            padding: 8px;
+            width: 100%;
+            border-radius: 4px;
+            margin-top: 5px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #cdd6f4;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .form-container {
+            padding: 20px;
+            background-color: #181825;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #313244;
+            font-size: 0.9em;
+            color: #7f849c;
+        }
+        #results {
+            margin-top: 20px;
+        }
+        .json-key {
+            color: #f38ba8;
+        }
+        .json-value {
+            color: #a6e3a1;
+        }
+        .json-string {
+            color: #fab387;
+        }
+        .json-number {
+            color: #89b4fa;
+        }
+    </style>
+</head>
+<body>
+    <h1>RapidRoutes API Tester</h1>
+    
+    <p>This tool lets you test the intelligence-pairing API directly in your browser.</p>
+    
+    <div class="form-container">
+        <h2>API Configuration</h2>
+        <div class="input-group">
+            <label for="api-url">API URL:</label>
+            <input type="text" id="api-url" value="https://rapidroutes.vercel.app/api/intelligence-pairing" placeholder="API Endpoint URL">
+        </div>
+        
+        <div class="input-group">
+            <label for="api-key">JWT Token (from Supabase auth):</label>
+            <input type="text" id="api-key" placeholder="Paste your JWT Token here">
+        </div>
+
+        <div class="input-group">
+            <label>
+                <input type="checkbox" id="debug-mode" checked>
+                Enable Debug Mode
+            </label>
+            <label>
+                <input type="checkbox" id="test-mode" checked>
+                Enable Test Mode
+            </label>
+        </div>
+    </div>
+    
+    <div class="form-container">
+        <h2>Lane Parameters</h2>
+        
+        <div class="grid">
+            <div class="input-group">
+                <label for="origin-city">Origin City:</label>
+                <input type="text" id="origin-city" value="Raleigh" placeholder="City name">
+            </div>
+            
+            <div class="input-group">
+                <label for="origin-state">Origin State:</label>
+                <input type="text" id="origin-state" value="NC" placeholder="State code">
+            </div>
+            
+            <div class="input-group">
+                <label for="origin-zip">Origin ZIP:</label>
+                <input type="text" id="origin-zip" value="27601" placeholder="ZIP code">
+            </div>
+            
+            <div class="input-group">
+                <label for="dest-city">Destination City:</label>
+                <input type="text" id="dest-city" value="Charlotte" placeholder="City name">
+            </div>
+            
+            <div class="input-group">
+                <label for="dest-state">Destination State:</label>
+                <input type="text" id="dest-state" value="NC" placeholder="State code">
+            </div>
+            
+            <div class="input-group">
+                <label for="dest-zip">Destination ZIP:</label>
+                <input type="text" id="dest-zip" value="28202" placeholder="ZIP code">
+            </div>
+            
+            <div class="input-group">
+                <label for="equipment-code">Equipment Code:</label>
+                <select id="equipment-code">
+                    <option value="V">V - Van</option>
+                    <option value="R">R - Reefer</option>
+                    <option value="FD">FD - Flatbed</option>
+                    <option value="SD">SD - Step Deck</option>
+                    <option value="RGN">RGN - Removable Gooseneck</option>
+                </select>
+            </div>
+            
+            <div class="input-group">
+                <label for="weight">Weight (lbs):</label>
+                <input type="number" id="weight" value="40000" placeholder="Weight in lbs">
+            </div>
+        </div>
+        
+        <button id="test-api">Test API</button>
+    </div>
+    
+    <div id="results"></div>
+    
+    <div class="footer">
+        <p>RapidRoutes API Tester © 2023</p>
+    </div>
+    
+    <script>
+        document.getElementById('test-api').addEventListener('click', async function() {
+            const resultsElement = document.getElementById('results');
+            resultsElement.innerHTML = '<h3>Testing API...</h3>';
+            
+            // Collect form values
+            const apiUrl = document.getElementById('api-url').value;
+            const apiKey = document.getElementById('api-key').value;
+            const debugMode = document.getElementById('debug-mode').checked;
+            const testMode = document.getElementById('test-mode').checked;
+            
+            // Collect lane data
+            const laneData = {
+                origin_city: document.getElementById('origin-city').value,
+                origin_state: document.getElementById('origin-state').value,
+                origin_zip: document.getElementById('origin-zip').value,
+                dest_city: document.getElementById('dest-city').value,
+                dest_state: document.getElementById('dest-state').value,
+                dest_zip: document.getElementById('dest-zip').value,
+                equipment_code: document.getElementById('equipment-code').value,
+                weight_lbs: parseInt(document.getElementById('weight').value)
+            };
+            
+            try {
+                // Set up headers
+                const headers = {
+                    'Content-Type': 'application/json',
+                };
+                
+                if (apiKey) {
+                    headers['Authorization'] = `Bearer ${apiKey}`;
+                }
+                
+                if (testMode) {
+                    headers['X-Test-Mode'] = 'true';
+                }
+                
+                if (debugMode) {
+                    headers['X-Debug-Mode'] = 'true';
+                }
+                
+                // Call the API
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({ lane: laneData })
+                });
+                
+                const responseText = await response.text();
+                let responseData;
+                
+                try {
+                    responseData = JSON.parse(responseText);
+                } catch (e) {
+                    throw new Error(`Invalid JSON response: ${responseText.substring(0, 500)}...`);
+                }
+                
+                if (!response.ok) {
+                    throw new Error(JSON.stringify(responseData, null, 2));
+                }
+                
+                // Success - display results
+                const cityPairs = responseData.cityPairs || [];
+                let resultsHtml = '';
+                
+                if (cityPairs.length === 0) {
+                    resultsHtml = `
+                        <div class="error">
+                            <h3>⚠️ API responded but returned 0 city pairs</h3>
+                            <p>This might indicate an issue with:</p>
+                            <ul>
+                                <li>The RPC function not working correctly</li>
+                                <li>No matching cities found within radius</li>
+                                <li>Missing or invalid city data</li>
+                            </ul>
+                        </div>
+                    `;
+                } else {
+                    resultsHtml = `
+                        <div class="success">
+                            <h3>✅ API working successfully!</h3>
+                            <p>Found ${cityPairs.length} city pairs for this lane.</p>
+                        </div>
+                        
+                        <h3>City Pairs (first 5 of ${cityPairs.length}):</h3>
+                        <table style="width:100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background-color:#313244;">
+                                    <th style="padding:8px; text-align:left;">Origin</th>
+                                    <th style="padding:8px; text-align:left;">Destination</th>
+                                    <th style="padding:8px; text-align:left;">KMA Codes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${cityPairs.slice(0, 5).map((pair, index) => `
+                                    <tr style="border-bottom:1px solid #45475a;">
+                                        <td style="padding:8px;">${pair.origin.city}, ${pair.origin.state_or_province}</td>
+                                        <td style="padding:8px;">${pair.destination.city}, ${pair.destination.state_or_province}</td>
+                                        <td style="padding:8px;">${pair.origin.kma_code} → ${pair.destination.kma_code}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                }
+                
+                // Add raw response data
+                resultsHtml += `
+                    <h3>Raw API Response:</h3>
+                    <pre>${formatJSON(JSON.stringify(responseData, null, 2))}</pre>
+                `;
+                
+                resultsElement.innerHTML = resultsHtml;
+                
+            } catch (error) {
+                resultsElement.innerHTML = `
+                    <div class="error">
+                        <h3>❌ API Test Failed</h3>
+                        <p>Error: ${error.message}</p>
+                    </div>
+                `;
+            }
+        });
+        
+        // Format JSON with syntax highlighting
+        function formatJSON(json) {
+            return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+                let cls = 'json-number';
+                if (/^"/.test(match)) {
+                    if (/:$/.test(match)) {
+                        cls = 'json-key';
+                    } else {
+                        cls = 'json-string';
+                    }
+                } else if (/true|false/.test(match)) {
+                    cls = 'json-value';
+                } else if (/null/.test(match)) {
+                    cls = 'json-value';
+                }
+                return '<span class="' + cls + '">' + match + '</span>';
+            });
+        }
+    </script>
+</body>
+</html>
