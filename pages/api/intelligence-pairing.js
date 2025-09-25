@@ -46,93 +46,124 @@ export default async function handler(req, res) {
       lane_id,
       laneId,
       origin_city,
-      originCity, 
+      originCity: reqOriginCity, 
       origin_state,
-      originState,
+      originState: reqOriginState,
       destination_city,
-      destinationCity,
+      destinationCity: reqDestinationCity,
       dest_city,
       destination_state,
-      destinationState,
+      destinationState: reqDestinationState,
       dest_state,
       equipment_code,
-      equipmentCode = 'V',
+      equipmentCode: reqEquipmentCode = 'V',
       test_mode = false,
       mock_auth = false,
     } = req.body;
 
-    // Normalize field names 
+    // Normalize all field name variants (camelCase + snake_case)
+  const originCity = origin_city || reqOriginCity;
+  const originState = origin_state || reqOriginState;
+  const destinationCity = destination_city || reqDestinationCity || dest_city;
+  const destinationState = destination_state || reqDestinationState || dest_state;
+  const equipmentCode = equipment_code || reqEquipmentCode;
+    
+    // For backward compatibility, still create normalizedFields
     const normalizedFields = {
       lane_id: lane_id || laneId,
-      origin_city: origin_city || originCity,
-      origin_state: origin_state || originState,
-      destination_city: destination_city || destinationCity || dest_city,
-      destination_state: destination_state || destinationState || dest_state,
-      equipment_code: equipment_code || equipmentCode || 'V',
+      origin_city: originCity,
+      origin_state: originState,
+      destination_city: destinationCity,
+      destination_state: destinationState,
+      equipment_code: equipmentCode,
       test_mode: test_mode === true,
       mock_auth: mock_auth === true,
     };
 
+    // Unified lane validation block
+    const hasDestinationData = destinationCity || destinationState;
+    if (!originCity || !originState || !equipmentCode || !hasDestinationData) {
+      console.error(`❌ Lane ${lane_id || laneId} invalid:`, {
+        originCity: !!originCity,
+        originState: !!originState,
+        destinationCity: !!destinationCity,
+        destinationState: !!destinationState,
+        hasDestinationData,
+        equipmentCode: !!equipmentCode
+      });
+      return res.status(400).json({
+        error: 'Invalid lane data',
+        details: {
+          originCity,
+          originState,
+          destinationCity,
+          destinationState,
+          equipmentCode
+        },
+        status: 400,
+        success: false
+      });
+    }
+
     console.log('📦 Normalized payload:', JSON.stringify(normalizedFields));
 
-    // Check required fields - requires origin fields + equipment, allows EITHER destination_city OR destination_state
-    const hasDestinationData = normalizedFields.destination_city || normalizedFields.destination_state;
+    // Accept if either destinationCity OR destinationState is provided
+  // (removed duplicate declaration)
     
     // Log validation details for monitoring
-    console.log(`🔍 Lane ${normalizedFields.lane_id || 'new'} validation check:`, {
-      origin_city: !!normalizedFields.origin_city,
-      origin_state: !!normalizedFields.origin_state,
-      destination_city: !!normalizedFields.destination_city, 
-      destination_state: !!normalizedFields.destination_state,
-      has_destination_data: !!hasDestinationData,
-      equipment_code: !!normalizedFields.equipment_code
+    console.log(`🔍 Lane ${lane_id || laneId || 'new'} validation check:`, {
+      originCity: !!originCity,
+      originState: !!originState,
+      destinationCity: !!destinationCity,
+      destinationState: !!destinationState,
+      hasDestinationData,
+      equipmentCode: !!equipmentCode
     });
     
     // Log actual values for debugging in development mode
     if (process.env.NODE_ENV === 'development') {
-      console.log(`🔍 Lane ${normalizedFields.lane_id || 'new'} field values:`, {
-        origin_city: normalizedFields.origin_city,
-        origin_state: normalizedFields.origin_state,
-        destination_city: normalizedFields.destination_city,
-        destination_state: normalizedFields.destination_state,
-        equipment_code: normalizedFields.equipment_code
+      console.log(`🔍 Lane ${lane_id || laneId || 'new'} field values:`, {
+        originCity,
+        originState,
+        destinationCity,
+        destinationState,
+        equipmentCode
       });
     }
     
-    // NEW VALIDATION LOGIC: Requires origin fields + equipment, allows EITHER destination_city OR destination_state
-    if (!normalizedFields.origin_city || !normalizedFields.origin_state || !hasDestinationData || !normalizedFields.equipment_code) {
-      console.error("❌ Lane invalid:", { 
-        lane_id: normalizedFields.lane_id, 
-        origin_city: !!normalizedFields.origin_city, 
-        origin_state: !!normalizedFields.origin_state, 
-        destination_city: !!normalizedFields.destination_city, 
-        destination_state: !!normalizedFields.destination_state, 
-        has_destination_data: !!hasDestinationData, 
-        equipment_code: !!normalizedFields.equipment_code 
+    // Final validation
+    if (!originCity || !originState || !equipmentCode || !hasDestinationData) {
+      console.error(`❌ Lane ${lane_id || laneId || 'new'} invalid:`, {
+        originCity: !!originCity,
+        originState: !!originState,
+        destinationCity: !!destinationCity,
+        destinationState: !!destinationState,
+        hasDestinationData,
+        equipmentCode: !!equipmentCode
       });
       
       return res.status(400).json({
         error: 'Missing required fields',
         details: { 
-          origin_city: !!normalizedFields.origin_city, 
-          origin_state: !!normalizedFields.origin_state,
-          destination_city: !!normalizedFields.destination_city,
-          destination_state: !!normalizedFields.destination_state,
-          has_destination_data: !!hasDestinationData,
-          equipment_code: !!normalizedFields.equipment_code,
+          originCity: !!originCity,
+          originState: !!originState,
+          destinationCity: !!destinationCity,
+          destinationState: !!destinationState,
+          hasDestinationData,
+          equipmentCode: !!equipmentCode,
           // Include actual values for diagnostic purposes
-          origin_city_value: normalizedFields.origin_city,
-          origin_state_value: normalizedFields.origin_state,
-          destination_city_value: normalizedFields.destination_city,
-          destination_state_value: normalizedFields.destination_state,
-          equipment_code_value: normalizedFields.equipment_code
+          originCityValue: originCity,
+          originStateValue: originState,
+          destinationCityValue: destinationCity,
+          destinationStateValue: destinationState,
+          equipmentCodeValue: equipmentCode
         },
         status: 400,
         success: false
       });
     } else {
       // Log successful validation
-      console.log(`✅ Lane ${normalizedFields.lane_id || 'new'} validation passed - proceeding with ${hasDestinationData ? (normalizedFields.destination_city && normalizedFields.destination_state ? 'complete' : 'partial') : 'no'} destination data`);
+      console.log(`✅ Lane ${lane_id || laneId || 'new'} validation passed - proceeding with ${hasDestinationData ? (destinationCity && destinationState ? 'complete' : 'partial') : 'no'} destination data`);
     }
     
     // IMPROVED: Extract token using our enterprise-grade utility
@@ -208,23 +239,38 @@ export default async function handler(req, res) {
           testModeEnabled,
           isTestRequest: normalizedFields.test_mode,
           mockParam: normalizedFields.mock_auth,
-          hasToken: !!accessToken
+          hasToken: !!accessToken,
+          headerAuth: req.headers.authorization ? req.headers.authorization.substring(0, 15) + '...' : 'none',
+          cookies: Object.keys(req.cookies || {})
+        });
+        
+        // For debugging environments, proceed without auth
+        if (isDev || process.env.NODE_ENV === 'development') {
+          console.warn('⚠️ Proceeding without authentication in development mode');
+          // Continue processing the request
+        } else {
+          console.error('❌ Authentication error: No valid token provided');
+          return res.status(401).json({ 
+            error: 'Unauthorized',
+            details: 'Missing authentication token. Please provide a valid token via Authorization header.',
+            code: 'AUTH_TOKEN_MISSING',
+          });
+        }
+      } else {
+        console.error('❌ Authentication error: No valid token provided');
+        return res.status(401).json({ 
+          error: 'Unauthorized',
+          details: 'Missing authentication token. Please provide a valid token via Authorization header.',
+          code: 'AUTH_TOKEN_MISSING',
+          success: false,
+          debug: {
+            test_mode: normalizedFields.test_mode,
+            mock_auth: normalizedFields.mock_auth,
+            useTestMode,
+            useMockAuth
+          }
         });
       }
-      
-      console.error('❌ Authentication error: No valid token provided');
-      return res.status(401).json({ 
-        error: 'Unauthorized',
-        details: 'Missing authentication token. Please provide a valid token via Authorization header.',
-        code: 'AUTH_TOKEN_MISSING',
-        success: false,
-        debug: {
-          test_mode: normalizedFields.test_mode,
-          mock_auth: normalizedFields.mock_auth,
-          useTestMode,
-          useMockAuth
-        }
-      });
     }
     
     // Verify authentication if not using test mode or mock auth

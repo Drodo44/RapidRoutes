@@ -64,15 +64,36 @@ export default async function handler(req, res) {
       // Filter allowed update fields for security
       const allowedFields = [
         'pickup_earliest', 'pickup_latest', 'weight_lbs', 'weight_min', 'weight_max',
-        'comment', 'commodity', 'status', 'full_partial', 'length_ft'
+        'comment', 'commodity', 'status', 'full_partial', 'length_ft',
+        'destination_city', 'destination_state' // Allow updating destination fields
       ];
       
+      // Extract and map destination fields if using dest_* aliases
+      const { dest_city, dest_state, ...updatesWithoutDestAliases } = updates;
+      
       const filteredUpdates = {};
-      for (const [key, value] of Object.entries(updates)) {
+      for (const [key, value] of Object.entries(updatesWithoutDestAliases)) {
         if (allowedFields.includes(key)) {
           filteredUpdates[key] = value;
         }
       }
+      
+      // Map destination fields if provided via dest_* aliases
+      if (dest_city !== undefined && !filteredUpdates.destination_city) {
+        filteredUpdates.destination_city = dest_city;
+      }
+      
+      if (dest_state !== undefined && !filteredUpdates.destination_state) {
+        filteredUpdates.destination_state = dest_state;
+      }
+      
+      console.log('[API] Update lane endpoint with mapped destination fields:', {
+        id,
+        original_dest_city: dest_city,
+        original_dest_state: dest_state,
+        mapped_destination_city: filteredUpdates.destination_city,
+        mapped_destination_state: filteredUpdates.destination_state
+      });
 
       const { data, error } = await adminSupabase
         .from('lanes')

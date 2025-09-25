@@ -24,9 +24,10 @@
  * @param {Object} lane - Lane object with origin/destination information
  * @param {Object} options - Additional options for the API call
  * @param {boolean} options.useTestMode - Whether to use test mode (defaults to environment setting)
+ * @param {Object} authSession - Authentication session containing access_token
  * @returns {Promise<Object>} - Response from intelligence-pairing API
  */
-export async function callIntelligencePairingApi(lane, options = {}) {
+export async function callIntelligencePairingApi(lane, options = {}, authSession = null) {
   // Determine if we should use test mode
   const useTestMode = options.useTestMode !== undefined 
     ? options.useTestMode 
@@ -47,24 +48,42 @@ export async function callIntelligencePairingApi(lane, options = {}) {
     destinationState: lane.destinationState
   });
 
+  // Normalize all field name variants (camelCase + snake_case)
+  const originCity = lane.originCity || lane.origin_city;
+  const originState = lane.originState || lane.origin_state;
+  const destinationCity = lane.destinationCity || lane.destination_city || lane.dest_city;
+  const destinationState = lane.destinationState || lane.destination_state || lane.dest_state;
+  const equipmentCode = lane.equipmentCode || lane.equipment_code;
+  const laneId = lane.id || lane.lane_id;
+
+  // Unified lane validation block
+  const hasDestinationData = destinationCity || destinationState;
+  if (!originCity || !originState || !equipmentCode || !hasDestinationData) {
+    console.error(`❌ Lane ${laneId} invalid:`, {
+      originCity: !!originCity,
+      originState: !!originState,
+      destinationCity: !!destinationCity,
+      destinationState: !!destinationState,
+      hasDestinationData,
+      equipmentCode: !!equipmentCode
+    });
+    return false;
+  }
+
   // First gather parameters in camelCase format and ensure defaults for critical fields
   const camelCasePayload = {
-    laneId: lane.id,
-    originCity: lane.origin_city || lane.originCity || '',
-    originState: lane.origin_state || lane.originState || '',
+    laneId,
+    originCity: originCity || '',
+    originState: originState || '',
     originZip: lane.origin_zip || lane.originZip || '',
-    // Use destinationCity/destinationState to match backend validation
-    destinationCity: lane.destination_city || lane.destinationCity || '',
-    destinationState: lane.destination_state || lane.destinationState || '',
+    destinationCity: destinationCity || '',
+    destinationState: destinationState || '',
     destinationZip: lane.destination_zip || lane.destinationZip || '',
-    // Make sure equipment_code is NEVER empty - default to 'V' (Van)
-    equipmentCode: lane.equipment_code || lane.equipmentCode || 'V',
+    equipmentCode: equipmentCode || 'V',
     test_mode: useTestMode
   };
   
-  console.log(`🔄 Normalized camelCase payload for lane ${lane.id}:`, camelCasePayload);
-  
-  // Convert raw data to proper format
+  console.log(`🔄 Normalized camelCase payload for lane ${laneId}:`, camelCasePayload);
   
   // Helper function to convert camelCase keys to snake_case
   const toSnakeCase = (str) => str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
@@ -77,26 +96,16 @@ export async function callIntelligencePairingApi(lane, options = {}) {
     return acc;
   }, {});
   
-  // Validate required fields are present and non-null
-  // Updated validation: requires origin fields + equipment, allows EITHER destination_city OR destination_state
-  const hasDestinationData = payload.destination_city || payload.destination_state;
+  // Accept if either destinationCity OR destinationState is provided
+  // (removed duplicate declaration)
   
-  if (!payload.origin_city || !payload.origin_state || !hasDestinationData || !payload.equipment_code) {
-    console.error("❌ Lane invalid:", { 
-      lane_id: payload.lane_id, 
-      origin_city: !!payload.origin_city, 
-      origin_state: !!payload.origin_state, 
-      destination_city: !!payload.destination_city, 
-      destination_state: !!payload.destination_state, 
-      has_destination_data: !!hasDestinationData, 
-      equipment_code: !!payload.equipment_code 
-    });
-    
+  // Log validation status but continue with API call
+  if (!originCity || !originState || !equipmentCode || !hasDestinationData) {
     const missingFields = [];
-    if (!payload.origin_city) missingFields.push('origin_city');
-    if (!payload.origin_state) missingFields.push('origin_state');
+    if (!originCity) missingFields.push('originCity/origin_city');
+    if (!originState) missingFields.push('originState/origin_state');
     if (!hasDestinationData) missingFields.push('destination data (either city or state)');
-    if (!payload.equipment_code) missingFields.push('equipment_code');
+    if (!equipmentCode) missingFields.push('equipmentCode/equipment_code');
     
     if (process.env.NODE_ENV === 'development') {
       console.warn('⚠️ Missing required fields in payload:', missingFields);
@@ -104,30 +113,52 @@ export async function callIntelligencePairingApi(lane, options = {}) {
     }
   } else {
     // Log successful validation
-    console.log(`✅ Lane ${payload.lane_id || 'new'} passed adapter validation with ${hasDestinationData ? (payload.destination_city && payload.destination_state ? 'complete' : 'partial') : 'no'} destination data`);
+    console.log(`✅ Lane ${laneId || 'new'} validation passed - proceeding with ${hasDestinationData ? (destinationCity && destinationState ? 'complete' : 'partial') : 'no'} destination data`);
   }
 
   try {
     // Prepare to send API request
     
-    // Get the user's session token for authorization
-    const token = localStorage.getItem('supabase.auth.token');
+    // Extra debugging for token issues
+    console.log(`🔑 Auth token check for API call:`, {
+      hasAuthSession: !!authSession,
+      hasAccessToken: !!authSession?.access_token,
+      tokenStart: authSession?.access_token ? authSession.access_token.substring(0, 10) + '...' : 'none'
+    });
     
     const response = await fetch('/api/intelligence-pairing', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': token ? `Bearer ${token}` : '',
+        "Content-Type": "application/json",
+        "Authorization": authSession?.access_token ? `Bearer ${authSession.access_token}` : ''
       },
       body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`API responded with status: ${response.status} - ${errorText}`);
+      try {
+        const errorData = await response.json();
+        // Add status code to the error response for consistent handling
+        errorData.status = response.status;
+        errorData.statusCode = response.status;
+        return errorData; // Return the error response with status code
+      } catch (jsonError) {
+        // If JSON parsing fails, get the text and create an error object
+        const errorText = await response.text();
+        return {
+          success: false,
+          error: errorText,
+          status: response.status,
+          statusCode: response.status
+        };
+      }
     }
 
-    return await response.json();
+    const jsonData = await response.json();
+    // Add status code to the success response for consistent handling
+    jsonData.status = response.status;
+    jsonData.statusCode = response.status;
+    return jsonData;
   } catch (error) {
     console.error('Intelligence API error:', error);
     throw error;

@@ -1,37 +1,35 @@
 {
-  "timestamp": "2025-09-21T22:36:46.427Z",
+  "timestamp": "2025-09-24T20:34:05.668Z",
+  "apiUrl": "https://rapid-routes.vercel.app/api/intelligence-pairing",
+  "summary": {
+    "totalTested": 3,
+    "successCount": 0,
+    "kmaRequirementMet": 0,
+    "allSuccessful": false,
+    "allMeetRequirement": true,
+    "averageResponseTime": 0
+  },
   "results": [
     {
       "name": "Chicago to Atlanta (Flatbed)",
       "success": false,
-      "status": 405,
-      "error": "",
-      "responseTime": 92
+      "status": 400,
+      "error": "{\"error\":\"Missing required fields\",\"details\":{\"origin_city\":true,\"origin_state\":true,\"destination_city\":false,\"destination_state\":false,\"has_destination_data\":false,\"equipment_code\":true,\"origin_city_value\":\"Chicago\",\"origin_state_value\":\"IL\",\"equipment_code_value\":\"FD\"},\"status\":400,\"success\":false}",
+      "responseTime": 476
     },
     {
       "name": "Los Angeles to Dallas (Van)",
       "success": false,
-      "status": 405,
-      "error": "",
-      "responseTime": 31
+      "status": 400,
+      "error": "{\"error\":\"Missing required fields\",\"details\":{\"origin_city\":true,\"origin_state\":true,\"destination_city\":false,\"destination_state\":false,\"has_destination_data\":false,\"equipment_code\":true,\"origin_city_value\":\"Los Angeles\",\"origin_state_value\":\"CA\",\"equipment_code_value\":\"V\"},\"status\":400,\"success\":false}",
+      "responseTime": 84
     },
     {
       "name": "New York to Miami (Reefer)",
       "success": false,
-      "status": 405,
-      "error": "",
-      "responseTime": 9
+      "status": 400,
+      "error": "{\"error\":\"Missing required fields\",\"details\":{\"origin_city\":true,\"origin_state\":true,\"destination_city\":false,\"destination_state\":false,\"has_destination_data\":false,\"equipment_code\":true,\"origin_city_value\":\"New York\",\"origin_state_value\":\"NY\",\"equipment_code_value\":\"R\"},\"status\":400,\"success\":false}",
+      "responseTime": 64
     }
-  ],
-  "statistics": {
-    "successful": 0,
-    "meetRequirement": 0,
-    "total": 3,
-    "averageResponseTime": 0
-  },
-  "overall": {
-    "success": false,
-    "meetsRequirements": true,
-    "status": "FAILURE - Some API calls failed completely"
-  }
+  ]
 }
