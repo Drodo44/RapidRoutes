@@ -489,23 +489,33 @@ export default async function handler(req, res) {
       const mockKmaCodes = ['ATL', 'CHI', 'DAL', 'NYC', 'LAX', 'MIA', 'BOS', 'DEN', 'SEA', 'PHX', 'MSP', 'STL'];
       
       for (let i = 0; i < 20; i++) {
+        const originKmaCode = mockKmaCodes[i % mockKmaCodes.length];
+        const destKmaCode = mockKmaCodes[(i + 5) % mockKmaCodes.length];
+        
+        // Format exactly as expected by client
         emergencyPairs.push({
           origin: {
-            city: originCity,
-            state_or_province: originState,
-            kma_code: mockKmaCodes[i % mockKmaCodes.length],
+            city: originCity || 'Atlanta',
+            state: originState || 'GA',
+            state_or_province: originState || 'GA', 
+            kma_code: originKmaCode,
+            kma_name: `${originKmaCode} Market Area`,
             latitude: originLat || 35,
-            longitude: originLng || -80
+            longitude: originLng || -80,
+            distance_miles: 0
           },
           destination: {
-            city: destCity,
-            state_or_province: destState,
-            kma_code: mockKmaCodes[(i + 5) % mockKmaCodes.length],
+            city: destCity || 'Chicago',
+            state: destState || 'IL',
+            state_or_province: destState || 'IL',
+            kma_code: destKmaCode,
+            kma_name: `${destKmaCode} Market Area`,
             latitude: destLat || 40,
-            longitude: destLng || -75
+            longitude: destLng || -75,
+            distance_miles: 0
           },
           distanceMiles: 500,
-          id: `emergency-pair-${i}`
+          pair_id: `emergency-pair-${i}`
         });
       }
       
@@ -515,8 +525,12 @@ export default async function handler(req, res) {
       console.log(`⚠️ Emergency data created with ${cityPairs.length} pairs`);
     }
     
+    // Force emergency flag if we used emergency data
+    const usedEmergencyData = cityPairs.length > 0 && cityPairs[0].pair_id?.startsWith('emergency');
+    
+    // Always include both cityPairs and pairs in the response for client compatibility
     return res.status(200).json({
-      message: `Generated ${cityPairs.length} city pairs`,
+      message: `Generated ${cityPairs.length} city pairs${usedEmergencyData ? ' (EMERGENCY FALLBACK DATA)' : ''}`,
       requestId,
       success: true,
       cityPairs: cityPairs,  // Use cityPairs key for consistency with client expectations
@@ -537,6 +551,7 @@ export default async function handler(req, res) {
         totalCityPairs: cityPairs.length,
         originCitiesSearched: originCities?.length || 0,
         destinationCitiesSearched: destCities?.length || 0,
+        emergency: usedEmergencyData,
         searchRadiusMiles: radius,
         usingMockData: usingMockData
       },
@@ -558,38 +573,61 @@ export default async function handler(req, res) {
     const mockKmaCodes = ['ATL', 'CHI', 'DAL', 'NYC', 'LAX', 'MIA', 'BOS', 'DEN', 'SEA', 'PHX', 'MSP', 'STL'];
     
     for (let i = 0; i < 20; i++) {
+      const originKmaCode = mockKmaCodes[i % mockKmaCodes.length];
+      const destKmaCode = mockKmaCodes[(i + 5) % mockKmaCodes.length];
+      
+      // Format exactly as expected by client
       emergencyPairs.push({
         origin: {
           city: originCity || 'Atlanta',
-          state_or_province: originState || 'GA',
-          kma_code: mockKmaCodes[i % mockKmaCodes.length],
+          state: originState || 'GA',
+          state_or_province: originState || 'GA', 
+          kma_code: originKmaCode,
+          kma_name: `${originKmaCode} Market Area`,
           latitude: 33.7490,
-          longitude: -84.3880
+          longitude: -84.3880,
+          distance_miles: 0
         },
         destination: {
           city: destCity || 'Chicago',
+          state: destState || 'IL',
           state_or_province: destState || 'IL',
-          kma_code: mockKmaCodes[(i + 5) % mockKmaCodes.length],
+          kma_code: destKmaCode,
+          kma_name: `${destKmaCode} Market Area`,
           latitude: 41.8781,
-          longitude: -87.6298
+          longitude: -87.6298,
+          distance_miles: 0
         },
         distanceMiles: 500,
-        id: `emergency-error-pair-${i}`
+        pair_id: `emergency-error-pair-${i}`
       });
     }
     
+    // The keys "pairs" and "cityPairs" are both required for client compatibility
     return res.status(200).json({
-      message: 'Emergency recovery: Providing fallback data after processing error',
+      message: 'EMERGENCY RECOVERY: Providing fallback data after processing error',
       error: error.message || 'An unexpected error occurred',
       success: true,  // Always return success:true for API compatibility
       pairs: emergencyPairs,
       cityPairs: emergencyPairs,
       requestId,
       processingTimeMs: Date.now() - startTime,
+      origin: {
+        city: originCity || 'Atlanta',
+        state: originState || 'GA',
+        zip: requestData.origin_zip || requestData.originZip || '30303'
+      },
+      destination: {
+        city: destCity || 'Chicago',
+        state: destState || 'IL',
+        zip: requestData.dest_zip || requestData.destination_zip || requestData.destinationZip || '60601'
+      },
       metadata: {
         uniqueOriginKmas: 12,
         uniqueDestKmas: 12,
-        emergency: true
+        emergency: true,
+        totalCityPairs: emergencyPairs.length,
+        usedEmergencyCatchHandler: true
       }
     });
   }
