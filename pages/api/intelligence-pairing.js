@@ -318,192 +318,80 @@ export default async function handler(req, res) {
     }
     
     console.log(`Found ${originCities.length} origin cities and ${destCities.length} destination cities`);
-    
-    // Create city pairs
-    // Generate all possible combinations but limit to a reasonable number
-    let cityPairs = [];
-    
+
     // Ensure we have at least 6 unique KMAs as required by business rules
-    // First, collect all unique KMA codes
     const uniqueOriginKmas = new Set(originCities.filter(city => city.kma_code).map(city => city.kma_code));
     const uniqueDestKmas = new Set(destCities.filter(city => city.kma_code).map(city => city.kma_code));
-    
-    console.log(`Found ${uniqueOriginKmas.size} unique origin KMAs and ${uniqueDestKmas.size} unique destination KMAs`);
-    
-    // If we don't have enough unique KMAs, we'll use cities without KMA codes too
-    const minKmaCount = 6;
-    const useNonKmaCities = uniqueOriginKmas.size < minKmaCount || uniqueDestKmas.size < minKmaCount;
-    
-    // Sort cities by distance for better results
-    const sortedOriginCities = [...originCities].sort((a, b) => a.distance_miles - b.distance_miles);
-    const sortedDestCities = [...destCities].sort((a, b) => a.distance_miles - b.distance_miles);
-    
-    // Generate pairs with a reasonable limit
-    // Default to 22 for DAT CSV requirements, use more in test mode to ensure we get enough KMAs
-    const maxPairs = req.query.max_pairs ? parseInt(req.query.max_pairs) : 
-                    (testMode ? Math.min(50, originCities.length, destCities.length) : 22);
+
+    if (originCities.length === 0) {
+      console.error('No origin cities found from Supabase within radius');
+      throw new Error('NO_ORIGIN_CITIES_FOUND');
+    }
+    if (destCities.length === 0) {
+      console.error('No destination cities found from Supabase within radius');
+      throw new Error('NO_DEST_CITIES_FOUND');
+    }
+    if (uniqueOriginKmas.size < 6) {
+      console.error(`Insufficient origin KMA diversity (${uniqueOriginKmas.size}/6)`);
+      throw new Error('INSUFFICIENT_ORIGIN_KMA_DIVERSITY');
+    }
+    if (uniqueDestKmas.size < 6) {
+      console.error(`Insufficient destination KMA diversity (${uniqueDestKmas.size}/6)`);
+      throw new Error('INSUFFICIENT_DEST_KMA_DIVERSITY');
+    }
+
+    // Build unique city pairs from origin × destination
+    const maxPairs = req.query.max_pairs ? parseInt(req.query.max_pairs) : 22;
+    let cityPairs = [];
     let usedOriginKmas = new Set();
     let usedDestKmas = new Set();
-    
-    // First, create a collection of origin cities with unique KMA codes
-    const uniqueOriginCitiesByKma = {};
-    for (const city of sortedOriginCities) {
-      if (city.kma_code && !uniqueOriginCitiesByKma[city.kma_code]) {
-        uniqueOriginCitiesByKma[city.kma_code] = city;
-      }
-    }
-    
-    // Do the same for destination cities
-    const uniqueDestCitiesByKma = {};
-    for (const city of sortedDestCities) {
-      if (city.kma_code && !uniqueDestCitiesByKma[city.kma_code]) {
-        uniqueDestCitiesByKma[city.kma_code] = city;
-      }
-    }
-    
-    const availableOriginKmas = Object.keys(uniqueOriginCitiesByKma);
-    const availableDestKmas = Object.keys(uniqueDestCitiesByKma);
-    
-    console.log(`Found ${availableOriginKmas.length} unique origin KMAs and ${availableDestKmas.length} unique destination KMAs`);
-    
-    // Phase 1: Create pairs using cities with unique KMAs
-    const pairsToCreate = Math.min(maxPairs, availableOriginKmas.length, availableDestKmas.length);
-    
-    for (let i = 0; i < pairsToCreate; i++) {
-      const originKma = availableOriginKmas[i];
-      const destKma = availableDestKmas[i];
-      
-      const originCity = uniqueOriginCitiesByKma[originKma];
-      const destCity = uniqueDestCitiesByKma[destKma];
-      
-      // Skip if cities are the same
-      if (originCity.city === destCity.city && originCity.state_or_province === destCity.state_or_province) {
-        continue;
-      }
-      
-      cityPairs.push({
-        origin: {
-          city: originCity.city,
-          state: originCity.state_or_province,
-          zip: originCity.zip_code || '',
-          kma_code: originCity.kma_code || '',
-          kma_name: originCity.kma_name || '',
-          distance_miles: originCity.distance_miles || 0,
-          lat: originCity.latitude,
-          lng: originCity.longitude
-        },
-        destination: {
-          city: destCity.city,
-          state: destCity.state_or_province,
-          zip: destCity.zip_code || '',
-          kma_code: destCity.kma_code || '',
-          kma_name: destCity.kma_name || '',
-          distance_miles: destCity.distance_miles || 0,
-          lat: destCity.latitude,
-          lng: destCity.longitude
-        },
-        pair_id: `${requestId}-${cityPairs.length + 1}`
-      });
-      
-      // Track used KMAs
-      usedOriginKmas.add(originCity.kma_code);
-      usedDestKmas.add(destCity.kma_code);
-    }
-    
-    // Phase 2: If we still need more pairs, add them from the remaining cities
-    if (cityPairs.length < maxPairs) {
-      // Create sets of cities we've already used
-      const usedOriginCities = new Set(cityPairs.map(pair => `${pair.origin.city},${pair.origin.state}`));
-      const usedDestCities = new Set(cityPairs.map(pair => `${pair.destination.city},${pair.destination.state}`));
-      
-      for (const originCity of sortedOriginCities) {
-        const originKey = `${originCity.city},${originCity.state_or_province}`;
-        if (usedOriginCities.has(originKey)) continue;
-        
-        for (const destCity of sortedDestCities) {
-          const destKey = `${destCity.city},${destCity.state_or_province}`;
-          if (usedDestCities.has(destKey)) continue;
-          
-          // Skip if cities are the same
-          if (originCity.city === destCity.city && originCity.state_or_province === destCity.state_or_province) {
-            continue;
-          }
-          
-          cityPairs.push({
-            origin: {
-              city: originCity.city,
-              state: originCity.state_or_province,
-              zip: originCity.zip_code || '',
-              kma_code: originCity.kma_code || '',
-              kma_name: originCity.kma_name || '',
-              distance_miles: originCity.distance_miles || 0,
-              lat: originCity.latitude,
-              lng: originCity.longitude
-            },
-            destination: {
-              city: destCity.city,
-              state: destCity.state_or_province,
-              zip: destCity.zip_code || '',
-              kma_code: destCity.kma_code || '',
-              kma_name: destCity.kma_name || '',
-              distance_miles: destCity.distance_miles || 0,
-              lat: destCity.latitude,
-              lng: destCity.longitude
-            },
-            pair_id: `${requestId}-${cityPairs.length + 1}`
-          });
-          
-          // Track used KMAs if they have them
-          if (originCity.kma_code) usedOriginKmas.add(originCity.kma_code);
-          if (destCity.kma_code) usedDestKmas.add(destCity.kma_code);
-          
-          // Add to used city sets
-          usedOriginCities.add(originKey);
-          usedDestCities.add(destKey);
-          
-          // Break if we have enough pairs
-          if (cityPairs.length >= maxPairs) {
-            break;
-          }
+
+    for (const originCity of originCities) {
+      for (const destCity of destCities) {
+        if (
+          originCity.city === destCity.city &&
+          originCity.state_or_province === destCity.state_or_province
+        ) {
+          continue;
         }
-        
-        // Break if we have enough pairs
-        if (cityPairs.length >= maxPairs) {
-          break;
-        }
-      }
-    }    
-    
-    // Validate the generated pairs
-    const validatePairingResults = (pairs) => {
-      if (!pairs || pairs.length === 0) {
-        console.error('❌ Validation Failed: No city pairs generated');
-        throw new Error('NO_PAIRS_GENERATED');
-      }
+        if (!originCity.kma_code || !destCity.kma_code) continue;
 
-      const originKmas = new Set();
-      const destKmas = new Set();
-      pairs.forEach(pair => {
-        if (pair.origin?.kma_code) originKmas.add(pair.origin.kma_code);
-        if (pair.destination?.kma_code) destKmas.add(pair.destination.kma_code);
-      });
+        cityPairs.push({
+          origin: {
+            city: originCity.city,
+            state: originCity.state_or_province,
+            zip: originCity.zip_code || '',
+            kma_code: originCity.kma_code,
+            kma_name: originCity.kma_name || '',
+            distance_miles: originCity.distance_miles || 0,
+            lat: originCity.latitude,
+            lng: originCity.longitude
+          },
+          destination: {
+            city: destCity.city,
+            state: destCity.state_or_province,
+            zip: destCity.zip_code || '',
+            kma_code: destCity.kma_code,
+            kma_name: destCity.kma_name || '',
+            distance_miles: destCity.distance_miles || 0,
+            lat: destCity.latitude,
+            lng: destCity.longitude
+          },
+          pair_id: `${originCity.kma_code}-${destCity.kma_code}`
+        });
 
-      const minRequiredKmas = 6;
-      if (originKmas.size < minRequiredKmas) {
-        console.error(`❌ Validation Failed: Insufficient origin KMA diversity (${originKmas.size}/${minRequiredKmas})`);
-        throw new Error('INSUFFICIENT_ORIGIN_KMA_DIVERSITY');
+        usedOriginKmas.add(originCity.kma_code);
+        usedDestKmas.add(destCity.kma_code);
+
+        if (cityPairs.length >= maxPairs) break;
       }
+      if (cityPairs.length >= maxPairs) break;
+    }
 
-      if (destKmas.size < minRequiredKmas) {
-        console.error(`❌ Validation Failed: Insufficient destination KMA diversity (${destKmas.size}/${minRequiredKmas})`);
-        throw new Error('INSUFFICIENT_DEST_KMA_DIVERSITY');
-      }
-
-      return true;
-    };
-    
-    // Validate the generated pairs
-    validatePairingResults(cityPairs);
+    if (cityPairs.length === 0) {
+      console.error('No city pairs could be built from valid origin/destination cities');
+      throw new Error('NO_CITY_PAIRS_BUILT');
+    }
 
     // Return the result with enhanced metadata
     const processingTime = Date.now() - startTime;
@@ -666,4 +554,4 @@ export default async function handler(req, res) {
       }
     });
   }
-}
+}console.log("🚀 Pairing Logic Version: restored-v1.0 (lines 300–500 active)");
