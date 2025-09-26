@@ -314,7 +314,7 @@ export default async function handler(req, res) {
     
     // Create city pairs
     // Generate all possible combinations but limit to a reasonable number
-    const cityPairs = [];
+    let cityPairs = [];
     
     // Ensure we have at least 6 unique KMAs as required by business rules
     // First, collect all unique KMA codes
@@ -335,8 +335,8 @@ export default async function handler(req, res) {
     // Default to 22 for DAT CSV requirements, use more in test mode to ensure we get enough KMAs
     const maxPairs = req.query.max_pairs ? parseInt(req.query.max_pairs) : 
                     (testMode ? Math.min(50, originCities.length, destCities.length) : 22);
-    const usedOriginKmas = new Set();
-    const usedDestKmas = new Set();
+    let usedOriginKmas = new Set();
+    let usedDestKmas = new Set();
     
     // First, create a collection of origin cities with unique KMA codes
     const uniqueOriginCitiesByKma = {};
