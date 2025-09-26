@@ -11,13 +11,13 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Make direct call to intelligence-pairing endpoint using server-side
-    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/intelligence-pairing`, {
+    // Import the handler directly to test it in-process
+    const intelligencePairingHandler = require('./intelligence-pairing').default;
+
+    // Create mock req and res objects
+    const mockReq = {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
+      body: {
         originCity: 'Atlanta',
         originState: 'GA',
         destCity: 'Chicago', 
@@ -26,9 +26,35 @@ export default async function handler(req, res) {
         originLongitude: -84.3880,
         destLatitude: 41.8781,
         destLongitude: -87.6298,
-        radius: 75
-      }),
-    });
+        radius: 75,
+        test_mode: true
+      },
+      headers: {
+        'content-type': 'application/json'
+      }
+    };
+
+    // Create a mock response object to capture the API response
+    let responseData;
+    const mockRes = {
+      status: (code) => ({ 
+        json: (data) => {
+          responseData = data;
+          responseData.statusCode = code;
+          return mockRes;
+        }
+      })
+    };
+
+    // Call the handler directly
+    await intelligencePairingHandler(mockReq, mockRes);
+
+    // Simulate the response from fetch
+    const response = {
+      ok: responseData && responseData.success,
+      status: responseData ? 200 : 500,
+      json: async () => responseData
+    };
 
     if (!response.ok) {
       throw new Error(`API returned ${response.status}: ${await response.text()}`);
