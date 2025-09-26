@@ -987,7 +987,7 @@ function LanesPage() {
                     )}
                     <span className="font-medium">{l.origin_city}, {l.origin_state}</span>
                     <span className="mx-2 text-gray-500">→</span>
-                    <span className="font-medium">{l.dest_city}, {l.dest_state}</span>
+                    <span className="font-medium">{l.dest_city || l.destination_city}, {l.dest_state || l.destination_state}</span>
                     <span className="ml-2 text-gray-400">[{l.equipment_code} • {l.length_ft}ft]</span>
                   </div>
                   <div className="text-xs text-gray-400">

@@ -56,7 +56,7 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
           <div className="font-medium text-gray-100">
             {lane.origin_city}, {lane.origin_state} 
             <span className="text-gray-400 mx-2">→</span> 
-            {lane.dest_city}, {lane.dest_state}
+            {lane.dest_city || lane.destination_city}, {lane.dest_state || lane.destination_state}
           </div>
           <div className="flex items-center gap-2">
             {(lane.reference_id || !lane.reference_id) && (
