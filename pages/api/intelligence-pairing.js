@@ -1,3 +1,10 @@
+/**
+ * 🔒 LOCKED FILE: DO NOT MODIFY WITHOUT APPROVAL
+ * This file powers the intelligence pairing logic.
+ * Any changes MUST follow the rules in PAIRING_LOGIC_RECIPE.md.
+ * Fallbacks are disabled unless explicitly triggered.
+ */
+
 // Enhanced intelligence-pairing.js with robust error handling and parameter normalization
 import { adminSupabase as supabase } from '../../utils/supabaseClient.js';
 import { getMockCityData } from '../../utils/mockCityData.js';
