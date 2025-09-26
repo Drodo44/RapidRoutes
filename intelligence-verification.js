@@ -1,9 +1,9 @@
 // intelligence-verification.js
 // Script to verify the intelligence pairing API is working after deployment
 
-const fetch = require('node-fetch');
+import fetch from 'node-fetch';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://rapidroutes.vercel.app';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://rapid-routes.vercel.app';
 const API_ENDPOINT = `${API_URL}/api/intelligence-pairing`;
 
 async function verifyIntelligencePairingApi() {
@@ -36,12 +36,23 @@ async function verifyIntelligencePairingApi() {
       body: JSON.stringify(testPayload)
     });
     
-    const data = await response.json();
-    
     console.log('API Response Status:', response.status);
-    console.log('API Response:', JSON.stringify(data, null, 2));
     
-    if (data.success) {
+    // Get the raw text first
+    const responseText = await response.text();
+    console.log('Raw API Response:', responseText);
+    
+    // Try to parse as JSON if possible
+    let data;
+    try {
+      data = JSON.parse(responseText);
+      console.log('API Response (parsed):', JSON.stringify(data, null, 2));
+    } catch (jsonError) {
+      console.log('Could not parse response as JSON:', jsonError.message);
+      data = null;
+    }
+    
+    if (data && data.success) {
       console.log('✅ API responded with success flag');
       
       if (data.pairs && Array.isArray(data.pairs) && data.pairs.length > 0) {
@@ -53,7 +64,7 @@ async function verifyIntelligencePairingApi() {
       }
       
       console.log('Processing time:', data.processingTimeMs || 'Not available', 'ms');
-    } else {
+    } else if (data) {
       console.log('❌ API responded with success=false');
       console.log('Error message:', data.error || 'No error message provided');
     }

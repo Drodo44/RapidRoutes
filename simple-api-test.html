@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RapidRoutes Simple API Test</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #111;
+            color: #eee;
+            padding: 20px;
+            max-width: 900px;
+            margin: 0 auto;
+            line-height: 1.5;
+        }
+        
+        h1, h2, h3 {
+            color: #4caf50;
+        }
+        
+        .container {
+            background-color: #1e1e1e;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .results {
+            background-color: #1e1e1e;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 20px;
+            max-height: 500px;
+            overflow: auto;
+        }
+        
+        button {
+            background-color: #4caf50;
+            border: none;
+            color: white;
+            padding: 10px 15px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        
+        button:disabled {
+            background-color: #555;
+            cursor: not-allowed;
+        }
+        
+        .success { color: #4caf50; }
+        .warning { color: #ff9800; }
+        .error { color: #f44336; }
+        
+        pre {
+            background-color: #2d2d2d;
+            padding: 10px;
+            border-radius: 5px;
+            overflow: auto;
+            white-space: pre-wrap;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        input, textarea {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+            background-color: #333;
+            border: 1px solid #555;
+            color: #eee;
+            border-radius: 3px;
+            margin-bottom: 10px;
+            font-family: monospace;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #aaa;
+        }
+    </style>
+</head>
+<body>
+    <h1>RapidRoutes Simple API Test</h1>
+    
+    <div class="container">
+        <h2>Authentication</h2>
+        <div class="form-group">
+            <label for="auth-token">Authentication Token (JWT)</label>
+            <input type="text" id="auth-token" placeholder="Paste your authentication token here">
+            <p class="small">Get this from browser dev tools &rarr; Application &rarr; Local Storage &rarr; look for keys with "auth-token"</p>
+        </div>
+        <div class="form-group">
+            <label><input type="checkbox" id="force-test-mode"> Force Test Mode (bypass authentication)</label>
+            <p class="small">Use this if you're having authentication problems</p>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h2>API Test</h2>
+        <div class="form-group">
+            <label for="api-url">API URL</label>
+            <input type="text" id="api-url" value="https://rapid-routes-tql.vercel.app/api/intelligence-pairing">
+            <p class="small">Using the production URL for testing</p>
+        </div>
+        <div class="form-group">
+            <button style="background-color: #555;" onclick="setDirectEndpoint()">Use Direct Supabase Endpoint</button>
+            <p class="small">This bypasses the API entirely and tests the database function directly</p>
+        </div>
+        
+        <div class="form-group">
+            <label for="request-body">Request Body (JSON)</label>
+            <textarea id="request-body" rows="8">{
+  "lane": {
+    "origin_city": "Raleigh",
+    "origin_state": "NC",
+    "origin_zip": "27601",
+    "dest_city": "Charlotte", 
+    "dest_state": "NC",
+    "dest_zip": "28202",
+    "equipment_code": "V",
+    "weight_lbs": 40000
+  }
+}</textarea>
+        </div>
+        
+        <button id="test-button" onclick="testAPI()">Test API</button>
+    </div>
+    
+    <div class="results">
+        <h2>Results</h2>
+        <div id="results-log">No tests run yet</div>
+    </div>
+    
+    <script>
+        // Test the API
+        async function testAPI() {
+            const resultsLog = document.getElementById('results-log');
+            resultsLog.innerHTML = '';
+            
+            const authToken = document.getElementById('auth-token').value.trim();
+            let apiUrl = document.getElementById('api-url').value.trim();
+            const requestBodyText = document.getElementById('request-body').value.trim();
+            
+            // Fix the API URL to make sure it works in any environment
+            if (apiUrl.startsWith('/')) {
+                apiUrl = window.location.origin + apiUrl;
+            }
+            
+            if (!authToken) {
+                log('❌ Authentication token is required');
+                return;
+            }
+            
+            if (!apiUrl) {
+                log('❌ API URL is required');
+                return;
+            }
+            
+            let requestBody;
+            try {
+                requestBody = JSON.parse(requestBodyText);
+            } catch (e) {
+                log('❌ Invalid JSON in request body: ' + e.message);
+                return;
+            }
+            
+            const testButton = document.getElementById('test-button');
+            testButton.disabled = true;
+            testButton.innerHTML = '<div class="loading"></div> Testing...';
+            
+            log('🔍 Starting API test...');
+            log(`API URL: ${apiUrl}`);
+            log(`Request body: ${JSON.stringify(requestBody, null, 2)}`, true);
+            
+            try {
+                const startTime = performance.now();
+                
+                const headers = {
+                    'Content-Type': 'application/json'
+                };
+                
+                // Add authorization header if we have a token
+                if (authToken) {
+                    headers['Authorization'] = `Bearer ${authToken}`;
+                }
+                
+                // Add test mode headers if enabled
+                if (document.getElementById('force-test-mode').checked) {
+                    headers['X-Test-Mode'] = 'true';
+                    headers['X-Debug-Mode'] = 'true';
+                    log('🧪 Using test mode headers');
+                }
+                
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify(requestBody)
+                });
+                
+                const endTime = performance.now();
+                const duration = (endTime - startTime).toFixed(2);
+                
+                log(`⏱️ Response time: ${duration}ms`);
+                log(`📡 Status: ${response.status} ${response.statusText}`);
+                
+                // Log all response headers
+                log('📋 Response headers:');
+                const responseHeaders = {};
+                response.headers.forEach((value, key) => {
+                    responseHeaders[key] = value;
+                });
+                log(JSON.stringify(responseHeaders, null, 2), true);
+                
+                const responseText = await response.text();
+                let responseData;
+                
+                try {
+                    responseData = JSON.parse(responseText);
+                    log('📄 Response body (JSON):', true);
+                    log(JSON.stringify(responseData, null, 2), true);
+                    
+                    // Check for city pairs
+                    if (responseData.cityPairs && Array.isArray(responseData.cityPairs)) {
+                        if (responseData.cityPairs.length > 0) {
+                            log(`✅ Found ${responseData.cityPairs.length} city pairs`);
+                            
+                            // Show first 3 city pairs
+                            log('Sample city pairs:');
+                            responseData.cityPairs.slice(0, 3).forEach((pair, index) => {
+                                log(`${index + 1}. ${pair.origin.city}, ${pair.origin.state_or_province} to ${pair.destination.city}, ${pair.destination.state_or_province}`);
+                            });
+                        } else {
+                            log('⚠️ No city pairs found in response');
+                        }
+                    } else {
+                        log('⚠️ Response does not contain city pairs array');
+                    }
+                    
+                } catch (e) {
+                    log('📄 Response body (Text):', true);
+                    log(responseText, true);
+                }
+                
+                if (response.ok) {
+                    log('✅ API test SUCCESSFUL!');
+                } else {
+                    log('❌ API test FAILED');
+                }
+                
+            } catch (error) {
+                log(`❌ Error: ${error.message}`);
+            } finally {
+                testButton.disabled = false;
+                testButton.textContent = 'Test API';
+            }
+        }
+        
+        // Set URL to direct Supabase endpoint
+        function setDirectEndpoint() {
+            const supabaseUrl = prompt('Enter your Supabase URL (e.g., https://tliznoxmspntzccxiyij.supabase.co)', 'https://tliznoxmspntzccxiyij.supabase.co');
+            
+            if (!supabaseUrl) return;
+            
+            // Use the direct RPC endpoint
+            document.getElementById('api-url').value = `${supabaseUrl}/rest/v1/rpc/find_cities_within_radius`;
+            
+            // Update the request body for direct RPC call
+            document.getElementById('request-body').value = JSON.stringify({
+                lat_param: 35.7796,
+                lng_param: -78.6382,
+                radius_miles: 50 // The function now expects miles instead of meters
+            }, null, 2);
+            
+            // Force test mode on
+            document.getElementById('force-test-mode').checked = true;
+            
+            log('✅ Set up for direct Supabase endpoint testing');
+        }
+        
+        // Log message to the results panel
+        function log(message, isCode = false) {
+            const resultsLog = document.getElementById('results-log');
+            
+            if (resultsLog.textContent === 'No tests run yet') {
+                resultsLog.textContent = '';
+            }
+            
+            if (isCode) {
+                const pre = document.createElement('pre');
+                pre.textContent = message;
+                resultsLog.appendChild(pre);
+            } else {
+                const p = document.createElement('p');
+                p.innerHTML = message;
+                resultsLog.appendChild(p);
+            }
+            
+            // Also log to console for debugging
+            console.log(message);
+            
+            // Auto scroll to bottom
+            resultsLog.scrollTop = resultsLog.scrollHeight;
+        }
+        
+        // Helper function to auto-detect auth token on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            // Try to find auth tokens in localStorage
+            let foundToken = false;
+            const tokenKeys = [];
+            
+            // Method 1: Look for auth-token keys
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && (key.includes('auth-token') || key.includes('sb-') && key.includes('-auth-token'))) {
+                    tokenKeys.push(key);
+                }
+            }
+            
+            if (tokenKeys.length > 0) {
+                for (const key of tokenKeys) {
+                    try {
+                        const tokenData = JSON.parse(localStorage.getItem(key));
+                        if (tokenData && tokenData.access_token) {
+                            document.getElementById('auth-token').value = tokenData.access_token;
+                            console.log('Auto-detected authentication token from', key);
+                            foundToken = true;
+                            break;
+                        }
+                    } catch (e) {
+                        console.warn('Error parsing token from', key, e);
+                    }
+                }
+            }
+            
+            // Method 2: Check supabase.auth.token format
+            if (!foundToken) {
+                const supabaseToken = localStorage.getItem('supabase.auth.token');
+                if (supabaseToken) {
+                    try {
+                        const tokenData = JSON.parse(supabaseToken);
+                        if (tokenData && tokenData.currentSession && tokenData.currentSession.access_token) {
+                            document.getElementById('auth-token').value = tokenData.currentSession.access_token;
+                            console.log('Auto-detected authentication token from supabase.auth.token');
+                            foundToken = true;
+                        }
+                    } catch (e) {
+                        console.warn('Error parsing supabase.auth.token:', e);
+                    }
+                }
+            }
+            
+            // Method 3: Check cookies
+            if (!foundToken) {
+                const cookies = document.cookie.split(';');
+                for (const cookie of cookies) {
+                    if (cookie.trim().startsWith('sb-auth-token=')) {
+                        try {
+                            const cookieValue = cookie.split('=')[1].trim();
+                            const cookieData = JSON.parse(decodeURIComponent(cookieValue));
+                            if (cookieData && cookieData.access_token) {
+                                document.getElementById('auth-token').value = cookieData.access_token;
+                                console.log('Auto-detected authentication token from cookie');
+                                foundToken = true;
+                                break;
+                            }
+                        } catch (e) {
+                            console.warn('Error parsing auth cookie:', e);
+                        }
+                    }
+                }
+            }
+            
+            // Method 4: Set a default test token from URL if passed
+            if (!foundToken && window.location.hash) {
+                try {
+                    const hash = window.location.hash.substring(1); // Remove the # symbol
+                    if (hash.length > 20) { // Simple validation that it's long enough to be a token
+                        document.getElementById('auth-token').value = hash;
+                        console.log('Using token from URL hash');
+                        foundToken = true;
+                    }
+                } catch (e) {
+                    console.warn('Error parsing token from URL hash:', e);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
