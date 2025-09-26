@@ -177,6 +177,16 @@ export async function callIntelligencePairingApi(lane, options = {}, authSession
     // Add status code to the success response for consistent handling
     jsonData.status = response.status;
     jsonData.statusCode = response.status;
+    
+    // CRITICAL CHECK: Validate that we actually received pairs
+    if (jsonData.success && (!jsonData.pairs || jsonData.pairs.length === 0)) {
+      console.warn('⚠️ API returned success but no pairs - data inconsistency detected');
+      // Force metadata to indicate emergency
+      jsonData.metadata = jsonData.metadata || {};
+      jsonData.metadata.emergency = true;
+      jsonData.metadata.clientRecovery = true;
+    }
+    
     return jsonData;
   } catch (error) {
     console.error('Intelligence API error:', error);
