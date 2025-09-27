@@ -593,155 +593,46 @@ export default function PostOptions() {
           
           // Use the intelligenceApiAdapter to make the API call with proper parameter formatting
           try {
-            // Use adapter to ensure correct parameter naming (destinationCity → destCity)
             const result = await callIntelligencePairingApi(
-              lane, 
-              {
-                // Don't automatically use test mode in production
-                useTestMode: false
-              },
-              // Pass the token we already validated
+              lane,
+              { useTestMode: false },
               authSession
             );
-            
-            // Log success
-            console.log(`📥 [${requestId}] API success for lane ${lane.id}: ${result.pairs?.length || 0} pairs generated`);
-            
-            // Process successful result
-            const pairs = result.pairs || [];
-            if (pairs.length === 0) {
-              return {
-                laneId: lane.id,
-                success: true,
-                pairs: [],
-                message: 'No pairs generated - verify lane coordinates and check route viability'
-              };
+            // Unified classification logic (mirrors test-integration-batch.js):
+            // 1. error if result.error present
+            // 2. success if pairs length > 0
+            // 3. skipped otherwise (pairs = 0, no error)
+            const pairs = Array.isArray(result.pairs) ? result.pairs : [];
+            const classification = result.error ? 'error' : (pairs.length > 0 ? 'success' : 'skipped');
+
+            if (classification === 'error') {
+              return { laneId: lane.id, pairs: [], error: result.error, classification };
             }
-            
-            return {
-              laneId: lane.id,
-              success: true,
-              pairs,
-              message: `${pairs.length} pairings generated`
-            };
-            
-          } catch (error) {
-            console.error(`❌ [${requestId}] API error:`, error);
-            
-            // Check if it's an authentication error
-            if (error.message && error.message.includes('401')) {
-              errorCount++;
-              return { 
-                laneId: lane.id, 
-                success: false, 
-                error: 'Authentication failed',
-                stop: true // Signal to stop processing
-              };
+            if (classification === 'success') {
+              // Only fetch RR number when we have successful pairs
+              const rrResp = await fetch('/api/rr-number');
+              const rrJson = await rrResp.json();
+              const rr = rrJson.success ? rrJson.rrNumber : 'RR00000';
+              return { laneId: lane.id, pairs, rr, classification };
             }
-            
-            // Handle general errors
-            errorCount++;
-            return {
-              laneId: lane.id,
-              success: false,
-              error: error.message || 'API error'
-            };
+            // skipped
+            return { laneId: lane.id, pairs: [], classification };
+          } catch (apiErr) {
+            console.error(`❌ [${requestId}] API error:`, apiErr);
+            if (apiErr.message && apiErr.message.includes('401')) {
+              return { laneId: lane.id, error: 'Authentication failed', stop: true, classification: 'error' };
+            }
+            return { laneId: lane.id, error: apiErr.message || 'API error', classification: 'error' };
           }
           
-          // Handle 422 KMA diversity errors as soft warnings
-          if (response.status === 422 && 
-              (result.error?.includes('KMA') || result.details?.includes('KMA') || 
-              result.error?.includes('unique') || result.details?.includes('unique'))) {
-            console.warn(`⚠️ [${requestId}] KMA diversity requirement not met for lane ${lane.id}:`, result.details || result.error);
-            skipCount++;
-            return { 
-              laneId: lane.id, 
-              success: false, 
-              error: result.details || 'Insufficient KMA diversity',
-              pairs: [],
-              skipped: true
-            };
-          }
-          
-          // Handle city lookup errors with detailed information
-          if (response.status === 400 && 
-              (result.error?.includes('city not found') || result.error?.includes('city lookup'))) {
-            console.error(`❌ [${requestId}] City lookup failed for lane ${lane.id}:`, {
-              status: response.status,
-              error: result.error,
-              details: result.details || {}
-            });
-            
-            // Format a more useful error message showing which city was not found
-            const cityDetails = result.details || {};
-            const errorCity = cityDetails.origin_city && cityDetails.origin_state 
-              ? `${cityDetails.origin_city}, ${cityDetails.origin_state}` 
-              : (cityDetails.destination_city && cityDetails.destination_state 
-                ? `${cityDetails.destination_city}, ${cityDetails.destination_state}`
-                : 'Unknown city');
-                
-            errorCount++;
-            return {
-              laneId: lane.id,
-              success: false,
-              error: `City not found in database: ${errorCity}`,
-              details: result.details
-            };
-          }
-            
-          // Handle other API errors
-          if (!response.ok || !result.success) {
-            const errorMsg = result.details || result.error || result.message || 'Failed to generate pairings';
-            console.error(`❌ [${requestId}] API error for lane ${lane.id}:`, {
-              status: response.status,
-              error: errorMsg,
-              details: result
-            });
-            errorCount++;
-            return { 
-              laneId: lane.id, 
-              success: false, 
-              error: `${errorMsg} (Status: ${response.status})`,
-              pairs: []
-            };
-          }
-          
-          // Success path
-          const pairs = Array.isArray(result.pairs) ? result.pairs : [];
-          if (pairs.length < 6) {
-            console.warn(`⚠️ [${requestId}] Insufficient pairs (${pairs.length}) for lane ${lane.id}`);
-            skipCount++;
-            return { 
-              laneId: lane.id, 
-              success: false, 
-              error: `Only ${pairs.length} pairs found (minimum 6 required)`,
-              pairs: [],
-              skipped: true
-            };
-          }
-          
-          // Generate reference number
-          const rrResponse = await fetch('/api/rr-number');
-          const rrResult = await rrResponse.json();
-          const rr = rrResult.success ? rrResult.rrNumber : 'RR00000';
-          
-          console.log(`✅ [${requestId}] Successfully generated ${pairs.length} pairs for lane ${lane.id}`);
-          successCount++;
-          return { 
-            laneId: lane.id, 
-            success: true, 
-            pairs, 
-            rr,
-            uniqueKmas: result.uniqueKmas || 'unknown'
-          };
+          // (Removed legacy branching for KMA diversity & city lookup; classification handled above)
         } catch (error) {
           console.error(`❌ Error processing lane ${lane.id}:`, error);
-          errorCount++;
           return { 
-            laneId: lane.id, 
-            success: false, 
+            laneId: lane.id,
             error: error.message || 'Unknown error',
-            pairs: []
+            pairs: [],
+            classification: 'error'
           };
         }
       });
@@ -750,22 +641,29 @@ export default function PostOptions() {
       const results = await Promise.all(batchPromises);
       
       // Process results
-      for (const result of results) {
-        if (result.success) {
-          newPairings[result.laneId] = result.pairs;
-          newRRs[result.laneId] = result.rr;
-        } else {
-          newPairings[result.laneId] = [];
-          
-          // If authentication failed, stop processing
-          if (result.stop) {
+      for (const r of results) {
+        const classification = r.classification || (r.error ? 'error' : (r.pairs && r.pairs.length > 0 ? 'success' : 'skipped'));
+        if (classification === 'success') {
+          successCount++;
+          newPairings[r.laneId] = r.pairs;
+          if (r.rr) newRRs[r.laneId] = r.rr;
+        } else if (classification === 'error') {
+          errorCount++;
+          newPairings[r.laneId] = [];
+          if (r.stop) {
+            console.error('🛑 Authentication stop triggered – aborting remaining lanes');
             setAlert({ type: 'error', message: 'Authentication failed - please log in again' });
             setPairings(newPairings);
             setRRNumbers(newRRs);
             setGeneratingPairings(false);
             return;
           }
+        } else {
+          skipCount++;
+          newPairings[r.laneId] = [];
         }
+        // Standardized per-lane outcome log (mirrors harness)
+        console.log(`[BATCH] Lane ${r.laneId} outcome: ${classification} (pairs=${r.pairs?.length || 0}${r.error ? ', error=' + r.error : ''})`);
       }
       
       // Small delay to avoid rate limits
@@ -778,7 +676,7 @@ export default function PostOptions() {
     const totalTime = Date.now() - batchStartTime;
     const avgTimePerLane = Math.round(totalTime / lanes.length);
     
-    console.log(`✨ Batch processing complete: ${successCount} success, ${skipCount} skipped, ${errorCount} errors in ${totalTime}ms (avg: ${avgTimePerLane}ms/lane)`);
+  console.log(`✨ Batch processing complete: ${successCount} success, ${skipCount} skipped, ${errorCount} errors in ${totalTime}ms (avg: ${avgTimePerLane}ms/lane)`);
     
     setPairings(newPairings);
     setRRNumbers(newRRs);
@@ -786,11 +684,11 @@ export default function PostOptions() {
     
     // Set appropriate alert message based on results
     if (errorCount === 0 && skipCount === 0) {
-      setAlert({ type: 'success', message: `Pairings generated for all ${lanes.length} lanes successfully.` });
+      setAlert({ type: 'success', message: `Pairings generated for all ${successCount} lanes successfully.` });
     } else if (errorCount === 0 && skipCount > 0) {
-      setAlert({ type: 'warning', message: `Completed with ${successCount} successful lanes. ${skipCount} lanes skipped due to KMA requirements.` });
+      setAlert({ type: 'warning', message: `Completed: ${successCount} success, ${skipCount} skipped (no pairs), 0 errors.` });
     } else {
-      setAlert({ type: 'warning', message: `Completed with mixed results: ${successCount} success, ${skipCount} skipped, ${errorCount} errors.` });
+      setAlert({ type: 'warning', message: `Completed: ${successCount} success, ${skipCount} skipped, ${errorCount} errors.` });
     }
   };
 

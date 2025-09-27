@@ -1,27 +1,28 @@
-# 🔄 Fix Lane Generation with Enhanced Pairing Intelligence
+# � Fix Intelligence-Pairing API with Required PostGIS Function
 
 Major Changes:
 
-- Fixed comprehensive lane generation issues
-- Enhanced intelligence pairing with actual carrier data
-- Implemented realistic rate calculation based on distance and equipment
-- Added multi-level fallback mechanisms
-- Fixed API parameter handling and field normalization
+- Fixed missing PostGIS function required for city crawl pair generation
+- Added proper database function for finding cities within radius
+- Implemented proper permissions for all user roles
+- Fixed API issues that prevented DAT exports from working
+- Resolved geospatial queries in intelligence-pairing endpoint
 
 Technical Updates:
 
-- Added distance-based rate calculation algorithm
-- Enhanced route pairing with real carrier information
-- Implemented comprehensive pair generation with realistic data
-- Added fallback pair generation with synthetic carriers
-- Improved response structure with detailed statistics
-- Ensured minimum of 6 pairs returned per request
+- Created PostGIS function `find_cities_within_radius` for spatial queries
+- Added proper SQL implementation for earth_distance calculations
+- Fixed city crawl pair generation with KMA code diversity
+- Ensured function returns properly ordered results by distance
+- Improved API response with correct city pair generation
+- Verified function works correctly in production environment
 
 Components Improved:
 
-- intelligence-pairing.js with comprehensive pair generation
-- Added distance calculation via Haversine formula
-- Enhanced response with rate per mile calculations
-- Added carrier diversity with real or synthetic data
+- Fixed PostGIS database functions for spatial queries
+- Fixed intelligence-pairing.js API endpoint
+- Restored DAT CSV export functionality
+- Added proper error handling for missing functions
 - Ensured backward compatibility with existing clients
+- Added verification tools for API testing
 

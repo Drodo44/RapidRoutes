@@ -171,8 +171,8 @@
                 apiUrl = window.location.origin + apiUrl;
             }
             
-            if (!authToken) {
-                log('❌ Authentication token is required');
+            if (!authToken && !document.getElementById('force-test-mode').checked) {
+                log('❌ Authentication token is required unless test mode is enabled');
                 return;
             }
             
@@ -254,6 +254,30 @@
                             responseData.cityPairs.slice(0, 3).forEach((pair, index) => {
                                 log(`${index + 1}. ${pair.origin.city}, ${pair.origin.state_or_province} to ${pair.destination.city}, ${pair.destination.state_or_province}`);
                             });
+                            
+                            // Check KMA diversity
+                            const originKmas = new Set();
+                            const destKmas = new Set();
+                            
+                            responseData.cityPairs.forEach(pair => {
+                                if (pair.origin && pair.origin.kma_code) originKmas.add(pair.origin.kma_code);
+                                if (pair.destination && pair.destination.kma_code) destKmas.add(pair.destination.kma_code);
+                            });
+                            
+                            log(`🔍 KMA Diversity Check:`);
+                            log(`- Origin KMAs: ${originKmas.size} unique codes ${originKmas.size >= 6 ? '✅ (sufficient)' : '❌ (insufficient)'}`);
+                            log(`- Destination KMAs: ${destKmas.size} unique codes ${destKmas.size >= 6 ? '✅ (sufficient)' : '❌ (insufficient)'}`);
+                            
+                            // Display full lane data for debugging
+                            log('🔎 Full Lane Data Sample:');
+                            const pre = document.createElement('pre');
+                            pre.className = 'lane-data';
+                            pre.innerHTML = responseData.cityPairs.slice(0, 5).map(pair => {
+                                return `REF #R${Math.floor(Math.random() * 10000000000).toString().padStart(11, '0')}  ${pair.origin.city}, ${pair.origin.state_or_province} → ${pair.destination.city}, ${pair.destination.state_or_province} [${requestBody.lane.equipment_code || 'V'} • 48ft]\n` +
+                                       `Weight: ${requestBody.lane.weight_lbs} lbs  Pickup: ${new Date().toISOString().split('T')[0]} ~ ${new Date().toISOString().split('T')[0]}\n` +
+                                       `Origin KMA: ${pair.origin.kma_code || 'N/A'}, Dest KMA: ${pair.destination.kma_code || 'N/A'}\n`;
+                            }).join('\n');
+                            resultsLog.appendChild(pre);
                         } else {
                             log('⚠️ No city pairs found in response');
                         }

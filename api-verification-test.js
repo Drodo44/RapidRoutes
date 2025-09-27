@@ -71,7 +71,9 @@ const testLanes = [
 async function testApiEndpoint() {
   console.log('🔍 Starting API verification test...');
   console.log(`🌐 Using API endpoint: ${API_URL}`);
-  console.log(`🔐 Using auth token: ${AUTH_TOKEN.substring(0, 10)}...`);
+  console.log(AUTH_TOKEN 
+    ? `🔐 Using auth token: ${AUTH_TOKEN.substring(0, 10)}...`
+    : `⚠️ No auth token provided, using test_mode: ${USE_TEST_MODE}`);
 
   let successCount = 0;
   let failCount = 0;

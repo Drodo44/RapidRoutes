@@ -28,11 +28,13 @@ if (requirements.actual.totalRows < minimumRequiredRows) {
 ```
 
 ### 3. ✅ geographicCrawl.js - Smart Radius System
-- **Already Working**: 75→100→125 mile progressive search
+
+- **Updated**: Fixed single-pass 100-mile search (no 125-mile escalation)
 - **Parameter Fix**: RPC function uses correct `lat_param`/`lng_param`
 - **Minimum Enforcement**: System requires ≥5 unique KMA pairs
 
 ### 4. ✅ Test Script Created
+
 - **File**: `test_csv_validation_simple.js`
 - **Tests**: 3 scenarios (5, 8, 10 pairs)
 - **Validation**: Confirms ≥10 rows accepted, no maximum limits
@@ -41,25 +43,28 @@ if (requirements.actual.totalRows < minimumRequiredRows) {
 ## Business Rules Implemented
 
 ### Core Requirements ✅
+
 - **Minimum Pairs**: 5 unique KMA-to-KMA pairs required
 - **Contact Methods**: 2 per pair (Email + Primary Phone)
 - **Minimum Rows**: 10 CSV rows per lane (5 pairs × 2 methods)
 - **No Maximum**: System accepts any number of pairs ≥5
 
 ### Smart Radius Crawl ✅
+
 - **Tier 1**: 75-mile radius
 - **Tier 2**: 100-mile radius (if <5 pairs found)
-- **Tier 3**: 125-mile radius (if still <5 pairs found)
+- (Removed) 125-mile escalation tier – system stops at 100 miles
 - **Fallback**: HERE.com API if geographic crawl insufficient
 
 ### Validation Logic ✅
+
 - **csvVerification.js**: Accepts ≥10 rows (not exactly 10)
 - **datCsvBuilder.js**: Processes all available pairs
 - **geographicCrawl.js**: Progressive radius search until minimum met
 
 ## Test Results
 
-```
+```text
 🧪 Testing RapidRoutes CSV validation logic (no maximum limits)
 📋 Business rules: ≥5 pairs, 2 rows per pair, ≥10 total rows
 
@@ -74,7 +79,7 @@ if (requirements.actual.totalRows < minimumRequiredRows) {
 
 | Component | Status | Description |
 |-----------|--------|-------------|
-| **geographicCrawl.js** | ✅ Working | Smart radius system (75→100→125 mi) |
+| **geographicCrawl.js** | ✅ Working | Fixed 100-mile cap (no 125 mi tier) |
 | **datCsvBuilder.js** | ✅ Ready | MIN_PAIRS_REQUIRED=5, no maximum limits |
 | **csvVerification.js** | ✅ Fixed | Accepts ≥10 rows (minimum-only validation) |
 | **Test Script** | ✅ Created | Validates no-maximum-limits logic |
@@ -92,11 +97,12 @@ if (requirements.actual.totalRows < minimumRequiredRows) {
 
 ## Next Steps
 
-The system is now configured to:
+## System Configuration Summary
+
 - ✅ Require minimum 5 KMA pairs per lane
 - ✅ Generate 2 CSV rows per pair (≥10 rows total)
 - ✅ Accept any number of pairs ≥5 (no artificial maximum)
-- ✅ Use progressive radius crawl (75→100→125 miles)
+- ✅ Enforce fixed 100-mile search (no progressive widening)
 - ✅ Validate with minimum-only logic (≥10 rows passes)
 
 **Ready for production**: The system enforces business minimums while accepting unlimited pairs above the threshold.
