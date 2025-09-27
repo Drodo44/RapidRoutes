@@ -11,7 +11,7 @@ Prod## Key Features
 
 ### Core System Features
 - **Lanes**: City autocomplete (12 results), equipment code-first, weight handling (randomize range), pending/recent tabs, per-lane export, bulk export (499 row parts).
-- **Crawl**: KMA-aware, 75→100→125 tiers, scoring blend, duplicate rules, minimum 6 unique KMAs required (no maximum).
+- **Crawl**: KMA-aware, fixed 100-mile cap (no progressive widening), scoring blend, duplicate rules, minimum 6 unique KMAs required (no maximum).
 - **CSV**: DAT Bulk Upload (24 headers, variable rows per lane). For every lane you enter:
   - **Variable pair generation** based on geographic diversity (6-15+ pairs typical)
   - **Unique KMA targeting** for maximum market coverage
@@ -37,7 +37,7 @@ Apply the SQL from the internal spec (cities, lanes, equipment_codes, rates_snap
 
 ## Key Features
 - **Lanes**: City autocomplete (12 results), equipment code-first, weight handling (randomize range), pending/recent tabs, per-lane export, bulk export (499 row parts).
-- **Crawl**: KMA-aware, 75→100→125 tiers, scoring blend, duplicate rules, “fill to 10” option.
+- **Crawl**: KMA-aware, fixed 100-mile cap (no progressive widening), scoring blend, duplicate rules, “fill to 10” option.
 - **CSV**: DAT Bulk Upload (24 headers, 22 rows/lane), safe escaping, streaming, partitioning.
 - **Recap**: Active lanes, search, print-ready export view.
 - **Admin**: Equipment codes (seed + upsert), rate matrices upload (CSV→JSON), optional denorm to `rates_flat`.
