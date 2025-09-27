@@ -3,7 +3,7 @@
  * Rules enforced:
  * - Radius hard capped at 100 miles (no progressive widening)
  * - No mock / emergency fallback data
- * - Must produce >= 6 unique KMAs combined (origin ∪ destination) or throw
+ * - Must produce >= 5 unique KMAs combined (origin ∪ destination) or throw
  * - Returns enforced shape: { dataSourceType, totalCityPairs, uniqueOriginKmas, uniqueDestKmas, pairs: [...] }
  * - Uses HERE geocoding for canonical lat/lng for origin & destination city/state
  * - Queries Supabase cities table via service role (server-side only)
@@ -125,7 +125,8 @@ export default async function handler(req, res) {
     const uniqueDestKmasSet = new Set(destCandidates.map(c => c.kma));
     const unionKmasSet = new Set([...uniqueOriginKmasSet, ...uniqueDestKmasSet]);
     debugLog('Unique KMA sets', { origin: [...uniqueOriginKmasSet], destination: [...uniqueDestKmasSet], unionSize: unionKmasSet.size });
-    const MIN_UNIQUE_KMAS = 6;
+  // Minimum required diversity threshold (updated from 6 -> 5)
+  const MIN_UNIQUE_KMAS = 5;
     if (unionKmasSet.size < MIN_UNIQUE_KMAS) {
       debugLog('Diversity failure', { union: unionKmasSet.size, required: MIN_UNIQUE_KMAS, originUnique: uniqueOriginKmasSet.size, destUnique: uniqueDestKmasSet.size });
       throw new Error(`INSUFFICIENT_KMA_DIVERSITY union=${unionKmasSet.size} (<${MIN_UNIQUE_KMAS}) originUnique=${uniqueOriginKmasSet.size} destUnique=${uniqueDestKmasSet.size}`);
