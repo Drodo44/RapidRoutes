@@ -58,4 +58,51 @@ Install deps:
 ```bash
 npm i
 npm i -D vitest @vitest/coverage-v8
+````
+
+## CI/CD Pipeline
+
+### Overview
+Two-tier validation ensures reliability for freight pairing & DAT export:
+
+1. Unit Tests (Vitest)
+   - Trigger: every push & PR to `main`.
+   - Includes KMA prefix enrichment integrity tests.
+2. Production Smoke Tests
+   - Trigger: only on `main` after unit tests pass.
+   - Script: `node scripts/verify-production-pairing.js --host=https://rapid-routes.vercel.app --debug`.
+   - Lanes: Fitzgerald→Winter Haven, Augusta→Stephenson, Riegelwood→Altamont.
+   - Fails if: API error, totalCityPairs == 0, or (originKMAs + destKMAs) < 5.
+
+### Branch Protection (Recommended)
+Require both jobs:
+  - `test`
+  - `production-smoke-test`
+
+### Required GitHub Secrets
+| Secret | Purpose |
+|--------|---------|
+| HERE_API_KEY | HERE geocoding for pairing API |
+| SUPABASE_SERVICE_ROLE_KEY | Server-side Supabase RPC access |
+| SUPABASE_URL | Supabase project URL |
+| SLACK_WEBHOOK_URL (optional) | Failure notifications |
+
+### Smoke Output
+CI logs each lane: classification, pair count, unique origin/dest KMA counts, latency. JSON summary printed in debug mode.
+
+### KMA Enrichment
+Precomputed JSON map: `lib/data/kmaPrefixMap.json` (≈905 prefixes). Fallback to Excel only if JSON missing (warns: "⚠️ Fallback to Excel parser"). Unit test guarantees ≥900 prefixes and validates known market prefixes (350→BHM/AL_BIR, 606→CHI/IL_CHI, 303→ATL/GA_ATL).
+
+### Troubleshooting Smoke Failures
+| Symptom | Likely Cause | Action |
+|---------|--------------|--------|
+| 500 error | Deployment mismatch / transient outage | Retry, confirm latest commit deployed |
+| 0 pairs | Candidate fetch issue | Enable `PAIRING_DEBUG=1` and inspect Supabase RPC returns |
+| Diversity failure (400) | Sparse geography or missing KMA enrichment | Validate prefix map & DB city KMA fields |
+| Network error | DNS / network transient | Re-run workflow |
+
+### Local Smoke Run
+```bash
+node scripts/verify-production-pairing.js --debug
+```
 
