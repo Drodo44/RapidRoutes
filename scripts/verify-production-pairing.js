@@ -90,6 +90,18 @@ async function main() {
 
   for (const lane of lanes) {
     const r = await postLane(host, lane, debug);
+    // Additional gating logic for CI smoke test:
+    if (!r.error && r.classification === 'success') {
+      const unionEstimate = new Set([...(new Array(r.uniqueOriginKmas).keys()).map(i=>`O${i}`), ...(new Array(r.uniqueDestKmas).keys()).map(i=>`D${i}`)]).size; // placeholder union since API returns separate counts only
+      // Failing conditions:
+      // - totalCityPairs == 0
+      // - uniqueOriginKmas + uniqueDestKmas < 5 (approx if union not provided)
+      // (API currently enforces union >=5; we approximate here using sum heuristic)
+      if (r.totalCityPairs === 0 || (r.uniqueOriginKmas + r.uniqueDestKmas) < 5) {
+        r.classification = 'error';
+        r.error = r.error || 'SMOKE_VALIDATION_FAILED';
+      }
+    }
     results.push(r);
     if (r.classification === 'success') success++; else if (r.classification === 'error') errors++; else skipped++;
     console.log(`[PROD] Lane ${r.laneId} outcome: ${r.classification} (pairs=${r.pairsCount}, totalCityPairs=${r.totalCityPairs}, KMAo=${r.uniqueOriginKmas}, KMAd=${r.uniqueDestKmas}${r.error ? ', error=' + r.error : ''}, ${r.ms}ms)`);

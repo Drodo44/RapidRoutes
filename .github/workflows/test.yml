@@ -1,4 +1,4 @@
-name: CI Tests
+name: CI Tests & Smoke
 
 on:
   push:
@@ -22,7 +22,54 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run tests
+      - name: Run unit tests
         run: npm test
 
-    # If tests fail, the job (and workflow) will automatically fail, blocking merges/deploys dependent on status checks.
+  production-smoke-test:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    env:
+      HERE_API_KEY: ${{ secrets.HERE_API_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      # Additional Supabase anon key if needed by script (not used currently)
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18.x
+          cache: 'npm'
+
+      - name: Install dependencies (prod smoke)
+        run: npm ci --omit=dev || npm ci
+
+      - name: Wait for latest Vercel deployment
+        run: |
+          echo "Polling Vercel deployment status...";
+          ATTEMPTS=30
+          SLEEP=10
+          HOST="https://rapid-routes.vercel.app/api/intelligence-pairing"
+          for i in $(seq 1 $ATTEMPTS); do
+            STATUS=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$HOST" -H 'Content-Type: application/json' --data '{"origin_city":"Fitzgerald","origin_state":"GA","dest_city":"Winter Haven","dest_state":"FL"}') || true
+            if [ "$STATUS" = "200" ] || [ "$STATUS" = "400" ]; then
+              echo "Deployment responsive with status $STATUS after $i attempts"; break; fi
+            echo "Attempt $i/$ATTEMPTS not ready (status=$STATUS). Sleeping $SLEEP s...";
+            sleep $SLEEP;
+          done
+
+      - name: Run production smoke test
+        run: |
+          node scripts/verify-production-pairing.js --host=https://rapid-routes.vercel.app --debug
+
+      - name: Slack notification (failure only)
+        if: failure() && env.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          payload=$(jq -n --arg text "Production smoke test FAILED for $GITHUB_SHA" '{text:$text}')
+          curl -s -X POST -H 'Content-Type: application/json' --data "$payload" "$SLACK_WEBHOOK_URL" || echo 'Slack notification failed'
