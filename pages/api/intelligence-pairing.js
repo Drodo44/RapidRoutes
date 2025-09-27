@@ -80,7 +80,13 @@ async function enrichKma(cities) {
   for (const c of cities) {
     if (c.kma) continue; // already has kma
     if (!c.zip) continue; // cannot enrich without zip
-    const entry = map[c.zip];
+    let entry = null;
+    if (map && map._isPrefixMap) {
+      const prefix = c.zip.slice(0,3);
+      entry = map.prefixes[prefix];
+    } else {
+      entry = map[c.zip];
+    }
     if (entry) {
       c.kma = entry.kma_code;
       c.kma_name = entry.kma_name;
