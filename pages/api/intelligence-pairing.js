@@ -10,6 +10,7 @@
  * - Deterministic debug logs behind PAIRING_DEBUG=1
  */
 import { adminSupabase as supabase } from '../../utils/supabaseClient.js';
+import { getKmaMapping } from '../../lib/kmaLookup.js';
 
 const HERE_API_KEY = process.env.HERE_API_KEY || process.env.HERE_API_KEY_PRIMARY;
 const HARD_RADIUS_MILES = 100; // Non-negotiable upper bound
@@ -67,8 +68,45 @@ function normalizeCity(rec) {
     zip: rec.zip_code || rec.zip || '',
     lat: rec.latitude || rec.lat,
     lng: rec.longitude || rec.lng,
-    kma: rec.kma_code || rec.kma || null
+    kma: rec.kma_code || rec.kma || null,
+    raw: rec
   };
+}
+
+async function enrichKma(cities) {
+  if (!cities || cities.length === 0) return cities;
+  const map = await getKmaMapping();
+  const toPersist = [];
+  for (const c of cities) {
+    if (c.kma) continue; // already has kma
+    if (!c.zip) continue; // cannot enrich without zip
+    const entry = map[c.zip];
+    if (entry) {
+      c.kma = entry.kma_code;
+      c.kma_name = entry.kma_name;
+      // queue persistence if original record lacked kma
+      if (c.raw && (!c.raw.kma_code && !c.raw.kma)) {
+        toPersist.push({ zip: c.zip, kma_code: entry.kma_code });
+      }
+    } else {
+      // If we cannot enrich, throw (strict requirement for full coverage)
+      throw new Error(`MISSING_KMA_ENRICHMENT zip=${c.zip}`);
+    }
+  }
+  // Optional persistence back to Supabase (best-effort, non-blocking)
+  if (toPersist.length > 0 && supabase) {
+    try {
+      // Assuming cities table has zip and kma_code columns
+      const updates = toPersist.map(r => ({ zip: r.zip, kma_code: r.kma_code }));
+      // Upsert by zip if RLS allows; ignore errors silently (debug only)
+      const { error } = await supabase.from('cities').upsert(updates, { onConflict: 'zip' });
+      if (error) debugLog('KMA persistence error', error.message);
+      else debugLog('Persisted enriched KMA entries', { count: updates.length });
+    } catch (err) {
+      debugLog('KMA persistence exception', err.message);
+    }
+  }
+  return cities;
 }
 
 export default async function handler(req, res) {
@@ -114,15 +152,22 @@ export default async function handler(req, res) {
     ]);
     debugLog('Raw candidate counts', { origin: originRaw.length, destination: destRaw.length });
 
-    const originCandidates = originRaw.map(normalizeCity).filter(c => c.kma);
-    const destCandidates = destRaw.map(normalizeCity).filter(c => c.kma);
+  // Normalize first (may have missing KMA)
+  let originCandidates = originRaw.map(normalizeCity);
+  let destCandidates = destRaw.map(normalizeCity);
+  // Enrich missing KMA codes using RateView mapping
+  originCandidates = await enrichKma(originCandidates);
+  destCandidates = await enrichKma(destCandidates);
+  // After enrichment, all should have kma or we throw earlier
+  originCandidates = originCandidates.filter(c => c.kma);
+  destCandidates = destCandidates.filter(c => c.kma);
     debugLog('Normalized candidate counts', { origin: originCandidates.length, destination: destCandidates.length });
 
     if (originCandidates.length === 0) throw new Error('NO_ORIGIN_CANDIDATES');
     if (destCandidates.length === 0) throw new Error('NO_DESTINATION_CANDIDATES');
 
-    const uniqueOriginKmasSet = new Set(originCandidates.map(c => c.kma));
-    const uniqueDestKmasSet = new Set(destCandidates.map(c => c.kma));
+  const uniqueOriginKmasSet = new Set(originCandidates.map(c => c.kma));
+  const uniqueDestKmasSet = new Set(destCandidates.map(c => c.kma));
     const unionKmasSet = new Set([...uniqueOriginKmasSet, ...uniqueDestKmasSet]);
     debugLog('Unique KMA sets', { origin: [...uniqueOriginKmasSet], destination: [...uniqueDestKmasSet], unionSize: unionKmasSet.size });
   // Minimum required diversity threshold (updated from 6 -> 5)
