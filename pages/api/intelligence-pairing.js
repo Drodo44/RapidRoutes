@@ -222,6 +222,25 @@ export default async function handler(req, res) {
     console.log(`[PAIRING] Destinations after city exclusion: ${destCandidates.length}`);
   }
 
+  // 3b. Cap to 50 unique city/state entries for each side (post-filters, pre-pairing)
+  const dedupeCityState = (arr) => {
+    const seen = new Set();
+    const out = [];
+    for (const c of arr) {
+      const key = `${c.city.toLowerCase()}|${c.state}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(c);
+    }
+    return out;
+  };
+  originCandidates = dedupeCityState(originCandidates).slice(0, 50);
+  destCandidates = dedupeCityState(destCandidates).slice(0, 50);
+  if (process.env.PAIRING_DEBUG) {
+    console.log(`[PAIRING] Origins kept after filters: ${originCandidates.length} (capped to 50)`);
+    console.log(`[PAIRING] Destinations kept after filters: ${destCandidates.length} (capped to 50)`);
+  }
+
   // 4. Deduplicate & build pairs (retain existing recommendation heuristic)
   const uniquenessSet = new Set();
   const pairs = [];
@@ -265,20 +284,24 @@ export default async function handler(req, res) {
     }
   }
 
+  // Cap final returned pairs to 50 (meta will still expose total)
+  const totalPairsBeforeCap = pairs.length;
+  const pairsCapped = pairs.slice(0, 50);
+
   // Diversity check AFTER pairs are generated
-  const originKmas = new Set(pairs.map(p => p.origin.kma));
-  const destKmas = new Set(pairs.map(p => p.destination.kma));
+  const originKmas = new Set(pairsCapped.map(p => p.origin.kma));
+  const destKmas = new Set(pairsCapped.map(p => p.destination.kma));
   const union = new Set([...originKmas, ...destKmas]);
   if (process.env.PAIRING_DEBUG) console.log(`[PAIRING] Diversity check: originUnique=${originKmas.size} destUnique=${destKmas.size} union=${union.size}`);
   if (union.size < 5) {
     throw new Error(`INSUFFICIENT_KMA_DIVERSITY union=${union.size} (<5) originUnique=${originKmas.size} destUnique=${destKmas.size}`);
   }
 
-    debugLog('Final pairs built', { count: pairs.length, uniqueOriginKmas: originKmas.size, uniqueDestKmas: destKmas.size, sample: pairs.slice(0, 3) });
+  debugLog('Final pairs built', { count: totalPairsBeforeCap, uniqueOriginKmas: originKmas.size, uniqueDestKmas: destKmas.size, sample: pairsCapped.slice(0, 3) });
 
     // Construct capped response (first 50) while reporting full total
-    const totalPairs = pairs.length;
-    const returnedPairs = pairs.slice(0, 50);
+  const totalPairs = totalPairsBeforeCap;
+  const returnedPairs = pairsCapped;
     if (process.env.PAIRING_DEBUG) {
       console.log(`[PAIRING] Returning ${returnedPairs.length} of ${totalPairs} pairs to client`);
     }
