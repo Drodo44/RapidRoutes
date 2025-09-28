@@ -204,22 +204,19 @@ export default async function handler(req, res) {
       throw new Error(`INSUFFICIENT_KMA_DIVERSITY union=${unionKmasSet.size} (<${MIN_UNIQUE_KMAS}) originUnique=${uniqueOriginKmasSet.size} destUnique=${uniqueDestKmasSet.size}`);
     }
 
-    // Build cartesian product with dedupe & cap
-    const MAX_CARTESIAN = 200; // defensive cap
-    const pairSet = new Set();
+    // Build unique KMA pair list (one lane per origin.kma|dest.kma)
+    const kmaPairSet = new Set();
     const pairs = [];
-    const recommendedByKma = {}; // track if a KMA already has a recommended lane
-    const firstPairIndexByKma = {}; // fallback index if no cross-state lane encountered
+    const recommendedByKma = {}; // per origin KMA
+    const firstIndexPerKma = {};  // fallback if no cross-state lane
     for (const o of originCandidates) {
       for (const d of destCandidates) {
         if (o.city === d.city && o.state === d.state) continue; // skip self
-        const key = `${o.kma}|${d.kma}|${o.zip}|${d.zip}`;
-        if (pairSet.has(key)) continue;
-        pairSet.add(key);
+        const kmaKey = `${o.kma}|${d.kma}`;
+        if (kmaPairSet.has(kmaKey)) continue; // already have representative lane for this KMA pair
+        kmaPairSet.add(kmaKey);
         const pairObj = { origin: o, destination: d, isRecommended: false };
-        // Record first pair for fallback if not yet stored
-        if (firstPairIndexByKma[o.kma] === undefined) firstPairIndexByKma[o.kma] = pairs.length;
-        // If no recommended chosen for this KMA yet and states differ, choose this one
+        if (firstIndexPerKma[o.kma] === undefined) firstIndexPerKma[o.kma] = pairs.length;
         if (!recommendedByKma[o.kma] && o.state !== d.state) {
           pairObj.isRecommended = true;
           recommendedByKma[o.kma] = true;
@@ -228,19 +225,20 @@ export default async function handler(req, res) {
           }
         }
         pairs.push(pairObj);
-        if (pairs.length >= MAX_CARTESIAN) break;
       }
-      if (pairs.length >= MAX_CARTESIAN) break;
     }
-    // Assign fallback recommendations where none selected (e.g., all dest states matched origin state)
-    for (const [kma, index] of Object.entries(firstPairIndexByKma)) {
-      if (!recommendedByKma[kma] && pairs[index]) {
-        pairs[index].isRecommended = true;
+    // Fallback recommendations where origin KMA never got a cross-state lane
+    for (const [kma, idx] of Object.entries(firstIndexPerKma)) {
+      if (!recommendedByKma[kma] && pairs[idx]) {
+        pairs[idx].isRecommended = true;
         if (process.env.PAIRING_DEBUG) {
-          const p = pairs[index];
+          const p = pairs[idx];
           console.log(`[PAIRING] KMA ${kma} recommended lane (fallback): ${p.origin.city}, ${p.origin.state} → ${p.destination.city}, ${p.destination.state}`);
         }
       }
+    }
+    if (process.env.PAIRING_DEBUG) {
+      console.log(`[PAIRING] Unique KMA pairs generated: ${pairs.length}`);
     }
 
     if (pairs.length === 0) throw new Error('NO_CITY_PAIRS');
