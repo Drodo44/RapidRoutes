@@ -172,20 +172,28 @@ export default async function handler(req, res) {
     if (originCandidates.length === 0) throw new Error('NO_ORIGIN_CANDIDATES');
     if (destCandidates.length === 0) throw new Error('NO_DESTINATION_CANDIDATES');
 
-  const uniqueOriginKmasSet = new Set(originCandidates.map(c => c.kma));
-  const uniqueDestKmasSet = new Set(destCandidates.map(c => c.kma));
-
-  // --- NEW: cap origin cities to max 2 per KMA (usability / noise reduction) ---
-  // Group by KMA then take first 2 from each group (post-enrichment & filtering)
+  // --- UPDATED: cap origin cities to max 2 per KMA applied directly to originCandidates ---
   const originsByKma = originCandidates.reduce((acc, city) => {
     (acc[city.kma] = acc[city.kma] || []).push(city);
     return acc;
   }, {});
-  const limitedOrigins = Object.values(originsByKma).flatMap(group => group.slice(0, 2));
-  if (process.env.PAIRING_DEBUG) {
-    console.log(`🛠 Limited origins: kept ${limitedOrigins.length} total (max 2 per KMA) out of ${originCandidates.length}`);
+  let cappedOriginTotal = 0;
+  const cappedOrigins = [];
+  for (const [kma, group] of Object.entries(originsByKma)) {
+    const limited = group.slice(0, 2);
+    cappedOrigins.push(...limited);
+    cappedOriginTotal += limited.length;
+    if (process.env.PAIRING_DEBUG) {
+      console.log(`[PAIRING] KMA ${kma} origins limited from ${group.length} → ${limited.length}`);
+    }
   }
+  if (process.env.PAIRING_DEBUG) {
+    console.log(`🛠 Limited origins: kept ${cappedOriginTotal} total (max 2 per KMA) out of ${originCandidates.length}`);
+  }
+  originCandidates = cappedOrigins;
 
+  const uniqueOriginKmasSet = new Set(originCandidates.map(c => c.kma));
+  const uniqueDestKmasSet = new Set(destCandidates.map(c => c.kma));
   // We intentionally do NOT limit destination set.
     const unionKmasSet = new Set([...uniqueOriginKmasSet, ...uniqueDestKmasSet]);
     debugLog('Unique KMA sets', { origin: [...uniqueOriginKmasSet], destination: [...uniqueDestKmasSet], unionSize: unionKmasSet.size });
@@ -200,16 +208,39 @@ export default async function handler(req, res) {
     const MAX_CARTESIAN = 200; // defensive cap
     const pairSet = new Set();
     const pairs = [];
-  for (const o of limitedOrigins) {
+    const recommendedByKma = {}; // track if a KMA already has a recommended lane
+    const firstPairIndexByKma = {}; // fallback index if no cross-state lane encountered
+    for (const o of originCandidates) {
       for (const d of destCandidates) {
         if (o.city === d.city && o.state === d.state) continue; // skip self
         const key = `${o.kma}|${d.kma}|${o.zip}|${d.zip}`;
         if (pairSet.has(key)) continue;
         pairSet.add(key);
-        pairs.push({ origin: o, destination: d });
+        const pairObj = { origin: o, destination: d, isRecommended: false };
+        // Record first pair for fallback if not yet stored
+        if (firstPairIndexByKma[o.kma] === undefined) firstPairIndexByKma[o.kma] = pairs.length;
+        // If no recommended chosen for this KMA yet and states differ, choose this one
+        if (!recommendedByKma[o.kma] && o.state !== d.state) {
+          pairObj.isRecommended = true;
+          recommendedByKma[o.kma] = true;
+          if (process.env.PAIRING_DEBUG) {
+            console.log(`[PAIRING] KMA ${o.kma} recommended lane: ${o.city}, ${o.state} → ${d.city}, ${d.state}`);
+          }
+        }
+        pairs.push(pairObj);
         if (pairs.length >= MAX_CARTESIAN) break;
       }
       if (pairs.length >= MAX_CARTESIAN) break;
+    }
+    // Assign fallback recommendations where none selected (e.g., all dest states matched origin state)
+    for (const [kma, index] of Object.entries(firstPairIndexByKma)) {
+      if (!recommendedByKma[kma] && pairs[index]) {
+        pairs[index].isRecommended = true;
+        if (process.env.PAIRING_DEBUG) {
+          const p = pairs[index];
+          console.log(`[PAIRING] KMA ${kma} recommended lane (fallback): ${p.origin.city}, ${p.origin.state} → ${p.destination.city}, ${p.destination.state}`);
+        }
+      }
     }
 
     if (pairs.length === 0) throw new Error('NO_CITY_PAIRS');
