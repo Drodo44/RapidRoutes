@@ -174,6 +174,19 @@ export default async function handler(req, res) {
 
   const uniqueOriginKmasSet = new Set(originCandidates.map(c => c.kma));
   const uniqueDestKmasSet = new Set(destCandidates.map(c => c.kma));
+
+  // --- NEW: cap origin cities to max 2 per KMA (usability / noise reduction) ---
+  // Group by KMA then take first 2 from each group (post-enrichment & filtering)
+  const originsByKma = originCandidates.reduce((acc, city) => {
+    (acc[city.kma] = acc[city.kma] || []).push(city);
+    return acc;
+  }, {});
+  const limitedOrigins = Object.values(originsByKma).flatMap(group => group.slice(0, 2));
+  if (process.env.PAIRING_DEBUG) {
+    console.log(`🛠 Limited origins: kept ${limitedOrigins.length} total (max 2 per KMA) out of ${originCandidates.length}`);
+  }
+
+  // We intentionally do NOT limit destination set.
     const unionKmasSet = new Set([...uniqueOriginKmasSet, ...uniqueDestKmasSet]);
     debugLog('Unique KMA sets', { origin: [...uniqueOriginKmasSet], destination: [...uniqueDestKmasSet], unionSize: unionKmasSet.size });
   // Minimum required diversity threshold (updated from 6 -> 5)
@@ -187,7 +200,7 @@ export default async function handler(req, res) {
     const MAX_CARTESIAN = 200; // defensive cap
     const pairSet = new Set();
     const pairs = [];
-    for (const o of originCandidates) {
+  for (const o of limitedOrigins) {
       for (const d of destCandidates) {
         if (o.city === d.city && o.state === d.state) continue; // skip self
         const key = `${o.kma}|${d.kma}|${o.zip}|${d.zip}`;
