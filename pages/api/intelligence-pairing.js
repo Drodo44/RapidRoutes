@@ -172,7 +172,37 @@ export default async function handler(req, res) {
     if (originCandidates.length === 0) throw new Error('NO_ORIGIN_CANDIDATES');
     if (destCandidates.length === 0) throw new Error('NO_DESTINATION_CANDIDATES');
 
-  // --- NEW FILTERING LOGIC: collect candidates excluding original KMAs (within radius already) ---
+  // --- DISTANCE + KMA FILTERING ---
+  // Re-filter candidates to enforce explicit 100-mile threshold relative to original inputs (defensive)
+  function milesBetween(lat1, lng1, lat2, lng2) {
+    const R = 3958.8; // miles
+    const toRad = d => d * Math.PI / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLng = toRad(lng2 - lng1);
+    const a = Math.sin(dLat/2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng/2) ** 2;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  // Locate original canonical records to anchor distance filtering
+  const originalOriginGeo = originGeo; // already resolved earlier
+  const originalDestGeo = destGeo;     // already resolved earlier
+
+  // Apply distance filter (<=100 miles) BEFORE KMA exclusion
+  originCandidates = originCandidates.filter(c => {
+    if (!c.lat || !c.lng) return false;
+    return milesBetween(originalOriginGeo.lat, originalOriginGeo.lng, c.lat, c.lng) <= HARD_RADIUS_MILES;
+  });
+  destCandidates = destCandidates.filter(c => {
+    if (!c.lat || !c.lng) return false;
+    return milesBetween(originalDestGeo.lat, originalDestGeo.lng, c.lat, c.lng) <= HARD_RADIUS_MILES;
+  });
+
+  if (process.env.PAIRING_DEBUG) {
+    console.log(`[PAIRING] Post-distance filter counts (<=${HARD_RADIUS_MILES}mi): origin=${originCandidates.length} destination=${destCandidates.length}`);
+  }
+
+  // --- ORIGINAL KMA EXCLUSION + uniqueness logic continues ---
   const originInputCityLower = originCity.toLowerCase();
   const destInputCityLower = destCity.toLowerCase();
   const originInputStateUpper = originState.toUpperCase();
