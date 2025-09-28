@@ -73,56 +73,96 @@ function normalizeCity(rec) {
   };
 }
 
-// Robust enrichment: ensure every candidate has lat,lng,kma; persist back to Supabase
-async function ensureGeoAndKma(cities) {
-  if (!cities || cities.length === 0) return cities;
-  const map = await getKmaMapping();
-  const updates = [];
-  const enriched = [];
-  for (const c of cities) {
-    // Geocode if missing coordinates
-    if ((!c.lat || !c.lng) && c.city && c.state) {
-      try {
-        const g = await geocodeCityState(c.city, c.state);
-        c.lat = g.lat;
-        c.lng = g.lng;
-      } catch (err) {
-        if (process.env.PAIRING_DEBUG) console.log(`[PAIRING] Geocode failed for ${c.city}, ${c.state}: ${err.message}`);
-        continue; // skip candidate if cannot geocode (maintains 100-mi strictness)
-      }
+// Hierarchical enrichment for a single candidate (Supabase zip3_kma_geo -> HERE -> Census)
+async function enrichCandidateWithGeoAndKma(candidate, kmaMap) {
+  const zip3 = (candidate.zip || '').slice(0,3);
+  if (!zip3 || zip3.length !== 3) throw new Error(`INVALID_ZIP3 zip=${candidate.zip}`);
+
+  // 1. Supabase lookup first
+  try {
+    const { data: cached, error: cacheErr } = await supabase
+      .from('zip3_kma_geo')
+      .select('zip3,kma_code,latitude,longitude')
+      .eq('zip3', zip3)
+      .maybeSingle();
+    if (!cacheErr && cached) {
+      candidate.lat = cached.latitude;
+      candidate.lng = cached.longitude;
+      candidate.kma = cached.kma_code;
+      if (process.env.PAIRING_DEBUG) console.log(`[PAIRING] Supabase hit: zip3=${zip3} → KMA=${candidate.kma} lat=${candidate.lat} lng=${candidate.lng}`);
+      return candidate;
     }
-    // Assign KMA via 3-digit prefix if missing
-    if (!c.kma) {
-      const prefix = (c.zip || '').slice(0,3) || '000';
-      let entry = null;
-      if (map && map._isPrefixMap && map.prefixes) entry = map.prefixes[prefix];
-      else if (map && map.prefixes) entry = map.prefixes[prefix];
-      else if (map) entry = map[prefix] || map[c.zip];
-      if (entry && (entry.kma_code || entry.kma)) {
-        c.kma = entry.kma_code || entry.kma;
-      } else {
-        c.kma = `UNKNOWN-${prefix}`; // fallback placeholder, never exclude
-        if (process.env.PAIRING_DEBUG) console.log(`[PAIRING] Missing KMA for zip=${c.zip} assigned placeholder ${c.kma}`);
-      }
-    }
-    // Queue persistence for any newly added info
-    updates.push({
-      zip: c.zip,
-      kma_code: c.kma,
-      latitude: c.lat,
-      longitude: c.lng
-    });
-    enriched.push(c);
+  } catch (e) {
+    if (process.env.PAIRING_DEBUG) console.log(`[PAIRING] Supabase lookup error zip3=${zip3} ${e.message}`);
   }
-  if (updates.length > 0) {
+
+  // Helper to resolve KMA from prefix map
+  function resolveKma(prefix) {
+    let entry = null;
+    if (kmaMap && kmaMap._isPrefixMap && kmaMap.prefixes) entry = kmaMap.prefixes[prefix];
+    else if (kmaMap && kmaMap.prefixes) entry = kmaMap.prefixes[prefix];
+    else if (kmaMap) entry = kmaMap[prefix];
+    return entry?.kma_code || entry?.kma || null;
+  }
+
+  async function geocodeHere() {
+    const q = encodeURIComponent(`${zip3}00, USA`);
+    const url = `https://geocode.search.hereapi.com/v1/geocode?q=${q}&apiKey=${HERE_API_KEY}`;
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`HERE_${resp.status}`);
+    const json = await resp.json();
+    if (!json.items || !json.items.length) throw new Error('HERE_NO_RESULTS');
+    return { lat: json.items[0].position.lat, lng: json.items[0].position.lng };
+  }
+
+  async function geocodeCensus() {
+    const probeZip = `${zip3}01`;
+    const url = `https://geo.fcc.gov/api/census/block/find?format=json&zip=${probeZip}`;
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`CENSUS_${resp.status}`);
+    const json = await resp.json();
+    const lat = Number(json?.Latitude);
+    const lng = Number(json?.Longitude);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng };
+    throw new Error('CENSUS_NO_RESULTS');
+  }
+
+  let geo = null;
+  let source = '';
+  // 2. HERE fallback
+  try {
+    geo = await geocodeHere();
+    source = 'HERE';
+  } catch (e) {
+    if (process.env.PAIRING_DEBUG) console.log(`[PAIRING] HERE geocode miss zip3=${zip3} ${e.message}`);
+    // 3. Census fallback
     try {
-      const { error } = await supabase.from('cities').upsert(updates, { onConflict: 'zip' });
-      if (error && process.env.PAIRING_DEBUG) console.log('[PAIRING] Upsert error', error.message);
-    } catch (e) {
-      if (process.env.PAIRING_DEBUG) console.log('[PAIRING] Upsert exception', e.message);
+      geo = await geocodeCensus();
+      source = 'CENSUS';
+    } catch (e2) {
+      if (process.env.PAIRING_DEBUG) console.log(`[PAIRING] Census geocode miss zip3=${zip3} ${e2.message}`);
+      throw new Error(`GEO_ENRICH_FAILED zip3=${zip3}`);
     }
   }
-  return enriched;
+
+  candidate.lat = geo.lat;
+  candidate.lng = geo.lng;
+  candidate.kma = resolveKma(zip3) || `UNKNOWN-${zip3}`;
+
+  // Persist to Supabase zip3_kma_geo
+  try {
+    const row = { zip3, kma_code: candidate.kma, latitude: candidate.lat, longitude: candidate.lng };
+    const { error: upErr } = await supabase.from('zip3_kma_geo').upsert(row, { onConflict: 'zip3' });
+    if (upErr && process.env.PAIRING_DEBUG) console.log(`[PAIRING] Upsert error zip3=${zip3} ${upErr.message}`);
+  } catch (e) {
+    if (process.env.PAIRING_DEBUG) console.log(`[PAIRING] Upsert exception zip3=${zip3} ${e.message}`);
+  }
+
+  if (process.env.PAIRING_DEBUG) {
+    const label = source === 'HERE' ? 'HERE fallback' : 'Census fallback';
+    console.log(`[PAIRING] ${label}: zip3=${zip3} → KMA=${candidate.kma} lat=${candidate.lat} lng=${candidate.lng} (persisted)`);
+  }
+  return candidate;
 }
 
 export default async function handler(req, res) {
@@ -171,9 +211,14 @@ export default async function handler(req, res) {
   // Normalize first (may have missing KMA)
   let originCandidates = originRaw.map(normalizeCity);
   let destCandidates = destRaw.map(normalizeCity);
-  // Ensure every candidate has lat/lng/kma (geocode + prefix mapping + persistence)
-  originCandidates = await ensureGeoAndKma(originCandidates);
-  destCandidates = await ensureGeoAndKma(destCandidates);
+  // Ensure every candidate has lat/lng/kma via hierarchical enrichment
+  const kmaMap = await getKmaMapping();
+  for (const c of originCandidates) {
+    await enrichCandidateWithGeoAndKma(c, kmaMap);
+  }
+  for (const c of destCandidates) {
+    await enrichCandidateWithGeoAndKma(c, kmaMap);
+  }
   debugLog('Normalized & enriched candidate counts', { origin: originCandidates.length, destination: destCandidates.length });
 
     if (originCandidates.length === 0) throw new Error('NO_ORIGIN_CANDIDATES');
