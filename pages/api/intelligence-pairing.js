@@ -172,29 +172,37 @@ export default async function handler(req, res) {
     if (originCandidates.length === 0) throw new Error('NO_ORIGIN_CANDIDATES');
     if (destCandidates.length === 0) throw new Error('NO_DESTINATION_CANDIDATES');
 
-  // --- UPDATED: cap origin cities to max 2 per KMA applied directly to originCandidates ---
-  const originsByKma = originCandidates.reduce((acc, city) => {
-    (acc[city.kma] = acc[city.kma] || []).push(city);
-    return acc;
-  }, {});
-  let cappedOriginTotal = 0;
-  const cappedOrigins = [];
-  for (const [kma, group] of Object.entries(originsByKma)) {
-    const limited = group.slice(0, 2);
-    cappedOrigins.push(...limited);
-    cappedOriginTotal += limited.length;
-    if (process.env.PAIRING_DEBUG) {
-      console.log(`[PAIRING] KMA ${kma} origins limited from ${group.length} → ${limited.length}`);
-    }
+  // --- NEW FILTERING LOGIC: collect candidates excluding original KMAs (within radius already) ---
+  const originInputCityLower = originCity.toLowerCase();
+  const destInputCityLower = destCity.toLowerCase();
+  const originInputStateUpper = originState.toUpperCase();
+  const destInputStateUpper = destState.toUpperCase();
+
+  const originalOriginEntry = originCandidates.find(c => c.city.toLowerCase() === originInputCityLower && c.state === originInputStateUpper);
+  const originalDestEntry   = destCandidates.find(c => c.city.toLowerCase() === destInputCityLower && c.state === destInputStateUpper);
+  const originalOriginKma = originalOriginEntry?.kma;
+  const originalDestKma   = originalDestEntry?.kma;
+
+  if (originalOriginKma && originalDestKma && process.env.PAIRING_DEBUG) {
+    console.log(`[PAIRING] Original KMAs: origin=${originalOriginKma} destination=${originalDestKma}`);
   }
+
+  // Exclude candidates in the same KMA as the originals (spec requirement)
+  if (originalOriginKma) {
+    originCandidates = originCandidates.filter(c => c.kma && c.kma !== originalOriginKma);
+  }
+  if (originalDestKma) {
+    destCandidates = destCandidates.filter(c => c.kma && c.kma !== originalDestKma);
+  }
+
   if (process.env.PAIRING_DEBUG) {
-    console.log(`🛠 Limited origins: kept ${cappedOriginTotal} total (max 2 per KMA) out of ${originCandidates.length}`);
+    console.log(`[PAIRING] Origins within 100mi (excl. same KMA): ${originCandidates.length}`);
+    console.log(`[PAIRING] Destinations within 100mi (excl. same KMA): ${destCandidates.length}`);
   }
-  originCandidates = cappedOrigins;
 
   const uniqueOriginKmasSet = new Set(originCandidates.map(c => c.kma));
   const uniqueDestKmasSet = new Set(destCandidates.map(c => c.kma));
-  // We intentionally do NOT limit destination set.
+  // Destination set kept as-is aside from KMA exclusion.
     const unionKmasSet = new Set([...uniqueOriginKmasSet, ...uniqueDestKmasSet]);
     debugLog('Unique KMA sets', { origin: [...uniqueOriginKmasSet], destination: [...uniqueDestKmasSet], unionSize: unionKmasSet.size });
   // Minimum required diversity threshold (updated from 6 -> 5)
@@ -204,17 +212,20 @@ export default async function handler(req, res) {
       throw new Error(`INSUFFICIENT_KMA_DIVERSITY union=${unionKmasSet.size} (<${MIN_UNIQUE_KMAS}) originUnique=${uniqueOriginKmasSet.size} destUnique=${uniqueDestKmasSet.size}`);
     }
 
-    // Build unique KMA pair list (one lane per origin.kma|dest.kma)
-    const kmaPairSet = new Set();
+    // Build city-to-city unique lanes (exclude original entered lane) using city/state uniqueness
+    const uniquenessSet = new Set();
     const pairs = [];
-    const recommendedByKma = {}; // per origin KMA
-    const firstIndexPerKma = {};  // fallback if no cross-state lane
+    const recommendedByKma = {}; // track recommendation per origin KMA
+    const firstIndexPerKma = {}; // fallback index if only same-state lanes
     for (const o of originCandidates) {
       for (const d of destCandidates) {
-        if (o.city === d.city && o.state === d.state) continue; // skip self
-        const kmaKey = `${o.kma}|${d.kma}`;
-        if (kmaPairSet.has(kmaKey)) continue; // already have representative lane for this KMA pair
-        kmaPairSet.add(kmaKey);
+        if (o.city.toLowerCase() === originInputCityLower && o.state === originInputStateUpper &&
+            d.city.toLowerCase() === destInputCityLower && d.state === destInputStateUpper) {
+          continue; // skip original lane
+        }
+        const pairKey = `${o.city}|${o.state}|${d.city}|${d.state}`;
+        if (uniquenessSet.has(pairKey)) continue;
+        uniquenessSet.add(pairKey);
         const pairObj = { origin: o, destination: d, isRecommended: false };
         if (firstIndexPerKma[o.kma] === undefined) firstIndexPerKma[o.kma] = pairs.length;
         if (!recommendedByKma[o.kma] && o.state !== d.state) {
@@ -227,7 +238,7 @@ export default async function handler(req, res) {
         pairs.push(pairObj);
       }
     }
-    // Fallback recommendations where origin KMA never got a cross-state lane
+    // Fallback recommendation assignment for KMAs without cross-state lanes
     for (const [kma, idx] of Object.entries(firstIndexPerKma)) {
       if (!recommendedByKma[kma] && pairs[idx]) {
         pairs[idx].isRecommended = true;
@@ -238,7 +249,7 @@ export default async function handler(req, res) {
       }
     }
     if (process.env.PAIRING_DEBUG) {
-      console.log(`[PAIRING] Unique KMA pairs generated: ${pairs.length}`);
+      console.log(`[PAIRING] Unique generated pairs: ${pairs.length}`);
     }
 
     if (pairs.length === 0) throw new Error('NO_CITY_PAIRS');
