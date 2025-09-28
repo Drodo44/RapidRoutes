@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RapidRoutes API Verification</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            background-color: #1e1e1e;
+            color: #e0e0e0;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #2d2d2d;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+        h1, h2, h3 {
+            color: #58a6ff;
+            margin-top: 0;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #444;
+            padding-bottom: 15px;
+        }
+        button {
+            background-color: #2ea043;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #3fb950;
+        }
+        button:disabled {
+            background-color: #444;
+            cursor: not-allowed;
+        }
+        .result {
+            background-color: #0d1117;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            overflow-x: auto;
+            border-left: 4px solid #2ea043;
+        }
+        .error {
+            border-left: 4px solid #f85149;
+        }
+        .lane-test {
+            border: 1px solid #444;
+            margin: 10px 0;
+            padding: 12px;
+            border-radius: 6px;
+            background-color: #24292e;
+        }
+        .lane-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .success {
+            background-color: #2ea043;
+            color: white;
+        }
+        .fail {
+            background-color: #f85149;
+            color: white;
+        }
+        .warning {
+            background-color: #d29922;
+            color: white;
+        }
+        .pairs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .pair-card {
+            background-color: #1e1e1e;
+            padding: 12px;
+            border-radius: 4px;
+            border: 1px solid #383838;
+        }
+        .pair-header {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .pair-detail {
+            font-size: 0.9em;
+            color: #c9d1d9;
+            margin-bottom: 2px;
+        }
+        .summary {
+            background-color: #2d333b;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 20px;
+            border: 1px solid #444;
+        }
+        pre {
+            white-space: pre-wrap;
+            margin: 0;
+        }
+        .loader {
+            border: 3px solid #333;
+            border-top: 3px solid #58a6ff;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .progress {
+            margin-bottom: 10px;
+            color: #8b949e;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>RapidRoutes API Verification</h1>
+            <button id="runTests">Run Verification Tests</button>
+        </div>
+        <p>This tool tests the intelligence-pairing API using your current browser session for authentication.</p>
+        
+        <div id="progressStatus" class="progress" style="display: none;">
+            <div class="loader"></div> Running tests... <span id="progressCount"></span>
+        </div>
+        
+        <div id="results"></div>
+        
+        <div id="summary" class="summary" style="display: none;">
+            <h3>Test Summary</h3>
+            <p><strong>Success Rate:</strong> <span id="successRate">0%</span></p>
+            <p><strong>Successes:</strong> <span id="successCount">0</span></p>
+            <p><strong>Failures:</strong> <span id="failCount">0</span></p>
+        </div>
+    </div>
+
+    <script>
+        // Test lanes to verify
+        const testLanes = [
+            {
+                id: 'test1',
+                originCity: 'Atlanta',
+                originState: 'GA',
+                destinationCity: 'Chicago',
+                destinationState: 'IL',
+                equipmentCode: 'V',
+                description: 'Atlanta to Chicago (Van)'
+            },
+            {
+                id: 'test2',
+                originCity: 'Seattle',
+                originState: 'WA',
+                destinationCity: 'Miami',
+                destinationState: 'FL',
+                equipmentCode: 'R',
+                description: 'Seattle to Miami (Reefer)'
+            },
+            {
+                id: 'test3',
+                originCity: 'Denver',
+                originState: 'CO',
+                destinationCity: 'Dallas',
+                destinationState: 'TX',
+                equipmentCode: 'FD',
+                description: 'Denver to Dallas (Flatbed)'
+            },
+            {
+                id: '282481ae-48d1-43a9-abf7-d7ecf490ff22',
+                originCity: 'Newberry',
+                originState: 'SC',
+                destinationCity: 'Altamont',
+                destinationState: 'NY',
+                equipmentCode: 'FD',
+                description: 'Newberry to Altamont (Flatbed)'
+            },
+            {
+                id: 'f25c40fe-7288-4dcc-850a-0d8ac26ea85b',
+                originCity: 'Riegelwood',
+                originState: 'NC',
+                destinationCity: 'North East',
+                destinationState: 'MD',
+                equipmentCode: 'FD',
+                description: 'Riegelwood to North East (Flatbed)'
+            }
+        ];
+
+        document.getElementById('runTests').addEventListener('click', runAllTests);
+
+        // Function to run all tests
+        async function runAllTests() {
+            // Reset UI
+            document.getElementById('results').innerHTML = '';
+            document.getElementById('successCount').textContent = '0';
+            document.getElementById('failCount').textContent = '0';
+            document.getElementById('successRate').textContent = '0%';
+            document.getElementById('summary').style.display = 'none';
+            
+            const runButton = document.getElementById('runTests');
+            const progressStatus = document.getElementById('progressStatus');
+            const progressCount = document.getElementById('progressCount');
+            
+            runButton.disabled = true;
+            progressStatus.style.display = 'block';
+            
+            let successCount = 0;
+            let failCount = 0;
+            
+            // Run each test sequentially
+            for (let i = 0; i < testLanes.length; i++) {
+                progressCount.textContent = `${i + 1}/${testLanes.length}`;
+                
+                try {
+                    const result = await testApiEndpoint(testLanes[i]);
+                    if (result.success) {
+                        successCount++;
+                    } else {
+                        failCount++;
+                    }
+                } catch (error) {
+                    console.error('Test failed:', error);
+                    failCount++;
+                    
+                    // Add error to results
+                    const resultDiv = document.createElement('div');
+                    resultDiv.className = 'lane-test';
+                    resultDiv.innerHTML = `
+                        <div class="lane-header">
+                            <h3>${testLanes[i].description}</h3>
+                            <span class="badge fail">Error</span>
+                        </div>
+                        <div class="result error">
+                            <pre>${error.message}</pre>
+                        </div>
+                    `;
+                    document.getElementById('results').appendChild(resultDiv);
+                }
+                
+                // Small delay to avoid overwhelming the API
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+            
+            // Update summary
+            const successRate = Math.round((successCount / testLanes.length) * 100);
+            document.getElementById('successCount').textContent = successCount;
+            document.getElementById('failCount').textContent = failCount;
+            document.getElementById('successRate').textContent = `${successRate}%`;
+            document.getElementById('summary').style.display = 'block';
+            
+            // Re-enable button
+            runButton.disabled = false;
+            progressStatus.style.display = 'none';
+        }
+
+        // Function to test a single lane
+        async function testApiEndpoint(lane) {
+            // API endpoint
+            const apiUrl = '/api/intelligence-pairing';
+            
+            const resultDiv = document.createElement('div');
+            resultDiv.className = 'lane-test';
+            
+            try {
+                // Make the API request
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        lane_id: lane.id,
+                        origin_city: lane.originCity,
+                        origin_state: lane.originState,
+                        destination_city: lane.destinationCity,
+                        destination_state: lane.destinationState,
+                        equipment_code: lane.equipmentCode
+                    }),
+                    // Important: Include credentials to use current session
+                    credentials: 'same-origin'
+                });
+                
+                // Parse the response
+                const data = await response.json();
+                
+                // Check if we have pairs in the response
+                const hasPairs = data.pairs && Array.isArray(data.pairs);
+                const pairsCount = hasPairs ? data.pairs.length : 0;
+                const isSuccess = pairsCount >= 6; // Require at least 6 pairs for success
+                
+                let statusBadge = '';
+                if (isSuccess) {
+                    statusBadge = `<span class="badge success">Success (${pairsCount} pairs)</span>`;
+                } else if (pairsCount > 0) {
+                    statusBadge = `<span class="badge warning">Partial (${pairsCount} pairs)</span>`;
+                } else {
+                    statusBadge = '<span class="badge fail">Failed (0 pairs)</span>';
+                }
+                
+                // Create result HTML
+                let resultHtml = `
+                    <div class="lane-header">
+                        <h3>${lane.description}</h3>
+                        ${statusBadge}
+                    </div>
+                `;
+                
+                // Add pairs grid if we have pairs
+                if (hasPairs && pairsCount > 0) {
+                    let pairsHtml = '<div class="pairs-grid">';
+                    
+                    // Show up to 6 pairs
+                    const displayPairs = data.pairs.slice(0, 6);
+                    
+                    for (const pair of displayPairs) {
+                        pairsHtml += `
+                            <div class="pair-card">
+                                <div class="pair-header">${pair.origin_city}, ${pair.origin_state} → ${pair.destination_city}, ${pair.destination_state}</div>
+                                <div class="pair-detail">Distance: ${pair.distance_miles} miles</div>
+                                <div class="pair-detail">Rate: $${pair.rate} ($${pair.rate_per_mile}/mile)</div>
+                                <div class="pair-detail">Carrier: ${pair.carrier?.name || 'Unknown'}</div>
+                            </div>
+                        `;
+                    }
+                    
+                    if (pairsCount > 6) {
+                        pairsHtml += `<div class="pair-card"><div class="pair-header">+ ${pairsCount - 6} more pairs</div></div>`;
+                    }
+                    
+                    pairsHtml += '</div>';
+                    resultHtml += pairsHtml;
+                } else {
+                    // Show detailed response for debugging if no pairs
+                    resultHtml += `
+                        <div class="result ${isSuccess ? '' : 'error'}">
+                            <pre>${JSON.stringify(data, null, 2).substring(0, 500)}${JSON.stringify(data, null, 2).length > 500 ? '...' : ''}</pre>
+                        </div>
+                    `;
+                }
+                
+                resultDiv.innerHTML = resultHtml;
+                document.getElementById('results').appendChild(resultDiv);
+                
+                return {
+                    success: isSuccess,
+                    pairsCount,
+                    response: data
+                };
+            } catch (error) {
+                console.error(`Test failed for ${lane.id}:`, error);
+                resultDiv.innerHTML = `
+                    <div class="lane-header">
+                        <h3>${lane.description}</h3>
+                        <span class="badge fail">Error</span>
+                    </div>
+                    <div class="result error">
+                        <pre>${error.message}</pre>
+                    </div>
+                `;
+                document.getElementById('results').appendChild(resultDiv);
+                
+                throw error;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -15,7 +15,7 @@
  *  - skipped: pairs length == 0 and no explicit error
  */
 
-const DEFAULT_HOST = 'https://rapid-routes.vercel.app';
+const DEFAULT_HOST = process.env.DEPLOYMENT_URL || 'https://rapid-routes.vercel.app';
 
 const lanes = [
   { id: 'L1', origin_city: 'Fitzgerald', origin_state: 'GA', dest_city: 'Winter Haven', dest_state: 'FL' },
@@ -83,6 +83,10 @@ async function postLane(host, lane, debug) {
 async function main() {
   const { debug, host } = parseArgs(process.argv);
   console.log(`🚀 Production Pairing Verification (host=${host}, debug=${debug})`);
+  if (debug) {
+    if (process.env.DEPLOYMENT_URL) console.log(`🐞 Using DEPLOYMENT_URL env override: ${process.env.DEPLOYMENT_URL}`);
+    if (process.env.DEPLOYMENT_ID) console.log(`🐞 Deployment ID: ${process.env.DEPLOYMENT_ID}`);
+  }
   const start = Date.now();
 
   let success = 0, skipped = 0, errors = 0;

@@ -15,6 +15,45 @@ export default function PostOptions() {
   const [rrNumbers, setRRNumbers] = useState({});
   const [loading, setLoading] = useState(true);
   const [alert, setAlert] = useState(null);
+  const [laneStats, setLaneStats] = useState({});
+  const [laneWarnings, setLaneWarnings] = useState({});
+  const [debugMode, setDebugMode] = useState(false);
+  const [generatedLaneId, setGeneratedLaneId] = useState(null);
+  const [generatedEquipmentCode, setGeneratedEquipmentCode] = useState(null);
+  const [showPairings, setShowPairings] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const url = new URL(window.location.href);
+        const debugParam = url.searchParams.get('debug');
+        const envFlag = process.env.NEXT_PUBLIC_PAIRING_DEBUG === 'true';
+        setDebugMode(debugParam === '1' || envFlag);
+      } catch (e) {
+        console.warn('Failed to init debug mode', e);
+      }
+    }
+  }, []);
+
+  // Dev-only seed lanes if none present and debug mode enabled (helps local smoke test without DB)
+  useEffect(() => {
+    if (debugMode && lanes.length === 0) {
+      const seeded = [
+        { id: 1001, origin_city: 'Fitzgerald', origin_state: 'GA', destination_city: 'Winter Haven', destination_state: 'FL', equipment_code: 'V' },
+        { id: 1002, origin_city: 'Augusta', origin_state: 'GA', destination_city: 'Stephenson', destination_state: 'VA', equipment_code: 'V' },
+        { id: 1003, origin_city: 'Riegelwood', origin_state: 'NC', destination_city: 'Altamont', destination_state: 'NY', equipment_code: 'V' }
+      ];
+      setLanes(seeded.map(l => ({
+        ...l,
+        originCity: l.origin_city,
+        originState: l.origin_state,
+        destinationCity: l.destination_city,
+        destinationState: l.destination_state,
+        equipmentCode: l.equipment_code
+      })));
+      console.log('🧪 Debug seed lanes injected');
+    }
+  }, [debugMode, lanes.length]);
 
   // Fetch pending lanes on component mount
   useEffect(() => {
@@ -279,29 +318,38 @@ export default function PostOptions() {
             test_mode: isDev, // Enable test mode in development
             debug_env: true  // Enable detailed API debugging
           },
-          { useTestMode: isDev },
+          { useTestMode: isDev, debug: debugMode },
           { access_token: token } // Pass auth session with access token
         );
         
         console.log(`📥 API response for lane ${lane.id}:`, {
-          success: result.success,
           status: result.status || result.statusCode,
-          hasPairs: Array.isArray(result.pairs),
+          error: result.error || null,
+          totalCityPairs: result.totalCityPairs,
+          uniqueOriginKmas: result.uniqueOriginKmas,
+          uniqueDestKmas: result.uniqueDestKmas,
           pairsCount: Array.isArray(result.pairs) ? result.pairs.length : 0
+        });
+        console.log('🔢 Diversity stats:', {
+          laneId: lane.id,
+          totalCityPairs: result.totalCityPairs,
+          uniqueOriginKmas: result.uniqueOriginKmas,
+          uniqueDestKmas: result.uniqueDestKmas
         });
         
         // intelligenceApiAdapter already returns parsed JSON
         
         // Handle 422 KMA diversity errors as soft warnings
-        if ((result.status === 422 || result.statusCode === 422) && 
-            ((typeof result.error === 'string' && (result.error?.includes('KMA') || result.error?.includes('unique'))) || 
-             (typeof result.details === 'string' && (result.details?.includes('KMA') || result.details?.includes('unique'))))) {
-          console.warn(`⚠️ [${requestId}] KMA diversity requirement not met for lane ${lane.id}:`, result.details || result.error);
-          setAlert({ 
-            type: 'warning', 
-            message: `Lane ${lane.id}: ${result.details || 'Insufficient KMA diversity'} - skipped`
-          });
+        if (result.status === 422 || result.statusCode === 422) {
+          console.warn(`⚠️ [${requestId}] Diversity gating for lane ${lane.id}:`, result.error || result.details);
+          setAlert({ type: 'warning', message: `Lane ${lane.id}: ${result.error || 'Diversity requirement not met'} (skipped)` });
           setPairings(prev => ({ ...prev, [lane.id]: [] }));
+          setLaneWarnings(prev => ({ ...prev, [lane.id]: result.error || 'Diversity requirement not met' }));
+          setLaneStats(prev => ({ ...prev, [lane.id]: {
+            totalCityPairs: result.totalCityPairs || 0,
+            uniqueOriginKmas: result.uniqueOriginKmas || 0,
+            uniqueDestKmas: result.uniqueDestKmas || 0
+          }}));
           setGeneratingPairings(false);
           return;
         }
@@ -327,80 +375,21 @@ export default function PostOptions() {
         }
         
         // Handle other API errors
-        if (!result.success || result.error) {
-          const errorMsg = result.details || result.error || result.message || 'Failed to generate pairings';
-          console.error(`❌ [${requestId}] API error for lane ${lane.id}:`, {
-            status: result.status || result.statusCode,
-            error: errorMsg,
-            details: result
-          });
-          
-          // Don't throw an error if we have pairs despite an error status
-          if (Array.isArray(result.pairs) && result.pairs.length > 0) {
-            console.warn(`⚠️ Continuing despite API error as ${result.pairs.length} pairs were returned`);
-          } else {
-            throw new Error(`${errorMsg} (Status: ${result.status || result.statusCode || 'unknown'})`);
-          }
+        if (result.error) {
+          throw new Error(result.error);
         }
         
         console.log(`📥 [${requestId}] API success for lane ${lane.id}: ${result.pairs?.length || 0} pairs generated`);
         
-        // Process the result and update UI
-        let pairs = Array.isArray(result.pairs) ? result.pairs : [];
-        
-        // FALLBACK: If API returned no pairs but has cities data, try to create basic pairs
-        if (pairs.length === 0 && result.cities && Array.isArray(result.cities) && result.cities.length > 0) {
-          console.warn(`⚠️ No pairs in response but found ${result.cities.length} cities - creating fallback pairs`);
-          
-          // Create basic fallback pairs from the cities
-          pairs = result.cities.slice(0, 10).map(city => ({
-            origin_city: originCity,
-            origin_state: originState,
-            destination_city: city.city || city.name || 'Unknown',
-            destination_state: city.state_or_province || city.state || 'Unknown',
-            equipment_code: equipmentCode || 'V',
-            distance_miles: city.distance_miles || city.distance || 100,
-            fallback: true
-          }));
-          
-          console.log(`🚨 Created ${pairs.length} fallback pairs from cities data`);
-        }
-        
-        // Only enforce minimum pairs in production
-        if (pairs.length < 5) {
-          console.warn(`⚠️ Intelligence system found only ${pairs.length} pairs (minimum 5 required)`);
-          // Continue anyway if we have at least one pair
-          if (pairs.length === 0) {
-            // Generate synthetic pairs as an emergency fallback for demo purposes
-            if (isDev || process.env.NODE_ENV !== 'production') {
-              console.log('🆘 Generating emergency synthetic fallback pairs for demonstration');
-              const fallbackCities = [
-                {city: 'Chicago', state: 'IL'}, 
-                {city: 'Indianapolis', state: 'IN'},
-                {city: 'Columbus', state: 'OH'},
-                {city: 'Louisville', state: 'KY'},
-                {city: 'Nashville', state: 'TN'},
-                {city: 'St. Louis', state: 'MO'}
-              ];
-              
-              pairs = fallbackCities.map(city => ({
-                origin_city: originCity || 'Cincinnati',
-                origin_state: originState || 'OH',
-                destination_city: city.city,
-                destination_state: city.state,
-                equipment_code: equipmentCode || 'V',
-                distance_miles: Math.floor(Math.random() * 500) + 50,
-                emergency_fallback: true
-              }));
-              
-              console.log(`🚨 Created ${pairs.length} emergency fallback pairs`);
-            } else {
-              throw new Error('Intelligence system failed: no KMAs found');
-            }
-          }
-        }
+        // Process the result and update UI (no client-side fallback injection)
+        const pairs = Array.isArray(result.pairs) ? result.pairs : [];
         
         setPairings(prev => ({ ...prev, [lane.id]: pairs }));
+        setLaneStats(prev => ({ ...prev, [lane.id]: {
+          totalCityPairs: result.totalCityPairs || pairs.length || 0,
+          uniqueOriginKmas: result.uniqueOriginKmas || 0,
+          uniqueDestKmas: result.uniqueDestKmas || 0
+        }}));
         setGeneratedLaneId(lane.id);
         setGeneratedEquipmentCode(lane.equipment_code || lane.equipmentCode);
         setShowPairings(true);
@@ -595,7 +584,7 @@ export default function PostOptions() {
           try {
             const result = await callIntelligencePairingApi(
               lane,
-              { useTestMode: false },
+              { useTestMode: false, debug: debugMode },
               authSession
             );
             // Unified classification logic (mirrors test-integration-batch.js):
@@ -603,20 +592,29 @@ export default function PostOptions() {
             // 2. success if pairs length > 0
             // 3. skipped otherwise (pairs = 0, no error)
             const pairs = Array.isArray(result.pairs) ? result.pairs : [];
-            const classification = result.error ? 'error' : (pairs.length > 0 ? 'success' : 'skipped');
-
+            let classification = result.error ? 'error' : (pairs.length > 0 ? 'success' : 'skipped');
+            let warning;
+            if (result.status === 422 || result.statusCode === 422) {
+              classification = 'skipped';
+              warning = result.error || 'Diversity requirement not met';
+            }
+            const stats = {
+              totalCityPairs: result.totalCityPairs || pairs.length || 0,
+              uniqueOriginKmas: result.uniqueOriginKmas || 0,
+              uniqueDestKmas: result.uniqueDestKmas || 0
+            };
             if (classification === 'error') {
-              return { laneId: lane.id, pairs: [], error: result.error, classification };
+              return { laneId: lane.id, pairs: [], error: result.error, classification, stats, warning };
             }
             if (classification === 'success') {
               // Only fetch RR number when we have successful pairs
               const rrResp = await fetch('/api/rr-number');
               const rrJson = await rrResp.json();
               const rr = rrJson.success ? rrJson.rrNumber : 'RR00000';
-              return { laneId: lane.id, pairs, rr, classification };
+              return { laneId: lane.id, pairs, rr, classification, stats };
             }
             // skipped
-            return { laneId: lane.id, pairs: [], classification };
+            return { laneId: lane.id, pairs: [], classification, stats, warning };
           } catch (apiErr) {
             console.error(`❌ [${requestId}] API error:`, apiErr);
             if (apiErr.message && apiErr.message.includes('401')) {
@@ -647,6 +645,7 @@ export default function PostOptions() {
           successCount++;
           newPairings[r.laneId] = r.pairs;
           if (r.rr) newRRs[r.laneId] = r.rr;
+          if (r.stats) setLaneStats(prev => ({ ...prev, [r.laneId]: r.stats }));
         } else if (classification === 'error') {
           errorCount++;
           newPairings[r.laneId] = [];
@@ -658,9 +657,13 @@ export default function PostOptions() {
             setGeneratingPairings(false);
             return;
           }
+          if (r.stats) setLaneStats(prev => ({ ...prev, [r.laneId]: r.stats }));
+          if (r.warning) setLaneWarnings(prev => ({ ...prev, [r.laneId]: r.warning }));
         } else {
           skipCount++;
           newPairings[r.laneId] = [];
+          if (r.stats) setLaneStats(prev => ({ ...prev, [r.laneId]: r.stats }));
+          if (r.warning) setLaneWarnings(prev => ({ ...prev, [r.laneId]: r.warning }));
         }
         // Standardized per-lane outcome log (mirrors harness)
         console.log(`[BATCH] Lane ${r.laneId} outcome: ${classification} (pairs=${r.pairs?.length || 0}${r.error ? ', error=' + r.error : ''})`);
@@ -781,7 +784,49 @@ export default function PostOptions() {
           </div>
           {/* Alert */}
           {alert && (
-            <div className={`mb-6 px-4 py-3 rounded-lg font-medium text-sm ${alert.type === 'success' ? 'bg-green-900 text-green-200 border border-green-700' : 'bg-red-900 text-red-200 border border-red-700'}`}>{alert.message}</div>
+            <div className={`mb-6 px-4 py-3 rounded-lg font-medium text-sm ${
+              alert.type === 'success' ? 'bg-green-900 text-green-200 border border-green-700' :
+              alert.type === 'warning' ? 'bg-yellow-900 text-yellow-200 border border-yellow-700' :
+              'bg-red-900 text-red-200 border border-red-700'
+            }`}>{alert.message}</div>
+          )}
+
+          {debugMode && lanes.length > 0 && (
+            <div className="mb-8 bg-gray-800 border border-gray-700 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-lg font-semibold text-gray-100">Debug Overlay</h2>
+                <span className="text-xs text-gray-400">{lanes.length} lanes</span>
+              </div>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-72 overflow-y-auto text-xs font-mono">
+                {lanes.map(l => {
+                  const stats = laneStats[l.id];
+                  const warning = laneWarnings[l.id];
+                  const pairs = pairings[l.id];
+                  const pairCount = Array.isArray(pairs) ? pairs.length : 0;
+                  return (
+                    <div key={l.id} className="bg-gray-700/70 rounded p-3 border border-gray-600">
+                      <div className="flex justify-between mb-1">
+                        <span className="text-gray-200">Lane {l.id}</span>
+                        <span className="text-gray-400 truncate ml-2">{l.origin_city},{l.origin_state}→{l.destination_city},{l.destination_state}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2 text-gray-300">
+                        <span>Pairs:{pairCount}</span>
+                        {stats && (
+                          <>
+                            <span>T:{stats.totalCityPairs}</span>
+                            <span>O:{stats.uniqueOriginKmas}</span>
+                            <span>D:{stats.uniqueDestKmas}</span>
+                          </>
+                        )}
+                        {warning && <span className="text-yellow-400">⚠ {warning}</span>}
+                        {pairCount === 0 && !warning && <span className="text-red-400">Ø no pairs</span>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-2 text-xs text-gray-500">Debug mode enabled (append ?debug=1 to URL)</div>
+            </div>
           )}
           {/* Lane Cards */}
           {lanes.length === 0 ? (
@@ -829,7 +874,7 @@ export default function PostOptions() {
                         <div className="grid gap-2 max-h-96 overflow-y-auto">
                           {pairings[lane.id].map((pair, index) => {
                             // Protect against malformed data
-                            if (!pair || !pair.origin || !pair.dest) {
+                            if (!pair || !pair.origin || !pair.destination) {
                               return (
                                 <div key={index} className="bg-yellow-900 text-yellow-200 border border-yellow-700 p-3 rounded text-sm">
                                   ⚠️ Pair skipped due to incomplete data (missing city/state/zip)
@@ -840,9 +885,9 @@ export default function PostOptions() {
                             const originCity = pair.origin.city || 'Unknown';
                             const originState = pair.origin.state || 'Unknown';
                             const originZip = pair.origin.zip ? `, ${pair.origin.zip}` : '';
-                            const destCity = pair.dest.city || 'Unknown';
-                            const destState = pair.dest.state || 'Unknown';
-                            const destZip = pair.dest.zip ? `, ${pair.dest.zip}` : '';
+                            const destCity = pair.destination?.city || 'Unknown';
+                            const destState = pair.destination?.state || 'Unknown';
+                            const destZip = pair.destination?.zip ? `, ${pair.destination.zip}` : '';
                             
                             const pairText = `${originCity}, ${originState}${originZip} → ${destCity}, ${destState}${destZip}`;
                             
@@ -850,9 +895,9 @@ export default function PostOptions() {
                               <div key={index} className="flex items-center justify-between bg-gray-700 p-3 rounded text-sm font-mono">
                                 <span className="text-gray-100">
                                   {pairText}
-                                  {pair.origin.kma && pair.dest.kma && (
+                                  {pair.origin.kma && pair.destination?.kma && (
                                     <span className="ml-2 text-xs text-gray-400">
-                                      ({pair.origin.kma} → {pair.dest.kma})
+                                      ({pair.origin.kma} → {pair.destination.kma})
                                     </span>
                                   )}
                                 </span>
@@ -866,6 +911,18 @@ export default function PostOptions() {
                               </div>
                             );
                           })}
+                        </div>
+                      )}
+                      {debugMode && laneStats[lane.id] && (
+                        <div className="mt-4 bg-gray-700/60 border border-gray-600 rounded p-3 text-xs font-mono text-gray-300">
+                          <div className="flex gap-4 flex-wrap">
+                            <span>Total Pairs: {laneStats[lane.id].totalCityPairs}</span>
+                            <span>Origin KMAs: {laneStats[lane.id].uniqueOriginKmas}</span>
+                            <span>Dest KMAs: {laneStats[lane.id].uniqueDestKmas}</span>
+                            {laneWarnings[lane.id] && (
+                              <span className="text-yellow-400">⚠ {laneWarnings[lane.id]}</span>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>

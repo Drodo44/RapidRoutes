@@ -28,24 +28,29 @@
  * @returns {Promise<Object>} - Response from intelligence-pairing API
  */
 export async function callIntelligencePairingApi(lane, options = {}, authSession = null) {
-  // Determine if we should use test mode
-  const useTestMode = options.useTestMode !== undefined 
-    ? options.useTestMode 
-    : isTestModeAllowed();
-  
-  // Log incoming lane object to verify field availability
-  console.log(`🔍 Intelligence adapter received lane ${lane.id} with fields:`, {
-    id: lane.id,
-    // Snake case
-    origin_city: lane.origin_city,
-    origin_state: lane.origin_state,
-    destination_city: lane.destination_city,
-    destination_state: lane.destination_state,
-    // Camel case
-    originCity: lane.originCity,
-    originState: lane.originState,
-    destinationCity: lane.destinationCity,
-    destinationState: lane.destinationState
+  const {
+    useTestMode: optTestMode,
+    timeoutMs = 12000,
+    debug = false,
+    stub = true // allow stub generation in debug
+  } = options || {};
+
+  const useTestMode = optTestMode !== undefined ? optTestMode : isTestModeAllowed();
+
+  const log = (...args) => { if (debug) console.log(...args); };
+  const warn = (...args) => { if (debug) console.warn(...args); };
+  const errLog = (...args) => console.error(...args); // always log errors
+
+  log(`🔍 Intelligence adapter received lane ${lane?.id}`, {
+    id: lane?.id,
+    origin_city: lane?.origin_city,
+    origin_state: lane?.origin_state,
+    destination_city: lane?.destination_city,
+    destination_state: lane?.destination_state,
+    originCity: lane?.originCity,
+    originState: lane?.originState,
+    destinationCity: lane?.destinationCity,
+    destinationState: lane?.destinationState
   });
 
   // Normalize all field name variants (camelCase + snake_case)
@@ -59,15 +64,49 @@ export async function callIntelligencePairingApi(lane, options = {}, authSession
   // Unified lane validation block
   const hasDestinationData = destinationCity || destinationState;
   if (!originCity || !originState || !equipmentCode || !hasDestinationData) {
-    console.error(`❌ Lane ${laneId} invalid:`, {
-      originCity: !!originCity,
-      originState: !!originState,
-      destinationCity: !!destinationCity,
-      destinationState: !!destinationState,
-      hasDestinationData,
-      equipmentCode: !!equipmentCode
-    });
-    return false;
+    const validationError = {
+      error: 'MISSING_REQUIRED_FIELDS',
+      details: {
+        originCity: !!originCity,
+        originState: !!originState,
+        destinationCity: !!destinationCity,
+        destinationState: !!destinationState,
+        hasDestinationData,
+        equipmentCode: !!equipmentCode
+      },
+      status: 400,
+      statusCode: 400
+    };
+    errLog(`❌ Lane ${laneId} invalid`, validationError.details);
+    return validationError;
+  }
+
+  // Debug stub short-circuit (no backend call) to enable frontend smoke tests without HERE API key
+  if (debug && stub && (process.env.NEXT_PUBLIC_PAIRING_DEBUG === 'true' || typeof window !== 'undefined' && window.location.search.includes('debug=1'))) {
+    log('🧪 Returning debug stub pairing data (no API call)');
+    const samplePairs = [
+      {
+        origin: { city: originCity, state: originState, zip: '31750', kma: 'OR1' },
+        destination: { city: destinationCity || destinationState + ' City', state: destinationState || destinationCity?.split(',')[1] || 'ST', zip: '33880', kma: 'DS1' }
+      },
+      {
+        origin: { city: originCity, state: originState, zip: '31750', kma: 'OR2' },
+        destination: { city: destinationCity || destinationState + ' Hub', state: destinationState || 'ST', zip: '33801', kma: 'DS2' }
+      },
+      {
+        origin: { city: originCity, state: originState, zip: '31750', kma: 'OR3' },
+        destination: { city: destinationCity || destinationState + ' Center', state: destinationState || 'ST', zip: '33830', kma: 'DS3' }
+      }
+    ];
+    return {
+      status: 200,
+      statusCode: 200,
+      dataSourceType: 'stub',
+      totalCityPairs: samplePairs.length,
+      uniqueOriginKmas: 3,
+      uniqueDestKmas: 3,
+      pairs: samplePairs
+    };
   }
 
   // First gather parameters in camelCase format and ensure defaults for critical fields
@@ -83,7 +122,7 @@ export async function callIntelligencePairingApi(lane, options = {}, authSession
     test_mode: useTestMode
   };
   
-  console.log(`🔄 Normalized camelCase payload for lane ${laneId}:`, camelCasePayload);
+  log(`🔄 Normalized camelCase payload for lane ${laneId}:`, camelCasePayload);
   
   // Helper function to convert camelCase keys to snake_case
   const toSnakeCase = (str) => str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
@@ -100,27 +139,24 @@ export async function callIntelligencePairingApi(lane, options = {}, authSession
   // (removed duplicate declaration)
   
   // Log validation status but continue with API call
-  if (!originCity || !originState || !equipmentCode || !hasDestinationData) {
-    const missingFields = [];
-    if (!originCity) missingFields.push('originCity/origin_city');
-    if (!originState) missingFields.push('originState/origin_state');
-    if (!hasDestinationData) missingFields.push('destination data (either city or state)');
-    if (!equipmentCode) missingFields.push('equipmentCode/equipment_code');
-    
-    if (process.env.NODE_ENV === 'development') {
-      console.warn('⚠️ Missing required fields in payload:', missingFields);
-      console.warn('⚠️ Lane will likely fail validation in API');
+  if (debug) {
+    if (!originCity || !originState || !equipmentCode || !hasDestinationData) {
+      const missingFields = [];
+      if (!originCity) missingFields.push('originCity/origin_city');
+      if (!originState) missingFields.push('originState/origin_state');
+      if (!hasDestinationData) missingFields.push('destination city/state');
+      if (!equipmentCode) missingFields.push('equipmentCode/equipment_code');
+      warn('⚠️ Missing required fields in payload:', missingFields);
+    } else {
+      log(`✅ Lane ${laneId || 'new'} validation passed (${destinationCity && destinationState ? 'complete dest' : 'partial dest'})`);
     }
-  } else {
-    // Log successful validation
-    console.log(`✅ Lane ${laneId || 'new'} validation passed - proceeding with ${hasDestinationData ? (destinationCity && destinationState ? 'complete' : 'partial') : 'no'} destination data`);
   }
 
   try {
     // Prepare to send API request
     
     // Extra debugging for token issues
-    console.log(`🔑 Auth token check for API call:`, {
+    log(`🔑 Auth token check for API call:`, {
       hasAuthSession: !!authSession,
       hasAccessToken: !!authSession?.access_token,
       tokenStart: authSession?.access_token ? authSession.access_token.substring(0, 10) + '...' : 'none'
@@ -136,15 +172,18 @@ export async function callIntelligencePairingApi(lane, options = {}, authSession
         const tokenResult = await getCurrentToken();
         accessToken = tokenResult.token;
         
-        console.log('🔒 Retrieved token from getCurrentToken:', {
+        log('🔒 Retrieved token from getCurrentToken:', {
           success: !!accessToken,
           tokenStart: accessToken ? accessToken.substring(0, 10) + '...' : 'none'
         });
       } catch (tokenError) {
-        console.error('❌ Failed to retrieve auth token:', tokenError);
+        errLog('❌ Failed to retrieve auth token:', tokenError);
       }
     }
-    
+    // Timeout / abort controller
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
     const response = await fetch('/api/intelligence-pairing', {
       method: 'POST',
       headers: {
@@ -152,7 +191,9 @@ export async function callIntelligencePairingApi(lane, options = {}, authSession
         "Authorization": accessToken ? `Bearer ${accessToken}` : ''
       },
       body: JSON.stringify(payload),
+      signal: controller.signal
     });
+    clearTimeout(timeout);
 
     if (!response.ok) {
       try {
@@ -160,12 +201,14 @@ export async function callIntelligencePairingApi(lane, options = {}, authSession
         // Add status code to the error response for consistent handling
         errorData.status = response.status;
         errorData.statusCode = response.status;
+        if (response.status === 422 && debug) {
+          warn('⚠️ Diversity / business rule failure', errorData);
+        }
         return errorData; // Return the error response with status code
       } catch (jsonError) {
         // If JSON parsing fails, get the text and create an error object
         const errorText = await response.text();
         return {
-          success: false,
           error: errorText,
           status: response.status,
           statusCode: response.status
@@ -177,20 +220,26 @@ export async function callIntelligencePairingApi(lane, options = {}, authSession
     // Add status code to the success response for consistent handling
     jsonData.status = response.status;
     jsonData.statusCode = response.status;
-    
-    // CRITICAL CHECK: Validate that we actually received pairs
-    if (jsonData.success && (!jsonData.pairs || jsonData.pairs.length === 0)) {
-      console.warn('⚠️ API returned success but no pairs - data inconsistency detected');
-      // Force metadata to indicate emergency
-      jsonData.metadata = jsonData.metadata || {};
-      jsonData.metadata.emergency = true;
-      jsonData.metadata.clientRecovery = true;
+    // Debug stats for new strict response shape
+    if (debug && typeof window !== 'undefined') {
+      log('🔢 Intelligence API stats:', {
+        totalCityPairs: jsonData.totalCityPairs,
+        uniqueOriginKmas: jsonData.uniqueOriginKmas,
+        uniqueDestKmas: jsonData.uniqueDestKmas,
+        pairCount: Array.isArray(jsonData.pairs) ? jsonData.pairs.length : 0
+      });
     }
-    
     return jsonData;
   } catch (error) {
-    console.error('Intelligence API error:', error);
-    throw error;
+    const isAbort = error?.name === 'AbortError';
+    const out = {
+      error: isAbort ? 'REQUEST_TIMEOUT' : (error.message || 'UNKNOWN_ERROR'),
+      timeout: isAbort,
+      status: isAbort ? 408 : 500,
+      statusCode: isAbort ? 408 : 500
+    };
+    errLog('Intelligence API error:', out, error);
+    return out;
   }
 }
 
