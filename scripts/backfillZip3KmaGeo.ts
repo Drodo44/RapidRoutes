@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import 'dotenv/config'; // Auto-loads .env variables (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, HERE_API_KEY, etc.)
 import fs from 'fs';
 import path from 'path';
 import axios from 'axios';
