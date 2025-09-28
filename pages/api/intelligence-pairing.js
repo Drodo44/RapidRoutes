@@ -276,14 +276,19 @@ export default async function handler(req, res) {
 
     debugLog('Final pairs built', { count: pairs.length, uniqueOriginKmas: originKmas.size, uniqueDestKmas: destKmas.size, sample: pairs.slice(0, 3) });
 
-    const response = {
-      dataSourceType: 'database',
-      totalCityPairs: pairs.length,
-      uniqueOriginKmas: originKmas.size,
-      uniqueDestKmas: destKmas.size,
-      pairs
-    };
-    return res.status(200).json(response);
+    // Construct capped response (first 50) while reporting full total
+    const totalPairs = pairs.length;
+    const returnedPairs = pairs.slice(0, 50);
+    if (process.env.PAIRING_DEBUG) {
+      console.log(`[PAIRING] Returning ${returnedPairs.length} of ${totalPairs} pairs to client`);
+    }
+    return res.status(200).json({
+      meta: {
+        totalPairs,
+        returnedCount: returnedPairs.length
+      },
+      pairs: returnedPairs
+    });
   } catch (err) {
     debugLog('Error', { message: err.message, stack: err.stack });
     const status = err.message.startsWith('NO_') || err.message.startsWith('INSUFFICIENT_') ? 400 : 500;
