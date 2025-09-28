@@ -73,34 +73,56 @@ function normalizeCity(rec) {
   };
 }
 
-// New enrichment semantics: prefix-based; exclude if missing mapping (log instead of throw)
-async function enrichKma(cities) {
+// Robust enrichment: ensure every candidate has lat,lng,kma; persist back to Supabase
+async function ensureGeoAndKma(cities) {
   if (!cities || cities.length === 0) return cities;
   const map = await getKmaMapping();
-  const out = [];
+  const updates = [];
+  const enriched = [];
   for (const c of cities) {
-    if (!c.zip) continue; // cannot enrich
-    const prefix = c.zip.slice(0,3);
-    let entry = null;
-    if (map && map._isPrefixMap && map.prefixes) {
-      entry = map.prefixes[prefix];
-    } else if (map && map.prefixes) {
-      entry = map.prefixes[prefix];
-    } else if (map) {
-      // fallback attempt: direct key by prefix else full zip
-      entry = map[prefix] || map[c.zip];
-    }
-    if (entry && (entry.kma_code || entry.kma)) {
-      c.kma = entry.kma_code || entry.kma;
-      out.push(c);
-    } else {
-      if (process.env.PAIRING_DEBUG) {
-        console.log(`[PAIRING] Missing KMA for zip=${c.zip}`);
+    // Geocode if missing coordinates
+    if ((!c.lat || !c.lng) && c.city && c.state) {
+      try {
+        const g = await geocodeCityState(c.city, c.state);
+        c.lat = g.lat;
+        c.lng = g.lng;
+      } catch (err) {
+        if (process.env.PAIRING_DEBUG) console.log(`[PAIRING] Geocode failed for ${c.city}, ${c.state}: ${err.message}`);
+        continue; // skip candidate if cannot geocode (maintains 100-mi strictness)
       }
-      // exclude silently beyond log
+    }
+    // Assign KMA via 3-digit prefix if missing
+    if (!c.kma) {
+      const prefix = (c.zip || '').slice(0,3) || '000';
+      let entry = null;
+      if (map && map._isPrefixMap && map.prefixes) entry = map.prefixes[prefix];
+      else if (map && map.prefixes) entry = map.prefixes[prefix];
+      else if (map) entry = map[prefix] || map[c.zip];
+      if (entry && (entry.kma_code || entry.kma)) {
+        c.kma = entry.kma_code || entry.kma;
+      } else {
+        c.kma = `UNKNOWN-${prefix}`; // fallback placeholder, never exclude
+        if (process.env.PAIRING_DEBUG) console.log(`[PAIRING] Missing KMA for zip=${c.zip} assigned placeholder ${c.kma}`);
+      }
+    }
+    // Queue persistence for any newly added info
+    updates.push({
+      zip: c.zip,
+      kma_code: c.kma,
+      latitude: c.lat,
+      longitude: c.lng
+    });
+    enriched.push(c);
+  }
+  if (updates.length > 0) {
+    try {
+      const { error } = await supabase.from('cities').upsert(updates, { onConflict: 'zip' });
+      if (error && process.env.PAIRING_DEBUG) console.log('[PAIRING] Upsert error', error.message);
+    } catch (e) {
+      if (process.env.PAIRING_DEBUG) console.log('[PAIRING] Upsert exception', e.message);
     }
   }
-  return out;
+  return enriched;
 }
 
 export default async function handler(req, res) {
@@ -149,10 +171,10 @@ export default async function handler(req, res) {
   // Normalize first (may have missing KMA)
   let originCandidates = originRaw.map(normalizeCity);
   let destCandidates = destRaw.map(normalizeCity);
-  // Enrich KMA codes via 3-digit ZIP prefix mapping; exclude missing
-  originCandidates = await enrichKma(originCandidates);
-  destCandidates = await enrichKma(destCandidates);
-    debugLog('Normalized candidate counts', { origin: originCandidates.length, destination: destCandidates.length });
+  // Ensure every candidate has lat/lng/kma (geocode + prefix mapping + persistence)
+  originCandidates = await ensureGeoAndKma(originCandidates);
+  destCandidates = await ensureGeoAndKma(destCandidates);
+  debugLog('Normalized & enriched candidate counts', { origin: originCandidates.length, destination: destCandidates.length });
 
     if (originCandidates.length === 0) throw new Error('NO_ORIGIN_CANDIDATES');
     if (destCandidates.length === 0) throw new Error('NO_DESTINATION_CANDIDATES');
@@ -206,8 +228,8 @@ export default async function handler(req, res) {
   if (destCandidates.length === 0) { destCandidates = preKmaDests; if (process.env.PAIRING_DEBUG) console.log(`[PAIRING] Fallback triggered: restored ${destCandidates.length} candidates.`); }
   if (process.env.PAIRING_DEBUG) {
     if (originalOriginKma && originalDestKma) console.log(`[PAIRING] Original KMAs: origin=${originalOriginKma} destination=${originalDestKma}`);
-    console.log(`[PAIRING] Origins within 100mi (excl. same KMA): ${originCandidates.length}`);
-    console.log(`[PAIRING] Destinations within 100mi (excl. same KMA): ${destCandidates.length}`);
+    console.log(`[PAIRING] Origins after KMA exclusion: ${originCandidates.length}`);
+    console.log(`[PAIRING] Destinations after KMA exclusion: ${destCandidates.length}`);
   }
 
   // 3. Remove original entered cities explicitly
