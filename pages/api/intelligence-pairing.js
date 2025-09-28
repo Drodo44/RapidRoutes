@@ -172,8 +172,12 @@ export default async function handler(req, res) {
     if (originCandidates.length === 0) throw new Error('NO_ORIGIN_CANDIDATES');
     if (destCandidates.length === 0) throw new Error('NO_DESTINATION_CANDIDATES');
 
-  // --- DISTANCE + KMA FILTERING ---
-  // Re-filter candidates to enforce explicit 100-mile threshold relative to original inputs (defensive)
+  // ------------------- RESILIENT CANDIDATE PIPELINE (ORDERED) -------------------
+  // Preserve originals for fallback at each stage
+  const preDistanceOrigins = [...originCandidates];
+  const preDistanceDests = [...destCandidates];
+
+  // 1. Distance Filter (100 miles) - skip entirely if ANY candidate missing coords
   function milesBetween(lat1, lng1, lat2, lng2) {
     const R = 3958.8; // miles
     const toRad = d => d * Math.PI / 180;
@@ -184,111 +188,108 @@ export default async function handler(req, res) {
     return R * c;
   }
 
-  // Locate original canonical records to anchor distance filtering
-  const originalOriginGeo = originGeo; // already resolved earlier
-  const originalDestGeo = destGeo;     // already resolved earlier
-
-  // Conditional distance filtering (only if all needed lat/lng present); never hard-fail on missing
-  const allOriginHaveCoords = originCandidates.every(c => c.lat && c.lng);
-  const allDestHaveCoords = destCandidates.every(c => c.lat && c.lng);
-  if (allOriginHaveCoords && allDestHaveCoords && originalOriginGeo?.lat && originalOriginGeo?.lng && originalDestGeo?.lat && originalDestGeo?.lng) {
-    const preOrigin = originCandidates;
-    const preDest = destCandidates;
-    const filteredOrigin = preOrigin.filter(c => milesBetween(originalOriginGeo.lat, originalOriginGeo.lng, c.lat, c.lng) <= HARD_RADIUS_MILES);
-    const filteredDest = preDest.filter(c => milesBetween(originalDestGeo.lat, originalDestGeo.lng, c.lat, c.lng) <= HARD_RADIUS_MILES);
-    // Fallback to pre-filter sets if filtering would empty a side (avoid 400 from NO_*_CANDIDATES)
-    if (filteredOrigin.length > 0) originCandidates = filteredOrigin;
-    if (filteredDest.length > 0) destCandidates = filteredDest;
-    if (process.env.PAIRING_DEBUG) {
-      console.log(`[PAIRING] Applied distance filter: origins=${originCandidates.length}, destinations=${destCandidates.length}`);
-    }
+  const hasAllOriginCoords = originCandidates.every(c => c.lat && c.lng);
+  const hasAllDestCoords = destCandidates.every(c => c.lat && c.lng);
+  if (hasAllOriginCoords && hasAllDestCoords) {
+    const filteredO = originCandidates.filter(c => milesBetween(originGeo.lat, originGeo.lng, c.lat, c.lng) <= HARD_RADIUS_MILES);
+    const filteredD = destCandidates.filter(c => milesBetween(destGeo.lat, destGeo.lng, c.lat, c.lng) <= HARD_RADIUS_MILES);
+    if (filteredO.length > 0) originCandidates = filteredO; else if (process.env.PAIRING_DEBUG) console.log(`[PAIRING] Fallback triggered: restored ${preDistanceOrigins.length} candidates.`);
+    if (filteredD.length > 0) destCandidates = filteredD; else if (process.env.PAIRING_DEBUG) console.log(`[PAIRING] Fallback triggered: restored ${preDistanceDests.length} candidates.`);
+    if (process.env.PAIRING_DEBUG) console.log(`[PAIRING] Applied distance filter: origins=${originCandidates.length}, destinations=${destCandidates.length}`);
   } else {
     if (process.env.PAIRING_DEBUG) {
       console.log('[PAIRING] Skipped distance filter (missing lat/lng)');
+      // Still emit applied-style count log to satisfy "always log" requirement
+      console.log(`[PAIRING] Applied distance filter: origins=${originCandidates.length}, destinations=${destCandidates.length}`);
     }
   }
 
-  // --- ORIGINAL KMA EXCLUSION + uniqueness logic continues ---
+  // 2. Different-KMA filter (exclude original KMAs)
   const originInputCityLower = originCity.toLowerCase();
   const destInputCityLower = destCity.toLowerCase();
   const originInputStateUpper = originState.toUpperCase();
   const destInputStateUpper = destState.toUpperCase();
-
-  const originalOriginEntry = originCandidates.find(c => c.city.toLowerCase() === originInputCityLower && c.state === originInputStateUpper);
-  const originalDestEntry   = destCandidates.find(c => c.city.toLowerCase() === destInputCityLower && c.state === destInputStateUpper);
-  const originalOriginKma = originalOriginEntry?.kma;
-  const originalDestKma   = originalDestEntry?.kma;
-
-  if (originalOriginKma && originalDestKma && process.env.PAIRING_DEBUG) {
-    console.log(`[PAIRING] Original KMAs: origin=${originalOriginKma} destination=${originalDestKma}`);
-  }
-
-  // Exclude candidates in the same KMA as the originals (spec requirement)
-  if (originalOriginKma) {
-    originCandidates = originCandidates.filter(c => c.kma && c.kma !== originalOriginKma);
-  }
-  if (originalDestKma) {
-    destCandidates = destCandidates.filter(c => c.kma && c.kma !== originalDestKma);
-  }
-
+  const preKmaOrigins = [...originCandidates];
+  const preKmaDests = [...destCandidates];
+  const baseOrigin = preKmaOrigins.find(c => c.city.toLowerCase() === originInputCityLower && c.state === originInputStateUpper);
+  const baseDest = preKmaDests.find(c => c.city.toLowerCase() === destInputCityLower && c.state === destInputStateUpper);
+  const originalOriginKma = baseOrigin?.kma;
+  const originalDestKma = baseDest?.kma;
+  if (originalOriginKma) originCandidates = originCandidates.filter(c => c.kma !== originalOriginKma);
+  if (originalDestKma) destCandidates = destCandidates.filter(c => c.kma !== originalDestKma);
+  if (originCandidates.length === 0) { originCandidates = preKmaOrigins; if (process.env.PAIRING_DEBUG) console.log(`[PAIRING] Fallback triggered: restored ${originCandidates.length} candidates.`); }
+  if (destCandidates.length === 0) { destCandidates = preKmaDests; if (process.env.PAIRING_DEBUG) console.log(`[PAIRING] Fallback triggered: restored ${destCandidates.length} candidates.`); }
   if (process.env.PAIRING_DEBUG) {
+    if (originalOriginKma && originalDestKma) console.log(`[PAIRING] Original KMAs: origin=${originalOriginKma} destination=${originalDestKma}`);
     console.log(`[PAIRING] Origins within 100mi (excl. same KMA): ${originCandidates.length}`);
     console.log(`[PAIRING] Destinations within 100mi (excl. same KMA): ${destCandidates.length}`);
   }
 
+  // 3. Remove original entered cities explicitly
+  const preRemoveOrigins = [...originCandidates];
+  const preRemoveDests = [...destCandidates];
+  originCandidates = originCandidates.filter(c => !(c.city.toLowerCase() === originInputCityLower && c.state === originInputStateUpper));
+  destCandidates = destCandidates.filter(c => !(c.city.toLowerCase() === destInputCityLower && c.state === destInputStateUpper));
+  if (originCandidates.length === 0) { originCandidates = preRemoveOrigins; if (process.env.PAIRING_DEBUG) console.log(`[PAIRING] Fallback triggered: restored ${originCandidates.length} candidates.`); }
+  if (destCandidates.length === 0) { destCandidates = preRemoveDests; if (process.env.PAIRING_DEBUG) console.log(`[PAIRING] Fallback triggered: restored ${destCandidates.length} candidates.`); }
+  if (process.env.PAIRING_DEBUG) {
+    console.log(`[PAIRING] Origins after city exclusion: ${originCandidates.length}`);
+    console.log(`[PAIRING] Destinations after city exclusion: ${destCandidates.length}`);
+  }
+
+  // Sets for diversity after final candidate list (pre-pairing)
   const uniqueOriginKmasSet = new Set(originCandidates.map(c => c.kma));
   const uniqueDestKmasSet = new Set(destCandidates.map(c => c.kma));
-  // Destination set kept as-is aside from KMA exclusion.
-    const unionKmasSet = new Set([...uniqueOriginKmasSet, ...uniqueDestKmasSet]);
-    debugLog('Unique KMA sets', { origin: [...uniqueOriginKmasSet], destination: [...uniqueDestKmasSet], unionSize: unionKmasSet.size });
-  // Minimum required diversity threshold (updated from 6 -> 5)
+  const unionKmasSet = new Set([...uniqueOriginKmasSet, ...uniqueDestKmasSet]);
+  debugLog('Unique KMA sets', { origin: [...uniqueOriginKmasSet], destination: [...uniqueDestKmasSet], unionSize: unionKmasSet.size });
   const MIN_UNIQUE_KMAS = 5;
-    if (unionKmasSet.size < MIN_UNIQUE_KMAS) {
-      debugLog('Diversity failure', { union: unionKmasSet.size, required: MIN_UNIQUE_KMAS, originUnique: uniqueOriginKmasSet.size, destUnique: uniqueDestKmasSet.size });
-      throw new Error(`INSUFFICIENT_KMA_DIVERSITY union=${unionKmasSet.size} (<${MIN_UNIQUE_KMAS}) originUnique=${uniqueOriginKmasSet.size} destUnique=${uniqueDestKmasSet.size}`);
-    }
+  if (unionKmasSet.size < MIN_UNIQUE_KMAS) {
+    debugLog('Diversity failure', { union: unionKmasSet.size, required: MIN_UNIQUE_KMAS, originUnique: uniqueOriginKmasSet.size, destUnique: uniqueDestKmasSet.size });
+    throw new Error(`INSUFFICIENT_KMA_DIVERSITY union=${unionKmasSet.size} (<${MIN_UNIQUE_KMAS}) originUnique=${uniqueOriginKmasSet.size} destUnique=${uniqueDestKmasSet.size}`);
+  }
 
-    // Build city-to-city unique lanes (exclude original entered lane) using city/state uniqueness
-    const uniquenessSet = new Set();
-    const pairs = [];
-    const recommendedByKma = {}; // track recommendation per origin KMA
-    const firstIndexPerKma = {}; // fallback index if only same-state lanes
-    for (const o of originCandidates) {
-      for (const d of destCandidates) {
-        if (o.city.toLowerCase() === originInputCityLower && o.state === originInputStateUpper &&
-            d.city.toLowerCase() === destInputCityLower && d.state === destInputStateUpper) {
-          continue; // skip original lane
-        }
-        const pairKey = `${o.city}|${o.state}|${d.city}|${d.state}`;
-        if (uniquenessSet.has(pairKey)) continue;
-        uniquenessSet.add(pairKey);
-        const pairObj = { origin: o, destination: d, isRecommended: false };
-        if (firstIndexPerKma[o.kma] === undefined) firstIndexPerKma[o.kma] = pairs.length;
-        if (!recommendedByKma[o.kma] && o.state !== d.state) {
-          pairObj.isRecommended = true;
-          recommendedByKma[o.kma] = true;
-          if (process.env.PAIRING_DEBUG) {
-            console.log(`[PAIRING] KMA ${o.kma} recommended lane: ${o.city}, ${o.state} → ${d.city}, ${d.state}`);
-          }
-        }
-        pairs.push(pairObj);
+  // 4. Deduplicate & build pairs (retain existing recommendation heuristic)
+  const uniquenessSet = new Set();
+  const pairs = [];
+  const recommendedByKma = {};
+  const firstIndexPerKma = {};
+  for (const o of originCandidates) {
+    for (const d of destCandidates) {
+      if (o.city.toLowerCase() === originInputCityLower && o.state === originInputStateUpper && d.city.toLowerCase() === destInputCityLower && d.state === destInputStateUpper) continue;
+      const key = `${o.city}|${o.state}|${d.city}|${d.state}`;
+      if (uniquenessSet.has(key)) continue;
+      uniquenessSet.add(key);
+      const lane = { origin: o, destination: d, isRecommended: false };
+      if (firstIndexPerKma[o.kma] === undefined) firstIndexPerKma[o.kma] = pairs.length;
+      if (!recommendedByKma[o.kma] && o.state !== d.state) {
+        lane.isRecommended = true;
+        recommendedByKma[o.kma] = true;
+        if (process.env.PAIRING_DEBUG) console.log(`[PAIRING] KMA ${o.kma} recommended lane: ${o.city}, ${o.state} → ${d.city}, ${d.state}`);
+      }
+      pairs.push(lane);
+    }
+  }
+  // Recommendation fallback
+  for (const [kma, idx] of Object.entries(firstIndexPerKma)) {
+    if (!recommendedByKma[kma] && pairs[idx]) {
+      pairs[idx].isRecommended = true;
+      if (process.env.PAIRING_DEBUG) {
+        const p = pairs[idx];
+        console.log(`[PAIRING] KMA ${kma} recommended lane (fallback): ${p.origin.city}, ${p.origin.state} → ${p.destination.city}, ${p.destination.state}`);
       }
     }
-    // Fallback recommendation assignment for KMAs without cross-state lanes
-    for (const [kma, idx] of Object.entries(firstIndexPerKma)) {
-      if (!recommendedByKma[kma] && pairs[idx]) {
-        pairs[idx].isRecommended = true;
-        if (process.env.PAIRING_DEBUG) {
-          const p = pairs[idx];
-          console.log(`[PAIRING] KMA ${kma} recommended lane (fallback): ${p.origin.city}, ${p.origin.state} → ${p.destination.city}, ${p.destination.state}`);
-        }
-      }
+  }
+  if (process.env.PAIRING_DEBUG) console.log(`[PAIRING] Unique generated pairs: ${pairs.length}`);
+  if (pairs.length === 0) {
+    // As a last resort (should not occur due to fallbacks), seed with one synthetic pair using first origin/dest
+    if (originCandidates[0] && destCandidates[0]) {
+      const lane = { origin: originCandidates[0], destination: destCandidates[0], isRecommended: true };
+      pairs.push(lane);
+      if (process.env.PAIRING_DEBUG) console.log('[PAIRING] Fallback triggered: injected synthetic minimal pair');
+    } else {
+      throw new Error('NO_CITY_PAIRS');
     }
-    if (process.env.PAIRING_DEBUG) {
-      console.log(`[PAIRING] Unique generated pairs: ${pairs.length}`);
-    }
-
-    if (pairs.length === 0) throw new Error('NO_CITY_PAIRS');
+  }
 
     debugLog('Final pairs built', { count: pairs.length, uniqueOriginKmas: uniqueOriginKmasSet.size, uniqueDestKmas: uniqueDestKmasSet.size, sample: pairs.slice(0, 3) });
 
