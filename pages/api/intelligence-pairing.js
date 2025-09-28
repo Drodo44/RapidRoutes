@@ -188,18 +188,24 @@ export default async function handler(req, res) {
   const originalOriginGeo = originGeo; // already resolved earlier
   const originalDestGeo = destGeo;     // already resolved earlier
 
-  // Apply distance filter (<=100 miles) BEFORE KMA exclusion
-  originCandidates = originCandidates.filter(c => {
-    if (!c.lat || !c.lng) return false;
-    return milesBetween(originalOriginGeo.lat, originalOriginGeo.lng, c.lat, c.lng) <= HARD_RADIUS_MILES;
-  });
-  destCandidates = destCandidates.filter(c => {
-    if (!c.lat || !c.lng) return false;
-    return milesBetween(originalDestGeo.lat, originalDestGeo.lng, c.lat, c.lng) <= HARD_RADIUS_MILES;
-  });
-
-  if (process.env.PAIRING_DEBUG) {
-    console.log(`[PAIRING] Post-distance filter counts (<=${HARD_RADIUS_MILES}mi): origin=${originCandidates.length} destination=${destCandidates.length}`);
+  // Conditional distance filtering (only if all needed lat/lng present); never hard-fail on missing
+  const allOriginHaveCoords = originCandidates.every(c => c.lat && c.lng);
+  const allDestHaveCoords = destCandidates.every(c => c.lat && c.lng);
+  if (allOriginHaveCoords && allDestHaveCoords && originalOriginGeo?.lat && originalOriginGeo?.lng && originalDestGeo?.lat && originalDestGeo?.lng) {
+    const preOrigin = originCandidates;
+    const preDest = destCandidates;
+    const filteredOrigin = preOrigin.filter(c => milesBetween(originalOriginGeo.lat, originalOriginGeo.lng, c.lat, c.lng) <= HARD_RADIUS_MILES);
+    const filteredDest = preDest.filter(c => milesBetween(originalDestGeo.lat, originalDestGeo.lng, c.lat, c.lng) <= HARD_RADIUS_MILES);
+    // Fallback to pre-filter sets if filtering would empty a side (avoid 400 from NO_*_CANDIDATES)
+    if (filteredOrigin.length > 0) originCandidates = filteredOrigin;
+    if (filteredDest.length > 0) destCandidates = filteredDest;
+    if (process.env.PAIRING_DEBUG) {
+      console.log(`[PAIRING] Applied distance filter: origins=${originCandidates.length}, destinations=${destCandidates.length}`);
+    }
+  } else {
+    if (process.env.PAIRING_DEBUG) {
+      console.log('[PAIRING] Skipped distance filter (missing lat/lng)');
+    }
   }
 
   // --- ORIGINAL KMA EXCLUSION + uniqueness logic continues ---
