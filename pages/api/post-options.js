@@ -8,8 +8,8 @@ const HERE_API_KEY = process.env.HERE_API_KEY; // server-only key
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   try {
-    const { originCity, originState, destCity, destState, radiusMiles = 100 } = req.body || {};
-    if (!originCity || !originState || !destCity || !destState) {
+    const { laneId, originCity, originState, destCity, destState, radiusMiles = 100 } = req.body || {};
+    if (!laneId || !originCity || !originState || !destCity || !destState) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
@@ -32,6 +32,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       success: true,
+      laneId,
       origin: { city: originCity, state: originState, ...originLL },
       destination: { city: destCity, state: destState, ...destLL },
       originOptions,

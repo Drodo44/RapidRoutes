@@ -10,6 +10,8 @@ export default function PostOptionsManual() {
   const [loading, setLoading] = useState(true);
   const [optionsByLane, setOptionsByLane] = useState({});
   const [radius, setRadius] = useState(100);
+  const [loadingAll, setLoadingAll] = useState(false);
+  const [masterLoaded, setMasterLoaded] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -29,19 +31,50 @@ export default function PostOptionsManual() {
   const headers = useMemo(() => ({ 'Content-Type':'application/json', ...(userId ? { 'x-rr-user-id': userId } : {}) }), [userId]);
 
   async function loadOptionsForLane(lane) {
-    setOptionsByLane(prev => ({ ...prev, [lane.id]: { loading:true } }));
+    setOptionsByLane(prev => ({ ...prev, [lane.id]: { ...(prev[lane.id]||{}), loading:true } }));
     try {
-      const body = { originCity: lane.origin_city, originState: lane.origin_state, destCity: lane.destination_city, destState: lane.destination_state, radiusMiles: radius };
+      const body = {
+        laneId: lane.id,
+        originCity: lane.origin_city || lane.originCity,
+        originState: lane.origin_state || lane.originState,
+        destCity: lane.destination_city || lane.destinationCity,
+        destState: lane.destination_state || lane.destinationState,
+        radiusMiles: radius,
+      };
       const res = await fetch('/api/post-options', { method:'POST', headers, body: JSON.stringify(body) });
       const json = await res.json();
-      if (!json?.success) throw new Error(json?.error || 'Failed');
+      if (!res.ok || !json?.success) throw new Error(json?.error || `Failed (${res.status})`);
       setOptionsByLane(prev => ({
         ...prev,
-        [lane.id]: { originOptions: json.originOptions, destOptions: json.destOptions, status: { originSaved:false, destSaved:false } }
+        [lane.id]: {
+          originOptions: json.originOptions,
+          destOptions: json.destOptions,
+          status: prev[lane.id]?.status || { originSaved:false, destSaved:false },
+          loadedAt: Date.now()
+        }
       }));
     } catch (e) {
-      setOptionsByLane(prev => ({ ...prev, [lane.id]: { error: e.message } }));
+      setOptionsByLane(prev => ({ ...prev, [lane.id]: { ...(prev[lane.id]||{}), error: e.message } }));
+    } finally {
+      setOptionsByLane(prev => ({ ...prev, [lane.id]: { ...(prev[lane.id]||{}), loading:false } }));
     }
+  }
+
+  async function loadAllOptions() {
+    if (loadingAll) return;
+    setLoadingAll(true);
+    setMasterLoaded(false);
+    const batchSize = 3; // throttle size
+    for (let i = 0; i < lanes.length; i += batchSize) {
+      const batch = lanes.slice(i, i + batchSize);
+      await Promise.all(batch.map(l => loadOptionsForLane(l)));
+      // 300ms delay between batches to reduce HERE/API pressure
+      if (i + batchSize < lanes.length) {
+        await new Promise(r => setTimeout(r, 300));
+      }
+    }
+    setMasterLoaded(true);
+    setLoadingAll(false);
   }
 
   async function saveChoice(lane, type, opt) {
@@ -67,9 +100,17 @@ export default function PostOptionsManual() {
         <Link href="/lanes" className="text-sm text-blue-400 hover:underline">← Back to Lanes</Link>
       </div>
       <p className="text-sm text-gray-300 mb-4">Pick actual posting cities for each pending lane. These selections are saved and can drive later pairing/export logic.</p>
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex flex-wrap items-center gap-3 mb-6">
         <label className="text-sm text-gray-300">Radius (miles)</label>
         <input type="number" min={10} max={300} value={radius} onChange={e=>setRadius(Number(e.target.value)||100)} className="w-24 px-2 py-1 bg-gray-800 border border-gray-600 rounded text-gray-100 text-sm" />
+        <button
+          onClick={loadAllOptions}
+          disabled={loadingAll || lanes.length === 0}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded text-white text-sm font-medium"
+        >
+          {loadingAll ? 'Loading All…' : `Load All Options (${lanes.length})`}
+        </button>
+        {masterLoaded && <span className="text-xs text-green-400">All lanes loaded ✓</span>}
       </div>
       {lanes.length === 0 && <p className="text-gray-400">No pending lanes.</p>}
       <div className="flex flex-col gap-6">
@@ -80,11 +121,17 @@ export default function PostOptionsManual() {
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
                 <div className="text-gray-100 font-medium">{lane.origin_city}, {lane.origin_state} → {lane.destination_city}, {lane.destination_state}</div>
                 <div className="flex gap-2">
-                  <button onClick={()=>loadOptionsForLane(lane)} className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-white text-sm">{state?.originOptions ? 'Reload' : 'Load Options'}</button>
+                  <button
+                    onClick={()=>loadOptionsForLane(lane)}
+                    disabled={loadingAll}
+                    className="px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded text-white text-sm"
+                  >
+                    {state?.originOptions ? (loadingAll ? 'Loaded' : 'Reload') : 'Load Options'}
+                  </button>
                 </div>
               </div>
               {state?.error && <div className="text-sm text-red-400">⚠ {state.error}</div>}
-              {state?.loading && <div className="text-sm text-gray-400">Loading nearby cities…</div>}
+              {state?.loading && <div className="text-sm text-gray-400 animate-pulse">Loading nearby cities…</div>}
               {state?.originOptions && (
                 <div className="grid md:grid-cols-2 gap-4">
                   <SideTable title={`Pickup near ${lane.origin_city}, ${lane.origin_state}`} rows={state.originOptions} saved={state?.status?.originSaved} onChoose={opt=>saveChoice(lane,'origin',opt)} />
