@@ -1,5 +1,6 @@
 // pages/lanes.js
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/router';
 import CityAutocomplete from '../components/CityAutocomplete.jsx';
 import EquipmentPicker from '../components/EquipmentPicker.jsx';
@@ -942,6 +943,13 @@ function LanesPage() {
           title="Lanes"
           right={
             <div className="flex gap-2 items-center">
+              <Link
+                href="/post-options.manual"
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-100 rounded-lg font-medium text-sm"
+                title="Manual Post Options (choose origin/destination posting cities)"
+              >
+                Post Options
+              </Link>
               <button 
                 onClick={() => router.push('/post-options')}
                 disabled={busy || pending.length === 0}
