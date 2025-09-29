@@ -1,7 +1,7 @@
 // pages/api/trackRecapAction.js
 // Save recap tracking data to database for learning and analytics
 
-import { adminSupabase as supabase } from '../../utils/supabaseClient.js';
+import { adminSupabase as supabase } from '../../utils/supabaseAdminClient.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {

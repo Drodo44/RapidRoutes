@@ -5,7 +5,7 @@
 // This scraper is defensive: it tries to locate images with "hot" + "map" hints and
 // associates likely equipment by filename/alt. If nothing found, responds gracefully.
 
-import { adminSupabase } from '../../utils/supabaseClient';
+import { adminSupabase } from '../../utils/supabaseAdminClient';
 
 async function ensureBucket() {
   try {

@@ -1,7 +1,7 @@
 // pages/index.js - Root redirector
 import { useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { supabase } from '../utils/supabaseClient';
+import supabase from '../utils/supabaseClient';
 
 export default function IndexPage() {
   const router = useRouter();

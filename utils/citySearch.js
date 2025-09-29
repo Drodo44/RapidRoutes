@@ -1,5 +1,5 @@
 // utils/citySearch.js
-import { supabase } from "./supabaseClient";
+import supabase from "./supabaseClient";
 
 export async function searchCities(query) {
   if (!query || query.length < 2) return [];

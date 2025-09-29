@@ -1,5 +1,5 @@
 // pages/api/generateRecap.js
-import { adminSupabase } from '../../utils/supabaseClient';
+import { adminSupabase } from '../../utils/supabaseAdminClient';
 import { generateRecapHTML } from '../../lib/recapUtils';
 
 export default async function handler(req, res) {

@@ -1,7 +1,7 @@
 // pages/api/getMapImage.js
 // API endpoint to retrieve uploaded DAT market heat map images
 
-import { adminSupabase } from '../../utils/supabaseClient';
+import { adminSupabase } from '../../utils/supabaseAdminClient';
 import fs from 'fs';
 import path from 'path';
 

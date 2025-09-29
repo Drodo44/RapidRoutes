@@ -1,7 +1,7 @@
 // pages/api/admin/migrate.js
 // Admin API route for running database migrations
 
-import { supabase } from '../../../utils/supabaseClient';
+import supabase from '../../../utils/supabaseClient';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {

@@ -1,6 +1,6 @@
 // pages/api/lanes.js
 import { validateApiAuth } from '../../middleware/auth.unified';
-import { adminSupabase } from '../../utils/supabaseClient';
+import { adminSupabase } from '../../utils/supabaseAdminClient';
 import { createClient } from '@supabase/supabase-js';
 
 export default async function handler(req, res) {

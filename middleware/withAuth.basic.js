@@ -1,7 +1,7 @@
 // middleware/withAuth.js
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { supabase } from '../utils/supabaseClient';
+import supabase from '../utils/supabaseClient';
 
 export default function withAuth(Component, options = {}) {
   return function ProtectedPage(props) {

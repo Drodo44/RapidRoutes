@@ -1,5 +1,5 @@
 // pages/api/health.js
-import { adminSupabase as supabase } from "../../utils/supabaseClient.js";
+import { adminSupabase as supabase } from "../../utils/supabaseAdminClient.js";
 import { monitor } from "../../lib/monitor.js";
 
 async function checkEnv() {

@@ -1,7 +1,7 @@
 // pages/api/uploadMapImage.js
 // Upload PNG heat map images for DAT market data
 
-import { adminSupabase } from '../../utils/supabaseClient';
+import { adminSupabase } from '../../utils/supabaseAdminClient';
 import formidable from 'formidable';
 import fs from 'fs';
 import path from 'path';

@@ -3,7 +3,7 @@
 // Fetches lanes client-side and renders compact, printable cards with AI insights.
 
 import { useEffect, useMemo, useState } from 'react';
-import { supabase } from '../utils/supabaseClient';
+import supabase from '../utils/supabaseClient';
 import Head from 'next/head';
 import { getDisplayReferenceId, matchesReferenceId, cleanReferenceId } from '../lib/referenceIdUtils';
 

@@ -1,7 +1,7 @@
 // pages/reset-password.js
 import Head from "next/head";
 import { useState } from "react";
-import { supabase } from "../utils/supabaseClient.js";
+import supabase from "../utils/supabaseClient.js";
 
 export default function ResetPasswordPage() {
   const [email, setEmail] = useState("");

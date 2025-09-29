@@ -1,6 +1,6 @@
 // tests/verify-recap-system.js
 import { recapSystem } from '../lib/RecapSystem.js';
-import { supabase } from '../utils/supabaseClient.js';
+import supabase from '../utils/supabaseClient.js';
 
 async function verifyRecapSystem() {
     console.log('Verifying Recap System...');

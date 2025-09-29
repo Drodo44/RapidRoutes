@@ -1,5 +1,5 @@
 // utils/validateApiAuth.js
-import { supabase } from './supabaseClient';
+import supabase from './supabaseClient';
 
 /**
  * Middleware to validate API authentication and optionally check roles

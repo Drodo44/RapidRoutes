@@ -1,5 +1,5 @@
 // pages/api/admin/equipment/[code].js
-import { adminSupabase as supabase } from "../../../../utils/supabaseClient.js";
+import { adminSupabase as supabase } from "../../../../utils/supabaseAdminClient.js";
 
 export default async function handler(req, res) {
   const codeParam = String(req.query.code || "");

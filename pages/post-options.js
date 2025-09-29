@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { supabase } from '../utils/supabaseClient';
+import supabase from '../utils/supabaseClient';
 import Header from '../components/Header';
 // Auth utilities for token management
 import { getCurrentToken, getTokenInfo } from '../utils/authUtils';

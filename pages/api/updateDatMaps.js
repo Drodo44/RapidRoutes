@@ -1,5 +1,5 @@
 // pages/api/updateDatMaps.js
-import { adminSupabase } from '../../utils/supabaseClient';
+import { adminSupabase } from '../../utils/supabaseAdminClient';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {

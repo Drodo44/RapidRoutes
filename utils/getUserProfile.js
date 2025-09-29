@@ -1,5 +1,5 @@
 // utils/getUserProfile.js
-import { supabase } from "./supabaseClient";
+import supabase from "./supabaseClient";
 
 export async function getUserAndProfile() {
   try {

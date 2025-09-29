@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../utils/supabaseClient';
+import supabase from '../utils/supabaseClient';
 import { rrNumberSystem } from '../lib/RRNumberSystem';
 
 export function RecapView({ laneId }) {
@@ -53,11 +53,11 @@ export function RecapView({ laneId }) {
         }
     };
 
-    if (loading) return <div>Loading...</div>;
-    if (!recap) return <div>No recap available</div>;
+    if (loading) return <div className="text-sm text-gray-400">Loading recap...</div>;
+    if (!recap) return <div className="text-sm text-gray-400">No recap available</div>;
 
     return (
-        <div className="p-4">
+    <div className="p-4 bg-gray-900 text-gray-100 rounded-lg">
             {/* RR Number Search */}
             <div className="mb-4 flex gap-2">
                 <input
@@ -65,19 +65,19 @@ export function RecapView({ laneId }) {
                     value={searchRR}
                     onChange={(e) => setSearchRR(e.target.value.toUpperCase())}
                     placeholder="Enter RR number"
-                    className="p-2 border rounded"
+                    className="p-2 rounded bg-gray-800 border border-gray-600 text-gray-100 placeholder-gray-500"
                     pattern="RR\d{5}"
                 />
                 <button
                     onClick={handleRRSearch}
-                    className="px-4 py-2 bg-blue-500 text-white rounded"
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded"
                 >
                     Search
                 </button>
             </div>
 
             {/* Lane Info */}
-            <div className="mb-4 p-4 bg-gray-100 rounded">
+            <div className="mb-4 p-4 bg-gray-800 border border-gray-700 rounded">
                 <h2 className="text-xl font-bold">
                     {recap.lane.origin_city}, {recap.lane.origin_state} → 
                     {recap.lane.dest_city}, {recap.lane.dest_state}
@@ -92,10 +92,10 @@ export function RecapView({ laneId }) {
                     <h3 className="text-lg font-semibold mb-2">Market Insights</h3>
                     <div className="grid gap-2">
                         {recap.insights.map((insight, i) => (
-                            <div key={i} className="p-3 bg-blue-50 rounded">
-                                <p className="text-sm">{insight.message}</p>
+                            <div key={i} className="p-3 bg-gray-800 border border-gray-700 rounded">
+                                <p className="text-sm text-gray-200">{insight.message}</p>
                                 {insight.data && (
-                                    <div className="mt-1 text-xs text-gray-600">
+                                    <div className="mt-1 text-xs text-gray-400">
                                         {Object.entries(insight.data).map(([key, value]) => (
                                             <span key={key} className="mr-3">
                                                 {key}: {value}
@@ -114,10 +114,10 @@ export function RecapView({ laneId }) {
                 {recap.postings.map((posting) => (
                     <div
                         key={posting.id}
-                        className={`p-3 border rounded cursor-pointer transition-colors ${
+                        className={`p-3 border rounded cursor-pointer transition-colors bg-gray-800 border-gray-700 ${
                             selectedPosting?.id === posting.id
-                                ? 'bg-blue-100'
-                                : 'hover:bg-gray-50'
+                                ? 'ring-2 ring-blue-500'
+                                : 'hover:bg-gray-700'
                         }`}
                         onClick={() => handlePostingClick(posting)}
                     >
@@ -127,13 +127,13 @@ export function RecapView({ laneId }) {
                                     {posting.origin_city}, {posting.origin_state} → 
                                     {posting.dest_city}, {posting.dest_state}
                                 </p>
-                                <p className="text-sm text-gray-600">
+                                <p className="text-sm text-gray-400">
                                     Posted: {new Date(posting.created_at).toLocaleDateString()}
                                 </p>
                             </div>
                             <div className="text-right">
-                                <p className="font-bold">${posting.rate || 'N/A'}</p>
-                                <p className="text-xs text-gray-500">
+                                <p className="font-bold text-gray-100">${posting.rate || 'N/A'}</p>
+                                <p className="text-xs text-gray-400">
                                     RR: {posting.reference_id}
                                 </p>
                             </div>
@@ -144,7 +144,7 @@ export function RecapView({ laneId }) {
 
             {/* Selected Posting Details */}
             {selectedPosting && (
-                <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t shadow-lg">
+                <div className="fixed bottom-0 left-0 right-0 p-4 bg-gray-900 border-t border-gray-700 shadow-lg">
                     <h3 className="text-lg font-semibold mb-2">
                         Posting Details (RR: {selectedPosting.reference_id})
                     </h3>
@@ -168,7 +168,7 @@ export function RecapView({ laneId }) {
                     </div>
                     <button
                         onClick={() => setSelectedPosting(null)}
-                        className="mt-4 px-4 py-2 text-gray-600 hover:text-gray-800"
+                        className="mt-4 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded text-gray-200"
                     >
                         Close
                     </button>

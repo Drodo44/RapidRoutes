@@ -1,6 +1,6 @@
 // pages/admin/index.js
 import { useState, useEffect } from 'react';
-import { supabase } from '../../utils/supabaseClient';
+import supabase from '../../utils/supabaseClient';
 import { useRouter } from 'next/router';
 import { useAuth } from '../../contexts/AuthContext';
 import Link from 'next/link';

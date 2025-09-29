@@ -1,6 +1,7 @@
 // middleware/auth.unified.js
 import { createClient } from '@supabase/supabase-js';
-import { supabase, adminSupabase } from '../utils/supabaseClient';
+import supabase from '../utils/supabaseClient';
+import { adminSupabase } from '../utils/supabaseAdminClient';
 
 /**
  * Unified session handler for auth validation and role checking

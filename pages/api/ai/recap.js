@@ -6,7 +6,7 @@
 // Input: { laneIds: string[] }
 // Output: { results: Array<{ laneId, bullets, risks, price_hint }> }
 
-import { adminSupabase } from '../../../utils/supabaseClient';
+import { adminSupabase } from '../../../utils/supabaseAdminClient';
 
 // Get lane details with latest DAT map summary
 async function getLaneContexts(laneIds) {

@@ -1,5 +1,5 @@
 // middleware/apiAuth.js
-import { supabase } from '../utils/supabaseClient';
+import supabase from '../utils/supabaseClient';
 
 export default async function apiAuth(req, res, next) {
   const token = req.headers.authorization?.replace('Bearer ', '');

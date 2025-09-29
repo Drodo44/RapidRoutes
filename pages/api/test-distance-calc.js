@@ -1,5 +1,5 @@
 // Test distance calculation for actual production lanes
-import { adminSupabase as supabase } from '../../utils/supabaseClient.js';
+import { adminSupabase as supabase } from '../../utils/supabaseAdminClient.js';
 
 // Haversine distance calculation (copied from definitiveIntelligent.js)
 function calculateDistance(lat1, lon1, lat2, lon2) {

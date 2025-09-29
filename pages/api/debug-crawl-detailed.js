@@ -1,5 +1,5 @@
 // pages/api/debug-crawl-detailed.js
-import { adminSupabase } from '../../utils/supabaseClient.js';
+import { adminSupabase } from '../../utils/supabaseAdminClient.js';
 import { generateGeographicCrawlPairs } from '../../lib/geographicCrawl.js';
 
 export default async function handler(req, res) {

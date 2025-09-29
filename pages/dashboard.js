@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Head from 'next/head';
-import { supabase } from '../utils/supabaseClient';
+import supabase from '../utils/supabaseClient';
 import DatMarketMaps from '../components/DatMarketMaps.jsx';
 
 function Section({ title, right, children, className = '' }) {

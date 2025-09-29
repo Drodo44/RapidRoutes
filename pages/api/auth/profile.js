@@ -1,6 +1,6 @@
 // pages/api/auth/profile.js
-import { adminSupabase } from '../../../utils/supabaseClient';
-import { supabase } from '../../../utils/supabaseClient';
+import { adminSupabase } from '../../../utils/supabaseAdminClient';
+import supabase from '../../../utils/supabaseClient';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {

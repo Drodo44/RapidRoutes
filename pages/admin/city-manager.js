@@ -2,7 +2,8 @@
 // Admin tool to add missing cities with SQL generation
 
 import { useState } from 'react';
-import { adminSupabase } from '../../utils/supabaseClient';
+// IMPORTANT: Do NOT import adminSupabase in a client bundle. Use API route for writes.
+import supabase from '../../utils/supabaseClient';
 
 export default function CityManager() {
   const [city, setCity] = useState('');
@@ -74,25 +75,25 @@ SELECT * FROM cities WHERE city = $1 AND state_or_province = $2;`;
       setMessage('❌ Please fill in all required fields first');
       return;
     }
-
     try {
-      const { data, error } = await adminSupabase
-        .from('cities')
-        .insert({
+      const resp = await fetch('/api/admin/add-city', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           city,
-          state_or_province: state,
+          state,
           zip,
           latitude: parseFloat(latitude),
           longitude: parseFloat(longitude),
           kma_code: kmaCode || 'UNK',
           kma_name: kmaName || 'Unknown Market'
         })
-        .select();
-
-      if (error) throw error;
-
-      setMessage('✅ City added directly to database!');
-      // Clear form
+      });
+      if (!resp.ok) {
+        const text = await resp.text();
+        throw new Error(text || 'Request failed');
+      }
+      setMessage('✅ City added via API!');
       setCity(''); setState(''); setZip(''); setLatitude(''); setLongitude('');
       setKmaCode(''); setKmaName('');
     } catch (error) {

@@ -7,69 +7,134 @@ const ZIP3_RETRY_ENABLED = process.env.ZIP3_RETRY_ENABLED === 'true';
 
 async function wait(ms){ return new Promise(r=>setTimeout(r, ms)); }
 
-export async function resolveZip3(city, state) {
-  if (!city || !state) return null;
-  const normalizedCity = city.trim();
-  const normalizedState = state.trim().toUpperCase();
-  try {
-    // Read-only lookup using anon client (RLS must allow select on zip3s)
-    const { data, error } = await supabase
-      .from('zip3s')
-      .select('zip3')
-      .eq('city', normalizedCity)
-      .eq('state', normalizedState)
-      .maybeSingle();
-    if (error) throw error;
-    if (data?.zip3) return data.zip3;
-  } catch (err) {
-    console.warn(`[ZIP3] Supabase anon lookup failed for ${city}, ${state}:`, err.message);
+export async function callIntelligencePairingApi({
+  originCity,
+  originState,
+  destinationCity,
+  destinationState,
+  equipmentCode,
+}) {
+  if (!originCity || !originState || !destinationCity || !destinationState) {
+    throw new Error("[INTELLIGENCE] Missing required city/state fields");
   }
 
-  // HERE geocode lookup (client-side) — consider moving server-side if rate-limited/sensitive
-  const fetchFromHere = async () => {
-    const url = 'https://geocode.search.hereapi.com/v1/geocode';
-    const { data } = await axios.get(url, { params: { q: `${city}, ${state}, USA`, apiKey: HERE_API_KEY }});
-    const postalCode = data?.items?.[0]?.address?.postalCode;
-    if (!postalCode) return null;
-    return postalCode.slice(0,3);
-  };
+  // Resolve ZIP3s (Supabase-first, HERE fallback)
+  const originZip3 = await resolveZip3(originCity, originState);
+  const destinationZip3 = await resolveZip3(destinationCity, destinationState);
 
-  let zip3 = null;
-  if (ZIP3_RETRY_ENABLED) {
-    let attempt = 0;
-    while (attempt < 3 && !zip3) {
-      try { zip3 = await fetchFromHere(); }
-      catch (err) { console.warn(`[ZIP3] HERE attempt ${attempt+1} failed:`, err.message); await wait(500 * Math.pow(2, attempt)); }
-      attempt++;
-    }
-  } else {
-    zip3 = await fetchFromHere().catch(err => { console.error('[ZIP3] HERE fallback error:', err.message); return null; });
+  if (!originZip3 || !destinationZip3) {
+    console.error("[INTELLIGENCE] Missing zip3(s) after resolution", {
+      originZip3,
+      destinationZip3,
+      originCity,
+      originState,
+      destinationCity,
+      destinationState,
+    });
+    throw new Error("Missing zip3s — cannot proceed with pairing.");
   }
 
-  // Skip caching write from browser (would require service role / elevated RLS). Optionally, send to API route later.
-  return zip3;
-}
-
-export async function buildPairingPayload(lane) {
-  const originZip3 = await resolveZip3(lane.originCity, lane.originState);
-  const destinationZip3 = await resolveZip3(lane.destinationCity, lane.destinationState);
-  return {
-    originCity: lane.originCity,
-    originState: lane.originState,
+  // Minimal payload to API (server may later enrich KMA)
+  const payload = {
+    originCity,
+    originState,
     originZip3,
-    destinationCity: lane.destinationCity,
-    destinationState: lane.destinationState,
+    destinationCity,
+    destinationState,
     destinationZip3,
-    equipmentCode: lane.equipmentCode || null,
+    equipmentCode: equipmentCode || "FD",
   };
+
+  const resp = await fetch("/api/intelligence-pairing", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!resp.ok) {
+    const text = await resp.text().catch(() => "");
+    throw new Error(`[INTELLIGENCE] API error (${resp.status}): ${text}`);
+  }
+
+  return resp.json();
 }
 
-export async function sendToPairingApi(payload) {
-  const response = await axios.post('/api/intelligence-pairing', payload);
-  return response.data;
+export default callIntelligencePairingApi;
+
+// ---------- Helpers ----------
+
+async function resolveZip3(city, state) {
+  // 1) Supabase first (read-only from browser)
+  const zip3Db = await getZip3FromSupabase(city, state);
+  if (zip3Db) return zip3Db;
+
+  // 2) HERE fallback
+  const zip3Here = await getZip3FromHereByCityState(city, state);
+  if (zip3Here) {
+    // 3) Cache HERE-derived zip3 securely via server API
+    cacheZip3Server(city, state, zip3Here).catch((e) =>
+      console.warn("[ZIP3] Cache upsert failed (ignored):", e)
+    );
+    return zip3Here;
+  }
+
+  return null;
 }
 
-export async function callIntelligencePairingApi(lane) {
-  const payload = await buildPairingPayload(lane);
-  return await sendToPairingApi(payload);
+async function getZip3FromSupabase(city, state) {
+  try {
+    const c = (city || "").trim();
+    const s = (state || "").trim().toUpperCase();
+
+    const { data, error } = await supabase
+      .from("zip3s")
+      .select("zip3")
+      .eq("state", s)
+      .ilike("city", c) // case-insensitive
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.warn("[ZIP3] Supabase read error (ignored):", error);
+      return null;
+    }
+    return data?.zip3 || null;
+  } catch (e) {
+    console.warn("[ZIP3] Supabase read exception (ignored):", e);
+    return null;
+  }
+}
+
+async function getZip3FromHereByCityState(city, state) {
+  try {
+    const key = process.env.NEXT_PUBLIC_HERE_API_KEY || process.env.HERE_API_KEY;
+    if (!key) {
+      console.warn("[ZIP3] HERE key missing; skipping HERE fallback");
+      return null;
+    }
+    const q = encodeURIComponent(`${city}, ${state}, USA`);
+    const url = `https://geocode.search.hereapi.com/v1/geocode?q=${q}&in=countryCode:USA&apiKey=${key}`;
+
+    const resp = await fetch(url);
+    if (!resp.ok) {
+      console.warn("[ZIP3] HERE fetch non-OK:", resp.status);
+      return null;
+    }
+    const json = await resp.json();
+    const pc = json?.items?.[0]?.address?.postalCode || "";
+    const zip5 = pc.match(/\d{5}/)?.[0] || "";
+    const zip3 = zip5.slice(0, 3);
+    return zip3 || null;
+  } catch (e) {
+    console.warn("[ZIP3] HERE exception (ignored):", e);
+    return null;
+  }
+}
+
+async function cacheZip3Server(city, state, zip3) {
+  await fetch("/api/cache-zip3", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ city, state, zip3 }),
+  });
 }

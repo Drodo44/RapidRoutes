@@ -5,7 +5,7 @@ import CityAutocomplete from '../components/CityAutocomplete.jsx';
 import EquipmentPicker from '../components/EquipmentPicker.jsx';
 import IntermodalNudge from '../components/IntermodalNudge.jsx';
 import IntermodalEmailModal from '../components/IntermodalEmailModal.jsx';
-import { supabase } from '../utils/supabaseClient';
+import supabase from '../utils/supabaseClient';
 // Removed direct import - now using API call for server-side intelligence generation
 import { useAuth } from '../contexts/AuthContext';
 import { checkIntermodalEligibility } from '../lib/intermodalAdvisor';

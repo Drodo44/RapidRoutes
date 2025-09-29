@@ -1,7 +1,7 @@
 // pages/pending-approval.js
 import { useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { supabase } from '../utils/supabaseClient';
+import supabase from '../utils/supabaseClient';
 
 export default function PendingApprovalPage() {
   const router = useRouter();

@@ -1,5 +1,5 @@
 // Quick city checker
-import { adminSupabase } from '../../utils/supabaseClient';
+import { adminSupabase } from '../../utils/supabaseAdminClient';
 
 export default async function handler(req, res) {
   const { city, state } = req.query;

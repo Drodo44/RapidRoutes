@@ -3,7 +3,7 @@
 
 import fs from "node:fs/promises";
 import path from "node:path";
-import { adminSupabase as supabase } from "../../utils/supabaseClient.js";
+import { adminSupabase as supabase } from "../../utils/supabaseAdminClient.js";
 
 function ok(name, note = "") { return { name, ok: true, note }; }
 function bad(name, note) { return { name, ok: false, note }; }

@@ -2,7 +2,7 @@
 // Admin: manage equipment codes. Paste CODE,Label lines, "Load DAT Seed", Upsert.
 
 import { useEffect, useState } from 'react';
-import { supabase } from '../../utils/supabaseClient';
+import supabase from '../../utils/supabaseClient';
 
 const SEED_LINES = [
   // Core van/reefer/flatbed

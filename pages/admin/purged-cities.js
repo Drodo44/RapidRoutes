@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../../utils/supabaseClient.js';
+import supabase from '../../utils/supabaseClient.js';
 
 export default function PurgedCitiesAdmin() {
   const [purgedCities, setPurgedCities] = useState([]);

@@ -1,7 +1,7 @@
 // pages/api/createTestLanes.js
 // Create test lanes to populate dashboard stats
 
-import { adminSupabase } from '../../utils/supabaseClient';
+import { adminSupabase } from '../../utils/supabaseAdminClient';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {

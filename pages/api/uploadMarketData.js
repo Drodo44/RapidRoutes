@@ -2,7 +2,7 @@
 // Accepts JSON { equipment, level, source, denormalize, matrixRows: [{origin,destination,rate}...] }
 // Writes to rates_snapshots.matrix (JSONB) and optionally denormalizes into rates_flat.
 
-import { adminSupabase } from '../../utils/supabaseClient';
+import { adminSupabase } from '../../utils/supabaseAdminClient';
 
 export const config = {
   api: { bodyParser: { sizeLimit: '10mb' } },

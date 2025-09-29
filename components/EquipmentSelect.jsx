@@ -1,6 +1,6 @@
 // components/EquipmentSelect.js
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "../utils/supabaseClient.js";
+import supabase from "../utils/supabaseClient.js";
 import { DAT_EQUIPMENT } from "../data/datEquipment.js";
 
 function groupBy(arr, key) {

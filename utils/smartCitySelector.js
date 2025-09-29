@@ -1,6 +1,6 @@
 // utils/smartCitySelector.js
 // Intelligent crawl: 50→75 mi MAX; KMA diversity; unique pairing. Business rule: Never exceed 75 miles.
-import { supabase } from "./supabaseClient.js";
+import supabase from "./supabaseClient.js";
 import { distanceInMiles } from "./haversine.js";
 import { assignPairs } from "./assignment.js";
 

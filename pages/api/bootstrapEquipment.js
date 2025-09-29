@@ -2,7 +2,7 @@
 // Self-seeding endpoint. Safe to call repeatedly.
 // If fewer than MIN rows exist, upsert EQUIPMENT_SEED using service role.
 
-import { adminSupabase } from '../../utils/supabaseClient';
+import { adminSupabase } from '../../utils/supabaseAdminClient';
 import { EQUIPMENT_SEED } from '../../lib/equipmentSeed';
 
 const MIN = 60; // guard: if table has fewer than this, we seed

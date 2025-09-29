@@ -1,7 +1,7 @@
 // pages/api/addMissingCities.js
 // Quick fix to add missing cities to database
 
-import { adminSupabase } from '../../utils/supabaseClient.js';
+import { adminSupabase } from '../../utils/supabaseAdminClient.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {

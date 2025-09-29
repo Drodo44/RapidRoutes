@@ -1,7 +1,7 @@
 // pages/api/cleanupTestData.js
 // Remove test lanes and data for production cleanup
 
-import { adminSupabase } from '../../utils/supabaseClient';
+import { adminSupabase } from '../../utils/supabaseAdminClient';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {

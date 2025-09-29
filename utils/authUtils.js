@@ -4,7 +4,7 @@
  * Handles token management, session refresh, and authentication state
  */
 
-import { supabase } from './supabaseClient';
+import supabase from './supabaseClient';
 
 /**
  * Get the current authentication token with session refresh if needed

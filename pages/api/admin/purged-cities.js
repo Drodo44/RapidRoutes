@@ -2,7 +2,7 @@
 // GET: List purged cities with filtering and pagination
 // POST: Update DAT submission status for cities
 
-import { adminSupabase as supabase } from '../../../utils/supabaseClient.js';
+import { adminSupabase as supabase } from '../../../utils/supabaseAdminClient.js';
 
 export default async function handler(req, res) {
   try {

@@ -1,7 +1,7 @@
 // middleware/withAuth.js
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { supabase } from '../utils/supabaseClient';
+import supabase from '../utils/supabaseClient';
 import { getUserAndProfile } from '../utils/getUserProfile.new';
 
 /**

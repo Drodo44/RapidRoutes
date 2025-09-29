@@ -4,7 +4,7 @@
 // - Intelligence pairing attempted and pair count
 // - Whether lane was dropped before or after CSV building
 
-import { adminSupabase as supabase } from '../../../utils/supabaseClient.js';
+import { adminSupabase as supabase } from '../../../utils/supabaseAdminClient.js';
 import { validateLane } from '../../../lib/enterpriseValidation.js';
 import { intelligentCache } from '../../../lib/intelligentCache.js';
 import { generateDatCsvRows } from '../../../lib/datCsvBuilder.js';

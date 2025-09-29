@@ -2,7 +2,7 @@
 // pages/api/lane-performance.js
 // Track intelligent lane posting performance for continuous learning
 
-import { adminSupabase } from '../../utils/supabaseClient';
+import { adminSupabase } from '../../utils/supabaseAdminClient';
 
 export default async function handler(req, res) {
   if (req.method === 'POST') {

@@ -1,6 +1,6 @@
 // components/EquipmentPicker.jsx
 import { useEffect, useMemo, useState, useRef } from 'react';
-import { supabase } from '../utils/supabaseClient';
+import supabase from '../utils/supabaseClient';
 
 export default function EquipmentPicker({ id='equipment', label='Equipment Type', code, onChange, required=true }) {
   const [list, setList] = useState([]);

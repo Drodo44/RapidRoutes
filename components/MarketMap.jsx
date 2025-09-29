@@ -1,6 +1,6 @@
 // components/MarketMap.js
 import { useEffect, useState } from "react";
-import { supabase } from "../utils/supabaseClient";
+import supabase from "../utils/supabaseClient";
 
 export default function MarketMap() {
   const [equipment, setEquipment] = useState("van");

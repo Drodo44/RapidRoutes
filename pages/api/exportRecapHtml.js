@@ -1,7 +1,7 @@
 // pages/api/exportRecapHtml.js
 // Generate downloadable HTML recap for team sharing
 
-import { adminSupabase as supabase } from '../../utils/supabaseClient.js';
+import { adminSupabase as supabase } from '../../utils/supabaseAdminClient.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {

@@ -1,5 +1,5 @@
 // pages/api/logout.js
-import { supabase } from "../../utils/supabaseClient";
+import supabase from "../../utils/supabaseClient";
 export default async function handler(_req, res) {
   await supabase.auth.signOut(); // no-op server-side but keeps route
   res.setHeader("Set-Cookie", [

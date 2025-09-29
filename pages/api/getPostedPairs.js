@@ -1,7 +1,7 @@
 // pages/api/getPostedPairs.js
 // Get the actual posted city pairs for a specific lane by regenerating them using the same logic as CSV export
 
-import { adminSupabase as supabase } from '../../utils/supabaseClient.js';
+import { adminSupabase as supabase } from '../../utils/supabaseAdminClient.js';
 import { FreightIntelligence } from '../../lib/FreightIntelligence.js';
 
 // Use the same singleton pattern as CSV generation

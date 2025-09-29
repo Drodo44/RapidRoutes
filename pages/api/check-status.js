@@ -1,5 +1,5 @@
 // pages/api/check-status.js
-import { supabase } from '../../utils/supabaseClient';
+import supabase from '../../utils/supabaseClient';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
