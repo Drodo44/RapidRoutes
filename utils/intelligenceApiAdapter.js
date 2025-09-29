@@ -2,7 +2,8 @@ import axios from 'axios';
 // Browser-safe anon client (do NOT use service role here)
 import supabase from './supabaseClient';
 
-const HERE_API_KEY = process.env.HERE_API_KEY; // Should be undefined client-side unless explicitly exposed (keep calls server-side if sensitive)
+// Public-only HERE key for browser usage. Do NOT reference process.env.HERE_API_KEY here.
+const HERE_API_KEY = process.env.NEXT_PUBLIC_HERE_API_KEY;
 const ZIP3_RETRY_ENABLED = process.env.ZIP3_RETRY_ENABLED === 'true';
 
 async function wait(ms){ return new Promise(r=>setTimeout(r, ms)); }
@@ -105,30 +106,32 @@ async function getZip3FromSupabase(city, state) {
   }
 }
 
-async function getZip3FromHereByCityState(city, state) {
-  try {
-    const key = process.env.NEXT_PUBLIC_HERE_API_KEY || process.env.HERE_API_KEY;
-    if (!key) {
-      console.warn("[ZIP3] HERE key missing; skipping HERE fallback");
-      return null;
-    }
-    const q = encodeURIComponent(`${city}, ${state}, USA`);
-    const url = `https://geocode.search.hereapi.com/v1/geocode?q=${q}&in=countryCode:USA&apiKey=${key}`;
-
-    const resp = await fetch(url);
-    if (!resp.ok) {
-      console.warn("[ZIP3] HERE fetch non-OK:", resp.status);
-      return null;
-    }
-    const json = await resp.json();
-    const pc = json?.items?.[0]?.address?.postalCode || "";
-    const zip5 = pc.match(/\d{5}/)?.[0] || "";
-    const zip3 = zip5.slice(0, 3);
-    return zip3 || null;
-  } catch (e) {
-    console.warn("[ZIP3] HERE exception (ignored):", e);
+// Direct HERE geocode request (browser) – uses ONLY the public key.
+async function fetchHereZip3(city, state) {
+  if (!HERE_API_KEY) {
+    console.error("[HERE] Missing NEXT_PUBLIC_HERE_API_KEY");
     return null;
   }
+  try {
+    const query = `${city}, ${state}`;
+    const url = `https://geocode.search.hereapi.com/v1/geocode?q=${encodeURIComponent(query)}&apiKey=${HERE_API_KEY}`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      console.warn(`[HERE] API error: ${res.status}`);
+      return null;
+    }
+    const data = await res.json();
+    const postal = data.items?.[0]?.address?.postalCode;
+    return postal ? postal.slice(0, 3) : null;
+  } catch (e) {
+    console.warn('[HERE] Exception (ignored):', e);
+    return null;
+  }
+}
+
+// Backwards compatibility wrapper used elsewhere in code.
+async function getZip3FromHereByCityState(city, state) {
+  return fetchHereZip3(city, state);
 }
 
 async function cacheZip3Server(city, state, zip3) {
