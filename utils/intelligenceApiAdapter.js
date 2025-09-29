@@ -193,18 +193,19 @@ export async function callIntelligencePairingApi(lane, options = {}, authSession
     return acc;
   }, {});
 
-  // 🔥 TEMP HARD PATCH: force known-good zip3s for diagnostic test lane (Augusta -> Berlin)
+  // Optional diagnostic override for a specific lane (Augusta -> Berlin) guarded by env flag.
+  // Set NEXT_PUBLIC_FORCE_DIAGNOSTIC_ZIP3S=1 to enable. This should NEVER remain enabled in production long-term.
   try {
     const isForcedLane = (originCity && originCity.toLowerCase() === 'augusta') &&
                          (destinationCity && destinationCity.toLowerCase() === 'berlin');
-    if (isForcedLane) {
-      console.warn('🔧 Using forced zip3s for diagnostic lane Augusta -> Berlin');
+    const forceEnabled = process.env.NEXT_PUBLIC_FORCE_DIAGNOSTIC_ZIP3S === '1';
+    if (isForcedLane && forceEnabled) {
+      console.warn('🔧 [INTELLIGENCE_ADAPTER] Forcing diagnostic zip3s for Augusta -> Berlin (env NEXT_PUBLIC_FORCE_DIAGNOSTIC_ZIP3S=1)');
       payload.origin_zip3 = '309'; // Augusta, GA (example working prefix)
       payload.destination_zip3 = '155'; // Berlin, PA (example working prefix)
     }
   } catch (e) {
-    // Non-fatal; continue without override
-    if (debug) warn('Forced zip3 patch error', e.message);
+    if (debug) warn('Diagnostic forced zip3 override error', e.message);
   }
   
   // Accept if either destinationCity OR destinationState is provided

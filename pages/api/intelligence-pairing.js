@@ -179,6 +179,12 @@ export default async function handler(req, res) {
     const originState = payload.origin_state || payload.originState;
     const destCity = payload.dest_city || payload.destination_city || payload.destinationCity;
     const destState = payload.dest_state || payload.destination_state || payload.destinationState;
+    // Incoming zip3 diagnostics (adapter now sends origin_zip3 / destination_zip3)
+    const originZip3 = payload.origin_zip3 || payload.originZip3;
+    const destinationZip3 = payload.destination_zip3 || payload.destinationZip3;
+    if (process.env.PAIRING_DEBUG === '1') {
+      console.log('[PAIRING] Inbound zip3 fields', { originZip3, destinationZip3, hasOrigin: !!originZip3, hasDestination: !!destinationZip3 });
+    }
 
     if (!originCity || !originState || !destCity || !destState) {
       return res.status(400).json({ message: 'Missing required fields originCity/originState/destinationCity/destinationState' });
