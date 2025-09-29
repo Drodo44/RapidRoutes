@@ -1,7 +1,8 @@
 import axios from 'axios';
-import { adminSupabase } from './supabaseAdminClient';
+// Browser-safe anon client (do NOT use service role here)
+import supabase from './supabaseClient';
 
-const HERE_API_KEY = process.env.HERE_API_KEY;
+const HERE_API_KEY = process.env.HERE_API_KEY; // Should be undefined client-side unless explicitly exposed (keep calls server-side if sensitive)
 const ZIP3_RETRY_ENABLED = process.env.ZIP3_RETRY_ENABLED === 'true';
 
 async function wait(ms){ return new Promise(r=>setTimeout(r, ms)); }
@@ -11,7 +12,8 @@ export async function resolveZip3(city, state) {
   const normalizedCity = city.trim();
   const normalizedState = state.trim().toUpperCase();
   try {
-    const { data, error } = await adminSupabase
+    // Read-only lookup using anon client (RLS must allow select on zip3s)
+    const { data, error } = await supabase
       .from('zip3s')
       .select('zip3')
       .eq('city', normalizedCity)
@@ -20,8 +22,10 @@ export async function resolveZip3(city, state) {
     if (error) throw error;
     if (data?.zip3) return data.zip3;
   } catch (err) {
-    console.warn(`[ZIP3] Supabase lookup failed for ${city}, ${state}:`, err.message);
+    console.warn(`[ZIP3] Supabase anon lookup failed for ${city}, ${state}:`, err.message);
   }
+
+  // HERE geocode lookup (client-side) — consider moving server-side if rate-limited/sensitive
   const fetchFromHere = async () => {
     const url = 'https://geocode.search.hereapi.com/v1/geocode';
     const { data } = await axios.get(url, { params: { q: `${city}, ${state}, USA`, apiKey: HERE_API_KEY }});
@@ -29,6 +33,7 @@ export async function resolveZip3(city, state) {
     if (!postalCode) return null;
     return postalCode.slice(0,3);
   };
+
   let zip3 = null;
   if (ZIP3_RETRY_ENABLED) {
     let attempt = 0;
@@ -40,13 +45,8 @@ export async function resolveZip3(city, state) {
   } else {
     zip3 = await fetchFromHere().catch(err => { console.error('[ZIP3] HERE fallback error:', err.message); return null; });
   }
-  if (zip3) {
-    try {
-      await adminSupabase.from('zip3s').upsert({ city: normalizedCity, state: normalizedState, zip3 }, { onConflict: ['city','state'] });
-    } catch (err) {
-      console.warn(`[ZIP3] Failed to cache zip3 for ${city}, ${state}:`, err.message);
-    }
-  }
+
+  // Skip caching write from browser (would require service role / elevated RLS). Optionally, send to API route later.
   return zip3;
 }
 
