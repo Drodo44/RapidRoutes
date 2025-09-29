@@ -25,6 +25,23 @@ type LaneResult = LaneResultSuccess | LaneResultError;
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).end();
 
+  // 🚨 FORCE LOGGING OF RAW BODY
+  try {
+    const rawBody: string = await new Promise((resolve) => {
+      let data = '';
+      req.on('data', (chunk) => (data += chunk));
+      req.on('end', () => resolve(data));
+    });
+    console.log('🛠️ RAW POST BODY:', rawBody);
+    if (rawBody && !req.body) {
+      // If Next.js body parser already ran, req.body might exist; only parse if absent
+      req.body = JSON.parse(rawBody || '{}');
+    }
+  } catch (parseErr: any) {
+    console.error('❌ Failed to parse JSON body:', parseErr?.message || parseErr);
+    return res.status(400).json({ error: 'Invalid JSON' });
+  }
+
   const { lanes } = req.body || {};
   if (!lanes || !Array.isArray(lanes)) {
     return res.status(400).json({ error: 'Missing or invalid lanes array' });
