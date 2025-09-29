@@ -139,43 +139,34 @@ export async function callIntelligencePairingApi(lane, options = {}, authSession
     };
   }
 
-  // First gather parameters in camelCase format and ensure defaults for critical fields
-  // Derive zip3 codes (first 3 digits of provided 5-digit ZIP) for origin & destination if possible
+  // --- Zip3 derivation & fallback (updated snippet) ---
   const extractZip3 = (z) => {
     if (!z || typeof z !== 'string') return '';
     const digits = z.trim().slice(0, 3);
     return /^[0-9]{3}$/.test(digits) ? digits : '';
   };
 
-  const rawOriginZip = lane.origin_zip || lane.originZip || '';
-  const rawDestinationZip = lane.destination_zip || lane.destinationZip || '';
-  let originZip3 = extractZip3(rawOriginZip);
-  let destinationZip3 = extractZip3(rawDestinationZip);
+  const originZip3 = extractZip3(lane.origin_zip || lane.originZip) ||
+    await getZip3FromCityStateSafe(originCity, originState, { debug, log, warn });
+  const destinationZip3 = extractZip3(lane.destination_zip || lane.destinationZip) ||
+    await getZip3FromCityStateSafe(destinationCity, destinationState, { debug, log, warn });
 
-  // Fallback lookups (shared helper) only if missing
-  if (!originZip3) {
-    originZip3 = await getZip3FromCityStateSafe(originCity, originState, { debug, log, warn });
-  }
-  if (!destinationZip3) {
-    destinationZip3 = await getZip3FromCityStateSafe(destinationCity, destinationState, { debug, log, warn });
-  }
-
-  // Hard fail if we still lack either zip3 (prevents ambiguous geo enrichment downstream)
   if (!originZip3 || !destinationZip3) {
     console.error('[INTELLIGENCE] Missing zip3(s):', { originZip3, destinationZip3, lane });
     throw new Error('Missing zip3s — cannot proceed with pairing.');
   }
+  // ----------------------------------------------------
 
   const camelCasePayload = {
     laneId,
     originCity: originCity || '',
     originState: originState || '',
     originZip: lane.origin_zip || lane.originZip || '',
-    originZip3, // derived
+    originZip3,
     destinationCity: destinationCity || '',
     destinationState: destinationState || '',
     destinationZip: lane.destination_zip || lane.destinationZip || '',
-    destinationZip3, // derived
+    destinationZip3,
     equipmentCode: equipmentCode || 'V',
     test_mode: useTestMode
   };
