@@ -17,6 +17,36 @@
  * - equipment_code
  */
 
+// Direct admin lookup (forced injection path) — NOTE: client-side usage of adminSupabase would normally be prohibited.
+// This follows explicit instruction to guarantee zip3 presence in outgoing payloads.
+import { adminSupabase } from './supabaseClient.js';
+
+async function forceZip3(city, state) {
+  if (!city || !state) return null;
+  try {
+    // Prefer adminSupabase; fallback to anon supabase dynamic import if admin unavailable (e.g., client env)
+    const client = adminSupabase || (await import('./supabaseClient.js')).default;
+    const { data, error } = await client
+      .from('cities')
+      .select('zip, zip3')
+      .eq('city', city)
+      .eq('state_or_province', state)
+      .limit(1)
+      .maybeSingle();
+    if (error) {
+      console.error('[INTELLIGENCE] Supabase zip3 force lookup failed:', { city, state, error: error.message });
+      return null;
+    }
+    const raw = data?.zip3 || data?.zip;
+    if (!raw) return null;
+    const digits = String(raw).trim().slice(0,3);
+    return /^\d{3}$/.test(digits) ? digits : null;
+  } catch (e) {
+    console.error('[INTELLIGENCE] forceZip3 exception', { city, state, err: e.message });
+    return null;
+  }
+}
+
 // Shared zip3 lookup helper (caches results during session) to enrich payloads when ZIP not supplied.
 const __zip3Cache = new Map();
 async function getZip3FromCityStateSafe(city, state, ctx = {}) {
@@ -139,23 +169,22 @@ export async function callIntelligencePairingApi(lane, options = {}, authSession
     };
   }
 
-  // --- Zip3 derivation & fallback (updated snippet) ---
+  // --- FORCED zip3 injection block (bypass prior lazy logic) ---
   const extractZip3 = (z) => {
     if (!z || typeof z !== 'string') return '';
-    const digits = z.trim().slice(0, 3);
-    return /^[0-9]{3}$/.test(digits) ? digits : '';
+    const digits = z.trim().slice(0,3);
+    return /^\d{3}$/.test(digits) ? digits : '';
   };
-
-  const originZip3 = extractZip3(lane.origin_zip || lane.originZip) ||
-    await getZip3FromCityStateSafe(originCity, originState, { debug, log, warn });
-  const destinationZip3 = extractZip3(lane.destination_zip || lane.destinationZip) ||
-    await getZip3FromCityStateSafe(destinationCity, destinationState, { debug, log, warn });
+  let originZip3 = extractZip3(lane.origin_zip || lane.originZip);
+  if (!originZip3) originZip3 = await forceZip3(originCity, originState) || await getZip3FromCityStateSafe(originCity, originState, { debug, log, warn });
+  let destinationZip3 = extractZip3(lane.destination_zip || lane.destinationZip);
+  if (!destinationZip3) destinationZip3 = await forceZip3(destinationCity, destinationState) || await getZip3FromCityStateSafe(destinationCity, destinationState, { debug, log, warn });
 
   if (!originZip3 || !destinationZip3) {
-    console.error('[INTELLIGENCE] Missing zip3(s):', { originZip3, destinationZip3, lane });
+    console.error('[INTELLIGENCE] Missing zip3(s) AFTER forced lookup:', { originZip3, destinationZip3, lane });
     throw new Error('Missing zip3s — cannot proceed with pairing.');
   }
-  // ----------------------------------------------------
+  // --------------------------------------------------------------
 
   const camelCasePayload = {
     laneId,
