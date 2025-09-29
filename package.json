@@ -37,6 +37,7 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@types/react": "19.1.15",
     "autoprefixer": "^10.4.19",
     "chai": "^6.0.1",
     "cross-fetch": "^4.1.0",
