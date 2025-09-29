@@ -17,9 +17,10 @@ export default function PostOptionsManual() {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user || null);
+      // Include coordinate fields required by new /api/post-options batch endpoint
       const { data, error } = await supabase
         .from('lanes')
-        .select('id,origin_city,origin_state,destination_city,destination_state,status,created_at')
+        .select('id, origin_city, origin_state, destination_city, destination_state, origin_latitude, origin_longitude, destination_latitude, destination_longitude, status, created_at')
         .eq('status','pending')
         .order('created_at',{ ascending:false });
       if (!error && Array.isArray(data)) setLanes(data);
@@ -31,32 +32,82 @@ export default function PostOptionsManual() {
   const headers = useMemo(() => ({ 'Content-Type':'application/json', ...(userId ? { 'x-rr-user-id': userId } : {}) }), [userId]);
 
   async function loadOptionsForLane(lane) {
-    setOptionsByLane(prev => ({ ...prev, [lane.id]: { ...(prev[lane.id]||{}), loading:true } }));
+    setOptionsByLane(prev => ({ ...prev, [lane.id]: { ...(prev[lane.id]||{}), loading:true, error: undefined } }));
     try {
-      const body = {
-        laneId: lane.id,
-        originCity: lane.origin_city || lane.originCity,
-        originState: lane.origin_state || lane.originState,
-        destCity: lane.destination_city || lane.destinationCity,
-        destState: lane.destination_state || lane.destinationState,
-        radiusMiles: radius,
-      };
-      const res = await fetch('/api/post-options', { method:'POST', headers, body: JSON.stringify(body) });
-      const json = await res.json();
-      if (!res.ok || !json?.success) throw new Error(json?.error || `Failed (${res.status})`);
+      if (typeof lane.origin_latitude !== 'number' || typeof lane.origin_longitude !== 'number') {
+        throw new Error('Missing origin coordinates on lane');
+      }
+      const payload = { lanes: [{ id: lane.id, origin_latitude: lane.origin_latitude, origin_longitude: lane.origin_longitude }] };
+      console.log('🔼 Requesting post-options (single)', payload);
+      const res = await fetch('/api/post-options', {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', ...(userId ? { 'x-rr-user-id': userId } : {}) },
+        body: JSON.stringify(payload)
+      });
+      const json = await res.json().catch(()=>({}));
+      console.log('✅ Single lane response', json);
+      if (!res.ok) throw new Error(json?.error || `Request failed (${res.status})`);
+      const result = Array.isArray(json?.results) ? json.results.find(r => r.laneId === lane.id) : null;
+      if (!result) throw new Error('No result returned for lane');
+      if (result.error) throw new Error(result.error);
       setOptionsByLane(prev => ({
         ...prev,
         [lane.id]: {
-          originOptions: json.originOptions,
-          destOptions: json.destOptions,
+          originOptions: result.options || [],
+          // Destination options not yet provided by API; placeholder empty array
+          destOptions: prev[lane.id]?.destOptions || [],
           status: prev[lane.id]?.status || { originSaved:false, destSaved:false },
-          loadedAt: Date.now()
+          loadedAt: Date.now(),
+          source: result.source
         }
       }));
     } catch (e) {
       setOptionsByLane(prev => ({ ...prev, [lane.id]: { ...(prev[lane.id]||{}), error: e.message } }));
     } finally {
       setOptionsByLane(prev => ({ ...prev, [lane.id]: { ...(prev[lane.id]||{}), loading:false } }));
+    }
+  }
+
+  async function loadAllPostOptions() {
+    if (loadingAll) return;
+    setLoadingAll(true);
+    setMasterLoaded(false);
+    const validLanes = lanes.filter(l => typeof l.origin_latitude === 'number' && typeof l.origin_longitude === 'number');
+    if (validLanes.length === 0) {
+      setLoadingAll(false);
+      return;
+    }
+    const payload = { lanes: validLanes.map(l => ({ id: l.id, origin_latitude: l.origin_latitude, origin_longitude: l.origin_longitude })) };
+    console.log('🔼 Batch request payload', payload);
+    try {
+      const res = await fetch('/api/post-options', {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', ...(userId ? { 'x-rr-user-id': userId } : {}) },
+        body: JSON.stringify(payload)
+      });
+      const json = await res.json().catch(()=>({}));
+      console.log('✅ Batch response', json);
+      if (!res.ok) throw new Error(json?.error || `Batch failed (${res.status})`);
+      const byId = {};
+      (json.results || []).forEach(r => {
+        if (r.error) {
+          byId[r.laneId] = { error: r.error };
+        } else {
+          byId[r.laneId] = {
+            originOptions: r.options || [],
+            destOptions: [],
+            status: { originSaved:false, destSaved:false },
+            loadedAt: Date.now(),
+            source: r.source
+          };
+        }
+      });
+      setOptionsByLane(prev => ({ ...prev, ...byId }));
+      setMasterLoaded(true);
+    } catch (e) {
+      console.error('❌ Failed batch load', e);
+    } finally {
+      setLoadingAll(false);
     }
   }
 
@@ -104,7 +155,7 @@ export default function PostOptionsManual() {
         <label className="text-sm text-gray-300">Radius (miles)</label>
         <input type="number" min={10} max={300} value={radius} onChange={e=>setRadius(Number(e.target.value)||100)} className="w-24 px-2 py-1 bg-gray-800 border border-gray-600 rounded text-gray-100 text-sm" />
         <button
-          onClick={loadAllOptions}
+          onClick={loadAllPostOptions}
           disabled={loadingAll || lanes.length === 0}
           className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded text-white text-sm font-medium"
         >
