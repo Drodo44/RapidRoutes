@@ -27,30 +27,11 @@ export default function PostOptionsManual() {
           return [];
         }
         const base = `${SUPABASE_URL}/rest/v1/lanes`;
-        const selectFields = 'id,origin_city,origin_state,destination_city,destination_state,origin_latitude,origin_longitude,destination_latitude,destination_longitude,status,lane_status,created_at';
+        // Removed deprecated 'status' column from selection – schema now uses lane_status only
+        const selectFields = 'id,origin_city,origin_state,destination_city,destination_state,origin_latitude,origin_longitude,destination_latitude,destination_longitude,lane_status,created_at';
         const headers = { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` };
-
-        // Attempt 1: filter using status column
-        let url1 = `${base}?select=${encodeURIComponent(selectFields)}&status=eq.pending&order=created_at.desc`;
-        try {
-          const r1 = await fetch(url1, { headers });
-          if (!r1.ok) {
-            console.warn('Status fetch attempt failed', r1.status);
-          } else {
-            const data1 = await r1.json();
-            if (Array.isArray(data1) && data1.length) {
-              return data1.map(row => ({
-                ...row,
-                status: row.status ?? row.lane_status
-              }));
-            }
-          }
-        } catch (e) {
-          console.error('Status fetch error', e);
-        }
-
-        // Attempt 2: filter using lane_status column
-        let url2 = `${base}?select=${encodeURIComponent(selectFields)}&lane_status=eq.pending&order=created_at.desc`;
+        // Single attempt: filter using lane_status only
+        const url2 = `${base}?select=${encodeURIComponent(selectFields)}&lane_status=eq.pending&order=created_at.desc`;
         try {
           const r2 = await fetch(url2, { headers });
           if (!r2.ok) {
@@ -61,7 +42,7 @@ export default function PostOptionsManual() {
             if (Array.isArray(data2)) {
               return data2.map(row => ({
                 ...row,
-                status: row.status ?? row.lane_status
+                status: row.lane_status
               }));
             }
         } catch (e) {
