@@ -12,21 +12,17 @@ export default async function handler(req, res) {
       destinationState,
       destinationZip3,
       equipmentCode,
-    } = req.body || {};
+    } = req.body;
 
     if (!originZip3 || !destinationZip3) {
-      return res.status(400).json({ error: 'Missing zip3 codes' });
+      return res.status(400).json({
+        success: false,
+        error: 'Missing ZIP3 data in payload',
+        received: req.body,
+      });
     }
 
-    console.log('[PAIRING] Received:', {
-      originCity,
-      originState,
-      originZip3,
-      destinationCity,
-      destinationState,
-      destinationZip3,
-      equipmentCode,
-    });
+    console.log('[PAIRING] Received:', req.body);
 
     return res.status(200).json({
       success: true,
@@ -37,7 +33,7 @@ export default async function handler(req, res) {
       },
     });
   } catch (err) {
-    console.error('[PAIRING] error:', err);
-    return res.status(500).json({ error: err.message });
+    console.error('[PAIRING] Error processing request:', err);
+    return res.status(500).json({ success: false, error: err.message });
   }
 }
