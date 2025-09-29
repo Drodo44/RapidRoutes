@@ -1,62 +1,83 @@
-// Batch nearby post options lookup via Postgres RPC
-// Expects body: { lanes: [ { id, origin_latitude, origin_longitude } ] }
-// Returns per-lane nearby city options with KMA codes using RPC get_nearby_cities_with_kma
+// Enhanced batch nearby post options lookup with payload logging, graceful missing lat/lon handling,
+// Supabase-first RPC resolution and HERE fallback for geospatial enrichment.
 
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { adminSupabase as supabase } from '../../utils/supabaseAdminClient.js';
+import { adminSupabase as supabaseAdmin } from '../../utils/supabaseAdminClient.js';
 import { fetchZip3FromHere } from '../../adapters/intelligenceApiAdapter.js';
 
-interface LaneInput { id: string | number; origin_latitude: number; origin_longitude: number; }
-interface LaneResultSuccess { laneId: LaneInput['id']; source: 'supabase' | 'here'; options: any[]; }
-interface LaneResultError { laneId: LaneInput['id']; error: string; }
+interface LaneInput {
+  id: string | number;
+  origin_latitude?: number;
+  origin_longitude?: number;
+}
+
+interface LaneResultSuccess {
+  laneId: string | number;
+  source: 'supabase' | 'here';
+  options: any[]; // RPC row shape or HERE fallback object array
+}
+interface LaneResultError {
+  laneId: string | number;
+  error: string;
+}
 type LaneResult = LaneResultSuccess | LaneResultError;
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  const { lanes } = req.body;
-
-  if (
-    !lanes ||
-    !Array.isArray(lanes) ||
-    lanes.some(
-      (l: any) =>
-        typeof l.origin_latitude !== 'number' ||
-        typeof l.origin_longitude !== 'number'
-    )
-  ) {
-    return res.status(400).json({ error: 'Invalid lane data' });
+  const { lanes } = req.body || {};
+  if (!lanes || !Array.isArray(lanes)) {
+    return res.status(400).json({ error: 'Missing or invalid lanes array' });
   }
+
+  // Log the raw payload for observability (omit if sensitive in prod — or gate behind an env flag)
+  try {
+    console.log('[post-options] Received lanes payload:', JSON.stringify(lanes, null, 2));
+  } catch { /* ignore circular serialization issues */ }
 
   const results: LaneResult[] = await Promise.all(
     lanes.map(async (lane: LaneInput) => {
-      const { origin_latitude, origin_longitude, id } = lane;
+      const { id, origin_latitude, origin_longitude } = lane || {} as LaneInput;
 
-      // Supabase-first
-      const { data: supabaseData, error } = await supabase.rpc('get_nearby_cities_with_kma', {
-        input_lat: origin_latitude,
-        input_lon: origin_longitude,
-      });
-
-      if (error) {
-        console.error('Supabase RPC error:', error.message);
-        return { laneId: id, error: 'Supabase RPC failed' };
+      if (typeof id === 'undefined') {
+        return { laneId: 'unknown', error: 'Missing lane id' };
       }
 
-      if (supabaseData && supabaseData.length > 0) {
+      // Case 1: Missing coordinates
+      if (typeof origin_latitude !== 'number' || typeof origin_longitude !== 'number') {
+        return { laneId: id, error: 'Missing origin_latitude or origin_longitude' };
+      }
+
+      // Case 2: Supabase RPC attempt
+      let supabaseData: any[] | null = null;
+      try {
+        const { data, error: supabaseError } = await supabaseAdmin.rpc('get_nearby_cities_with_kma', {
+          input_lat: origin_latitude,
+          input_lon: origin_longitude,
+        });
+        if (supabaseError) {
+          console.error(`[post-options] Supabase RPC failed for lane ${id}:`, supabaseError.message);
+        } else if (Array.isArray(data) && data.length) {
+          supabaseData = data;
+        }
+      } catch (rpcErr: any) {
+        console.error(`[post-options] RPC invocation error for lane ${id}:`, rpcErr?.message || rpcErr);
+      }
+
+      if (supabaseData) {
         return { laneId: id, source: 'supabase', options: supabaseData };
       }
 
-      // HERE fallback
+      // Case 3: HERE fallback
       try {
-        const hereData = await fetchZip3FromHere({ latitude: origin_latitude, longitude: origin_longitude });
-        return { laneId: id, source: 'here', options: [hereData] };
-      } catch (fallbackError: any) {
-        console.error('HERE fallback error:', fallbackError.message);
+        const fallback = await fetchZip3FromHere({ latitude: origin_latitude, longitude: origin_longitude });
+        return { laneId: id, source: 'here', options: [fallback] };
+      } catch (hereErr: any) {
+        console.error(`[post-options] HERE fallback failed for lane ${id}:`, hereErr?.message || hereErr);
         return { laneId: id, error: 'HERE fallback failed' };
       }
     })
   );
 
-  res.status(200).json({ results });
+  return res.status(200).json({ results });
 }
