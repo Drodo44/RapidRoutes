@@ -59,28 +59,41 @@ function parseArgs() {
 }
 
 async function loadMapping(filePath: string): Promise<Zip3Record[]> {
-  if (!fs.existsSync(filePath)) {
-    throw new Error(`Mapping file not found: ${filePath}`);
-  }
+  if (!fs.existsSync(filePath)) throw new Error(`Mapping file not found: ${filePath}`);
   const raw = fs.readFileSync(filePath, 'utf-8');
   if (filePath.endsWith('.json')) {
     const json = JSON.parse(raw);
-    return Object.entries(json).map(([zip3, kma_code]) => ({ zip3, kma_code: String(kma_code) }));
+    return Object.entries(json).flatMap(([kma_code, prefixes]: any) => {
+      if (Array.isArray(prefixes)) return prefixes.filter(p=>/^\d{3}$/.test(p)).map(p => ({ zip3: p, kma_code }));
+      return [];
+    });
   }
-  // CSV parsing (simple) expecting headers containing zip3,kma_code
   const lines = raw.split(/\r?\n/).filter(l => l.trim());
-  const header = lines.shift()!.split(',').map(h => h.trim().toLowerCase());
-  const zipIdx = header.indexOf('zip3');
-  const kmaIdx = header.indexOf('kma_code');
-  if (zipIdx === -1 || kmaIdx === -1) throw new Error('CSV must contain zip3,kma_code headers');
-  const rows: Zip3Record[] = [];
-  for (const line of lines) {
+  // Find header line containing 'Market Area ID'
+  const headerIndex = lines.findIndex(l => /Market Area ID/i.test(l));
+  if (headerIndex === -1) throw new Error('Cannot locate Market Area header');
+  const dataLines = lines.slice(headerIndex + 1); // subsequent lines hold data
+  const out: Zip3Record[] = [];
+  for (const line of dataLines) {
+    // Stop if we hit a separator or non-data
+    if (/^#+$/.test(line)) continue;
     const cols = line.split(',');
-    const zip3 = cols[zipIdx]?.trim();
-    const kma_code = cols[kmaIdx]?.trim();
-    if (/^\d{3}$/.test(zip3) && kma_code) rows.push({ zip3, kma_code });
+    // Format: Count,Ref City,Ref State,Market Area ID,Market Area Name,Postal Prefix List,...
+    if (cols.length < 6) continue;
+    const marketAreaId = cols[3]?.trim();
+    const postalStartIdx = 5;
+    if (!marketAreaId) continue;
+    for (let i = postalStartIdx; i < cols.length; i++) {
+      const maybe = cols[i]?.trim();
+      if (/^\d{3}$/.test(maybe)) {
+        out.push({ zip3: maybe, kma_code: marketAreaId });
+      }
+    }
   }
-  return rows;
+  // Deduplicate (last write wins) keeping first occurrence
+  const map = new Map<string, string>();
+  for (const r of out) if (!map.has(r.zip3)) map.set(r.zip3, r.kma_code);
+  return [...map.entries()].map(([zip3, kma_code]) => ({ zip3, kma_code }));
 }
 
 async function geocodeZip3(zip3: string): Promise<{ lat: number; lng: number } | null> {
