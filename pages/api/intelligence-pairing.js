@@ -168,6 +168,20 @@ async function enrichCandidateWithGeoAndKma(candidate, kmaMap) {
 export default async function handler(req, res) {
   const requestId = Math.random().toString(36).slice(2);
   const startTime = Date.now();
+  // ===== Diagnostic boot logs (requested) =====
+  try {
+    console.log('[PAIRING] Handler triggered');
+    console.log('[PAIRING] zip3 debug:', {
+      debug: process.env.PAIRING_DEBUG,
+      originZip3: req.body?.origin_zip3,
+      destinationZip3: req.body?.destination_zip3,
+      hasBody: !!req.body,
+      keys: req.body ? Object.keys(req.body) : []
+    });
+  } catch (e) {
+    // Non-fatal; continue
+  }
+  // ============================================
   try {
     if (req.method !== 'POST') {
       return res.status(405).json({ message: 'Method not allowed' });
