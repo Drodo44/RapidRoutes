@@ -17,13 +17,61 @@ export default function PostOptionsManual() {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user || null);
-      // Include coordinate fields required by new /api/post-options batch endpoint
-      const { data, error } = await supabase
-        .from('lanes')
-        .select('id, origin_city, origin_state, destination_city, destination_state, origin_latitude, origin_longitude, destination_latitude, destination_longitude, status, created_at')
-        .eq('status','pending')
-        .order('created_at',{ ascending:false });
-      if (!error && Array.isArray(data)) setLanes(data);
+
+      const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+      async function fetchPendingLanes() {
+        if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+          console.error('Missing Supabase env vars');
+          return [];
+        }
+        const base = `${SUPABASE_URL}/rest/v1/lanes`;
+        const selectFields = 'id,origin_city,origin_state,destination_city,destination_state,origin_latitude,origin_longitude,destination_latitude,destination_longitude,status,lane_status,created_at';
+        const headers = { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` };
+
+        // Attempt 1: filter using status column
+        let url1 = `${base}?select=${encodeURIComponent(selectFields)}&status=eq.pending&order=created_at.desc`;
+        try {
+          const r1 = await fetch(url1, { headers });
+          if (!r1.ok) {
+            console.warn('Status fetch attempt failed', r1.status);
+          } else {
+            const data1 = await r1.json();
+            if (Array.isArray(data1) && data1.length) {
+              return data1.map(row => ({
+                ...row,
+                status: row.status ?? row.lane_status
+              }));
+            }
+          }
+        } catch (e) {
+          console.error('Status fetch error', e);
+        }
+
+        // Attempt 2: filter using lane_status column
+        let url2 = `${base}?select=${encodeURIComponent(selectFields)}&lane_status=eq.pending&order=created_at.desc`;
+        try {
+          const r2 = await fetch(url2, { headers });
+          if (!r2.ok) {
+            console.warn('lane_status fetch attempt failed', r2.status);
+            return [];
+          }
+          const data2 = await r2.json();
+            if (Array.isArray(data2)) {
+              return data2.map(row => ({
+                ...row,
+                status: row.status ?? row.lane_status
+              }));
+            }
+        } catch (e) {
+          console.error('lane_status fetch error', e);
+        }
+        return [];
+      }
+
+      const pending = await fetchPendingLanes();
+      setLanes(pending);
       setLoading(false);
     })();
   }, []);
