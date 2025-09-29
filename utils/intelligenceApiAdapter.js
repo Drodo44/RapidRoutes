@@ -17,6 +17,36 @@
  * - equipment_code
  */
 
+// Shared zip3 lookup helper (caches results during session) to enrich payloads when ZIP not supplied.
+const __zip3Cache = new Map();
+async function getZip3FromCityStateSafe(city, state, ctx = {}) {
+  if (!city || !state) return '';
+  const key = `${city.toLowerCase()},${state.toLowerCase()}`;
+  if (__zip3Cache.has(key)) return __zip3Cache.get(key);
+  try {
+    const { default: supabase } = await import('./supabaseClient.js');
+    const { data, error } = await supabase
+      .from('cities')
+      .select('zip')
+      .ilike('city', city)
+      .eq('state_or_province', state)
+      .limit(1);
+    if (error) {
+      if (ctx.debug) ctx.warn?.('zip3 lookup error', { city, state, error: error.message });
+      __zip3Cache.set(key, '');
+      return '';
+    }
+    const zip = data?.[0]?.zip;
+    const zip3 = zip && /^\d{5}$/.test(zip) ? zip.slice(0,3) : '';
+    __zip3Cache.set(key, zip3 || '');
+    if (ctx.debug && zip3) ctx.log?.('📦 zip3 resolved via city/state', { city, state, zip3 });
+    return zip3 || '';
+  } catch (e) {
+    if (ctx.debug) ctx.warn?.('zip3 lookup exception', { city, state, err: e.message });
+    return '';
+  }
+}
+
 /**
  * Call the intelligence-pairing API with properly formatted parameters
  * to avoid 400 Bad Request errors
@@ -110,14 +140,42 @@ export async function callIntelligencePairingApi(lane, options = {}, authSession
   }
 
   // First gather parameters in camelCase format and ensure defaults for critical fields
+  // Derive zip3 codes (first 3 digits of provided 5-digit ZIP) for origin & destination if possible
+  const extractZip3 = (z) => {
+    if (!z || typeof z !== 'string') return '';
+    const digits = z.trim().slice(0, 3);
+    return /^[0-9]{3}$/.test(digits) ? digits : '';
+  };
+
+  const rawOriginZip = lane.origin_zip || lane.originZip || '';
+  const rawDestinationZip = lane.destination_zip || lane.destinationZip || '';
+  let originZip3 = extractZip3(rawOriginZip);
+  let destinationZip3 = extractZip3(rawDestinationZip);
+
+  // Fallback lookups (shared helper) only if missing
+  if (!originZip3) {
+    originZip3 = await getZip3FromCityStateSafe(originCity, originState, { debug, log, warn });
+  }
+  if (!destinationZip3) {
+    destinationZip3 = await getZip3FromCityStateSafe(destinationCity, destinationState, { debug, log, warn });
+  }
+
+  // Hard fail if we still lack either zip3 (prevents ambiguous geo enrichment downstream)
+  if (!originZip3 || !destinationZip3) {
+    console.error('[INTELLIGENCE] Missing zip3(s):', { originZip3, destinationZip3, lane });
+    throw new Error('Missing zip3s — cannot proceed with pairing.');
+  }
+
   const camelCasePayload = {
     laneId,
     originCity: originCity || '',
     originState: originState || '',
     originZip: lane.origin_zip || lane.originZip || '',
+    originZip3, // derived
     destinationCity: destinationCity || '',
     destinationState: destinationState || '',
     destinationZip: lane.destination_zip || lane.destinationZip || '',
+    destinationZip3, // derived
     equipmentCode: equipmentCode || 'V',
     test_mode: useTestMode
   };
