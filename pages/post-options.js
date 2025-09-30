@@ -716,6 +716,56 @@ export default function PostOptions() {
     });
   };
 
+  // Generate posting options for a single lane via manual endpoint
+  const handleGenerateOptions = async (lane) => {
+    if (!lane) return;
+    try {
+      // Attempt coordinate resolution if any origin/dest coords are missing
+      if (!lane.origin_latitude || !lane.origin_longitude || !lane.dest_latitude || !lane.dest_longitude) {
+        try {
+          const coordRes = await fetch(`/api/resolve-coords?origin_zip=${lane.origin_zip || ''}&dest_zip=${lane.dest_zip || ''}`);
+          if (coordRes.ok) {
+            const { origin_latitude, origin_longitude, dest_latitude, dest_longitude } = await coordRes.json();
+            lane.origin_latitude = origin_latitude;
+            lane.origin_longitude = origin_longitude;
+            lane.dest_latitude = dest_latitude;
+            lane.dest_longitude = dest_longitude;
+          } else {
+            console.warn('Skipping lane due to missing coords', lane.id);
+            return;
+          }
+        } catch (e) {
+          console.error('Failed to resolve coords', e);
+          return;
+        }
+      }
+
+      console.log('🚀 Generating options for lane', lane.id);
+      const res = await fetch('/api/post-options.manual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lane })
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Failed to generate options: ${text}`);
+      }
+      const data = await res.json();
+      console.log('✅ Options generated', data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Batch generate for all lanes currently loaded (pending set)
+  const handleGenerateAllOptions = async () => {
+    console.log('🚀 Generate All Options clicked, total lanes:', lanes.length);
+    for (const lane of lanes) {
+      // eslint-disable-next-line no-await-in-loop
+      await handleGenerateOptions(lane);
+    }
+  };
+
   if (loading) {
     return (
       <>
@@ -748,6 +798,13 @@ export default function PostOptions() {
                 className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg font-medium"
               >
                 ← Back to Lanes
+              </button>
+              <button
+                onClick={handleGenerateAllOptions}
+                disabled={lanes.length === 0}
+                className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium"
+              >
+                ⚙ Load All Options ({lanes.length})
               </button>
               <button
                 onClick={generateAllPairings}

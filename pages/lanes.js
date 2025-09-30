@@ -349,10 +349,13 @@ function LanesPage() {
       const payload = {
         origin_city: laneData.origin_city,
         origin_state: laneData.origin_state,
-        origin_zip: laneData.origin_zip,
+        // Store both ZIP5 and ZIP3 variants for market logic + accuracy
+        origin_zip5: laneData.origin_zip,
+        origin_zip: laneData.origin_zip ? laneData.origin_zip.slice(0,3) : null,
         dest_city: laneData.dest_city,
         dest_state: laneData.dest_state,
-        dest_zip: laneData.dest_zip,
+        dest_zip5: laneData.dest_zip,
+        dest_zip: laneData.dest_zip ? laneData.dest_zip.slice(0,3) : null,
         equipment_code: laneData.equipment_code,
         length_ft: laneData.length_ft,
         full_partial: laneData.full_partial,
@@ -481,10 +484,13 @@ function LanesPage() {
     const payload = {
       origin_city: lane.origin_city,
       origin_state: lane.origin_state,
-      origin_zip: lane.origin_zip || null,
+      // Preserve original 5-digit zip & derive 3-digit for analytics
+      origin_zip5: lane.origin_zip || null,
+      origin_zip: lane.origin_zip ? lane.origin_zip.slice(0,3) : null,
       dest_city: lane.dest_city,
       dest_state: lane.dest_state,
-      dest_zip: lane.dest_zip || null,
+      dest_zip5: lane.dest_zip || null,
+      dest_zip: lane.dest_zip ? lane.dest_zip.slice(0,3) : null,
       equipment_code: lane.equipment_code,
       length_ft: lane.length_ft,
       full_partial: lane.full_partial || 'full',
