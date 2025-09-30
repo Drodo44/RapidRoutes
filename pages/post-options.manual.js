@@ -132,6 +132,55 @@ export default function PostOptionsManual() {
     }
   };
 
+  // Chunked batch ingest to /api/post-options (new batch mode) for synthetic lanes
+  const handleBatchIngest = async () => {
+    setGenError('');
+    setGenMessage('');
+    try {
+      const all = lanes.filter(l => String(l.id).startsWith('gen_'));
+      if (all.length === 0) {
+        setGenError('No generated lanes to ingest');
+        return;
+      }
+      const chunkSize = 25;
+      let successTotal = 0;
+      let failedTotal = 0;
+      for (let i = 0; i < all.length; i += chunkSize) {
+        const slice = all.slice(i, i + chunkSize);
+        const attempt = async () => {
+          const resp = await fetch('/api/post-options', {
+            method: 'POST',
+            headers: { 'Content-Type':'application/json' },
+            body: JSON.stringify({ lanes: slice })
+          });
+          if (resp.status === 504) throw new Error('Gateway timeout');
+          if (!resp.ok) throw new Error(await resp.text());
+          return resp.json();
+        };
+        let json;
+        try {
+          json = await attempt();
+        } catch (e1) {
+          console.warn('Chunk failed, retrying once:', e1.message);
+          try {
+            json = await attempt();
+          } catch (e2) {
+            console.error('Chunk retry failed:', e2.message);
+            failedTotal += slice.length;
+            continue;
+          }
+        }
+        successTotal += json?.counts?.success || 0;
+        failedTotal += json?.counts?.failed || 0;
+        console.log(`Chunk ${(i/chunkSize)+1}:`, json);
+      }
+      setGenMessage(`Ingest complete: success ${successTotal}, failed ${failedTotal}`);
+    } catch (err) {
+      console.error('Batch ingest error:', err);
+      setGenError('Batch ingest failed');
+    }
+  };
+
   async function loadAllPostOptions() {
     if (loadingAll) return;
     setLoadingAll(true);
@@ -231,6 +280,13 @@ export default function PostOptionsManual() {
           className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed rounded text-white text-sm font-medium"
         >
           {loadingAll ? 'Generating…' : 'Generate All'}
+        </button>
+        <button
+          onClick={handleBatchIngest}
+          disabled={loadingAll}
+          className="px-4 py-2 bg-gray-600 hover:bg-gray-500 disabled:opacity-50 disabled:cursor-not-allowed rounded text-white text-sm font-medium"
+        >
+          {loadingAll ? 'Processing…' : 'Ingest Generated'}
         </button>
         {masterLoaded && <span className="text-xs text-green-400">All lanes loaded ✓</span>}
       </div>
