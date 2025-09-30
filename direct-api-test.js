@@ -19,7 +19,7 @@ async function testCsvGeneration() {
     const { data: lanes, error } = await adminSupabase
       .from('lanes')
       .select('*')
-      .eq('status', 'pending')
+  .eq('lane_status', 'pending')
       .order('created_at', { ascending: false })
       .limit(3);
     

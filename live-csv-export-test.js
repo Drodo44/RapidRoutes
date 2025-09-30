@@ -11,7 +11,7 @@ async function testLiveCsvExport() {
     const { data: lanes, error: dbError } = await adminSupabase
       .from('lanes')
       .select('id, pickup_earliest, pickup_latest, origin_city, dest_city, equipment_code, weight_lbs')
-      .eq('status', 'pending')
+  .eq('lane_status', 'pending')
       .limit(5);
 
     if (dbError) {

@@ -12,7 +12,7 @@ async function testCsvGeneration() {
     const { data: lanes, error: dbError } = await adminSupabase
       .from('lanes')
       .select('*')
-      .eq('status', 'pending');
+  .eq('lane_status', 'pending');
 
     if (dbError) {
       console.error('❌ Database query failed:', dbError);

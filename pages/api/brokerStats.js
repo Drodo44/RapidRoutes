@@ -35,7 +35,7 @@ export default async function handler(req, res) {
     const { data: pendingLanesData, error: pendingLanesError, count: pendingLanesCount } = await adminSupabase
       .from('lanes')
       .select('*', { count: 'exact' })
-      .eq('status', 'pending');
+  .eq('lane_status', 'pending');
 
     if (pendingLanesError) {
       console.error('❌ Error fetching pending lanes:', pendingLanesError);
@@ -45,7 +45,7 @@ export default async function handler(req, res) {
     const { data: postedLanesData, error: postedLanesError, count: postedLanesCount } = await adminSupabase
       .from('lanes')
       .select('*', { count: 'exact' })
-      .eq('status', 'posted');
+  .eq('lane_status', 'posted');
 
     if (postedLanesError) {
       console.error('❌ Error fetching posted lanes:', postedLanesError);
@@ -55,7 +55,7 @@ export default async function handler(req, res) {
     const { data: coveredLanesData, error: coveredLanesError, count: coveredLanesCount } = await adminSupabase
       .from('lanes')
       .select('*', { count: 'exact' })
-      .eq('status', 'covered');
+  .eq('lane_status', 'covered');
 
     if (coveredLanesError) {
       console.error('❌ Error fetching covered lanes:', coveredLanesError);

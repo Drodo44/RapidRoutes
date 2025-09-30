@@ -41,7 +41,7 @@ export default function RecapExport() {
         const { data } = await supabase
           .from('lanes')
           .select('*')
-          .in('status', ['pending', 'posted'])
+          .in('lane_status', ['pending', 'posted'])
           .limit(200);
         setLanes(data || []);
         setLoading(false);
@@ -64,7 +64,7 @@ export default function RecapExport() {
         await fetchAIRecaps(lanesData.map(l => l.id));
         
         // Load posted pairs for posted lanes (same logic as main recap page)
-        const postedLanes = lanesData.filter(lane => lane.status === 'posted');
+  const postedLanes = lanesData.filter(lane => (lane.lane_status || lane.status) === 'posted');
         const allPairs = [];
         
         for (const lane of postedLanes) {
@@ -273,7 +273,7 @@ export default function RecapExport() {
             >
               <option value="">Jump to lane...</option>
               {/* Posted lanes with their pairs */}
-              {lanes.filter(lane => lane.status === 'posted').map(lane => {
+              {lanes.filter(lane => (lane.lane_status || lane.status) === 'posted').map(lane => {
                 const lanePostedPairs = postedPairs.filter(pair => pair.laneId === lane.id);
                 const basePair = lanePostedPairs.find(pair => pair.isBase);
                 const generatedPairs = lanePostedPairs.filter(pair => !pair.isBase);
@@ -293,9 +293,9 @@ export default function RecapExport() {
                 ) : null;
               })}
               {/* Pending lanes */}
-              {lanes.filter(lane => lane.status === 'pending').length > 0 && (
+              {lanes.filter(lane => (lane.lane_status || lane.status) === 'pending').length > 0 && (
                 <optgroup label="⏳ PENDING LANES">
-                  {lanes.filter(lane => lane.status === 'pending').slice(0, 10).map((lane) => (
+                  {lanes.filter(lane => (lane.lane_status || lane.status) === 'pending').slice(0, 10).map((lane) => (
                     <option key={`pending-${lane.id}`} value={`pending-${lane.id}`}>
                       ⏳ {lane.origin_city}, {lane.origin_state} → {lane.dest_city}, {lane.dest_state} • REF #{getDisplayReferenceId(lane)}
                     </option>
@@ -385,7 +385,7 @@ export default function RecapExport() {
                     
                     <div className="p-3">
                       {/* Show generated pairs for posted lanes */}
-                      {lane.status === 'posted' && postedPairs.filter(pair => pair.laneId === lane.id).length > 0 && (
+                      {(lane.lane_status || lane.status) === 'posted' && postedPairs.filter(pair => pair.laneId === lane.id).length > 0 && (
                         <div className="mb-3">
                           <h4 className="text-sm font-medium text-gray-700 mb-1">Posted Lanes ({postedPairs.filter(pair => pair.laneId === lane.id).length} total)</h4>
                           <div className="space-y-1 max-h-32 overflow-y-auto">
@@ -462,15 +462,15 @@ export default function RecapExport() {
                       )}
                       
                       {/* Fallbacks when no data available */}
-                      {!recap && lane.status !== 'posted' && lane.comment && (
+                      {!recap && (lane.lane_status || lane.status) !== 'posted' && lane.comment && (
                         <div className="text-sm text-gray-600">{lane.comment}</div>
                       )}
                       
-                      {!recap && lane.status !== 'posted' && !lane.comment && (
+                      {!recap && (lane.lane_status || lane.status) !== 'posted' && !lane.comment && (
                         <div className="text-sm text-gray-500 italic">Generate AI insights or mark as posted to see more details</div>
                       )}
                       
-                      {lane.status === 'posted' && postedPairs.filter(pair => pair.laneId === lane.id).length === 0 && (
+                      {(lane.lane_status || lane.status) === 'posted' && postedPairs.filter(pair => pair.laneId === lane.id).length === 0 && (
                         <div className="text-sm text-gray-500 italic">Loading posted pairs...</div>
                       )}
                     </div>

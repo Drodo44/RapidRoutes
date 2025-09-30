@@ -22,12 +22,12 @@ export default async function handler(req, res) {
   try {
     // GET - Get lanes with filtering
     if (req.method === 'GET') {
-      const { status, days, all, limit = 100 } = req.query;
+      const { status: laneStatusFilter, days, all, limit = 100 } = req.query;
 
       let query = adminSupabase.from('lanes').select('*');
 
-      if (status) {
-        query = query.eq('status', status);
+      if (laneStatusFilter) {
+        query = query.eq('lane_status', laneStatusFilter);
       }
 
       if (days) {
@@ -127,7 +127,7 @@ export default async function handler(req, res) {
       // Create the final lane object with standardized fields only
       const lane = {
         ...payloadWithoutDestFields, // Base fields excluding any dest_* variants
-        status: payload.status || 'pending',
+  lane_status: payload.lane_status || payload.status || 'pending',
         reference_id: generateReferenceId(),
         created_at: new Date().toISOString(),
         created_by: auth.user.id,

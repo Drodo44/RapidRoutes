@@ -10,10 +10,13 @@ export default async function handler(req, res) {
     const { data: lanes, error } = await supabase
       .from('lanes')
       .select('*')
-      .eq('status', 'pending')
+      .eq('lane_status', 'pending')
       .order('created_at', { ascending: false });
     
-    if (error) throw error;
+    if (error) {
+      console.error('Failed to fetch lanes', error);
+      return res.status(500).json({ error: 'Failed to fetch lanes', details: error.message });
+    }
     
     console.log(`Found ${lanes?.length || 0} pending lanes`);
     
@@ -30,6 +33,6 @@ export default async function handler(req, res) {
     });
   } catch (error) {
     console.error('Lane check error:', error);
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: 'Unexpected failure', details: error.message });
   }
 }

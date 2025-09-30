@@ -108,7 +108,7 @@ async function runQADiagnostics() {
     const { data: pendingLanes, error: fetchError } = await mockSupabase
       .from('lanes')
       .select('*')
-      .eq('status', 'pending')
+  .eq('lane_status', 'pending')
       .order('created_at', { ascending: false })
       .limit(10);
 

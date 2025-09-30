@@ -21,7 +21,7 @@ async function fetchPendingLanes(limit = 4) {
   const { data, error } = await supabase
     .from('lanes')
     .select('id, origin_city, origin_state, origin_zip, dest_city, dest_state, dest_zip, equipment_code, length_ft, weight_lbs, randomize_weight, weight_min, weight_max, full_partial, pickup_earliest, pickup_latest, commodity, comment, status, created_at')
-    .eq('status', 'pending')
+  .eq('lane_status', 'pending')
     .order('created_at', { ascending: true })
     .limit(limit);
   if (error) throw error;

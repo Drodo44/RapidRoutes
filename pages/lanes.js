@@ -266,10 +266,10 @@ function LanesPage() {
         { data: covered = [], error: coveredError },
         { data: archived = [], error: archivedError }
       ] = await Promise.all([
-        supabase.from('lanes').select('*').eq('status', 'pending').order('created_at', { ascending: false }).limit(200),
-        supabase.from('lanes').select('*').eq('status', 'posted').order('created_at', { ascending: false }).limit(200),
-        supabase.from('lanes').select('*').eq('status', 'covered').order('created_at', { ascending: false }).limit(200),
-        supabase.from('lanes').select('*').eq('status', 'archived').order('created_at', { ascending: false }).limit(50),
+  supabase.from('lanes').select('*').eq('lane_status', 'pending').order('created_at', { ascending: false }).limit(200),
+  supabase.from('lanes').select('*').eq('lane_status', 'posted').order('created_at', { ascending: false }).limit(200),
+  supabase.from('lanes').select('*').eq('lane_status', 'covered').order('created_at', { ascending: false }).limit(200),
+  supabase.from('lanes').select('*').eq('lane_status', 'archived').order('created_at', { ascending: false }).limit(50),
       ]);
 
       if (pendingError) throw pendingError;
@@ -502,7 +502,7 @@ function LanesPage() {
     };
 
     console.log('🚀 Making POST request to /api/lanes');
-    console.log('🚀 Payload status:', payload.status);
+  console.log('🚀 Payload lane_status:', payload.lane_status || payload.status);
     console.log('🚀 Payload:', payload);
     
     const response = await fetch('/api/lanes', {
@@ -540,8 +540,9 @@ function LanesPage() {
 
     // Optimistically update UI so new lane appears immediately (works around list fetch timing/RLS delays)
     try {
-      console.log('🔄 Updating UI - New lane status:', newLane.status);
-      if (newLane.status === 'posted') {
+  console.log('🔄 Updating UI - New lane lane_status:', newLane.lane_status || newLane.status);
+  const laneStatus = newLane.lane_status || newLane.status;
+  if (laneStatus === 'posted') {
         console.log('📮 Adding to Posted list');
         setPosted((prev) => [newLane, ...(prev || [])]);
       } else {
@@ -716,7 +717,7 @@ function LanesPage() {
       }
 
       // Get only pending lanes for CSV generation
-      const activeCount = pending.filter(l => l.status === 'pending').length;
+  const activeCount = pending.filter(l => (l.lane_status || l.status) === 'pending').length;
       
       if (activeCount === 0) {
         alert('No active lanes to generate CSV for. Create some lanes first.');
@@ -798,11 +799,11 @@ function LanesPage() {
                     Found Lane: {searchResult.lane.origin_city}, {searchResult.lane.origin_state} → {searchResult.lane.dest_city}, {searchResult.lane.dest_state}
                   </h3>
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    searchResult.lane.status === 'covered' ? 'bg-green-100 text-green-800' :
-                    searchResult.lane.status === 'archived' ? 'bg-gray-100 text-gray-800' :
+                    (searchResult.lane.lane_status || searchResult.lane.status) === 'covered' ? 'bg-green-100 text-green-800' :
+                    (searchResult.lane.lane_status || searchResult.lane.status) === 'archived' ? 'bg-gray-100 text-gray-800' :
                     'bg-blue-100 text-blue-800'
                   }`}>
-                    {searchResult.lane.status}
+                    {searchResult.lane.lane_status || searchResult.lane.status}
                   </span>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm text-gray-300">
@@ -1005,27 +1006,27 @@ function LanesPage() {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  {(l.status === 'pending' || l.status === 'posted') && (
+                  {((l.lane_status || l.status) === 'pending' || (l.lane_status || l.status) === 'posted') && (
                     <button onClick={() => startEditLane(l)} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg">
                       ✏️ Edit
                     </button>
                   )}
-                  {(l.status === 'pending' || l.status === 'posted') && (
+                  {((l.lane_status || l.status) === 'pending' || (l.lane_status || l.status) === 'posted') && (
                     <button onClick={() => updateStatus(l, 'covered')} className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg">
                       Mark Covered
                     </button>
                   )}
-                  {l.status === 'covered' && (
+                  {(l.lane_status || l.status) === 'covered' && (
                     <button onClick={() => postAgain(l)} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm rounded-lg">
                       🚀 Post Again
                     </button>
                   )}
-                  {l.status === 'covered' && (
+                  {(l.lane_status || l.status) === 'covered' && (
                     <button onClick={() => updateStatus(l, 'archived')} className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-sm rounded-lg">
                       Archive
                     </button>
                   )}
-                  {l.status === 'archived' && (
+                  {(l.lane_status || l.status) === 'archived' && (
                     <button onClick={() => updateStatus(l, 'covered')} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg">
                       Restore to Covered
                     </button>

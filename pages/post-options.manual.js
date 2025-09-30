@@ -28,23 +28,23 @@ export default function PostOptionsManual() {
         }
         const base = `${SUPABASE_URL}/rest/v1/lanes`;
         // Removed deprecated 'status' column from selection – schema now uses lane_status only
-        const selectFields = 'id,origin_city,origin_state,destination_city,destination_state,origin_latitude,origin_longitude,destination_latitude,destination_longitude,lane_status,created_at';
+  // Updated select fields: use dest_latitude/dest_longitude (new schema) and lane_status only
+  const selectFields = 'id,origin_city,origin_state,destination_city,destination_state,origin_latitude,origin_longitude,dest_latitude,dest_longitude,lane_status,created_at,dest_city,dest_state';
         const headers = { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` };
         // Single attempt: filter using lane_status only
         const url2 = `${base}?select=${encodeURIComponent(selectFields)}&lane_status=eq.pending&order=created_at.desc`;
         try {
           const r2 = await fetch(url2, { headers });
           if (!r2.ok) {
-            console.warn('lane_status fetch attempt failed', r2.status);
+            const text = await r2.text().catch(()=> '');
+            console.error('Failed to load lanes', r2.status, text);
             return [];
           }
           const data2 = await r2.json();
-            if (Array.isArray(data2)) {
-              return data2.map(row => ({
-                ...row,
-                status: row.lane_status
-              }));
-            }
+          if (Array.isArray(data2)) {
+            // Normalize lane objects: expose only lane_status (no legacy status)
+            return data2.map(row => ({ ...row }));
+          }
         } catch (e) {
           console.error('lane_status fetch error', e);
         }

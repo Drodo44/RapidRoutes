@@ -34,7 +34,7 @@ async function phase6ProductionVerification() {
         const { data: pendingLanes, error: lanesError } = await adminSupabase
             .from('lanes')
             .select('*')
-            .eq('status', 'pending')
+            .eq('lane_status', 'pending')
             .order('created_at', { ascending: false })
             .limit(5);
             

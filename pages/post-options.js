@@ -66,7 +66,7 @@ export default function PostOptions() {
       const { data, error } = await supabase
         .from('lanes')
         .select('*')
-        .eq('status', 'pending')
+  .eq('lane_status', 'pending')
         .order('created_at', { ascending: false });
       
       if (error) throw error;

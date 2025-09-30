@@ -62,10 +62,12 @@ export default async function handler(req, res) {
       }
       
       // Filter allowed update fields for security
+      // Fields that can be updated by the user; use lane_status instead of deprecated status
       const allowedFields = [
         'pickup_earliest', 'pickup_latest', 'weight_lbs', 'weight_min', 'weight_max',
-        'comment', 'commodity', 'status', 'full_partial', 'length_ft',
-        'destination_city', 'destination_state' // Allow updating destination fields
+        'comment', 'commodity', 'lane_status', 'full_partial', 'length_ft',
+        'destination_city', 'destination_state', 'dest_city', 'dest_state',
+        'dest_latitude', 'dest_longitude'
       ];
       
       // Extract and map destination fields if using dest_* aliases
@@ -99,11 +101,16 @@ export default async function handler(req, res) {
         .from('lanes')
         .update(filteredUpdates)
         .eq('id', id)
-        .select('*')
-        .single();
-      
-      if (error) throw error;
-      return res.status(200).json(data);
+        .select('*');
+
+      if (error) {
+        console.error('Failed to update lane', error);
+        return res.status(500).json({ error: 'Failed to update lane', details: error.message });
+      }
+      if (!data || data.length === 0) {
+        return res.status(404).json({ error: 'Lane not found after update' });
+      }
+      return res.status(200).json({ lane: data[0] });
     }
     
     // DELETE - Delete lane

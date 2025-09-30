@@ -183,7 +183,7 @@ try {
 const { data, error } = await supabase
   .from('lanes')
   .select('*')
-  .eq('status', 'active')
+  .eq('lane_status', 'active')
   .order('created_at', { ascending: false });
 
 if (error) {

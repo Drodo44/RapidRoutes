@@ -64,7 +64,7 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
                 REF #{getDisplayReferenceId(lane)}
               </div>
             )}
-            <div className="text-xs px-2 py-1 rounded-full font-medium bg-blue-900/60 text-blue-200">{lane.status}</div>
+            <div className="text-xs px-2 py-1 rounded-full font-medium bg-blue-900/60 text-blue-200">{lane.lane_status || lane.status}</div>
           </div>
         </div>
         <div className="text-xs text-gray-300 mt-1">
@@ -82,7 +82,7 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
       </div>
 
       {/* Show generated lanes instead of AI talking points */}
-      {lane.status === 'posted' && laneGeneratedPairs.length > 0 && (
+  {(lane.lane_status || lane.status) === 'posted' && laneGeneratedPairs.length > 0 && (
         <div className="border-t border-gray-700 bg-gray-900 p-4">
           <div className="mb-3">
             <h4 className="text-sm font-medium text-blue-300 mb-2 flex items-center">
@@ -164,7 +164,7 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
       )}
 
       {/* Show generate button only for lanes that need AI insights and don't have generated pairs */}
-      {!recapData && lane.status !== 'posted' && (
+  {!recapData && (lane.lane_status || lane.status) !== 'posted' && (
         <div className="border-t border-gray-700 bg-gray-900 p-4 flex items-center justify-center">
           <button 
             onClick={() => onGenerateRecap(lane.id)}
@@ -194,14 +194,14 @@ export default function RecapPage() {
     supabase
       .from('lanes')
       .select('*')
-      .in('status', ['pending', 'posted'])
+      .in('lane_status', ['pending', 'posted'])
       .order('created_at', { ascending: false })
       .limit(200)
       .then(async ({ data }) => {
         setLanes(data || []);
         
         // For posted lanes, get their generated pairs for the dropdown
-        const postedLanes = (data || []).filter(lane => lane.status === 'posted');
+  const postedLanes = (data || []).filter(lane => (lane.lane_status || lane.status) === 'posted');
         const allPairs = [];
         
         for (const lane of postedLanes) {
@@ -392,7 +392,7 @@ export default function RecapPage() {
           <p className="text-gray-400">Generate AI-powered talking points for client conversations</p>
           
           {/* Add workflow guidance */}
-          {lanes.filter(lane => lane.status === 'pending').length > 0 && (
+          {lanes.filter(lane => (lane.lane_status || lane.status) === 'pending').length > 0 && (
             <div className="mt-4 p-3 bg-blue-900/30 border border-blue-700 rounded-lg">
               <div className="text-sm text-blue-200">
                 <strong>💡 Workflow:</strong> Export CSV → Upload to DAT → Mark lanes as "Posted" → Use recap system to match incoming calls
@@ -400,7 +400,7 @@ export default function RecapPage() {
             </div>
           )}
           
-          {lanes.filter(lane => lane.status === 'posted').length === 0 && lanes.length > 0 && (
+          {lanes.filter(lane => (lane.lane_status || lane.status) === 'posted').length === 0 && lanes.length > 0 && (
             <div className="mt-4 p-3 bg-amber-900/30 border border-amber-700 rounded-lg">
               <div className="text-sm text-amber-200">
                 <strong>📋 No Posted Lanes:</strong> Mark your lanes as "Posted" after uploading CSV to DAT to see generated pairs here
@@ -516,7 +516,7 @@ export default function RecapPage() {
                 >
                   <option value="">📍 Jump to posted lane/pair...</option>
                   {/* Only show posted lanes with their actual generated pairs */}
-                  {lanes.filter(lane => lane.status === 'posted' && postedPairs.some(pair => pair.laneId === lane.id)).map(lane => {
+                  {lanes.filter(lane => (lane.lane_status || lane.status) === 'posted' && postedPairs.some(pair => pair.laneId === lane.id)).map(lane => {
                     const basePair = postedPairs.find(pair => pair.laneId === lane.id && pair.isBase);
                     const generatedPairs = postedPairs.filter(pair => pair.laneId === lane.id && !pair.isBase);
                     
@@ -540,9 +540,9 @@ export default function RecapPage() {
                   })}
                   
                   {/* Show pending lanes for reference */}
-                  {lanes.filter(lane => lane.status === 'pending').length > 0 && (
+                  {lanes.filter(lane => (lane.lane_status || lane.status) === 'pending').length > 0 && (
                     <optgroup label="⏳ PENDING LANES (Mark as posted after CSV upload)">
-                      {lanes.filter(lane => lane.status === 'pending').slice(0, 10).map((lane) => (
+                      {lanes.filter(lane => (lane.lane_status || lane.status) === 'pending').slice(0, 10).map((lane) => (
                         <option key={`pending-${lane.id}`} value={`pending-${lane.id}`}>
                           ⏳ {lane.origin_city}, {lane.origin_state} → {lane.dest_city}, {lane.dest_state}
                           {lane.reference_id && ` • REF #${cleanReferenceId(lane.reference_id)}`}

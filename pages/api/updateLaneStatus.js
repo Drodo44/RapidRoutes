@@ -19,28 +19,27 @@ export default async function handler(req, res) {
       return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    const { laneId, status } = req.body;
-    
-    if (!laneId || !status) {
-      return res.status(400).json({ error: 'Lane ID and status required' });
+    const { id, lane_status } = req.body;
+
+    if (!id || !lane_status) {
+      return res.status(400).json({ error: 'Missing id or lane_status' });
     }
 
-    // Valid status values
-    const validStatuses = ['pending', 'posted', 'covered'];
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({ error: 'Invalid status' });
+    const validStatuses = ['pending', 'posted', 'covered', 'archived'];
+    if (!validStatuses.includes(lane_status)) {
+      return res.status(400).json({ error: 'Invalid lane_status value' });
     }
 
-    // Update the lane status
-    const { data, error } = await adminSupabase
+    const { error } = await adminSupabase
       .from('lanes')
-      .update({ status })
-      .eq('id', laneId)
-      .select();
-    
-    if (error) throw error;
-    
-    return res.status(200).json(data?.[0] || null);
+      .update({ lane_status })
+      .eq('id', id);
+
+    if (error) {
+      console.error('Failed to update lane_status', error);
+      return res.status(500).json({ error: 'Failed to update lane_status', details: error.message });
+    }
+    return res.status(200).json({ message: 'Lane status updated' });
   } catch (error) {
     console.error('Update Lane Status error:', error);
     return res.status(500).json({ error: error.message || 'Internal server error' });

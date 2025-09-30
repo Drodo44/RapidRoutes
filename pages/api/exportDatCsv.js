@@ -18,7 +18,7 @@ async function getPendingRowCount() {
   const { data: lanes, error } = await adminSupabase
     .from('lanes')
     .select('id')
-    .eq('status', 'pending');
+  .eq('lane_status', 'pending');
     
   if (error) throw error;
   return (lanes?.length || 0) * (MIN_PAIRS_REQUIRED * ROWS_PER_PAIR); // Each lane needs minimum pairs × contact methods
@@ -37,7 +37,7 @@ async function selectLanes({ pending, days, all }) {
     .order('created_at', { ascending: false });
 
   if (pending) {
-    q = q.eq('status', 'pending');
+  q = q.eq('lane_status', 'pending');
   } else if (all) {
     // no additional filters
   } else if (days != null) {
@@ -45,7 +45,7 @@ async function selectLanes({ pending, days, all }) {
     q = q.gte('created_at', since);
   } else {
     // default: pending
-    q = q.eq('status', 'pending');
+  q = q.eq('lane_status', 'pending');
   }
 
   const { data, error } = await q.limit(2000); // sane cap for bulk exports

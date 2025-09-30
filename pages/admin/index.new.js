@@ -18,7 +18,7 @@ function AdminDashboard({ userProfile }) {
     try {
       // Load basic stats
       const [lanesResult, citiesResult, equipmentResult] = await Promise.all([
-        supabase.from('lanes').select('id').eq('status', 'active'),
+  supabase.from('lanes').select('id').eq('lane_status', 'active'),
         supabase.from('cities').select('id'),
         supabase.from('equipment_codes').select('code')
       ]);

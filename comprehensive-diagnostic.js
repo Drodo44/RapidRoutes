@@ -29,7 +29,7 @@ async function diagnosticReport() {
     const { data: allLanes, error: fetchError } = await adminSupabase
       .from('lanes')
       .select('*')
-      .eq('status', 'pending')
+  .eq('lane_status', 'pending')
       .order('created_at', { ascending: false })
       .limit(10); // Test with first 10 pending lanes
 

@@ -7,7 +7,7 @@ export default async function handler(req, res) {
     const { data: lanes, error: lanesError } = await adminSupabase
       .from('lanes')
       .select('origin_city, origin_state, dest_city, dest_state')
-      .eq('status', 'pending')
+  .eq('lane_status', 'pending')
       .limit(5);
     
     if (lanesError) throw lanesError;
