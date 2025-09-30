@@ -1,8 +1,9 @@
 // pages/api/generateAll.js
 // Aggregate active core_pickups plus fallback pending lanes, enrich with coordinates/KMA.
 // Returns a unified list consumable by posting / option generation workflows.
-import { adminSupabase } from '../../utils/supabaseAdminClient';
-import { resolveCoords } from '../../lib/resolve-coords';
+// Use alias-based imports for enterprise consistency (@ maps to project root)
+import { adminSupabase } from '@/lib/supabaseAdminClient';
+import { resolveCoords } from '@/lib/resolve-coords';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
