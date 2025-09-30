@@ -12,6 +12,8 @@ export default function PostOptionsManual() {
   const [radius, setRadius] = useState(100);
   const [loadingAll, setLoadingAll] = useState(false);
   const [masterLoaded, setMasterLoaded] = useState(false);
+  const [genError, setGenError] = useState('');
+  const [genMessage, setGenMessage] = useState('');
 
   useEffect(() => {
     (async () => {
@@ -96,6 +98,39 @@ export default function PostOptionsManual() {
       setOptionsByLane(prev => ({ ...prev, [lane.id]: { ...(prev[lane.id]||{}), loading:false } }));
     }
   }
+
+  // Enterprise Generate All: core_pickups + pending lanes fallback
+  const handleGenerateAll = async () => {
+    setGenError('');
+    setGenMessage('');
+    try {
+      setLoadingAll(true);
+      const res = await fetch('/api/generateAll', { method: 'POST' });
+      if (!res.ok) {
+        const body = await res.text();
+        console.error('Generate All failed:', body);
+        setGenError('Failed to generate all lanes');
+        return;
+      }
+      const { lanes: generated, counts } = await res.json();
+      console.log('Generate All returned:', generated, counts);
+      // Strategy: merge generated (without IDs) into local list for option loading.
+      // Provide synthetic IDs to avoid key collisions when feeding into existing loaders.
+      const synthetic = generated.map((g, idx) => ({ id: `gen_${idx}_${g.origin_zip5 || g.origin_zip || idx}`, ...g }));
+      setLanes(prev => {
+        // Keep existing pending lanes (with real IDs) and append synthetic seeds.
+        const existingSyntheticIds = new Set(prev.filter(p => String(p.id).startsWith('gen_')).map(p => p.id));
+        const newOnes = synthetic.filter(s => !existingSyntheticIds.has(s.id));
+        return [...prev, ...newOnes];
+      });
+      setGenMessage(`Generated ${generated.length} origin seeds (core: ${counts?.pickups ?? 0}, fallback: ${counts?.fallback ?? 0}).`);
+    } catch (err) {
+      console.error('Error in handleGenerateAll:', err);
+      setGenError('Unexpected error during generation');
+    } finally {
+      setLoadingAll(false);
+    }
+  };
 
   async function loadAllPostOptions() {
     if (loadingAll) return;
@@ -190,8 +225,21 @@ export default function PostOptionsManual() {
         >
           {loadingAll ? 'Loading All…' : `Load All Options (${lanes.length})`}
         </button>
+        <button
+          onClick={handleGenerateAll}
+          disabled={loadingAll}
+          className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed rounded text-white text-sm font-medium"
+        >
+          {loadingAll ? 'Generating…' : 'Generate All'}
+        </button>
         {masterLoaded && <span className="text-xs text-green-400">All lanes loaded ✓</span>}
       </div>
+      {(genError || genMessage) && (
+        <div className="mb-4 text-sm">
+          {genError && <div className="text-red-400">⚠ {genError}</div>}
+          {genMessage && <div className="text-green-400">{genMessage}</div>}
+        </div>
+      )}
       {lanes.length === 0 && <p className="text-gray-400">No pending lanes.</p>}
       <div className="flex flex-col gap-6">
         {lanes.map(lane => {
