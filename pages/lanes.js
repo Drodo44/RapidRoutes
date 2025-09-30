@@ -364,7 +364,8 @@ function LanesPage() {
         weight_max: laneData.weight_max,
         comment: laneData.comment,
         commodity: laneData.commodity,
-        status: 'pending',
+  // Use new lane_status column; do not set deprecated status
+  lane_status: 'pending',
         user_id: authSession.user.id,
         created_by: authSession.user.id
       };
@@ -493,9 +494,10 @@ function LanesPage() {
       weight_lbs: lane.weight_lbs || null,
       weight_min: lane.weight_min || null,
       weight_max: lane.weight_max || null,
-      comment: lane.comment || null,
-      commodity: lane.commodity || null,
-      status: 'pending',
+  comment: lane.comment || null,
+  commodity: lane.commodity || null,
+  // Use new lane_status column for reposted lanes
+  lane_status: 'pending',
       reference_id: generateNewReferenceId(),
       user_id: session.user.id,
       created_by: session.user.id
@@ -669,7 +671,8 @@ function LanesPage() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({ laneId: lane.id, status }),
+  // API now expects { id, lane_status }
+  body: JSON.stringify({ id: lane.id, lane_status: status }),
       });
       
       if (!response.ok) {
