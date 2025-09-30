@@ -137,44 +137,47 @@ export default function PostOptionsManual() {
     setGenError('');
     setGenMessage('');
     try {
-      const all = lanes.filter(l => String(l.id).startsWith('gen_'));
-      if (all.length === 0) {
+      const generated = lanes.filter(l => String(l.id).startsWith('gen_'));
+      if (generated.length === 0) {
         setGenError('No generated lanes to ingest');
         return;
       }
-      const chunkSize = 25;
-      let successTotal = 0;
-      let failedTotal = 0;
-      for (let i = 0; i < all.length; i += chunkSize) {
-        const slice = all.slice(i, i + chunkSize);
-        const attempt = async () => {
-          const resp = await fetch('/api/post-options', {
-            method: 'POST',
-            headers: { 'Content-Type':'application/json' },
-            body: JSON.stringify({ lanes: slice })
-          });
-          if (resp.status === 504) throw new Error('Gateway timeout');
-          if (!resp.ok) throw new Error(await resp.text());
-          return resp.json();
-        };
-        let json;
-        try {
-          json = await attempt();
-        } catch (e1) {
-          console.warn('Chunk failed, retrying once:', e1.message);
+      const CHUNK = 20;
+      const MAX_RETRIES = 2;
+      let succeeded = 0; let failed = 0; let processed = 0;
+      for (let i = 0; i < generated.length; i += CHUNK) {
+        const slice = generated.slice(i, i + CHUNK);
+        let attempt = 0; let done = false; let lastErr = null;
+        while (attempt <= MAX_RETRIES && !done) {
+          attempt++;
           try {
-            json = await attempt();
-          } catch (e2) {
-            console.error('Chunk retry failed:', e2.message);
-            failedTotal += slice.length;
-            continue;
+            const resp = await fetch('/api/post-options', {
+              method: 'POST',
+              headers: { 'Content-Type':'application/json' },
+              body: JSON.stringify({ lanes: slice })
+            });
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const json = await resp.json();
+            succeeded += json.success || json.counts?.success || 0;
+            failed += json.failed || json.counts?.failed || 0;
+            processed = Math.min(i + slice.length, generated.length);
+            setGenMessage(`Processed ${processed}/${generated.length} (success: ${succeeded}, failed: ${failed})`);
+            done = true;
+          } catch (e) {
+            lastErr = e;
+            if (attempt > MAX_RETRIES) {
+              failed += slice.length;
+              processed = Math.min(i + slice.length, generated.length);
+              setGenError(`Chunk ${Math.floor(i/CHUNK)} failed permanently: ${e.message}`);
+            } else {
+              setGenMessage(`Retrying chunk ${Math.floor(i/CHUNK)} (attempt ${attempt})...`);
+              const backoff = attempt * 800; // exponential-ish backoff
+              await new Promise(r => setTimeout(r, backoff));
+            }
           }
         }
-        successTotal += json?.counts?.success || 0;
-        failedTotal += json?.counts?.failed || 0;
-        console.log(`Chunk ${(i/chunkSize)+1}:`, json);
       }
-      setGenMessage(`Ingest complete: success ${successTotal}, failed ${failedTotal}`);
+      setGenMessage(`🎯 Ingest complete: success ${succeeded}, failed ${failed}`);
     } catch (err) {
       console.error('Batch ingest error:', err);
       setGenError('Batch ingest failed');
