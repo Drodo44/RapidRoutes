@@ -484,13 +484,13 @@ function LanesPage() {
     const payload = {
       origin_city: lane.origin_city,
       origin_state: lane.origin_state,
-      // Preserve original 5-digit zip & derive 3-digit for analytics
-      origin_zip5: lane.origin_zip || null,
-      origin_zip: lane.origin_zip ? lane.origin_zip.slice(0,3) : null,
+      // Preserve original 5-digit zip if present; fallback to legacy origin_zip
+      origin_zip5: lane.origin_zip5 ?? lane.origin_zip ?? null,
+      origin_zip: (lane.origin_zip5 ?? lane.origin_zip) ? (lane.origin_zip5 ?? lane.origin_zip).slice(0,3) : null,
       dest_city: lane.dest_city,
       dest_state: lane.dest_state,
-      dest_zip5: lane.dest_zip || null,
-      dest_zip: lane.dest_zip ? lane.dest_zip.slice(0,3) : null,
+      dest_zip5: lane.dest_zip5 ?? lane.dest_zip ?? null,
+      dest_zip: (lane.dest_zip5 ?? lane.dest_zip) ? (lane.dest_zip5 ?? lane.dest_zip).slice(0,3) : null,
       equipment_code: lane.equipment_code,
       length_ft: lane.length_ft,
       full_partial: lane.full_partial || 'full',
