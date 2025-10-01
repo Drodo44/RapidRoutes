@@ -375,12 +375,15 @@ export default function PostOptionsManual() {
       )}
       {lanes.length === 0 && <p className="text-gray-400">No pending lanes.</p>}
       <div className="flex flex-col gap-6">
-        {lanes.map(lane => {
-          const state = optionsByLane[lane.id];
-          const hasCoords = typeof lane.origin_latitude === 'number' && typeof lane.origin_longitude === 'number';
-          const needsEnrichment = !hasCoords && String(lane.id).startsWith('gen_');
-          return (
-            <div key={lane.id} className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+        {(() => {
+          console.log('[Render] Rendering lane cards, lanes.length:', lanes.length);
+          console.log('[Render] Sample lane IDs:', lanes.slice(0, 5).map(l => l.id));
+          return lanes.map(lane => {
+            const state = optionsByLane[lane.id];
+            const hasCoords = typeof lane.origin_latitude === 'number' && typeof lane.origin_longitude === 'number';
+            const needsEnrichment = !hasCoords && String(lane.id).startsWith('gen_');
+            return (
+              <div key={lane.id} className="bg-gray-800 border border-gray-700 rounded-lg p-4">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
                 <div className="text-gray-100 font-medium">
                   {lane.origin_city}, {lane.origin_state} → {lane.destination_city || '(generated)'}, {lane.destination_state || ''}
@@ -407,7 +410,8 @@ export default function PostOptionsManual() {
               )}
             </div>
           );
-        })}
+        });
+        })()}
       </div>
     </Wrap>
   );
