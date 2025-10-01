@@ -28,12 +28,13 @@ export default function PostOptionsManual() {
           console.error('Missing Supabase env vars');
           return [];
         }
-    const base = `${SUPABASE_URL}/rest/v1/lanes`;
-    // Include ALL required fields for batch lane generation including zip codes
-    const selectFields = 'id,origin_city,origin_state,origin_zip,origin_zip5,destination_city,destination_state,dest_zip,dest_zip5,dest_city,dest_state,origin_latitude,origin_longitude,dest_latitude,dest_longitude,equipment_code,length_ft,full_partial,pickup_earliest,pickup_latest,weight_lbs,weight_min,weight_max,randomize_weight,comment,commodity,lane_status,created_at';
-    const headers = { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` };
-    // Single attempt: filter using lane_status only
-    const url2 = `${base}?select=${encodeURIComponent(selectFields)}&lane_status=eq.pending&order=created_at.desc`;
+        const base = `${SUPABASE_URL}/rest/v1/lanes`;
+        // Removed deprecated 'status' column from selection – schema now uses lane_status only
+  // Updated select fields: use dest_latitude/dest_longitude (new schema) and lane_status only
+  const selectFields = 'id,origin_city,origin_state,destination_city,destination_state,origin_latitude,origin_longitude,dest_latitude,dest_longitude,lane_status,created_at,dest_city,dest_state';
+        const headers = { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` };
+        // Single attempt: filter using lane_status only
+        const url2 = `${base}?select=${encodeURIComponent(selectFields)}&lane_status=eq.pending&order=created_at.desc`;
         try {
           const r2 = await fetch(url2, { headers });
           if (!r2.ok) {
@@ -135,6 +136,7 @@ export default function PostOptionsManual() {
   const handleBatchIngest = async () => {
     setGenError('');
     setGenMessage('');
+    setLoadingAll(true);
     try {
       const generated = lanes.filter(l => String(l.id).startsWith('gen_'));
       if (generated.length === 0) {
@@ -142,45 +144,82 @@ export default function PostOptionsManual() {
         return;
       }
       const CHUNK = 20;
-      const MAX_RETRIES = 2;
-      let succeeded = 0; let failed = 0; let processed = 0;
+      let succeeded = 0; let totalFailed = 0; let processed = 0;
+      const failedLanes = []; // track failed lanes for retry
+
+      // First pass: process all chunks
       for (let i = 0; i < generated.length; i += CHUNK) {
         const slice = generated.slice(i, i + CHUNK);
-        let attempt = 0; let done = false; let lastErr = null;
-        while (attempt <= MAX_RETRIES && !done) {
-          attempt++;
+        try {
+          const resp = await fetch('/api/post-options', {
+            method: 'POST',
+            headers: { 'Content-Type':'application/json' },
+            body: JSON.stringify({ lanes: slice })
+          });
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          const json = await resp.json();
+          if (!json.ok) throw new Error(json.error || 'Batch response error');
+          
+          succeeded += json.success || 0;
+          totalFailed += json.failed || 0;
+          processed = Math.min(i + slice.length, generated.length);
+          
+          // Track individual failures
+          if (json.results && Array.isArray(json.results)) {
+            const chunkFailed = json.results.filter(r => r.status === 'failed');
+            failedLanes.push(...chunkFailed.map(r => slice.find(l => (l.id || `${l.origin_city}-${l.dest_city}`) === r.laneId)));
+          }
+          
+          setGenMessage(`⏳ Chunk ${Math.floor(i/CHUNK)+1}/${Math.ceil(generated.length/CHUNK)}: ${succeeded} succeeded, ${totalFailed} failed`);
+          console.log(`[Ingest] Chunk ${Math.floor(i/CHUNK)+1} result:`, json);
+        } catch (e) {
+          console.error(`[Ingest] Chunk ${Math.floor(i/CHUNK)} error:`, e.message);
+          totalFailed += slice.length;
+          failedLanes.push(...slice);
+          setGenMessage(`⚠️ Chunk ${Math.floor(i/CHUNK)+1} failed: ${e.message}`);
+        }
+      }
+
+      // Retry failed lanes once with exponential backoff
+      if (failedLanes.length > 0) {
+        setGenMessage(`🔄 Retrying ${failedLanes.length} failed lanes...`);
+        await new Promise(r => setTimeout(r, 1500)); // 1.5s backoff
+        
+        let retrySucceeded = 0;
+        for (let i = 0; i < failedLanes.length; i += CHUNK) {
+          const retrySlice = failedLanes.slice(i, i + CHUNK).filter(Boolean);
+          if (retrySlice.length === 0) continue;
+          
           try {
             const resp = await fetch('/api/post-options', {
               method: 'POST',
               headers: { 'Content-Type':'application/json' },
-              body: JSON.stringify({ lanes: slice })
+              body: JSON.stringify({ lanes: retrySlice })
             });
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
             const json = await resp.json();
-            if (!json.ok) throw new Error(json.error || 'Batch response error');
-            succeeded += json.success || 0;
-            failed += json.failed || 0;
-            processed = Math.min(i + slice.length, generated.length);
-            setGenMessage(`Processed ${processed}/${generated.length} (success: ${succeeded}, failed: ${failed})`);
-            done = true;
-          } catch (e) {
-            lastErr = e;
-            if (attempt > MAX_RETRIES) {
-              failed += slice.length;
-              processed = Math.min(i + slice.length, generated.length);
-              setGenError(`Chunk ${Math.floor(i/CHUNK)} failed permanently: ${e.message}`);
-            } else {
-              setGenMessage(`Retrying chunk ${Math.floor(i/CHUNK)} (attempt ${attempt})...`);
-              const backoff = attempt * 800; // exponential-ish backoff
-              await new Promise(r => setTimeout(r, backoff));
+            if (json.ok && json.success) {
+              retrySucceeded += json.success;
+              succeeded += json.success;
+              totalFailed -= json.success;
             }
+            console.log(`[Retry] Chunk ${Math.floor(i/CHUNK)+1} result:`, json);
+          } catch (e) {
+            console.error(`[Retry] Chunk ${Math.floor(i/CHUNK)} still failed:`, e.message);
           }
         }
+        
+        if (retrySucceeded > 0) {
+          setGenMessage(`✅ Retry recovered ${retrySucceeded} lanes`);
+        }
       }
-      setGenMessage(`🎯 Ingest complete: success ${succeeded}, failed ${failed}`);
+
+      setGenMessage(`🎯 Ingest complete: ${succeeded} succeeded, ${totalFailed} failed`);
     } catch (err) {
       console.error('Batch ingest error:', err);
       setGenError('Batch ingest failed');
+    } finally {
+      setLoadingAll(false);
     }
   };
 
@@ -188,41 +227,12 @@ export default function PostOptionsManual() {
     if (loadingAll) return;
     setLoadingAll(true);
     setMasterLoaded(false);
-    const validLanes = lanes.filter(l => l.origin_city && l.origin_state);
+    const validLanes = lanes.filter(l => typeof l.origin_latitude === 'number' && typeof l.origin_longitude === 'number');
     if (validLanes.length === 0) {
       setLoadingAll(false);
       return;
     }
-    // Send full lane data including zip codes for batch enrichment + ingestion
-    const payload = { 
-      lanes: validLanes.map(l => ({ 
-        id: l.id,
-        origin_city: l.origin_city,
-        origin_state: l.origin_state,
-        origin_zip: l.origin_zip || null,
-        origin_zip5: l.origin_zip5 || null,
-        dest_city: l.dest_city || l.destination_city,
-        dest_state: l.dest_state || l.destination_state,
-        dest_zip: l.dest_zip || null,
-        dest_zip5: l.dest_zip5 || null,
-        equipment_code: l.equipment_code || 'V',
-        length_ft: l.length_ft || 48,
-        full_partial: l.full_partial || 'full',
-        pickup_earliest: l.pickup_earliest || new Date().toISOString().split('T')[0],
-        pickup_latest: l.pickup_latest || l.pickup_earliest || new Date().toISOString().split('T')[0],
-        weight_lbs: l.weight_lbs || null,
-        weight_min: l.weight_min || null,
-        weight_max: l.weight_max || null,
-        randomize_weight: l.randomize_weight || false,
-        comment: l.comment || null,
-        commodity: l.commodity || null,
-        lane_status: l.lane_status || 'pending',
-        origin_latitude: l.origin_latitude || null,
-        origin_longitude: l.origin_longitude || null,
-        dest_latitude: l.dest_latitude || null,
-        dest_longitude: l.dest_longitude || null
-      }))
-    };
+    const payload = { lanes: validLanes.map(l => ({ id: l.id, origin_latitude: l.origin_latitude, origin_longitude: l.origin_longitude })) };
     console.log('🔼 Batch request payload', payload);
     try {
       const res = await fetch('/api/post-options', {
@@ -232,30 +242,25 @@ export default function PostOptionsManual() {
       });
       const json = await res.json().catch(()=>({}));
       console.log('✅ Batch response', json);
-      if (!res.ok) {
-        const errorMsg = json?.error || `Batch failed (${res.status})`;
-        setGenError(errorMsg);
-        throw new Error(errorMsg);
-      }
-      // Handle structured response: { ok, results: [{id, status, error?}] }
-      if (json.results && Array.isArray(json.results)) {
-        const successIds = json.results.filter(r => r.status === 'success').map(r => r.id);
-        const failedResults = json.results.filter(r => r.status === 'failed');
-        
-        if (failedResults.length > 0) {
-          console.warn('Some lanes failed:', failedResults);
-          setGenError(`${failedResults.length} lanes failed enrichment`);
+      if (!res.ok) throw new Error(json?.error || `Batch failed (${res.status})`);
+      const byId = {};
+      (json.results || []).forEach(r => {
+        if (r.error) {
+          byId[r.laneId] = { error: r.error };
+        } else {
+          byId[r.laneId] = {
+            originOptions: r.options || [],
+            destOptions: [],
+            status: { originSaved:false, destSaved:false },
+            loadedAt: Date.now(),
+            source: r.source
+          };
         }
-        
-        setGenMessage(`✅ Enriched ${successIds.length} lanes successfully${failedResults.length ? `, ${failedResults.length} failed` : ''}`);
-        setMasterLoaded(true);
-      } else {
-        // Fallback for old response format
-        setGenMessage(`Batch completed: ${json.success || 0} success, ${json.failed || 0} failed`);
-      }
+      });
+      setOptionsByLane(prev => ({ ...prev, ...byId }));
+      setMasterLoaded(true);
     } catch (e) {
       console.error('❌ Failed batch load', e);
-      setGenError(e.message || 'Batch request failed');
     } finally {
       setLoadingAll(false);
     }
