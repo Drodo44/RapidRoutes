@@ -136,7 +136,16 @@ export default async function handler(req, res) {
         origin_latitude: coords?.latitude ?? null,
         origin_longitude: coords?.longitude ?? null,
         kma_code: coords?.kma_code ?? null,
-        kma_name: coords?.kma_name ?? null
+        kma_name: coords?.kma_name ?? null,
+        // Add destination fields using origin as placeholder for pickup seeds
+        destination_city: c.origin_city,
+        destination_state: c.origin_state,
+        dest_city: c.origin_city,
+        dest_state: c.origin_state,
+        dest_zip5: c.origin_zip5 || null,
+        dest_zip: c.origin_zip || null,
+        dest_latitude: coords?.latitude ?? null,
+        dest_longitude: coords?.longitude ?? null
       };
     });
 
