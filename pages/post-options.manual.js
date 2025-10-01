@@ -145,7 +145,7 @@ export default function PostOptionsManual() {
         console.log('[Generate All] Updated lanes count:', updated.length);
         return updated;
       });
-      setGenMessage(`✅ Generated ${generated.length} origin seeds (core: ${counts?.pickups ?? 0}, fallback: ${counts?.fallback ?? 0})`);
+      setGenMessage(`✅ Generated ${generated.length} lanes! → Click purple "Enrich Generated Lanes" button next`);
       
       // Auto-scroll to first generated card after DOM update
       setTimeout(() => {
@@ -386,9 +386,9 @@ export default function PostOptionsManual() {
         <button
           onClick={handleBatchIngest}
           disabled={loadingAll}
-          className="px-4 py-2 bg-gray-600 hover:bg-gray-500 disabled:opacity-50 disabled:cursor-not-allowed rounded text-white text-sm font-medium"
+          className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed rounded text-white text-sm font-medium"
         >
-          {loadingAll ? 'Processing…' : 'Ingest Generated'}
+          {loadingAll ? 'Enriching…' : '✨ Enrich Generated Lanes'}
         </button>
         {masterLoaded && <span className="text-xs text-green-400">All lanes loaded ✓</span>}
       </div>
