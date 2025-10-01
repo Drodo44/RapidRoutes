@@ -101,13 +101,17 @@ export default function PostOptionsManual() {
 
   // Enterprise Generate All: core_pickups + pending lanes fallback
   const handleGenerateAll = async () => {
+    console.log('[Generate All] === BUTTON CLICKED ===', { timestamp: new Date().toISOString() });
     setGenError('');
     setGenMessage('');
     setLoadingAll(true);
+    setGenMessage('⏳ Requesting generation from server...');
     try {
-      console.log('[Generate All] Starting request to /api/generateAll...');
+      console.log('[Generate All] Starting fetch to /api/generateAll...');
+      const startTime = Date.now();
       const res = await fetch('/api/generateAll', { method: 'POST' });
-      console.log('[Generate All] Response status:', res.status, res.statusText);
+      const elapsed = Date.now() - startTime;
+      console.log('[Generate All] Response received:', { status: res.status, statusText: res.statusText, elapsed: elapsed + 'ms' });
       
       if (!res.ok) {
         const body = await res.text();

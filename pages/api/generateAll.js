@@ -6,13 +6,19 @@ import { adminSupabase } from '@/lib/supabaseAdminClient';
 import { resolveCoords } from '@/lib/resolve-coords';
 
 export default async function handler(req, res) {
+  const startTime = Date.now();
+  console.log('[generateAll] === REQUEST RECEIVED ===', { method: req.method, timestamp: new Date().toISOString() });
+  
   if (req.method !== 'POST') {
+    console.log('[generateAll] Method not allowed:', req.method);
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
+    console.log('[generateAll] Starting execution...');
     // 1. Pull all active core pickups (best-effort; continue if table missing)
+    console.log('[generateAll] Step 1: Fetching core_pickups...');
     let pickups = [];
     const { data: pickupsData, error: pickupsErr } = await adminSupabase
       .from('core_pickups')
@@ -22,9 +28,11 @@ export default async function handler(req, res) {
       console.warn('[generateAll] core_pickups query failed (continuing fallback):', pickupsErr.message);
     } else if (Array.isArray(pickupsData)) {
       pickups = pickupsData;
+      console.log('[generateAll] Found', pickups.length, 'core pickups');
     }
 
     // 2. Pending lanes fallback
+    console.log('[generateAll] Step 2: Fetching pending lanes...');
     let lanes = [];
     const { data: lanesData, error: lanesErr } = await adminSupabase
       .from('lanes')
@@ -35,9 +43,11 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Failed to fetch lanes' });
     } else if (Array.isArray(lanesData)) {
       lanes = lanesData;
+      console.log('[generateAll] Found', lanes.length, 'pending lanes');
     }
 
     // 3. Build combined list (core pickups first). Avoid duplicate origin_zip5.
+    console.log('[generateAll] Step 3: Building combined list...');
     const combined = [];
     const seenZip5 = new Set();
 
@@ -100,6 +110,7 @@ export default async function handler(req, res) {
       if (zip) zipSet.add(zip);
     });
     const uniqueZips = Array.from(zipSet);
+    console.log('[generateAll] Step 4: Resolving', uniqueZips.length, 'unique ZIPs...');
 
     // Concurrent coord lookup with timeout and caching
     const zipCache = new Map();
@@ -129,9 +140,16 @@ export default async function handler(req, res) {
       };
     });
 
+    const elapsed = Date.now() - startTime;
+    console.log('[generateAll] === SUCCESS ===', { 
+      elapsed: elapsed + 'ms',
+      counts: { pickups: pickups.length, fallback: lanes.length, combined: enriched.length }
+    });
     return res.status(200).json({ lanes: enriched, counts: { pickups: pickups.length, fallback: lanes.length, combined: enriched.length } });
   } catch (err) {
-    console.error('[generateAll] unhandled error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    const elapsed = Date.now() - startTime;
+    console.error('[generateAll] === ERROR === after', elapsed + 'ms', err);
+    console.error('[generateAll] Error stack:', err.stack);
+    return res.status(500).json({ error: 'Internal server error', details: err.message });
   }
 }
