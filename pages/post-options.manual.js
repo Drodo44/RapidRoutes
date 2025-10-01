@@ -143,11 +143,16 @@ export default function PostOptionsManual() {
 
   // Chunked batch ingest to /api/post-options (new batch mode) for synthetic lanes
   const handleBatchIngest = async () => {
+    console.log('[Batch Ingest] === BUTTON CLICKED ===', { timestamp: new Date().toISOString() });
+    console.log('[Batch Ingest] Total lanes in state:', lanes.length);
+    console.log('[Batch Ingest] Sample lane:', lanes[0]);
     setGenError('');
     setGenMessage('');
     setLoadingAll(true);
     try {
       const generated = lanes.filter(l => String(l.id).startsWith('gen_'));
+      console.log('[Batch Ingest] Filtered generated lanes:', generated.length);
+      console.log('[Batch Ingest] Sample generated lane:', generated[0]);
       if (generated.length === 0) {
         setGenError('No generated lanes to ingest');
         return;
@@ -159,14 +164,26 @@ export default function PostOptionsManual() {
       // First pass: process all chunks
       for (let i = 0; i < generated.length; i += CHUNK) {
         const slice = generated.slice(i, i + CHUNK);
+        console.log(`[Batch Ingest] Processing chunk ${Math.floor(i/CHUNK)+1}/${Math.ceil(generated.length/CHUNK)}`, { sliceLength: slice.length });
+        console.log(`[Batch Ingest] Chunk sample:`, slice[0]);
         try {
+          console.log(`[Batch Ingest] Sending POST to /api/post-options...`);
+          const startTime = Date.now();
           const resp = await fetch('/api/post-options', {
             method: 'POST',
             headers: { 'Content-Type':'application/json' },
             body: JSON.stringify({ lanes: slice })
           });
-          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          const elapsed = Date.now() - startTime;
+          console.log(`[Batch Ingest] Response received:`, { status: resp.status, ok: resp.ok, elapsed: elapsed + 'ms' });
+          
+          if (!resp.ok) {
+            const errorText = await resp.text();
+            console.error(`[Batch Ingest] HTTP error:`, { status: resp.status, body: errorText });
+            throw new Error(`HTTP ${resp.status}`);
+          }
           const json = await resp.json();
+          console.log(`[Batch Ingest] Response JSON:`, json);
           if (!json.ok) throw new Error(json.error || 'Batch response error');
           
           succeeded += json.success || 0;
