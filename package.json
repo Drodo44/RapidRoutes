@@ -7,6 +7,8 @@
   },
   "scripts": {
     "generate:dat": "node scripts/generateDATCsv.js",
+    "setup-database": "node scripts/01-setup-database.js",
+    "verify-migration": "node scripts/02-verify-migration.js",
     "dev": "next dev",
     "build": "next build",
     "start": "next start -p 3000",
