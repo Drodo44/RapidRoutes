@@ -54,6 +54,10 @@ export default function PostOptionsManual() {
       }
 
       const pending = await fetchPendingLanes();
+      console.log('[INITIAL LOAD] Fetched pending lanes:', pending.length);
+      console.log('[INITIAL LOAD] Sample lane:', pending[0]);
+      console.log('[INITIAL LOAD] All lane IDs:', pending.map(l => l.id));
+      console.log('[INITIAL LOAD] All origin→dest pairs:', pending.map(l => `${l.origin_city}, ${l.origin_state} → ${l.destination_city || 'NULL'}, ${l.destination_state || 'NULL'}`));
       setLanes(pending);
       setLoading(false);
     })();
