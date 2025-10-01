@@ -146,6 +146,15 @@ export default function PostOptionsManual() {
         return updated;
       });
       setGenMessage(`✅ Generated ${generated.length} origin seeds (core: ${counts?.pickups ?? 0}, fallback: ${counts?.fallback ?? 0})`);
+      
+      // Auto-scroll to first generated card after DOM update
+      setTimeout(() => {
+        const firstGenCard = document.querySelector('[data-card-id^="gen_"]');
+        if (firstGenCard) {
+          firstGenCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          console.log('[Generate All] Auto-scrolled to first generated card');
+        }
+      }, 100);
     } catch (err) {
       console.error('[Generate All] Error:', err);
       setGenError(`Unexpected error: ${err.message}`);
@@ -415,7 +424,11 @@ export default function PostOptionsManual() {
             }
             
             return (
-              <div key={lane.id} className={`rounded-lg p-4 ${String(lane.id).startsWith('gen_') ? 'bg-purple-900 border-2 border-purple-500' : 'bg-gray-800 border border-gray-700'}`}>
+              <div 
+                key={lane.id} 
+                data-card-id={lane.id}
+                className={`rounded-lg p-4 ${String(lane.id).startsWith('gen_') ? 'bg-purple-900 border-2 border-purple-500' : 'bg-gray-800 border border-gray-700'}`}
+              >
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
                 <div className="text-gray-100 font-medium">
                   {String(lane.id).startsWith('gen_') && <span className="mr-2 text-purple-300 font-bold">[GENERATED]</span>}
