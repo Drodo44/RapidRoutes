@@ -122,15 +122,24 @@ export default function PostOptionsManual() {
       
       const { lanes: generated, counts } = await res.json();
       console.log('[Generate All] Success:', { generated: generated?.length, counts });
+      console.log('[Generate All] Sample generated lane:', generated?.[0]);
+      console.log('[Generate All] All generated lanes:', generated);
       
       // Strategy: merge generated (without IDs) into local list for option loading.
       // Provide synthetic IDs to avoid key collisions when feeding into existing loaders.
       const synthetic = generated.map((g, idx) => ({ id: `gen_${idx}_${g.origin_zip5 || g.origin_zip || idx}`, ...g }));
+      console.log('[Generate All] Synthetic lanes created:', synthetic.length);
+      console.log('[Generate All] Sample synthetic lane:', synthetic[0]);
+      
       setLanes(prev => {
+        console.log('[Generate All] Previous lanes count:', prev.length);
         // Keep existing pending lanes (with real IDs) and append synthetic seeds.
         const existingSyntheticIds = new Set(prev.filter(p => String(p.id).startsWith('gen_')).map(p => p.id));
         const newOnes = synthetic.filter(s => !existingSyntheticIds.has(s.id));
-        return [...prev, ...newOnes];
+        console.log('[Generate All] New lanes to add:', newOnes.length);
+        const updated = [...prev, ...newOnes];
+        console.log('[Generate All] Updated lanes count:', updated.length);
+        return updated;
       });
       setGenMessage(`✅ Generated ${generated.length} origin seeds (core: ${counts?.pickups ?? 0}, fallback: ${counts?.fallback ?? 0})`);
     } catch (err) {
