@@ -381,10 +381,23 @@ export default function PostOptionsManual() {
           console.log('[Render] Generated lane IDs:', lanes.filter(l => String(l.id).startsWith('gen_')).map(l => l.id));
           console.log('[Render] Generated lanes count:', lanes.filter(l => String(l.id).startsWith('gen_')).length);
           console.log('[Render] ALL lane IDs:', lanes.map(l => l.id));
-          return lanes.map(lane => {
+          return lanes.map((lane, index) => {
             const state = optionsByLane[lane.id];
             const hasCoords = typeof lane.origin_latitude === 'number' && typeof lane.origin_longitude === 'number';
             const needsEnrichment = !hasCoords && String(lane.id).startsWith('gen_');
+            
+            // Log EVERY lane card being rendered
+            if (String(lane.id).startsWith('gen_')) {
+              console.log(`[Render Card ${index}] Generated lane:`, {
+                id: lane.id,
+                origin_city: lane.origin_city,
+                origin_state: lane.origin_state,
+                destination_city: lane.destination_city,
+                destination_state: lane.destination_state,
+                hasCoords: hasCoords
+              });
+            }
+            
             return (
               <div key={lane.id} className="bg-gray-800 border border-gray-700 rounded-lg p-4">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
