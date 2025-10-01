@@ -56,17 +56,78 @@ function balanceByKMA(cities, max = 50) {
 }
 
 // Simple haversine utilities retained for legacy option generation
-export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
+async function generateOptionsForLane(laneId) {
+  // Fetch lane
+  const { data: lane, error: laneErr } = await supabase
+    .from("lanes")
+    .select("*")
+    .eq("id", laneId)
+    .single();
+  if (laneErr || !lane) {
+    throw new Error('Lane not found');
   }
+  const originLat = lane.origin_latitude;
+  const originLon = lane.origin_longitude;
+  const destLat = lane.dest_latitude;
+  const destLon = lane.dest_longitude;
+  if (originLat == null || originLon == null || destLat == null || destLon == null) {
+    throw new Error('Lane missing coordinates');
+  }
+  const latMin = Math.min(originLat, destLat) - 2;
+  const latMax = Math.max(originLat, destLat) + 2;
+  const lonMin = Math.min(originLon, destLon) - 2;
+  const lonMax = Math.max(originLon, destLon) + 2;
+  const { data: cities, error: cityErr } = await supabase
+    .from("us_cities")
+    .select("id, city, state, latitude, longitude, zip3, kma_code")
+    .gte("latitude", latMin)
+    .lte("latitude", latMax)
+    .gte("longitude", lonMin)
+    .lte("longitude", lonMax);
+  if (cityErr) throw new Error('Failed to fetch cities');
+  if (!cities || cities.length === 0) throw new Error('No cities found near lane');
+  const enriched = [];
+  for (const c of cities) {
+    let kma = c.kma_code;
+    if (!kma && c.zip3) {
+      const { data: zipRow } = await supabase
+        .from("zip3s")
+        .select("kma_code")
+        .eq("zip3", c.zip3)
+        .maybeSingle();
+      if (zipRow) kma = zipRow.kma_code;
+    }
+    enriched.push({ ...c, kma_code: kma || 'UNK' });
+  }
+  const originOptions = enriched
+    .map(c => ({ ...c, distance: haversine(originLat, originLon, c.latitude, c.longitude) }))
+    .filter(c => c.distance <= 100);
+  const destOptions = enriched
+    .map(c => ({ ...c, distance: haversine(destLat, destLon, c.latitude, c.longitude) }))
+    .filter(c => c.distance <= 100);
+  const balancedOrigin = balanceByKMA(originOptions, 50);
+  const balancedDest = balanceByKMA(destOptions, 50);
+  return {
+    laneId,
+    origin: { city: lane.origin_city, state: lane.origin_state, options: balancedOrigin },
+    destination: { city: lane.dest_city, state: lane.dest_state, options: balancedDest },
+    originOptions: balancedOrigin,
+    destOptions: balancedDest
+  };
+}
 
-  // Branch detection
-  const { lanes: batchLanes, laneId } = req.body || {};
+export default async function handler(req, res) {
+  try {
+    if (req.method !== "POST") {
+      return res.status(405).json({ ok: false, error: "Method not allowed" });
+    }
 
-  // --- Batch Mode ---------------------------------------------------------
-  if (Array.isArray(batchLanes)) {
-    if (batchLanes.length === 0) return res.status(400).json({ error: 'No lanes provided' });
+    // Branch detection
+    const { lanes: batchLanes, laneId } = req.body || {};
+
+    // --- Batch Mode ---------------------------------------------------------
+    if (Array.isArray(batchLanes)) {
+      if (batchLanes.length === 0) return res.status(400).json({ ok: false, error: 'No lanes provided' });
 
     // Deduplicate ZIP5 values across all lanes (origin & destination)
     const zipSet = new Set();
@@ -124,7 +185,7 @@ export default async function handler(req, res) {
     const CHUNK_SIZE = 20;
     let success = 0; let failed = 0; const errors = [];
 
-    for (let i = 0; i < enriched.length; i += CHUNK_SIZE) {
+      for (let i = 0; i < enriched.length; i += CHUNK_SIZE) {
       const chunk = enriched.slice(i, i + CHUNK_SIZE).map(c => ({
         origin_city: c.origin_city,
         origin_state: c.origin_state,
@@ -152,7 +213,7 @@ export default async function handler(req, res) {
         dest_longitude: c.dest_longitude,
       }));
 
-      const { error } = await supabase.from('lanes').upsert(chunk, { onConflict: 'id' });
+        const { error } = await supabase.from('lanes').upsert(chunk, { onConflict: 'id' });
       if (error) {
         console.error('[post-options] upsert chunk error:', error.message);
         failed += chunk.length;
@@ -160,118 +221,24 @@ export default async function handler(req, res) {
       } else {
         success += chunk.length;
       }
-    }
-
-    return res.status(200).json({ ok: true, total: batchLanes.length, success, failed, errors });
-  }
-
-  // --- Legacy Single-Lane Options Mode ------------------------------------
-  if (!laneId) {
-    return res.status(400).json({ error: "Missing laneId" });
-  }
-
-  try {
-    // 1. Fetch the lane
-    const { data: lane, error: laneErr } = await supabase
-      .from("lanes")
-      .select("*")
-      .eq("id", laneId)
-      .single();
-
-    if (laneErr || !lane) {
-      return res.status(404).json({ error: "Lane not found" });
-    }
-
-    // Lane coords
-    const originLat = lane.origin_latitude;
-    const originLon = lane.origin_longitude;
-    const destLat = lane.dest_latitude;
-    const destLon = lane.dest_longitude;
-
-    if (
-      originLat == null ||
-      originLon == null ||
-      destLat == null ||
-      destLon == null
-    ) {
-      return res.status(400).json({ error: "Lane missing coordinates" });
-    }
-
-    // 2. Fetch candidate cities (limit radius 120 miles by rough lat/lon box first)
-    const latMin = Math.min(originLat, destLat) - 2;
-    const latMax = Math.max(originLat, destLat) + 2;
-    const lonMin = Math.min(originLon, destLon) - 2;
-    const lonMax = Math.max(originLon, destLon) + 2;
-
-    const { data: cities, error: cityErr } = await supabase
-      .from("us_cities")
-      .select("id, city, state, latitude, longitude, zip3, kma_code")
-      .gte("latitude", latMin)
-      .lte("latitude", latMax)
-      .gte("longitude", lonMin)
-      .lte("longitude", lonMax);
-
-    if (cityErr) {
-      console.error("Error fetching cities:", cityErr);
-      return res.status(500).json({ error: "Failed to fetch cities" });
-    }
-
-    if (!cities || cities.length === 0) {
-      return res.status(404).json({ error: "No cities found near lane" });
-    }
-
-    // 3. Enrich with KMA if missing (serial for simplicity; could batch)
-    const enriched = [];
-    for (const c of cities) {
-      let kma = c.kma_code;
-      if (!kma && c.zip3) {
-        const { data: zipRow } = await supabase
-          .from("zip3s")
-          .select("kma_code")
-          .eq("zip3", c.zip3)
-          .maybeSingle();
-        if (zipRow) kma = zipRow.kma_code;
       }
-      enriched.push({ ...c, kma_code: kma || "UNK" });
+
+      return res.status(200).json({ ok: true, total: batchLanes.length, success, failed, errors });
     }
 
-    // 4. Calculate distances
-    const originOptions = enriched
-      .map((c) => ({
-        ...c,
-        distance: haversine(originLat, originLon, c.latitude, c.longitude),
-      }))
-      .filter((c) => c.distance <= 100);
+    // --- Legacy Single-Lane Options Mode ------------------------------------
+    if (!laneId) {
+      return res.status(400).json({ ok: false, error: "Missing laneId" });
+    }
 
-    const destOptions = enriched
-      .map((c) => ({
-        ...c,
-        distance: haversine(destLat, destLon, c.latitude, c.longitude),
-      }))
-      .filter((c) => c.distance <= 100);
-
-    // 5. Balance across KMAs
-    const balancedOrigin = balanceByKMA(originOptions, 50);
-    const balancedDest = balanceByKMA(destOptions, 50);
-
-    return res.status(200).json({
-      success: true,
-      laneId,
-      origin: {
-        city: lane.origin_city,
-        state: lane.origin_state,
-        options: balancedOrigin,
-      },
-      destination: {
-        city: lane.dest_city,
-        state: lane.dest_state,
-        options: balancedDest,
-      },
-      originOptions: balancedOrigin,
-      destOptions: balancedDest,
-    });
+    try {
+      const details = await generateOptionsForLane(laneId);
+      return res.status(200).json({ ok: true, ...details });
+    } catch (laneErr) {
+      return res.status(400).json({ ok: false, error: laneErr.message });
+    }
   } catch (err) {
-    console.error("post-options error", err);
-    return res.status(500).json({ error: "Unexpected server error" });
+    console.error('post-options API fatal', err);
+    return res.status(500).json({ ok: false, error: err.message || 'Internal error' });
   }
 }

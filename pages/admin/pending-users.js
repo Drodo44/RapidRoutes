@@ -55,7 +55,7 @@ function PendingUsers() {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('status', 'pending')
+  .eq('lane_status', 'pending')
         .order('created_at', { ascending: false });
 
       if (error) throw error;

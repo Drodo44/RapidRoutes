@@ -72,13 +72,13 @@ function useBrokerStats() {
         const token = session.access_token;
         
         const [pendingRes, postedRes, coveredRes] = await Promise.all([
-          fetch('/api/lanes?status=pending', {
+          fetch('/api/lanes?lane_status=pending', {
             headers: { 'Authorization': `Bearer ${token}` }
           }),
-          fetch('/api/lanes?status=posted', {
+          fetch('/api/lanes?lane_status=posted', {
             headers: { 'Authorization': `Bearer ${token}` }
           }),
-          fetch('/api/lanes?status=covered', {
+          fetch('/api/lanes?lane_status=covered', {
             headers: { 'Authorization': `Bearer ${token}` }
           })
         ]);
