@@ -1,8 +1,9 @@
 // pages/api/generateAll.js
 // Aggregate active core_pickups plus fallback pending lanes, enrich with coordinates/KMA.
 // Returns a unified list consumable by posting / option generation workflows.
-import { adminSupabase } from '../../utils/supabaseAdminClient';
-import { resolveCoords } from '../../lib/resolve-coords';
+// Use alias-based imports for enterprise consistency (@ maps to project root)
+import { adminSupabase } from '@/lib/supabaseAdminClient';
+import { resolveCoords } from '@/lib/resolve-coords';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -68,11 +69,16 @@ export default async function handler(req, res) {
       });
     }
 
-    // 4. Enrich with coordinates/KMA using batched resolution (dedupe + concurrent)
-    const uniqueZips = [...new Set(combined.map(c => c.origin_zip5 || c.origin_zip).filter(Boolean))];
-    console.log(`[generateAll] Resolving ${uniqueZips.length} unique ZIPs for coordinates`);
+    // 4. Enrich with coordinates/KMA using concurrent resolution with timeout
+    // Timeout wrapper (3s max per coord lookup)
+    function withTimeout(promise, ms = 3000) {
+      return Promise.race([
+        promise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), ms))
+      ]);
+    }
 
-    // Batch coordinate resolution with concurrency limit
+    // Concurrency limiter (max 5)
     function limitPool(limit) {
       let active = 0; const queue = [];
       const run = (fn, resolve, reject) => {
@@ -87,18 +93,30 @@ export default async function handler(req, res) {
     }
     const limiter = limitPool(5);
 
+    // Deduplicate ZIPs across all combined lanes
+    const zipSet = new Set();
+    combined.forEach(c => {
+      const zip = c.origin_zip5 || c.origin_zip;
+      if (zip) zipSet.add(zip);
+    });
+    const uniqueZips = Array.from(zipSet);
+
+    // Concurrent coord lookup with timeout and caching
     const zipCache = new Map();
-    await Promise.all(uniqueZips.map(z => limiter(async () => {
-      try {
-        const coords = await resolveCoords(z);
-        zipCache.set(z, coords);
-      } catch (e) {
-        console.error(`[generateAll] coord lookup failed for ${z}:`, e.message);
+    const lookupResults = await Promise.allSettled(
+      uniqueZips.map(z => limiter(() => withTimeout(resolveCoords(z))))
+    );
+    uniqueZips.forEach((z, idx) => {
+      const result = lookupResults[idx];
+      if (result.status === 'fulfilled') {
+        zipCache.set(z, result.value);
+      } else {
+        console.warn(`[generateAll] coord lookup failed for ${z}:`, result.reason?.message);
         zipCache.set(z, null);
       }
-    })));
+    });
 
-    // Map cached coords to lanes
+    // Enrich all lanes using cached results
     const enriched = combined.map(c => {
       const zip = c.origin_zip5 || c.origin_zip;
       const coords = zip ? zipCache.get(zip) : null;
@@ -111,7 +129,6 @@ export default async function handler(req, res) {
       };
     });
 
-    console.log(`[generateAll] Enrichment complete: ${enriched.length} lanes with coordinates`);
     return res.status(200).json({ lanes: enriched, counts: { pickups: pickups.length, fallback: lanes.length, combined: enriched.length } });
   } catch (err) {
     console.error('[generateAll] unhandled error:', err);

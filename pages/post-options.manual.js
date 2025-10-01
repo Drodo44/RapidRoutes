@@ -103,17 +103,22 @@ export default function PostOptionsManual() {
   const handleGenerateAll = async () => {
     setGenError('');
     setGenMessage('');
+    setLoadingAll(true);
     try {
-      setLoadingAll(true);
+      console.log('[Generate All] Starting request to /api/generateAll...');
       const res = await fetch('/api/generateAll', { method: 'POST' });
+      console.log('[Generate All] Response status:', res.status, res.statusText);
+      
       if (!res.ok) {
         const body = await res.text();
-        console.error('Generate All failed:', body);
-        setGenError('Failed to generate all lanes');
+        console.error('[Generate All] Failed:', body);
+        setGenError(`Failed to generate all lanes: ${res.status} ${res.statusText}`);
         return;
       }
+      
       const { lanes: generated, counts } = await res.json();
-      console.log('Generate All returned:', generated, counts);
+      console.log('[Generate All] Success:', { generated: generated?.length, counts });
+      
       // Strategy: merge generated (without IDs) into local list for option loading.
       // Provide synthetic IDs to avoid key collisions when feeding into existing loaders.
       const synthetic = generated.map((g, idx) => ({ id: `gen_${idx}_${g.origin_zip5 || g.origin_zip || idx}`, ...g }));
@@ -123,10 +128,10 @@ export default function PostOptionsManual() {
         const newOnes = synthetic.filter(s => !existingSyntheticIds.has(s.id));
         return [...prev, ...newOnes];
       });
-      setGenMessage(`Generated ${generated.length} origin seeds (core: ${counts?.pickups ?? 0}, fallback: ${counts?.fallback ?? 0}).`);
+      setGenMessage(`✅ Generated ${generated.length} origin seeds (core: ${counts?.pickups ?? 0}, fallback: ${counts?.fallback ?? 0})`);
     } catch (err) {
-      console.error('Error in handleGenerateAll:', err);
-      setGenError('Unexpected error during generation');
+      console.error('[Generate All] Error:', err);
+      setGenError(`Unexpected error: ${err.message}`);
     } finally {
       setLoadingAll(false);
     }
