@@ -351,15 +351,21 @@ export default function PostOptionsManual() {
       <div className="flex flex-col gap-6">
         {lanes.map(lane => {
           const state = optionsByLane[lane.id];
+          const hasCoords = typeof lane.origin_latitude === 'number' && typeof lane.origin_longitude === 'number';
+          const needsEnrichment = !hasCoords && String(lane.id).startsWith('gen_');
           return (
             <div key={lane.id} className="bg-gray-800 border border-gray-700 rounded-lg p-4">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
-                <div className="text-gray-100 font-medium">{lane.origin_city}, {lane.origin_state} → {lane.destination_city}, {lane.destination_state}</div>
+                <div className="text-gray-100 font-medium">
+                  {lane.origin_city}, {lane.origin_state} → {lane.destination_city || '(generated)'}, {lane.destination_state || ''}
+                  {needsEnrichment && <span className="ml-2 text-xs text-yellow-400">⚠ Needs enrichment</span>}
+                </div>
                 <div className="flex gap-2">
                   <button
                     onClick={()=>loadOptionsForLane(lane)}
-                    disabled={loadingAll}
+                    disabled={loadingAll || !hasCoords}
                     className="px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded text-white text-sm"
+                    title={!hasCoords ? 'Click "Ingest Generated" first to enrich coordinates' : ''}
                   >
                     {state?.originOptions ? (loadingAll ? 'Loaded' : 'Reload') : 'Load Options'}
                   </button>
