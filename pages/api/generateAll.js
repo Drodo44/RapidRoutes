@@ -1,9 +1,8 @@
 // pages/api/generateAll.js
 // Aggregate active core_pickups plus fallback pending lanes, enrich with coordinates/KMA.
 // Returns a unified list consumable by posting / option generation workflows.
-// Use alias-based imports for enterprise consistency (@ maps to project root)
-import { adminSupabase } from '@/lib/supabaseAdminClient';
-import { resolveCoords } from '@/lib/resolve-coords';
+import { adminSupabase } from '../../utils/supabaseAdminClient';
+import { resolveCoords } from '../../lib/resolve-coords';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -69,19 +68,50 @@ export default async function handler(req, res) {
       });
     }
 
-    // 4. Enrich each with coordinates/KMA (sequential to keep load light; could batch later)
-    const enriched = [];
-    for (const c of combined) {
-      const coords = await resolveCoords(c.origin_zip5 || c.origin_zip);
-      enriched.push({
+    // 4. Enrich with coordinates/KMA using batched resolution (dedupe + concurrent)
+    const uniqueZips = [...new Set(combined.map(c => c.origin_zip5 || c.origin_zip).filter(Boolean))];
+    console.log(`[generateAll] Resolving ${uniqueZips.length} unique ZIPs for coordinates`);
+
+    // Batch coordinate resolution with concurrency limit
+    function limitPool(limit) {
+      let active = 0; const queue = [];
+      const run = (fn, resolve, reject) => {
+        active++;
+        fn().then(resolve).catch(reject).finally(() => {
+          active--; if (queue.length) { const next = queue.shift(); next(); }
+        });
+      };
+      return fn => new Promise((resolve, reject) => {
+        if (active < limit) run(fn, resolve, reject); else queue.push(() => run(fn, resolve, reject));
+      });
+    }
+    const limiter = limitPool(5);
+
+    const zipCache = new Map();
+    await Promise.all(uniqueZips.map(z => limiter(async () => {
+      try {
+        const coords = await resolveCoords(z);
+        zipCache.set(z, coords);
+      } catch (e) {
+        console.error(`[generateAll] coord lookup failed for ${z}:`, e.message);
+        zipCache.set(z, null);
+      }
+    })));
+
+    // Map cached coords to lanes
+    const enriched = combined.map(c => {
+      const zip = c.origin_zip5 || c.origin_zip;
+      const coords = zip ? zipCache.get(zip) : null;
+      return {
         ...c,
         origin_latitude: coords?.latitude ?? null,
         origin_longitude: coords?.longitude ?? null,
         kma_code: coords?.kma_code ?? null,
         kma_name: coords?.kma_name ?? null
-      });
-    }
+      };
+    });
 
+    console.log(`[generateAll] Enrichment complete: ${enriched.length} lanes with coordinates`);
     return res.status(200).json({ lanes: enriched, counts: { pickups: pickups.length, fallback: lanes.length, combined: enriched.length } });
   } catch (err) {
     console.error('[generateAll] unhandled error:', err);

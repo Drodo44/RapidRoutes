@@ -1,11 +1,11 @@
 // pages/api/post-options.js
 // Extended: supports two modes
 // 1) Legacy single-lane option generation (input: { laneId }) returning nearby origin/destination city options
-// 2) New enterprise batch lane ingestion (input: { lanes: [...] }) with chunked coordinate enrichment + insert
-//    Returns structured { ok, counts: { total, success, failed }, failed: [...] }
+// 2) New enterprise batch lane enrichment + ingestion (input: { lanes: [...] }) with coordinate enrichment + upsert
+//    Returns structured { ok, results: [{id, status: 'success'|'failed', error?}] }
 // This preserves backward compatibility for existing UI while enabling scalable batch creation.
-import { adminSupabase as supabase } from "@/utils/supabaseAdminClient";
-import { resolveCoords } from "@/lib/resolve-coords";
+import { adminSupabase as supabase } from "../../utils/supabaseAdminClient";
+import { resolveCoords } from "../../lib/resolve-coords";
 // NOTE: Not using external p-limit dependency to avoid adding new package; implementing lightweight limiter inline.
 
 function toRad(value) {
@@ -127,103 +127,168 @@ export default async function handler(req, res) {
 
     // --- Batch Mode ---------------------------------------------------------
     if (Array.isArray(batchLanes)) {
+      console.log(`[post-options] Batch mode: received ${batchLanes.length} lanes`);
       if (batchLanes.length === 0) return res.status(400).json({ ok: false, error: 'No lanes provided' });
 
-    // Deduplicate ZIP5 values across all lanes (origin & destination)
-    const zipSet = new Set();
-    for (const l of batchLanes) {
-      if (l.origin_zip5) zipSet.add(l.origin_zip5);
-      if (l.dest_zip5) zipSet.add(l.dest_zip5);
-    }
-    const uniqueZips = Array.from(zipSet);
-
-    // Concurrency limiter (max 5) without external dependency
-    function limitPool(limit) {
-      let active = 0; const queue = [];
-      const run = (fn, resolve, reject) => {
-        active++;
-        fn().then(resolve).catch(reject).finally(() => {
-          active--; if (queue.length) { const next = queue.shift(); next(); }
-        });
-      };
-      return fn => new Promise((resolve, reject) => {
-        if (active < limit) run(fn, resolve, reject); else queue.push(() => run(fn, resolve, reject));
-      });
-    }
-    const limiter = limitPool(5);
-
-    const zipCache = new Map();
-    await Promise.all(uniqueZips.map(z => limiter(async () => {
-      try {
-        const data = await resolveCoords(z);
-        zipCache.set(z, data);
-      } catch (e) {
-        console.error(`[post-options] coord lookup failed for ${z}:`, e.message);
-        zipCache.set(z, null);
+      // Deduplicate ZIP values across all lanes (origin & destination) - try zip5 first, fallback to zip3
+      const zipSet = new Set();
+      for (const l of batchLanes) {
+        const originZip = l.origin_zip5 || l.origin_zip;
+        const destZip = l.dest_zip5 || l.dest_zip;
+        if (originZip) zipSet.add(String(originZip).trim());
+        if (destZip) zipSet.add(String(destZip).trim());
       }
-    })));
+      const uniqueZips = Array.from(zipSet);
+      console.log(`[post-options] Deduped ${uniqueZips.length} unique ZIPs to resolve`);
 
-    // Enrich lanes using cache
-    const enriched = batchLanes.map(l => {
-      const o = l.origin_zip5 ? zipCache.get(l.origin_zip5) : null;
-      const d = l.dest_zip5 ? zipCache.get(l.dest_zip5) : null;
-      return {
-        ...l,
-        origin_zip: l.origin_zip5 ? l.origin_zip5.slice(0,3) : (l.origin_zip || null),
-        dest_zip: l.dest_zip5 ? l.dest_zip5.slice(0,3) : (l.dest_zip || null),
-        origin_latitude: o?.latitude ?? null,
-        origin_longitude: o?.longitude ?? null,
-        dest_latitude: d?.latitude ?? null,
-        dest_longitude: d?.longitude ?? null,
-        lane_status: l.lane_status || 'pending',
-        origin_kma: o?.kma_code ?? null,
-        dest_kma: d?.kma_code ?? null,
-      };
-    });
+      // Batch coordinate resolution with concurrency limit (max 5 concurrent)
+      function limitPool(limit) {
+        let active = 0; const queue = [];
+        const run = (fn, resolve, reject) => {
+          active++;
+          fn().then(resolve).catch(reject).finally(() => {
+            active--; if (queue.length) { const next = queue.shift(); next(); }
+          });
+        };
+        return fn => new Promise((resolve, reject) => {
+          if (active < limit) run(fn, resolve, reject); else queue.push(() => run(fn, resolve, reject));
+        });
+      }
+      const limiter = limitPool(5);
 
-    // Chunked upsert (20 lanes per chunk)
-    const CHUNK_SIZE = 20;
-    let success = 0; let failed = 0; const errors = [];
+      // Build coordinate cache
+      const zipCache = new Map();
+      await Promise.all(uniqueZips.map(z => limiter(async () => {
+        try {
+          const data = await resolveCoords(z);
+          zipCache.set(z, data);
+          if (data) {
+            console.log(`[post-options] Resolved ${z}: lat=${data.latitude}, lon=${data.longitude}, kma=${data.kma_code}`);
+          }
+        } catch (e) {
+          console.error(`[post-options] coord lookup failed for ${z}:`, e.message);
+          zipCache.set(z, null);
+        }
+      })));
+
+      console.log(`[post-options] Coordinate cache built: ${zipCache.size} entries`);
+
+      // Enrich lanes using cache
+      const enriched = [];
+      const results = [];
+
+      for (const l of batchLanes) {
+        try {
+          const originZip = l.origin_zip5 || l.origin_zip;
+          const destZip = l.dest_zip5 || l.dest_zip;
+          
+          const o = originZip ? zipCache.get(String(originZip).trim()) : null;
+          const d = destZip ? zipCache.get(String(destZip).trim()) : null;
+
+          // Build enriched lane object
+          const enrichedLane = {
+            id: l.id || undefined,
+            origin_city: l.origin_city,
+            origin_state: l.origin_state,
+            origin_zip5: l.origin_zip5 || null,
+            origin_zip: l.origin_zip5 ? l.origin_zip5.slice(0, 3) : (l.origin_zip || null),
+            dest_city: l.dest_city,
+            dest_state: l.dest_state,
+            dest_zip5: l.dest_zip5 || null,
+            dest_zip: l.dest_zip5 ? l.dest_zip5.slice(0, 3) : (l.dest_zip || null),
+            equipment_code: l.equipment_code || 'V',
+            length_ft: l.length_ft || 48,
+            full_partial: l.full_partial || 'full',
+            pickup_earliest: l.pickup_earliest || new Date().toISOString().split('T')[0],
+            pickup_latest: l.pickup_latest || l.pickup_earliest || new Date().toISOString().split('T')[0],
+            randomize_weight: !!l.randomize_weight,
+            weight_lbs: l.weight_lbs || null,
+            weight_min: l.weight_min || null,
+            weight_max: l.weight_max || null,
+            comment: l.comment || null,
+            commodity: l.commodity || null,
+            lane_status: l.lane_status || 'pending',
+            origin_latitude: o?.latitude ?? l.origin_latitude ?? null,
+            origin_longitude: o?.longitude ?? l.origin_longitude ?? null,
+            dest_latitude: d?.latitude ?? l.dest_latitude ?? null,
+            dest_longitude: d?.longitude ?? l.dest_longitude ?? null,
+            origin_kma: o?.kma_code ?? null,
+            dest_kma: d?.kma_code ?? null,
+          };
+
+          // Validate required fields
+          if (!enrichedLane.origin_city || !enrichedLane.origin_state || !enrichedLane.dest_city || !enrichedLane.dest_state) {
+            throw new Error(`Missing required city/state fields`);
+          }
+
+          enriched.push(enrichedLane);
+          results.push({ id: l.id, status: 'enriched' });
+        } catch (err) {
+          console.error(`[post-options] Failed to enrich lane ${l.id}:`, err.message);
+          results.push({ id: l.id, status: 'failed', error: err.message });
+        }
+      }
+
+      console.log(`[post-options] Enrichment complete: ${enriched.length} enriched, ${results.filter(r => r.status === 'failed').length} failed`);
+
+      // Chunked upsert (20 lanes per chunk)
+      const CHUNK_SIZE = 20;
+      let successCount = 0;
+      let failedCount = 0;
 
       for (let i = 0; i < enriched.length; i += CHUNK_SIZE) {
-      const chunk = enriched.slice(i, i + CHUNK_SIZE).map(c => ({
-        origin_city: c.origin_city,
-        origin_state: c.origin_state,
-        origin_zip5: c.origin_zip5,
-        origin_zip: c.origin_zip,
-        dest_city: c.dest_city,
-        dest_state: c.dest_state,
-        dest_zip5: c.dest_zip5,
-        dest_zip: c.dest_zip,
-        equipment_code: c.equipment_code || 'V',
-        length_ft: c.length_ft || 48,
-        full_partial: c.full_partial || 'full',
-        pickup_earliest: c.pickup_earliest || new Date().toISOString().split('T')[0],
-        pickup_latest: c.pickup_latest || c.pickup_earliest || new Date().toISOString().split('T')[0],
-        randomize_weight: !!c.randomize_weight,
-        weight_lbs: c.weight_lbs || null,
-        weight_min: c.weight_min || null,
-        weight_max: c.weight_max || null,
-        comment: c.comment || null,
-        commodity: c.commodity || null,
-        lane_status: c.lane_status,
-        origin_latitude: c.origin_latitude,
-        origin_longitude: c.origin_longitude,
-        dest_latitude: c.dest_latitude,
-        dest_longitude: c.dest_longitude,
-      }));
+        const chunk = enriched.slice(i, i + CHUNK_SIZE);
+        
+        try {
+          const { data, error } = await supabase.from('lanes').upsert(chunk, { 
+            onConflict: 'id',
+            ignoreDuplicates: false 
+          }).select('id');
 
-        const { error } = await supabase.from('lanes').upsert(chunk, { onConflict: 'id' });
-      if (error) {
-        console.error('[post-options] upsert chunk error:', error.message);
-        failed += chunk.length;
-        errors.push(error.message);
-      } else {
-        success += chunk.length;
-      }
+          if (error) {
+            console.error('[post-options] upsert chunk error:', error.message);
+            // Mark all lanes in this chunk as failed
+            chunk.forEach(c => {
+              const resultIdx = results.findIndex(r => r.id === c.id);
+              if (resultIdx >= 0) {
+                results[resultIdx].status = 'failed';
+                results[resultIdx].error = error.message;
+              }
+            });
+            failedCount += chunk.length;
+          } else {
+            console.log(`[post-options] Upserted chunk of ${chunk.length} lanes`);
+            // Mark as success
+            chunk.forEach(c => {
+              const resultIdx = results.findIndex(r => r.id === c.id);
+              if (resultIdx >= 0) {
+                results[resultIdx].status = 'success';
+              }
+            });
+            successCount += chunk.length;
+          }
+        } catch (chunkErr) {
+          console.error('[post-options] chunk processing error:', chunkErr.message);
+          chunk.forEach(c => {
+            const resultIdx = results.findIndex(r => r.id === c.id);
+            if (resultIdx >= 0) {
+              results[resultIdx].status = 'failed';
+              results[resultIdx].error = chunkErr.message;
+            }
+          });
+          failedCount += chunk.length;
+        }
       }
 
-      return res.status(200).json({ ok: true, total: batchLanes.length, success, failed, errors });
+      console.log(`[post-options] Batch complete: ${successCount} success, ${failedCount} failed`);
+
+      return res.status(200).json({ 
+        ok: true, 
+        total: batchLanes.length,
+        success: successCount,
+        failed: failedCount,
+        results: results
+      });
     }
 
     // --- Legacy Single-Lane Options Mode ------------------------------------

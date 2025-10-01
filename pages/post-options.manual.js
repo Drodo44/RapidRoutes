@@ -29,9 +29,8 @@ export default function PostOptionsManual() {
           return [];
         }
     const base = `${SUPABASE_URL}/rest/v1/lanes`;
-    // Removed deprecated 'status' column from selection – schema now uses lane_status only
-    // Updated select fields: use dest_latitude/dest_longitude (new schema) and lane_status only
-    const selectFields = 'id,origin_city,origin_state,destination_city,destination_state,origin_latitude,origin_longitude,dest_latitude,dest_longitude,lane_status,created_at,dest_city,dest_state';
+    // Include ALL required fields for batch lane generation including zip codes
+    const selectFields = 'id,origin_city,origin_state,origin_zip,origin_zip5,destination_city,destination_state,dest_zip,dest_zip5,dest_city,dest_state,origin_latitude,origin_longitude,dest_latitude,dest_longitude,equipment_code,length_ft,full_partial,pickup_earliest,pickup_latest,weight_lbs,weight_min,weight_max,randomize_weight,comment,commodity,lane_status,created_at';
     const headers = { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` };
     // Single attempt: filter using lane_status only
     const url2 = `${base}?select=${encodeURIComponent(selectFields)}&lane_status=eq.pending&order=created_at.desc`;
@@ -189,12 +188,41 @@ export default function PostOptionsManual() {
     if (loadingAll) return;
     setLoadingAll(true);
     setMasterLoaded(false);
-    const validLanes = lanes.filter(l => typeof l.origin_latitude === 'number' && typeof l.origin_longitude === 'number');
+    const validLanes = lanes.filter(l => l.origin_city && l.origin_state);
     if (validLanes.length === 0) {
       setLoadingAll(false);
       return;
     }
-    const payload = { lanes: validLanes.map(l => ({ id: l.id, origin_latitude: l.origin_latitude, origin_longitude: l.origin_longitude })) };
+    // Send full lane data including zip codes for batch enrichment + ingestion
+    const payload = { 
+      lanes: validLanes.map(l => ({ 
+        id: l.id,
+        origin_city: l.origin_city,
+        origin_state: l.origin_state,
+        origin_zip: l.origin_zip || null,
+        origin_zip5: l.origin_zip5 || null,
+        dest_city: l.dest_city || l.destination_city,
+        dest_state: l.dest_state || l.destination_state,
+        dest_zip: l.dest_zip || null,
+        dest_zip5: l.dest_zip5 || null,
+        equipment_code: l.equipment_code || 'V',
+        length_ft: l.length_ft || 48,
+        full_partial: l.full_partial || 'full',
+        pickup_earliest: l.pickup_earliest || new Date().toISOString().split('T')[0],
+        pickup_latest: l.pickup_latest || l.pickup_earliest || new Date().toISOString().split('T')[0],
+        weight_lbs: l.weight_lbs || null,
+        weight_min: l.weight_min || null,
+        weight_max: l.weight_max || null,
+        randomize_weight: l.randomize_weight || false,
+        comment: l.comment || null,
+        commodity: l.commodity || null,
+        lane_status: l.lane_status || 'pending',
+        origin_latitude: l.origin_latitude || null,
+        origin_longitude: l.origin_longitude || null,
+        dest_latitude: l.dest_latitude || null,
+        dest_longitude: l.dest_longitude || null
+      }))
+    };
     console.log('🔼 Batch request payload', payload);
     try {
       const res = await fetch('/api/post-options', {
@@ -204,25 +232,30 @@ export default function PostOptionsManual() {
       });
       const json = await res.json().catch(()=>({}));
       console.log('✅ Batch response', json);
-      if (!res.ok) throw new Error(json?.error || `Batch failed (${res.status})`);
-      const byId = {};
-      (json.results || []).forEach(r => {
-        if (r.error) {
-          byId[r.laneId] = { error: r.error };
-        } else {
-          byId[r.laneId] = {
-            originOptions: r.options || [],
-            destOptions: [],
-            status: { originSaved:false, destSaved:false },
-            loadedAt: Date.now(),
-            source: r.source
-          };
+      if (!res.ok) {
+        const errorMsg = json?.error || `Batch failed (${res.status})`;
+        setGenError(errorMsg);
+        throw new Error(errorMsg);
+      }
+      // Handle structured response: { ok, results: [{id, status, error?}] }
+      if (json.results && Array.isArray(json.results)) {
+        const successIds = json.results.filter(r => r.status === 'success').map(r => r.id);
+        const failedResults = json.results.filter(r => r.status === 'failed');
+        
+        if (failedResults.length > 0) {
+          console.warn('Some lanes failed:', failedResults);
+          setGenError(`${failedResults.length} lanes failed enrichment`);
         }
-      });
-      setOptionsByLane(prev => ({ ...prev, ...byId }));
-      setMasterLoaded(true);
+        
+        setGenMessage(`✅ Enriched ${successIds.length} lanes successfully${failedResults.length ? `, ${failedResults.length} failed` : ''}`);
+        setMasterLoaded(true);
+      } else {
+        // Fallback for old response format
+        setGenMessage(`Batch completed: ${json.success || 0} success, ${json.failed || 0} failed`);
+      }
     } catch (e) {
       console.error('❌ Failed batch load', e);
+      setGenError(e.message || 'Batch request failed');
     } finally {
       setLoadingAll(false);
     }
