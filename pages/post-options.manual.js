@@ -178,11 +178,19 @@ export default function PostOptionsManual() {
         try {
           console.log(`[Batch Ingest] Sending POST to /api/post-options...`);
           const startTime = Date.now();
+          
+          // Add 30-second timeout to prevent infinite hang
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 30000);
+          
           const resp = await fetch('/api/post-options', {
             method: 'POST',
             headers: { 'Content-Type':'application/json' },
-            body: JSON.stringify({ lanes: slice })
+            body: JSON.stringify({ lanes: slice }),
+            signal: controller.signal
           });
+          clearTimeout(timeoutId);
+          
           const elapsed = Date.now() - startTime;
           console.log(`[Batch Ingest] Response received:`, { status: resp.status, ok: resp.ok, elapsed: elapsed + 'ms' });
           
@@ -209,6 +217,10 @@ export default function PostOptionsManual() {
           console.log(`[Ingest] Chunk ${Math.floor(i/CHUNK)+1} result:`, json);
         } catch (e) {
           console.error(`[Ingest] Chunk ${Math.floor(i/CHUNK)} error:`, e.message);
+          if (e.name === 'AbortError') {
+            console.error(`[Ingest] Request timed out after 30 seconds`);
+            setGenMessage(`⏳ Chunk ${Math.floor(i/CHUNK)+1} timed out (30s) - retrying...`);
+          }
           totalFailed += slice.length;
           failedLanes.push(...slice);
           setGenMessage(`⚠️ Chunk ${Math.floor(i/CHUNK)+1} failed: ${e.message}`);
