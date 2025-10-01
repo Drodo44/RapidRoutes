@@ -378,6 +378,9 @@ export default function PostOptionsManual() {
         {(() => {
           console.log('[Render] Rendering lane cards, lanes.length:', lanes.length);
           console.log('[Render] Sample lane IDs:', lanes.slice(0, 5).map(l => l.id));
+          console.log('[Render] Generated lane IDs:', lanes.filter(l => String(l.id).startsWith('gen_')).map(l => l.id));
+          console.log('[Render] Generated lanes count:', lanes.filter(l => String(l.id).startsWith('gen_')).length);
+          console.log('[Render] ALL lane IDs:', lanes.map(l => l.id));
           return lanes.map(lane => {
             const state = optionsByLane[lane.id];
             const hasCoords = typeof lane.origin_latitude === 'number' && typeof lane.origin_longitude === 'number';
