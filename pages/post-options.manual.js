@@ -8,10 +8,8 @@ export default function PostOptionsManual() {
   const [user, setUser] = useState(null);
   const [lanes, setLanes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [optionsByLane, setOptionsByLane] = useState({});
   const [radius, setRadius] = useState(100);
   const [loadingAll, setLoadingAll] = useState(false);
-  const [masterLoaded, setMasterLoaded] = useState(false);
   const [genError, setGenError] = useState('');
   const [genMessage, setGenMessage] = useState('');
   const [selectedCities, setSelectedCities] = useState({}); // { laneId: { origin: [...cities], dest: [...cities] } }
@@ -413,9 +411,7 @@ export default function PostOptionsManual() {
                   {lane.origin_city}, {lane.origin_state} → {lane.destination_city || lane.dest_city}, {lane.destination_state || lane.dest_state}
                 </div>
               </div>
-              {state?.error && <div className="text-sm text-red-400">⚠ {state.error}</div>}
-              {state?.loading && <div className="text-sm text-gray-400 animate-pulse">Loading nearby cities…</div>}
-              {/* NEW: Show enriched cities with checkboxes */}
+              {/* Show enriched cities with checkboxes */}
               {lane.enriched && (lane.origin_nearby || lane.dest_nearby) && (
                 <>
                   <div className="grid md:grid-cols-2 gap-4 mt-4">
@@ -494,55 +490,11 @@ export default function PostOptionsManual() {
                   </div>
                 </>
               )}
-              
-              {/* OLD: Original options table (still works for non-enriched lanes) */}
-              {state?.originOptions && (
-                <div className="grid md:grid-cols-2 gap-4">
-                  <SideTable title={`Pickup near ${lane.origin_city}, ${lane.origin_state}`} rows={state.originOptions} saved={state?.status?.originSaved} onChoose={opt=>saveChoice(lane,'origin',opt)} />
-                  <SideTable title={`Delivery near ${lane.destination_city}, ${lane.destination_state}`} rows={state.destOptions} saved={state?.status?.destSaved} onChoose={opt=>saveChoice(lane,'destination',opt)} />
-                </div>
-              )}
             </div>
           );
         })}
       </div>
     </Wrap>
-  );
-}
-
-function SideTable({ title, rows, saved, onChoose }) {
-  return (
-    <div className="bg-gray-900 border border-gray-700 rounded-lg p-3">
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-semibold text-gray-200">{title}</h3>
-        {saved && <span className="text-xs text-green-400 font-medium">Saved ✓</span>}
-      </div>
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="text-gray-400">
-            <th className="py-1 text-left font-medium">City</th>
-            <th className="py-1 text-left font-medium">St</th>
-            <th className="py-1 text-left font-medium">KMA</th>
-            <th className="py-1 text-left font-medium">Mi</th>
-            <th className="py-1" />
-          </tr>
-        </thead>
-        <tbody>
-          {rows?.map((r,i)=>(
-            <tr key={i} className="border-t border-gray-800">
-              <td className="py-1 pr-2 text-gray-200">{r.city}</td>
-              <td className="py-1 pr-2 text-gray-300">{r.state}</td>
-              <td className="py-1 pr-2 text-gray-400">{r.kma || '—'}</td>
-              <td className="py-1 pr-2 text-gray-400">{r.miles ?? '—'}</td>
-              <td className="py-1 text-right">
-                <button disabled={saved} onClick={()=>onChoose(r)} className={`px-2 py-1 rounded text-xs ${saved ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}>Choose</button>
-              </td>
-            </tr>
-          ))}
-          {(!rows || rows.length===0) && <tr><td colSpan={5} className="py-2 text-gray-500">No nearby cities.</td></tr>}
-        </tbody>
-      </table>
-    </div>
   );
 }
 
