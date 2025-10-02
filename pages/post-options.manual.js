@@ -14,6 +14,7 @@ export default function PostOptionsManual() {
   const [masterLoaded, setMasterLoaded] = useState(false);
   const [genError, setGenError] = useState('');
   const [genMessage, setGenMessage] = useState('');
+  const [selectedCities, setSelectedCities] = useState({}); // { laneId: { origin: [...cities], dest: [...cities] } }
 
   useEffect(() => {
     (async () => {
@@ -163,123 +164,115 @@ export default function PostOptionsManual() {
     }
   };
 
-  // Chunked batch ingest to /api/post-options (new batch mode) for synthetic lanes
+  // NEW: Quick city picker from pre-computed database
   const handleBatchIngest = async () => {
-    console.log('[Batch Ingest] === BUTTON CLICKED ===', { timestamp: new Date().toISOString() });
-    console.log('[Batch Ingest] Total lanes in state:', lanes.length);
-    console.log('[Batch Ingest] Sample lane:', lanes[0]);
+    console.log('[Quick Enrich] Starting instant city fetch from database');
     setGenError('');
     setGenMessage('');
     setLoadingAll(true);
+    
     try {
       const generated = lanes.filter(l => String(l.id).startsWith('gen_'));
-      console.log('[Batch Ingest] Filtered generated lanes:', generated.length);
-      console.log('[Batch Ingest] Sample generated lane:', generated[0]);
       if (generated.length === 0) {
-        setGenError('No generated lanes to ingest');
+        setGenError('No generated lanes to process');
+        setLoadingAll(false);
         return;
       }
-      const CHUNK = 20;
-      let succeeded = 0; let totalFailed = 0; let processed = 0;
-      const failedLanes = []; // track failed lanes for retry
-
-      // First pass: process all chunks
-      for (let i = 0; i < generated.length; i += CHUNK) {
-        const slice = generated.slice(i, i + CHUNK);
-        console.log(`[Batch Ingest] Processing chunk ${Math.floor(i/CHUNK)+1}/${Math.ceil(generated.length/CHUNK)}`, { sliceLength: slice.length });
-        console.log(`[Batch Ingest] Chunk sample:`, slice[0]);
-        try {
-          console.log(`[Batch Ingest] Sending POST to /api/post-options...`);
-          const startTime = Date.now();
-          
-          // Add 30-second timeout to prevent infinite hang
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 30000);
-          
-          const resp = await fetch('/api/post-options', {
-            method: 'POST',
-            headers: { 'Content-Type':'application/json' },
-            body: JSON.stringify({ lanes: slice }),
-            signal: controller.signal
-          });
-          clearTimeout(timeoutId);
-          
-          const elapsed = Date.now() - startTime;
-          console.log(`[Batch Ingest] Response received:`, { status: resp.status, ok: resp.ok, elapsed: elapsed + 'ms' });
-          
-          if (!resp.ok) {
-            const errorText = await resp.text();
-            console.error(`[Batch Ingest] HTTP error:`, { status: resp.status, body: errorText });
-            throw new Error(`HTTP ${resp.status}`);
-          }
-          const json = await resp.json();
-          console.log(`[Batch Ingest] Response JSON:`, json);
-          if (!json.ok) throw new Error(json.error || 'Batch response error');
-          
-          succeeded += json.success || 0;
-          totalFailed += json.failed || 0;
-          processed = Math.min(i + slice.length, generated.length);
-          
-          // Track individual failures
-          if (json.results && Array.isArray(json.results)) {
-            const chunkFailed = json.results.filter(r => r.status === 'failed');
-            failedLanes.push(...chunkFailed.map(r => slice.find(l => (l.id || `${l.origin_city}-${l.dest_city}`) === r.laneId)));
-          }
-          
-          setGenMessage(`⏳ Chunk ${Math.floor(i/CHUNK)+1}/${Math.ceil(generated.length/CHUNK)}: ${succeeded} succeeded, ${totalFailed} failed`);
-          console.log(`[Ingest] Chunk ${Math.floor(i/CHUNK)+1} result:`, json);
-        } catch (e) {
-          console.error(`[Ingest] Chunk ${Math.floor(i/CHUNK)} error:`, e.message);
-          if (e.name === 'AbortError') {
-            console.error(`[Ingest] Request timed out after 30 seconds`);
-            setGenMessage(`⏳ Chunk ${Math.floor(i/CHUNK)+1} timed out (30s) - retrying...`);
-          }
-          totalFailed += slice.length;
-          failedLanes.push(...slice);
-          setGenMessage(`⚠️ Chunk ${Math.floor(i/CHUNK)+1} failed: ${e.message}`);
-        }
+      
+      setGenMessage(`⏳ Fetching cities for ${generated.length} lanes...`);
+      
+      // Call new fast API
+      const resp = await fetch('/api/quick-enrich', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lanes: generated })
+      });
+      
+      if (!resp.ok) {
+        throw new Error(`HTTP ${resp.status}`);
       }
-
-      // Retry failed lanes once with exponential backoff
-      if (failedLanes.length > 0) {
-        setGenMessage(`🔄 Retrying ${failedLanes.length} failed lanes...`);
-        await new Promise(r => setTimeout(r, 1500)); // 1.5s backoff
-        
-        let retrySucceeded = 0;
-        for (let i = 0; i < failedLanes.length; i += CHUNK) {
-          const retrySlice = failedLanes.slice(i, i + CHUNK).filter(Boolean);
-          if (retrySlice.length === 0) continue;
-          
-          try {
-            const resp = await fetch('/api/post-options', {
-              method: 'POST',
-              headers: { 'Content-Type':'application/json' },
-              body: JSON.stringify({ lanes: retrySlice })
-            });
-            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-            const json = await resp.json();
-            if (json.ok && json.success) {
-              retrySucceeded += json.success;
-              succeeded += json.success;
-              totalFailed -= json.success;
-            }
-            console.log(`[Retry] Chunk ${Math.floor(i/CHUNK)+1} result:`, json);
-          } catch (e) {
-            console.error(`[Retry] Chunk ${Math.floor(i/CHUNK)} still failed:`, e.message);
+      
+      const data = await resp.json();
+      console.log('[Quick Enrich] Got enriched data:', data);
+      
+      if (data.ok && data.lanes) {
+        // Update lanes with nearby cities
+        setLanes(prev => prev.map(lane => {
+          const enriched = data.lanes.find(e => e.id === lane.id);
+          if (enriched) {
+            return {
+              ...lane,
+              enriched: true,
+              origin_nearby: enriched.origin_nearby || [],
+              dest_nearby: enriched.dest_nearby || [],
+              origin_kmas: enriched.origin_kmas || {},
+              dest_kmas: enriched.dest_kmas || {}
+            };
           }
-        }
+          return lane;
+        }));
         
-        if (retrySucceeded > 0) {
-          setGenMessage(`✅ Retry recovered ${retrySucceeded} lanes`);
-        }
+        setGenMessage(`✅ ${data.count} lanes enriched! Cities loaded from database.`);
       }
-
-      setGenMessage(`🎯 Ingest complete: ${succeeded} succeeded, ${totalFailed} failed`);
-    } catch (err) {
-      console.error('Batch ingest error:', err);
-      setGenError('Batch ingest failed');
+      
+    } catch (error) {
+      console.error('[Quick Enrich] Error:', error);
+      setGenError(`Failed: ${error.message}`);
     } finally {
       setLoadingAll(false);
+    }
+  };
+
+  // Toggle city selection
+  const toggleCitySelection = (laneId, type, city) => {
+    setSelectedCities(prev => {
+      const lane = prev[laneId] || { origin: [], dest: [] };
+      const list = lane[type] || [];
+      const exists = list.find(c => c.city === city.city && c.state_or_province === city.state_or_province);
+      
+      return {
+        ...prev,
+        [laneId]: {
+          ...lane,
+          [type]: exists 
+            ? list.filter(c => !(c.city === city.city && c.state_or_province === city.state_or_province))
+            : [...list, city]
+        }
+      };
+    });
+  };
+
+  // Save city choices to database
+  const saveCityChoices = async (lane) => {
+    const selections = selectedCities[lane.id];
+    if (!selections || (selections.origin.length === 0 && selections.dest.length === 0)) {
+      alert('Please select at least one city');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/save-city-choices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lane_id: lane.id,
+          origin_city: lane.origin_city,
+          origin_state: lane.origin_state,
+          dest_city: lane.destination_city,
+          dest_state: lane.destination_state,
+          origin_chosen_cities: selections.origin,
+          dest_chosen_cities: selections.dest
+        })
+      });
+
+      const data = await response.json();
+      if (data.ok) {
+        alert(`✅ Saved! RR Number: ${data.rr_number}`);
+      } else {
+        alert(`Error: ${data.error}`);
+      }
+    } catch (error) {
+      alert(`Failed to save: ${error.message}`);
     }
   };
 
@@ -448,6 +441,87 @@ export default function PostOptionsManual() {
               </div>
               {state?.error && <div className="text-sm text-red-400">⚠ {state.error}</div>}
               {state?.loading && <div className="text-sm text-gray-400 animate-pulse">Loading nearby cities…</div>}
+              {/* NEW: Show enriched cities with checkboxes */}
+              {lane.enriched && (lane.origin_nearby || lane.dest_nearby) && (
+                <>
+                  <div className="grid md:grid-cols-2 gap-4 mt-4">
+                    {/* Origin Cities */}
+                    <div className="bg-gray-900 border border-gray-700 rounded-lg p-3">
+                      <h3 className="text-sm font-semibold text-gray-200 mb-2">
+                        Pickup near {lane.origin_city}, {lane.origin_state}
+                      </h3>
+                      <div className="space-y-2 max-h-64 overflow-y-auto">
+                        {Object.entries(lane.origin_kmas || {}).map(([kma, cities]) => (
+                          <div key={kma} className="mb-3">
+                            <div className="text-xs font-bold text-blue-400 mb-1">{kma} ({cities.length})</div>
+                            {cities.slice(0, 20).map((city, i) => {
+                              const isSelected = selectedCities[lane.id]?.origin?.find(
+                                c => c.city === city.city && c.state_or_province === city.state_or_province
+                              );
+                              return (
+                                <label key={i} className="flex items-center gap-2 text-sm text-gray-300 hover:bg-gray-800 px-2 py-1 rounded cursor-pointer">
+                                  <input 
+                                    type="checkbox" 
+                                    className="form-checkbox text-blue-600"
+                                    checked={!!isSelected}
+                                    onChange={() => toggleCitySelection(lane.id, 'origin', city)}
+                                  />
+                                  <span>{city.city}, {city.state_or_province}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    {/* Destination Cities */}
+                    <div className="bg-gray-900 border border-gray-700 rounded-lg p-3">
+                      <h3 className="text-sm font-semibold text-gray-200 mb-2">
+                        Delivery near {lane.destination_city}, {lane.destination_state}
+                      </h3>
+                      <div className="space-y-2 max-h-64 overflow-y-auto">
+                        {Object.entries(lane.dest_kmas || {}).map(([kma, cities]) => (
+                          <div key={kma} className="mb-3">
+                            <div className="text-xs font-bold text-green-400 mb-1">{kma} ({cities.length})</div>
+                            {cities.slice(0, 20).map((city, i) => {
+                              const isSelected = selectedCities[lane.id]?.dest?.find(
+                                c => c.city === city.city && c.state_or_province === city.state_or_province
+                              );
+                              return (
+                                <label key={i} className="flex items-center gap-2 text-sm text-gray-300 hover:bg-gray-800 px-2 py-1 rounded cursor-pointer">
+                                  <input 
+                                    type="checkbox" 
+                                    className="form-checkbox text-green-600"
+                                    checked={!!isSelected}
+                                    onChange={() => toggleCitySelection(lane.id, 'dest', city)}
+                                  />
+                                  <span>{city.city}, {city.state_or_province}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Save Button */}
+                  <div className="mt-4 flex items-center gap-3">
+                    <button
+                      onClick={() => saveCityChoices(lane)}
+                      className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded text-white text-sm font-medium"
+                    >
+                      💾 Save City Choices
+                    </button>
+                    <span className="text-xs text-gray-400">
+                      Selected: {selectedCities[lane.id]?.origin?.length || 0} origin, {selectedCities[lane.id]?.dest?.length || 0} destination
+                    </span>
+                  </div>
+                </>
+              )}
+              
+              {/* OLD: Original options table (still works for non-enriched lanes) */}
               {state?.originOptions && (
                 <div className="grid md:grid-cols-2 gap-4">
                   <SideTable title={`Pickup near ${lane.origin_city}, ${lane.origin_state}`} rows={state.originOptions} saved={state?.status?.originSaved} onChoose={opt=>saveChoice(lane,'origin',opt)} />

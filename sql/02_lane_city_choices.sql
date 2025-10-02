@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS lane_city_choices (
   
   -- Metadata
   posted_cities JSONB DEFAULT '[]'::jsonb,
-  rr_number TEXT, -- Simple format: RR12345
+  rr_number TEXT, -- Format: RR + 5 random digits (e.g., RR12341, RR98234)
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   
@@ -38,18 +38,31 @@ CREATE INDEX IF NOT EXISTS idx_lane_choices_origin ON lane_city_choices(origin_c
 CREATE INDEX IF NOT EXISTS idx_lane_choices_dest ON lane_city_choices(dest_city, dest_state);
 CREATE INDEX IF NOT EXISTS idx_lane_choices_rr ON lane_city_choices(rr_number);
 
--- Function to get next RR number
+-- Function to generate random 5-digit RR number (10000-99999 range)
+-- No leading zeros, randomized to avoid sequential patterns
 CREATE OR REPLACE FUNCTION get_next_rr_number()
 RETURNS TEXT AS $$
 DECLARE
-  next_num INT;
+  random_num INT;
+  new_rr TEXT;
+  exists_check INT;
 BEGIN
-  SELECT COALESCE(MAX(CAST(SUBSTRING(rr_number FROM 3) AS INT)), 0) + 1
-  INTO next_num
-  FROM lane_city_choices
-  WHERE rr_number ~ '^RR[0-9]+$';
+  -- Loop until we find a unique random number
+  LOOP
+    -- Generate random 5-digit number (10000 to 99999)
+    random_num := floor(random() * 90000 + 10000)::INT;
+    new_rr := 'RR' || random_num::TEXT;
+    
+    -- Check if this RR number already exists
+    SELECT COUNT(*) INTO exists_check
+    FROM lane_city_choices
+    WHERE rr_number = new_rr;
+    
+    -- If unique, return it
+    EXIT WHEN exists_check = 0;
+  END LOOP;
   
-  RETURN 'RR' || LPAD(next_num::TEXT, 5, '0');
+  RETURN new_rr;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -65,3 +78,7 @@ $$ LANGUAGE plpgsql;
 --   },
 --   ...
 -- ]
+
+-- Note: RR numbers are random 5-digit numbers (RR12341, RR98234, RR45672...)
+-- Range: 10000-99999 (no leading zeros)
+-- Randomized to avoid sequential patterns for DAT platform
