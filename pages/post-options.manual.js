@@ -412,16 +412,6 @@ export default function PostOptionsManual() {
                 <div className="text-gray-100 font-medium">
                   {lane.origin_city}, {lane.origin_state} → {lane.destination_city || lane.dest_city}, {lane.destination_state || lane.dest_state}
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={()=>loadOptionsForLane(lane)}
-                    disabled={loadingAll || !hasCoords}
-                    className="px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded text-white text-sm"
-                    title={!hasCoords ? 'Click "Ingest Generated" first to enrich coordinates' : ''}
-                  >
-                    {state?.originOptions ? (loadingAll ? 'Loaded' : 'Reload') : 'Load Options'}
-                  </button>
-                </div>
               </div>
               {state?.error && <div className="text-sm text-red-400">⚠ {state.error}</div>}
               {state?.loading && <div className="text-sm text-gray-400 animate-pulse">Loading nearby cities…</div>}
