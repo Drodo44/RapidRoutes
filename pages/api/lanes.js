@@ -124,17 +124,59 @@ export default async function handler(req, res) {
       const destinationCity = payloadDestinationCity ?? dest_city ?? destCity ?? null;
       const destinationState = payloadDestinationState ?? dest_state ?? destState ?? null;
       
+      // Look up coordinates from cities table
+      const { data: originCity, error: originError } = await adminSupabase
+        .from('cities')
+        .select('latitude, longitude')
+        .eq('city', payload.origin_city)
+        .eq('state_or_province', payload.origin_state)
+        .maybeSingle();
+      
+      if (originError) {
+        console.error('Origin city lookup error:', originError);
+        return res.status(500).json({ error: 'Failed to lookup origin city coordinates', details: originError });
+      }
+      
+      if (!originCity) {
+        return res.status(400).json({ 
+          error: `Origin city not found: ${payload.origin_city}, ${payload.origin_state}. Please use a city from the database.`
+        });
+      }
+      
+      const { data: destCityData, error: destError } = await adminSupabase
+        .from('cities')
+        .select('latitude, longitude')
+        .eq('city', destinationCity)
+        .eq('state_or_province', destinationState)
+        .maybeSingle();
+      
+      if (destError) {
+        console.error('Destination city lookup error:', destError);
+        return res.status(500).json({ error: 'Failed to lookup destination city coordinates', details: destError });
+      }
+      
+      if (!destCityData) {
+        return res.status(400).json({ 
+          error: `Destination city not found: ${destinationCity}, ${destinationState}. Please use a city from the database.`
+        });
+      }
+      
       // Create the final lane object with standardized fields only
       const lane = {
         ...payloadWithoutDestFields, // Base fields excluding any dest_* variants
-  lane_status: payload.lane_status || payload.status || 'pending',
+        lane_status: payload.lane_status || payload.status || 'pending',
         reference_id: generateReferenceId(),
         created_at: new Date().toISOString(),
         created_by: auth.user.id,
         user_id: auth.user.id,
         // Always use destination_* fields for database consistency
         destination_city: destinationCity,
-        destination_state: destinationState
+        destination_state: destinationState,
+        // Add coordinates from cities table
+        origin_latitude: originCity.latitude,
+        origin_longitude: originCity.longitude,
+        dest_latitude: destCityData.latitude,
+        dest_longitude: destCityData.longitude
       };
       
       // Detailed logging of the mapping process
