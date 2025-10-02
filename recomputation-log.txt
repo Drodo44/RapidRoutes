@@ -287,3 +287,49 @@ nohup: ignoring input
 ✅ Progress: 26800 / 29513 checked (90.8%) | Recomputed: 13360 | Skipped: 40 | Batch: 4.8s
 ✅ Progress: 26900 / 29513 checked (91.1%) | Recomputed: 13410 | Skipped: 40 | Batch: 3.2s
 ✅ Progress: 27000 / 29513 checked (91.5%) | Recomputed: 13460 | Skipped: 40 | Batch: 4.8s
+✅ Progress: 27100 / 29513 checked (91.8%) | Recomputed: 13510 | Skipped: 40 | Batch: 3.5s
+✅ Progress: 27200 / 29513 checked (92.2%) | Recomputed: 13560 | Skipped: 40 | Batch: 4.6s
+✅ Progress: 27300 / 29513 checked (92.5%) | Recomputed: 13610 | Skipped: 40 | Batch: 4.8s
+✅ Progress: 27400 / 29513 checked (92.8%) | Recomputed: 13660 | Skipped: 40 | Batch: 3.7s
+✅ Progress: 27500 / 29513 checked (93.2%) | Recomputed: 13710 | Skipped: 40 | Batch: 7.8s
+✅ Progress: 27600 / 29513 checked (93.5%) | Recomputed: 13760 | Skipped: 40 | Batch: 4.0s
+✅ Progress: 27700 / 29513 checked (93.9%) | Recomputed: 13810 | Skipped: 40 | Batch: 5.5s
+✅ Progress: 27800 / 29513 checked (94.2%) | Recomputed: 13860 | Skipped: 40 | Batch: 4.8s
+✅ Progress: 27900 / 29513 checked (94.5%) | Recomputed: 13910 | Skipped: 40 | Batch: 3.7s
+✅ Progress: 28000 / 29513 checked (94.9%) | Recomputed: 13960 | Skipped: 40 | Batch: 4.6s
+✅ Progress: 28100 / 29513 checked (95.2%) | Recomputed: 14010 | Skipped: 40 | Batch: 3.2s
+✅ Progress: 28200 / 29513 checked (95.6%) | Recomputed: 14060 | Skipped: 40 | Batch: 5.0s
+✅ Progress: 28300 / 29513 checked (95.9%) | Recomputed: 14110 | Skipped: 40 | Batch: 3.6s
+✅ Progress: 28400 / 29513 checked (96.2%) | Recomputed: 14160 | Skipped: 40 | Batch: 5.7s
+✅ Progress: 28500 / 29513 checked (96.6%) | Recomputed: 14210 | Skipped: 40 | Batch: 3.2s
+✅ Progress: 28600 / 29513 checked (96.9%) | Recomputed: 14260 | Skipped: 40 | Batch: 4.4s
+✅ Progress: 28700 / 29513 checked (97.2%) | Recomputed: 14310 | Skipped: 40 | Batch: 3.3s
+✅ Progress: 28800 / 29513 checked (97.6%) | Recomputed: 14360 | Skipped: 40 | Batch: 6.3s
+✅ Progress: 28900 / 29513 checked (97.9%) | Recomputed: 14410 | Skipped: 40 | Batch: 3.9s
+✅ Progress: 29000 / 29513 checked (98.3%) | Recomputed: 14460 | Skipped: 40 | Batch: 6.3s
+✅ Progress: 29100 / 29513 checked (98.6%) | Recomputed: 14510 | Skipped: 40 | Batch: 3.1s
+✅ Progress: 29200 / 29513 checked (98.9%) | Recomputed: 14560 | Skipped: 40 | Batch: 4.8s
+✅ Progress: 29300 / 29513 checked (99.3%) | Recomputed: 14610 | Skipped: 40 | Batch: 2.6s
+✅ Progress: 29400 / 29513 checked (99.6%) | Recomputed: 14660 | Skipped: 40 | Batch: 4.3s
+✅ Progress: 29500 / 29513 checked (100.0%) | Recomputed: 14710 | Skipped: 40 | Batch: 5.5s
+✅ Progress: 29526 / 29513 checked (100.0%) | Recomputed: 14711 | Skipped: 40 | Batch: 0.2s
+✅ Progress: 29526 / 29513 checked (100.0%) | Recomputed: 14712 | Skipped: 40 | Batch: 0.2s
+✅ Progress: 29526 / 29513 checked (100.0%) | Recomputed: 14713 | Skipped: 40 | Batch: 0.3s
+✅ Progress: 29526 / 29513 checked (100.0%) | Recomputed: 14714 | Skipped: 40 | Batch: 0.4s
+✅ Progress: 29526 / 29513 checked (100.0%) | Recomputed: 14715 | Skipped: 40 | Batch: 0.4s
+✅ Progress: 29526 / 29513 checked (100.0%) | Recomputed: 14716 | Skipped: 40 | Batch: 0.5s
+✅ Progress: 29526 / 29513 checked (100.0%) | Recomputed: 14717 | Skipped: 40 | Batch: 0.6s
+✅ Progress: 29526 / 29513 checked (100.0%) | Recomputed: 14718 | Skipped: 40 | Batch: 0.7s
+✅ Progress: 29526 / 29513 checked (100.0%) | Recomputed: 14719 | Skipped: 40 | Batch: 0.7s
+✅ Progress: 29526 / 29513 checked (100.0%) | Recomputed: 14720 | Skipped: 40 | Batch: 0.8s
+✅ Progress: 29526 / 29513 checked (100.0%) | Recomputed: 14721 | Skipped: 40 | Batch: 0.9s
+✅ Progress: 29526 / 29513 checked (100.0%) | Recomputed: 14722 | Skipped: 40 | Batch: 1.0s
+✅ Progress: 29526 / 29513 checked (100.0%) | Recomputed: 14723 | Skipped: 40 | Batch: 1.1s
+
+===========================================
+🎉 Recomputation complete!
+📊 Total cities checked: 29526
+♻️  Cities recomputed: 14723
+⏭️  Cities skipped (already good): 40
+===========================================
+
