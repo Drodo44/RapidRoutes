@@ -30,11 +30,8 @@ export default function PostOptionsManual() {
           return [];
         }
         const base = `${SUPABASE_URL}/rest/v1/lanes`;
-        // Removed deprecated 'status' column from selection – schema now uses lane_status only
-  // Updated select fields: use dest_latitude/dest_longitude (new schema) and lane_status only
-  const selectFields = 'id,origin_city,origin_state,destination_city,destination_state,origin_latitude,origin_longitude,dest_latitude,dest_longitude,lane_status,created_at,dest_city,dest_state';
+        const selectFields = 'id,origin_city,origin_state,destination_city,destination_state,origin_latitude,origin_longitude,dest_latitude,dest_longitude,lane_status,created_at,dest_city,dest_state';
         const headers = { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` };
-        // Single attempt: filter using lane_status only
         const url2 = `${base}?select=${encodeURIComponent(selectFields)}&lane_status=eq.pending&order=created_at.desc`;
         try {
           const r2 = await fetch(url2, { headers });
@@ -45,7 +42,6 @@ export default function PostOptionsManual() {
           }
           const data2 = await r2.json();
           if (Array.isArray(data2)) {
-            // Normalize lane objects: expose only lane_status (no legacy status)
             return data2.map(row => ({ ...row }));
           }
         } catch (e) {
@@ -56,10 +52,49 @@ export default function PostOptionsManual() {
 
       const pending = await fetchPendingLanes();
       console.log('[INITIAL LOAD] Fetched pending lanes:', pending.length);
-      console.log('[INITIAL LOAD] Sample lane:', pending[0]);
-      console.log('[INITIAL LOAD] All lane IDs:', pending.map(l => l.id));
-      console.log('[INITIAL LOAD] All origin→dest pairs:', pending.map(l => `${l.origin_city}, ${l.origin_state} → ${l.destination_city || 'NULL'}, ${l.destination_state || 'NULL'}`));
       setLanes(pending);
+      
+      // AUTO-ENRICH: Immediately load city options for all pending lanes
+      if (pending.length > 0) {
+        console.log('[AUTO-ENRICH] Loading city options for', pending.length, 'lanes');
+        setLoadingAll(true);
+        
+        try {
+          const resp = await fetch('/api/quick-enrich', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lanes: pending })
+          });
+          
+          if (resp.ok) {
+            const data = await resp.json();
+            if (data.ok && data.lanes) {
+              // Update lanes with city options
+              const enrichedLanes = pending.map(lane => {
+                const enriched = data.lanes.find(e => e.id === lane.id);
+                if (enriched) {
+                  return {
+                    ...lane,
+                    enriched: true,
+                    origin_nearby: enriched.origin_nearby || [],
+                    dest_nearby: enriched.dest_nearby || [],
+                    origin_kmas: enriched.origin_kmas || {},
+                    dest_kmas: enriched.dest_kmas || {}
+                  };
+                }
+                return lane;
+              });
+              setLanes(enrichedLanes);
+              console.log('[AUTO-ENRICH] Success! Enriched', data.count, 'lanes');
+            }
+          }
+        } catch (error) {
+          console.error('[AUTO-ENRICH] Error:', error);
+        } finally {
+          setLoadingAll(false);
+        }
+      }
+      
       setLoading(false);
     })();
   }, []);
@@ -350,78 +385,29 @@ export default function PostOptionsManual() {
     });
   }
 
-  if (loading) return <Wrap><h1>Post Options</h1><p>Loading…</p></Wrap>;
+  if (loading) return <Wrap><h1>Post Options</h1><p>Loading pending lanes...</p></Wrap>;
 
   return (
     <Wrap>
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-semibold text-gray-100">Post Options</h1>
+        <h1 className="text-xl font-semibold text-gray-100">Post Options - Select Cities</h1>
         <Link href="/lanes" className="text-sm text-blue-400 hover:underline">← Back to Lanes</Link>
       </div>
-      <p className="text-sm text-gray-300 mb-4">Pick actual posting cities for each pending lane. These selections are saved and can drive later pairing/export logic.</p>
-      <div className="flex flex-wrap items-center gap-3 mb-6">
-        <label className="text-sm text-gray-300">Radius (miles)</label>
-        <input type="number" min={10} max={300} value={radius} onChange={e=>setRadius(Number(e.target.value)||100)} className="w-24 px-2 py-1 bg-gray-800 border border-gray-600 rounded text-gray-100 text-sm" />
-        <button
-          onClick={loadAllPostOptions}
-          disabled={loadingAll || lanes.length === 0}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded text-white text-sm font-medium"
-        >
-          {loadingAll ? 'Loading All…' : `Load All Options (${lanes.length})`}
-        </button>
-        <button
-          onClick={handleGenerateAll}
-          disabled={loadingAll}
-          className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed rounded text-white text-sm font-medium"
-        >
-          {loadingAll ? 'Generating…' : 'Generate All'}
-        </button>
-        <button
-          onClick={handleBatchIngest}
-          disabled={loadingAll}
-          className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed rounded text-white text-sm font-medium"
-        >
-          {loadingAll ? 'Enriching…' : '✨ Enrich Generated Lanes'}
-        </button>
-        {masterLoaded && <span className="text-xs text-green-400">All lanes loaded ✓</span>}
-      </div>
-      {(genError || genMessage) && (
-        <div className="mb-4 text-sm">
-          {genError && <div className="text-red-400">⚠ {genError}</div>}
-          {genMessage && <div className="text-green-400">{genMessage}</div>}
-        </div>
-      )}
+      <p className="text-sm text-gray-300 mb-4">
+        Select pickup and delivery cities for each pending lane. Cities are automatically loaded from your database.
+        {loadingAll && <span className="ml-2 text-yellow-400">⏳ Loading city options...</span>}
+        {!loadingAll && lanes.length > 0 && <span className="ml-2 text-green-400">✓ {lanes.length} lanes ready</span>}
+      </p>
       {lanes.length === 0 && <p className="text-gray-400">No pending lanes.</p>}
       <div className="flex flex-col gap-6">
-        {(() => {
-          console.log('[Render] Rendering lane cards, lanes.length:', lanes.length);
-          console.log('[Render] Sample lane IDs:', lanes.slice(0, 5).map(l => l.id));
-          console.log('[Render] Generated lane IDs:', lanes.filter(l => String(l.id).startsWith('gen_')).map(l => l.id));
-          console.log('[Render] Generated lanes count:', lanes.filter(l => String(l.id).startsWith('gen_')).length);
-          console.log('[Render] ALL lane IDs:', lanes.map(l => l.id));
-          return lanes.map((lane, index) => {
-            const state = optionsByLane[lane.id];
-            const hasCoords = typeof lane.origin_latitude === 'number' && typeof lane.origin_longitude === 'number';
-            const needsEnrichment = !hasCoords && String(lane.id).startsWith('gen_');
-            
-            // Log EVERY lane card being rendered
-            if (String(lane.id).startsWith('gen_')) {
-              console.log(`[Render Card ${index}] Generated lane:`, {
-                id: lane.id,
-                origin_city: lane.origin_city,
-                origin_state: lane.origin_state,
-                destination_city: lane.destination_city,
-                destination_state: lane.destination_state,
-                hasCoords: hasCoords
-              });
-            }
-            
-            return (
-              <div 
-                key={lane.id} 
-                data-card-id={lane.id}
-                className={`rounded-lg p-4 ${String(lane.id).startsWith('gen_') ? 'bg-purple-900 border-2 border-purple-500' : 'bg-gray-800 border border-gray-700'}`}
-              >
+        {lanes.map((lane) => {
+          const hasEnrichment = lane.enriched && (lane.origin_kmas || lane.dest_kmas);
+          
+          return (
+            <div 
+              key={lane.id} 
+              className="rounded-lg p-4 bg-gray-800 border border-gray-700"
+            >
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
                 <div className="text-gray-100 font-medium">
                   {String(lane.id).startsWith('gen_') && <span className="mr-2 text-purple-300 font-bold">[GENERATED]</span>}
@@ -530,8 +516,7 @@ export default function PostOptionsManual() {
               )}
             </div>
           );
-        });
-        })()}
+        })}
       </div>
     </Wrap>
   );
