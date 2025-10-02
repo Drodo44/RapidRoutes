@@ -410,9 +410,7 @@ export default function PostOptionsManual() {
             >
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
                 <div className="text-gray-100 font-medium">
-                  {String(lane.id).startsWith('gen_') && <span className="mr-2 text-purple-300 font-bold">[GENERATED]</span>}
-                  {lane.origin_city}, {lane.origin_state} → {lane.destination_city || '(generated)'}, {lane.destination_state || ''}
-                  {needsEnrichment && <span className="ml-2 text-xs text-yellow-400">⚠ Needs enrichment</span>}
+                  {lane.origin_city}, {lane.origin_state} → {lane.destination_city || lane.dest_city}, {lane.destination_state || lane.dest_state}
                 </div>
                 <div className="flex gap-2">
                   <button
