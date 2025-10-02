@@ -17,10 +17,12 @@ export default function ChooseCitiesPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState(null);
   const [cityData, setCityData] = useState(null);
   const [selectedOrigins, setSelectedOrigins] = useState([]);
   const [selectedDests, setSelectedDests] = useState([]);
+  const [hasSavedChoices, setHasSavedChoices] = useState(false);
 
   // Fetch nearby cities when page loads
   useEffect(() => {
@@ -104,13 +106,49 @@ export default function ChooseCitiesPage() {
 
       alert(`✅ Saved successfully!\nRR Number: ${result.rr_number}\nTotal pairs: ${result.total_pairs}`);
       
-      // Redirect back to lanes page
-      router.push('/lanes');
+      // Mark that choices have been saved
+      setHasSavedChoices(true);
+
+      // Keep user on page so they can export DAT CSV
+      // router.push('/lanes');  // Commented out - stay on page
 
     } catch (err) {
       alert(`Error: ${err.message}`);
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Export DAT CSV
+  const handleExportDatCsv = async () => {
+    try {
+      setExporting(true);
+      
+      const response = await fetch(`/api/lanes/${id}/export-dat-csv`);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Export failed');
+      }
+
+      // Download file
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `DAT_Lane_${id}_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      alert('✅ DAT CSV exported successfully!');
+      
+    } catch (err) {
+      console.error('Export failed:', err);
+      alert(`❌ Export failed: ${err.message}`);
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -220,13 +258,24 @@ export default function ChooseCitiesPage() {
                 </div>
               </div>
               
-              <Button
-                variant="primary"
-                onClick={handleSave}
-                disabled={saving || selectedOrigins.length === 0 || selectedDests.length === 0}
-              >
-                {saving ? <Spinner size="sm" /> : 'Save Choices'}
-              </Button>
+              <div className="flex gap-3">
+                <Button
+                  variant="primary"
+                  onClick={handleSave}
+                  disabled={saving || selectedOrigins.length === 0 || selectedDests.length === 0}
+                >
+                  {saving ? <Spinner size="sm" /> : 'Save Choices'}
+                </Button>
+                
+                <Button
+                  variant="success"
+                  onClick={handleExportDatCsv}
+                  disabled={exporting || !hasSavedChoices}
+                  title={!hasSavedChoices ? 'Save choices first' : 'Download DAT CSV file'}
+                >
+                  {exporting ? <Spinner size="sm" /> : '📥 Export DAT CSV'}
+                </Button>
+              </div>
             </div>
           </Card>
 
