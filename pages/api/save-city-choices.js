@@ -1,7 +1,7 @@
 // pages/api/save-city-choices.js
 // Save broker's city selections to database
 
-import { adminSupabase as supabase } from '../../utils/supabaseClient.js';
+import { adminSupabase as supabase } from '../../utils/supabaseAdminClient.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
