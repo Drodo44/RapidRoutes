@@ -24,10 +24,12 @@ const supabase = createClient(
 
 async function computeAllNearbyCities() {
   const BATCH_SIZE = 10; // Small batches to avoid memory issues
+  const CUTOFF_TIME = '2025-10-02T20:00:00.000Z'; // Only recompute cities older than this
   
-  console.log('🚀 Starting full database computation...\n');
+  console.log('🚀 Starting full database recomputation...\n');
+  console.log(`🔄 Recomputing cities with data older than: ${CUTOFF_TIME}\n`);
   
-  // Get total count
+  // Get total count of cities needing recomputation
   const { count, error: countError } = await supabase
     .from('cities')
     .select('id', { count: 'exact', head: true })
@@ -36,64 +38,92 @@ async function computeAllNearbyCities() {
   
   if (countError) throw countError;
   
-  console.log(`📍 Total cities to process: ${count}\n`);
+  console.log(`📍 Total cities in database: ${count}`);
   console.log(`⏱️  Estimated time: ${Math.round(count / BATCH_SIZE / 60)} minutes\n`);
   console.log('===========================================\n');
   
   let processed = 0;
+  let skipped = 0;
   let offset = 0;
   
-  while (processed < count) {
-    const startTime = Date.now();
+  while (offset < count) {
+    const batchStartTime = Date.now();
     
-    // Fetch batch of cities
+    // Fetch batch of cities (all cities, we'll filter by timestamp)
     const { data: batch, error: batchError } = await supabase
       .from('cities')
-      .select('id, city, state_or_province, latitude, longitude')
+      .select('id, city, state_or_province, latitude, longitude, nearby_cities')
       .not('latitude', 'is', null)
       .not('longitude', 'is', null)
-      .is('nearby_cities', null)
       .order('id')
-      .range(0, BATCH_SIZE - 1);
+      .range(offset, offset + BATCH_SIZE - 1);
     
     if (batchError) throw batchError;
     if (!batch || batch.length === 0) break;
     
+    offset += batch.length;
+    offset += batch.length;
+    
     // Process each city in the batch
     for (const city of batch) {
+      // Check if this city needs recomputation
+      const computedAt = city.nearby_cities?.computed_at;
+      
+      if (computedAt && computedAt >= CUTOFF_TIME) {
+        // Skip - already has good data
+        skipped++;
+        continue;
+      }
+      
       await computeForSingleCity(city);
       processed++;
       
-      if (processed % 50 === 0 || processed === count) {
-        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-        const progress = ((processed / count) * 100).toFixed(1);
-        console.log(`✅ Processed: ${processed} / ${count} cities (${progress}%) - Batch time: ${elapsed}s`);
+      if ((processed + skipped) % 50 === 0 || (offset >= count)) {
+        const elapsed = ((Date.now() - batchStartTime) / 1000).toFixed(1);
+        const totalProgress = ((offset / count) * 100).toFixed(1);
+        console.log(`✅ Progress: ${offset} / ${count} checked (${totalProgress}%) | Recomputed: ${processed} | Skipped: ${skipped} | Batch: ${elapsed}s`);
       }
     }
-    
-    offset += BATCH_SIZE;
   }
   
   console.log('\n===========================================');
-  console.log('🎉 Computation complete!');
-  console.log(`📊 Total cities processed: ${processed}`);
+  console.log('🎉 Recomputation complete!');
+  console.log(`📊 Total cities checked: ${offset}`);
+  console.log(`♻️  Cities recomputed: ${processed}`);
+  console.log(`⏭️  Cities skipped (already good): ${skipped}`);
   console.log('===========================================\n');
 }
 
 async function computeForSingleCity(city) {
   try {
-    // Use raw SQL query instead of RPC to avoid type mismatch
-    const { data: nearbyCities, error } = await supabase
-      .from('cities')
-      .select('city, state_or_province, zip, kma_code, kma_name, latitude, longitude')
-      .not('latitude', 'is', null)
-      .not('longitude', 'is', null)
-      .neq('id', city.id);
+    // CRITICAL FIX: Use pagination to fetch ALL cities (Supabase limits to 1000 per request)
+    let allCities = [];
+    let from = 0;
+    const pageSize = 1000;
     
-    if (error) {
-      console.error(`❌ Error fetching for ${city.city}, ${city.state_or_province}:`, error.message);
-      return;
+    while (true) {
+      const { data: batch, error: batchError } = await supabase
+        .from('cities')
+        .select('city, state_or_province, zip, kma_code, kma_name, latitude, longitude, id')
+        .not('latitude', 'is', null)
+        .not('longitude', 'is', null)
+        .neq('id', city.id)
+        .range(from, from + pageSize - 1);
+      
+      if (batchError) {
+        console.error(`❌ Error fetching batch for ${city.city}, ${city.state_or_province}:`, batchError.message);
+        return;
+      }
+      
+      if (!batch || batch.length === 0) break;
+      
+      allCities.push(...batch);
+      from += pageSize;
+      
+      if (batch.length < pageSize) break; // Last page
     }
+    
+    const nearbyCities = allCities;
     
     // Filter and calculate distances in Node.js
     const nearby = [];
