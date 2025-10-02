@@ -23,11 +23,40 @@ const supabase = createClient(
 );
 
 async function computeAllNearbyCities() {
-  const BATCH_SIZE = 10; // Small batches to avoid memory issues
+  const BATCH_SIZE = 50; // Larger batches since we're caching city data
   const CUTOFF_TIME = '2025-10-02T20:00:00.000Z'; // Only recompute cities older than this
   
   console.log('🚀 Starting full database recomputation...\n');
   console.log(`🔄 Recomputing cities with data older than: ${CUTOFF_TIME}\n`);
+  
+  // OPTIMIZATION: Load ALL cities into memory ONCE
+  console.log('📥 Loading all cities into memory (one-time operation)...');
+  let allCitiesData = [];
+  let from = 0;
+  const pageSize = 1000;
+  
+  while (true) {
+    const { data: batch, error: batchError } = await supabase
+      .from('cities')
+      .select('city, state_or_province, zip, kma_code, kma_name, latitude, longitude, id')
+      .not('latitude', 'is', null)
+      .not('longitude', 'is', null)
+      .range(from, from + pageSize - 1);
+    
+    if (batchError) throw batchError;
+    if (!batch || batch.length === 0) break;
+    
+    allCitiesData.push(...batch);
+    from += pageSize;
+    
+    if (from % 5000 === 0) {
+      console.log(`  Loaded ${from} cities...`);
+    }
+    
+    if (batch.length < pageSize) break;
+  }
+  
+  console.log(`✅ Loaded ${allCitiesData.length} cities into memory\n`);
   
   // Get total count of cities needing recomputation
   const { count, error: countError } = await supabase
@@ -75,7 +104,7 @@ async function computeAllNearbyCities() {
         continue;
       }
       
-      await computeForSingleCity(city);
+      await computeForSingleCity(city, allCitiesData);
       processed++;
       
       if ((processed + skipped) % 50 === 0 || (offset >= count)) {
@@ -94,36 +123,10 @@ async function computeAllNearbyCities() {
   console.log('===========================================\n');
 }
 
-async function computeForSingleCity(city) {
+async function computeForSingleCity(city, allCitiesData) {
   try {
-    // CRITICAL FIX: Use pagination to fetch ALL cities (Supabase limits to 1000 per request)
-    let allCities = [];
-    let from = 0;
-    const pageSize = 1000;
-    
-    while (true) {
-      const { data: batch, error: batchError } = await supabase
-        .from('cities')
-        .select('city, state_or_province, zip, kma_code, kma_name, latitude, longitude, id')
-        .not('latitude', 'is', null)
-        .not('longitude', 'is', null)
-        .neq('id', city.id)
-        .range(from, from + pageSize - 1);
-      
-      if (batchError) {
-        console.error(`❌ Error fetching batch for ${city.city}, ${city.state_or_province}:`, batchError.message);
-        return;
-      }
-      
-      if (!batch || batch.length === 0) break;
-      
-      allCities.push(...batch);
-      from += pageSize;
-      
-      if (batch.length < pageSize) break; // Last page
-    }
-    
-    const nearbyCities = allCities;
+    // Use the pre-loaded city data instead of fetching from database
+    const nearbyCities = allCitiesData;
     
     // Filter and calculate distances in Node.js
     const nearby = [];
