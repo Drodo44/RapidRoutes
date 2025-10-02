@@ -19,6 +19,12 @@ export default async function handler(req, res) {
     const enriched = [];
     
     for (const lane of lanes) {
+      console.log(`[Quick Enrich] Lane:`, {
+        id: lane.id,
+        origin: `${lane.origin_city}, ${lane.origin_state}`,
+        dest: `${lane.destination_city || lane.dest_city}, ${lane.destination_state || lane.dest_state}`
+      });
+      
       // Fetch origin nearby cities from database
       const { data: originCity, error: originError } = await supabase
         .from('cities')
@@ -33,11 +39,15 @@ export default async function handler(req, res) {
       }
       
       // Fetch destination nearby cities from database
+      // Handle both dest_city and destination_city field names
+      const destCityName = lane.destination_city || lane.dest_city;
+      const destStateName = lane.destination_state || lane.dest_state;
+      
       const { data: destCity, error: destError } = await supabase
         .from('cities')
         .select('city, state_or_province, nearby_cities')
-        .eq('city', lane.dest_city)
-        .eq('state_or_province', lane.dest_state)
+        .eq('city', destCityName)
+        .eq('state_or_province', destStateName)
         .maybeSingle();
       
       if (destError) {
