@@ -10,7 +10,7 @@
 // - 499-row maximum per file (auto-chunk if needed)
 // ============================================================================
 
-import { adminSupabase as supabase } from '../../../../utils/supabaseClient';
+import { adminSupabase as supabase } from '../../../../utils/supabaseAdminClient';
 import { DAT_HEADERS } from '../../../../lib/datHeaders';
 
 // Equipment weight limits (from datCsvBuilder.js)
