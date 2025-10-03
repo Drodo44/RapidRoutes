@@ -1,6 +1,6 @@
 // pages/_app.js
 import '../styles/globals.css';
-import '../styles/enterprise-theme.css';
+import '../styles/enterprise.css';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
