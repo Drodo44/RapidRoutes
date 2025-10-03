@@ -190,20 +190,63 @@ export default function RecapPage() {
   const [postedPairs, setPostedPairs] = useState([]); // Store all generated pairs for dropdown
   
   useEffect(() => {
-    // Load lanes
+    // Load lanes with saved city choices (active) and posted lanes
     supabase
       .from('lanes')
       .select('*')
-      .in('lane_status', ['pending', 'posted'])
+      .in('lane_status', ['active', 'posted'])
       .order('created_at', { ascending: false })
       .limit(200)
       .then(async ({ data }) => {
         setLanes(data || []);
         
-        // For posted lanes, get their generated pairs for the dropdown
-  const postedLanes = (data || []).filter(lane => (lane.lane_status || lane.status) === 'posted');
+        // For active lanes, get their saved city choices
+        const activeLanes = (data || []).filter(lane => (lane.lane_status || lane.status) === 'active');
+        const postedLanes = (data || []).filter(lane => (lane.lane_status || lane.status) === 'posted');
         const allPairs = [];
         
+        // Load saved city choices for active lanes
+        for (const lane of activeLanes) {
+          try {
+            const { data: cityChoices, error } = await supabase
+              .from('lane_city_choices')
+              .select('*')
+              .eq('lane_id', lane.id)
+              .order('created_at', { ascending: false });
+            
+            if (!error && cityChoices?.length > 0) {
+              // Add base lane
+              allPairs.push({
+                id: `base-${lane.id}`,
+                laneId: lane.id,
+                isBase: true,
+                display: `${lane.origin_city}, ${lane.origin_state} → ${lane.dest_city || lane.destination_city}, ${lane.dest_state || lane.destination_state}`,
+                referenceId: lane.reference_id,
+                pickup: { city: lane.origin_city, state: lane.origin_state },
+                delivery: { city: lane.dest_city || lane.destination_city, state: lane.dest_state || lane.destination_state }
+              });
+              
+              // Add saved city choices as pairs
+              cityChoices.forEach((choice, index) => {
+                const pairRefId = generatePairReferenceId(lane.reference_id, index);
+                allPairs.push({
+                  id: `pair-${lane.id}-${index}`,
+                  laneId: lane.id,
+                  isBase: false,
+                  display: `${choice.origin_city}, ${choice.origin_state} → ${choice.destination_city}, ${choice.destination_state}`,
+                  referenceId: pairRefId,
+                  baseReferenceId: lane.reference_id,
+                  pickup: { city: choice.origin_city, state: choice.origin_state },
+                  delivery: { city: choice.destination_city, state: choice.destination_state }
+                });
+              });
+            }
+          } catch (error) {
+            console.error(`Error loading city choices for lane ${lane.id}:`, error);
+          }
+        }
+        
+        // For posted lanes, get their generated pairs for the dropdown
         for (const lane of postedLanes) {
           try {
             const response = await fetch(`/api/getPostedPairs?laneId=${lane.id}`);
@@ -516,7 +559,7 @@ export default function RecapPage() {
                 >
                   <option value="">📍 Jump to posted lane/pair...</option>
                   {/* Only show posted lanes with their actual generated pairs */}
-                  {lanes.filter(lane => (lane.lane_status || lane.status) === 'posted' && postedPairs.some(pair => pair.laneId === lane.id)).map(lane => {
+                  {lanes.filter(lane => ['active', 'posted'].includes(lane.lane_status || lane.status) && postedPairs.some(pair => pair.laneId === lane.id)).map(lane => {
                     const basePair = postedPairs.find(pair => pair.laneId === lane.id && pair.isBase);
                     const generatedPairs = postedPairs.filter(pair => pair.laneId === lane.id && !pair.isBase);
                     
