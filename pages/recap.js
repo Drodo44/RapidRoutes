@@ -138,6 +138,54 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
                 ✅ These city combinations have been posted to DAT
               </div>
             )}
+            
+            {/* Show all generated pairs with RR numbers */}
+            <details className="mt-4">
+              <summary className="cursor-pointer text-xs font-medium text-blue-300 hover:text-blue-200 flex items-center gap-2">
+                <span>📋</span>
+                <span>View All {lane.saved_origin_cities.length * lane.saved_dest_cities.length} Individual Pairs with RR#</span>
+              </summary>
+              <div className="mt-3 space-y-2 max-h-96 overflow-y-auto">
+                {lane.saved_origin_cities.flatMap((originCity, originIdx) => 
+                  lane.saved_dest_cities.map((destCity, destIdx) => {
+                    const pairIndex = originIdx * lane.saved_dest_cities.length + destIdx;
+                    const pairRefId = generatePairReferenceId(lane.reference_id, pairIndex);
+                    
+                    return (
+                      <div key={`${originIdx}-${destIdx}`} className="text-xs bg-gray-800/50 p-2.5 rounded border border-gray-700">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-gray-400">PAIR #{pairIndex + 1}</span>
+                          <span className="font-mono font-bold text-green-300 bg-green-900/40 px-2 py-0.5 rounded">
+                            {pairRefId}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <div className="text-blue-400 font-medium">{originCity.city}, {originCity.state}</div>
+                            {(originCity.kma_code || originCity.kma_name) && (
+                              <div className="text-blue-400/70 text-2xs">
+                                {originCity.kma_code || originCity.kma_name} • {Math.round(originCity.miles)} mi
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <div className="text-orange-400 font-medium">{destCity.city}, {destCity.state}</div>
+                            {(destCity.kma_code || destCity.kma_name) && (
+                              <div className="text-orange-400/70 text-2xs">
+                                {destCity.kma_code || destCity.kma_name} • {Math.round(destCity.miles)} mi
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+              <div className="mt-2 text-2xs text-gray-500">
+                💡 Use these RR# when posting individual loads to DAT
+              </div>
+            </details>
           </div>
         </div>
       )}
