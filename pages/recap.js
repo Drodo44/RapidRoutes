@@ -46,8 +46,10 @@ function matches(q, l) {
 }
 
 function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs = [] }) {
-  // Get generated pairs for this lane
-  const laneGeneratedPairs = postedPairs.filter(pair => pair.laneId === lane.id);
+  // Check if lane has saved city choices
+  const hasSavedChoices = lane.has_saved_choices && 
+                          lane.saved_origin_cities?.length > 0 && 
+                          lane.saved_dest_cities?.length > 0;
   
   return (
     <article id={`lane-${lane.id}`} className="rounded-xl border border-gray-700 bg-gray-800 overflow-hidden transition-all duration-300">
@@ -81,87 +83,61 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
         {lane.comment && <div className="text-xs text-gray-300 mt-2 italic">"{lane.comment}"</div>}
       </div>
 
-      {/* Show generated lanes instead of AI talking points */}
-      {(lane.lane_status || lane.status) === 'active' && laneGeneratedPairs.length > 0 && (
+      {/* Show saved city choices */}
+      {hasSavedChoices && (
         <div className="border-t border-gray-700 bg-gray-900 p-4">
           <div className="mb-3">
             <h4 className="text-sm font-medium text-green-300 mb-2 flex items-center">
               <span className="mr-2">✅</span>
-              Saved City Choices ({laneGeneratedPairs.length} pairs ready for posting)
+              Your Selected Cities 
+              <span className="ml-2 text-xs text-gray-400">
+                ({lane.saved_origin_cities.length} pickup × {lane.saved_dest_cities.length} delivery = {lane.saved_origin_cities.length * lane.saved_dest_cities.length} total pairs)
+              </span>
             </h4>
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {laneGeneratedPairs.map((pair, index) => (
-                <div key={pair.id} className="text-sm text-gray-100 bg-gray-800/50 p-3 rounded border border-gray-700">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-green-400">
-                        {pair.isBase ? '🎯 BASE' : `📍 PAIR ${index}`}
-                      </span>
-                      <span className="text-green-300 font-mono text-xs px-2 py-0.5 bg-green-900/40 rounded">
-                        #{pair.referenceId}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 text-xs">
-                    <div>
-                      <div className="text-gray-400 mb-1">PICKUP</div>
-                      <div className="font-medium text-base">{pair.pickup.city}, {pair.pickup.state}</div>
-                      {pair.pickup.kma && (
-                        <div className="text-blue-400 mt-1">
-                          KMA: {pair.pickup.kma} {pair.pickup.miles && `• ${Math.round(pair.pickup.miles)} mi`}
+            
+            <div className="grid grid-cols-2 gap-4">
+              {/* Pickup Cities */}
+              <div>
+                <div className="text-xs font-medium text-blue-300 mb-2">PICKUP CITIES:</div>
+                <div className="space-y-1.5">
+                  {lane.saved_origin_cities.map((city, idx) => (
+                    <div key={idx} className="text-sm bg-gray-800 p-2 rounded border border-gray-700">
+                      <div className="font-medium">{city.city}, {city.state}</div>
+                      {(city.kma_code || city.kma_name) && (
+                        <div className="text-xs text-blue-400 mt-1">
+                          KMA: {city.kma_code || city.kma_name} 
+                          {city.miles && ` • ${Math.round(city.miles)} mi`}
                         </div>
                       )}
                     </div>
-                    <div>
-                      <div className="text-gray-400 mb-1">DELIVERY</div>
-                      <div className="font-medium text-base">{pair.delivery.city}, {pair.delivery.state}</div>
-                      {pair.delivery.kma && (
-                        <div className="text-orange-400 mt-1">
-                          KMA: {pair.delivery.kma} {pair.delivery.miles && `• ${Math.round(pair.delivery.miles)} mi`}
+                  ))}
+                </div>
+              </div>
+              
+              {/* Delivery Cities */}
+              <div>
+                <div className="text-xs font-medium text-orange-300 mb-2">DELIVERY CITIES:</div>
+                <div className="space-y-1.5">
+                  {lane.saved_dest_cities.map((city, idx) => (
+                    <div key={idx} className="text-sm bg-gray-800 p-2 rounded border border-gray-700">
+                      <div className="font-medium">{city.city}, {city.state}</div>
+                      {(city.kma_code || city.kma_name) && (
+                        <div className="text-xs text-orange-400 mt-1">
+                          KMA: {city.kma_code || city.kma_name}
+                          {city.miles && ` • ${Math.round(city.miles)} mi`}
                         </div>
                       )}
                     </div>
-                  </div>
+                  ))}
                 </div>
-              ))}
+              </div>
             </div>
-          </div>
-        </div>
-      )}
-  {(lane.lane_status || lane.status) === 'posted' && laneGeneratedPairs.length > 0 && (
-        <div className="border-t border-gray-700 bg-gray-900 p-4">
-          <div className="mb-3">
-            <h4 className="text-sm font-medium text-blue-300 mb-2 flex items-center">
-              <span className="mr-2">📍</span>
-              Generated Postings ({laneGeneratedPairs.length} lanes posted)
-            </h4>
-            <div className="space-y-1.5 max-h-32 overflow-y-auto">
-              {laneGeneratedPairs.map((pair, index) => (
-                <div key={pair.id} className="text-xs text-gray-200 flex items-center justify-between">
-                  <div className="flex items-center flex-1">
-                    <span className="text-blue-400 mr-2 min-w-[16px]">
-                      {pair.isBase ? '🎯' : '📊'}
-                    </span>
-                    <span className="flex-1">
-                      <span className="font-medium">
-                        {pair.isBase ? 'BASE' : `PAIR ${index}`}:
-                      </span>
-                      <span className="ml-2">
-                        {pair.pickup.city}, {pair.pickup.state} → {pair.delivery.city}, {pair.delivery.state}
-                      </span>
-                    </span>
-                  </div>
-                  {/* Show reference ID for each pair */}
-                  <span className="text-xs font-mono bg-gray-700 px-1.5 py-0.5 rounded ml-2 text-green-300">
-                    {pair.isBase ? cleanReferenceId(pair.referenceId) : pair.referenceId}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-          
-          <div className="text-xs text-gray-400 bg-gray-800 rounded p-2">
-            💡 <strong>Tip:</strong> When carriers call about this load, use the dropdown above to quickly find the exact pickup/delivery pair they're asking about.
+            
+            {(lane.lane_status || lane.status) === 'posted' && (
+              <div className="mt-3 text-xs text-green-300 bg-green-900/20 rounded p-2 border border-green-800">
+                ✅ These city combinations have been posted to DAT
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -251,8 +227,10 @@ export default function RecapPage() {
         const postedLanes = (data || []).filter(lane => (lane.lane_status || lane.status) === 'posted');
         const allPairs = [];
         
-        // Load saved city choices for active lanes
-        for (const lane of activeLanes) {
+        // Load saved city choices for active AND posted lanes
+        const allLanesWithChoices = [...activeLanes, ...postedLanes];
+        
+        for (const lane of allLanesWithChoices) {
           try {
             const { data: cityChoices, error } = await supabase
               .from('lane_city_choices')
@@ -261,97 +239,24 @@ export default function RecapPage() {
               .order('created_at', { ascending: false });
             
             if (!error && cityChoices?.length > 0) {
-              const choice = cityChoices[0]; // Get the record with arrays
+              const choice = cityChoices[0]; // Get the latest saved choice
               
-              // Add base lane
-              allPairs.push({
-                id: `base-${lane.id}`,
-                laneId: lane.id,
-                isBase: true,
-                display: `${lane.origin_city}, ${lane.origin_state} → ${lane.dest_city || lane.destination_city}, ${lane.dest_state || lane.destination_state}`,
-                referenceId: lane.reference_id,
-                pickup: { city: lane.origin_city, state: lane.origin_state },
-                delivery: { city: lane.dest_city || lane.destination_city, state: lane.dest_state || lane.destination_state }
-              });
-              
-              // Expand origin_chosen_cities and dest_chosen_cities arrays into individual pairs
+              // Store the saved selection info for this lane (don't expand into pairs yet)
               const originCities = choice.origin_chosen_cities || [];
               const destCities = choice.dest_chosen_cities || [];
               
-              // Create all combinations of origin and destination cities
-              let pairIndex = 0;
-              for (const originCity of originCities) {
-                for (const destCity of destCities) {
-                  const pairRefId = generatePairReferenceId(lane.reference_id, pairIndex);
-                  allPairs.push({
-                    id: `pair-${lane.id}-${pairIndex}`,
-                    laneId: lane.id,
-                    isBase: false,
-                    display: `${originCity.city}, ${originCity.state} → ${destCity.city}, ${destCity.state}`,
-                    referenceId: pairRefId,
-                    baseReferenceId: lane.reference_id,
-                    pickup: { 
-                      city: originCity.city, 
-                      state: originCity.state,
-                      kma: originCity.kma_code || originCity.kma_name,
-                      miles: originCity.miles
-                    },
-                    delivery: { 
-                      city: destCity.city, 
-                      state: destCity.state,
-                      kma: destCity.kma_code || destCity.kma_name,
-                      miles: destCity.miles
-                    }
-                  });
-                  pairIndex++;
-                }
-              }
+              // Just store the lane with its saved cities - we'll display them grouped
+              lane.saved_origin_cities = originCities;
+              lane.saved_dest_cities = destCities;
+              lane.has_saved_choices = true;
             }
           } catch (error) {
             console.error(`Error loading city choices for lane ${lane.id}:`, error);
           }
         }
         
-        // For posted lanes, get their generated pairs for the dropdown
-        for (const lane of postedLanes) {
-          try {
-            const response = await fetch(`/api/getPostedPairs?laneId=${lane.id}`);
-            if (response.ok) {
-              const pairData = await response.json();
-              if (pairData.postedPairs?.length) {
-                // Add base lane as first option
-                allPairs.push({
-                  id: `base-${lane.id}`,
-                  laneId: lane.id,
-                  isBase: true,
-                  display: `${lane.origin_city}, ${lane.origin_state} → ${lane.dest_city}, ${lane.dest_state}`,
-                  referenceId: lane.reference_id,
-                  pickup: { city: lane.origin_city, state: lane.origin_state },
-                  delivery: { city: lane.dest_city, state: lane.dest_state }
-                });
-                
-                // Add generated pairs with unique reference IDs
-                pairData.postedPairs.forEach((pair, index) => {
-                  const pairRefId = generatePairReferenceId(lane.reference_id, index);
-                  allPairs.push({
-                    id: `pair-${lane.id}-${index}`,
-                    laneId: lane.id,
-                    isBase: false,
-                    display: `${pair.pickup.city}, ${pair.pickup.state} → ${pair.delivery.city}, ${pair.delivery.state}`,
-                    referenceId: pairRefId, // Generate unique reference ID for each pair
-                    baseReferenceId: lane.reference_id, // Keep original for grouping
-                    pickup: pair.pickup,
-                    delivery: pair.delivery
-                  });
-                });
-              }
-            }
-          } catch (error) {
-            console.error(`Error loading pairs for lane ${lane.id}:`, error);
-          }
-        }
-        
-        setPostedPairs(allPairs);
+        // No longer need posted pairs array
+        setPostedPairs([]);
       });
     
     // Load crawl cities for dropdown
