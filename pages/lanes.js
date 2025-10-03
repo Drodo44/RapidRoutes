@@ -126,6 +126,7 @@ function LanesPage() {
   // Lists
   const [tab, setTab] = useState('active');
   const [pending, setPending] = useState([]); // Holds "Pending" lanes
+  const [active, setActive] = useState([]);   // Holds "Active" lanes (city choices saved)
   const [posted, setPosted] = useState([]);   // Holds "Posted" lanes  
   const [covered, setCovered] = useState([]); // Holds "Covered" lanes
   const [recent, setRecent] = useState([]);   // Holds "Archived" lanes
@@ -262,29 +263,34 @@ function LanesPage() {
       
       const [
         { data: pendingLanes = [], error: pendingError },
+        { data: activeLanes = [], error: activeError },
         { data: postedLanes = [], error: postedError },
         { data: covered = [], error: coveredError },
         { data: archived = [], error: archivedError }
       ] = await Promise.all([
   supabase.from('lanes').select('*').eq('lane_status', 'pending').order('created_at', { ascending: false }).limit(200),
+  supabase.from('lanes').select('*').eq('lane_status', 'active').order('created_at', { ascending: false }).limit(200),
   supabase.from('lanes').select('*').eq('lane_status', 'posted').order('created_at', { ascending: false }).limit(200),
   supabase.from('lanes').select('*').eq('lane_status', 'covered').order('created_at', { ascending: false }).limit(200),
   supabase.from('lanes').select('*').eq('lane_status', 'archived').order('created_at', { ascending: false }).limit(50),
       ]);
 
       if (pendingError) throw pendingError;
+      if (activeError) throw activeError;
       if (postedError) throw postedError;
       if (coveredError) throw coveredError;
       if (archivedError) throw archivedError;
 
       console.log('Lists loaded successfully:', {
         pending: pendingLanes.length,
+        active: activeLanes.length,
         posted: postedLanes.length,
         covered: covered.length,
         archived: archived.length
       });
 
       setPending(pendingLanes);
+      setActive(activeLanes);
       setPosted(postedLanes);
       setCovered(covered);
       setRecent(archived);
@@ -977,8 +983,11 @@ function LanesPage() {
                 {busy ? 'Generating...' : `📊 Generate CSV (${pending.length})`}
               </button>
               <div className="flex gap-2">
-                <button className={`px-3 py-1 rounded-md ${tab === 'active' ? 'bg-blue-700 text-white' : 'text-gray-400 hover:bg-blue-700 hover:text-white'}`} onClick={() => setTab('active')}>
+                <button className={`px-3 py-1 rounded-md ${tab === 'pending' ? 'bg-purple-700 text-white' : 'text-gray-400 hover:bg-purple-700 hover:text-white'}`} onClick={() => setTab('pending')}>
                   Pending ({pending.length})
+                </button>
+                <button className={`px-3 py-1 rounded-md ${tab === 'active' ? 'bg-blue-700 text-white' : 'text-gray-400 hover:bg-blue-700 hover:text-white'}`} onClick={() => setTab('active')}>
+                  Active ({active.length})
                 </button>
                 <button className={`px-3 py-1 rounded-md ${tab === 'posted' ? 'bg-orange-700 text-white' : 'text-gray-400 hover:bg-orange-700 hover:text-white'}`} onClick={() => setTab('posted')}>
                   Posted ({posted.length})
@@ -994,7 +1003,7 @@ function LanesPage() {
           }
         >
           <div className="divide-y divide-gray-800">
-            {(tab === 'active' ? pending : tab === 'posted' ? posted : tab === 'covered' ? covered : recent).map(l => (
+            {(tab === 'pending' ? pending : tab === 'active' ? active : tab === 'posted' ? posted : tab === 'covered' ? covered : recent).map(l => (
               <div key={l.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 py-3">
                 <div className="text-sm">
                   <div className="text-gray-100">
