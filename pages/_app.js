@@ -1,9 +1,12 @@
 // pages/_app.js
 import '../styles/globals.css';
+import '../styles/enterprise-theme.css';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import NavBar from '../components/NavBar.jsx';
+import ThemeToggle from '../components/ThemeToggle';
+import useKeyboardShortcuts from '../hooks/useKeyboardShortcuts';
 import Head from 'next/head';
 
 const PUBLIC_ROUTES = new Set(['/login', '/signup', '/']);
@@ -12,6 +15,9 @@ function AppContent({ Component, pageProps }) {
   const router = useRouter();
   const [routeLoading, setRouteLoading] = useState(false);
   const { loading, isAuthenticated, session } = useAuth();
+  
+  // Enable keyboard shortcuts
+  useKeyboardShortcuts();
   
   useEffect(() => {
     console.log('AppContent loading state:', { 
@@ -53,30 +59,36 @@ function AppContent({ Component, pageProps }) {
         <title>RapidRoutes | Freight Brokerage Automation</title>
         <meta name="description" content="Production-grade freight brokerage automation platform for TQL brokers" />
         <link rel="icon" href="/favicon.ico" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
       </Head>
       
-      <div className="min-h-screen bg-gray-900 text-gray-200 flex flex-col">
+      <ThemeToggle />
+      
+      <div className="min-h-screen flex flex-col">
         {!loading && <NavBar />}
         
         {/* Loading indicator */}
         {(loading || routeLoading) && (
-          <div className="fixed top-0 left-0 right-0 h-1 z-50">
-            <div className="h-full bg-blue-600 animate-pulse"></div>
+          <div className="fixed top-0 left-0 right-0 h-1 z-50" style={{ background: 'var(--color-primary)' }}>
+            <div className="h-full animate-pulse" style={{ background: 'var(--color-primary-hover)' }}></div>
           </div>
         )}
         
         {loading ? (
           <div className="flex-grow flex items-center justify-center">
-            <div className="text-gray-400 text-lg">Loading RapidRoutes...</div>
+            <div className="text-lg" style={{ color: 'var(--color-text-secondary)' }}>Loading RapidRoutes...</div>
           </div>
         ) : (
-          <main className="flex-grow pt-20 pb-12">
+          <main className="flex-grow pt-20 pb-12" style={{ background: 'var(--color-bg-primary)' }}>
             <Component {...pageProps} />
           </main>
         )}
         
-        <footer className="border-t border-gray-800 py-4 bg-gray-900">
-          <div className="container mx-auto px-4 text-center text-xs text-gray-500">
+        <footer className="py-4" style={{ 
+          borderTop: '1px solid var(--color-border-default)', 
+          background: 'var(--color-bg-secondary)' 
+        }}>
+          <div className="container mx-auto px-4 text-center text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
             © 2025 RapidRoutes | Created by Andrew Connellan - Logistics Account Executive at Total Quality Logistics
           </div>
         </footer>
