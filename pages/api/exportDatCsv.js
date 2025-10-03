@@ -13,15 +13,14 @@ const { validateApiAuth } = require('../../middleware/auth.unified.js');
 const fs = require('fs');
 const path = require('path');
 
-// Helper to get pending row count for pagination
-async function getPendingRowCount() {
-  const { data: lanes, error } = await adminSupabase
-    .from('lanes')
-    .select('id')
-  .eq('lane_status', 'pending');
+// Helper to get active row count for pagination
+async function getActiveRowCount() {
+  const { count, error } = await adminSupabase
+    .from('lane_city_choices')
+    .select('*', { count: 'exact', head: true });
     
   if (error) throw error;
-  return (lanes?.length || 0) * (MIN_PAIRS_REQUIRED * ROWS_PER_PAIR); // Each lane needs minimum pairs × contact methods
+  return count || 0;
 }
 
 function daysAgoUTC(n) {
@@ -37,15 +36,15 @@ async function selectLanes({ pending, days, all }) {
     .order('created_at', { ascending: false });
 
   if (pending) {
-  q = q.eq('lane_status', 'pending');
+    q = q.eq('lane_status', 'pending');
   } else if (all) {
     // no additional filters
   } else if (days != null) {
     const since = daysAgoUTC(Number(days));
     q = q.gte('created_at', since);
   } else {
-    // default: pending
-  q = q.eq('lane_status', 'pending');
+    // default: active lanes (lanes with city choices saved)
+    q = q.eq('lane_status', 'active');
   }
 
   const { data, error } = await q.limit(2000); // sane cap for bulk exports
@@ -94,8 +93,8 @@ export default async function handler(req, res) {
 
     // Handle HEAD request for pagination info
     if (method === 'HEAD') {
-      const pendingCount = await getPendingRowCount();
-      const parts = Math.ceil(pendingCount / 499);
+      const activeCount = await getActiveRowCount();
+      const parts = Math.ceil(activeCount / 499);
       res.setHeader('X-Total-Parts', String(parts));
       monitor.endOperation(operationId, { success: true, parts });
       return res.status(200).end();

@@ -731,20 +731,20 @@ function LanesPage() {
         throw new Error('Authentication required');
       }
 
-      // Get only pending lanes for CSV generation
-  const activeCount = pending.filter(l => (l.lane_status || l.status) === 'pending').length;
+      // Get only active lanes (lanes with city choices saved) for CSV generation
+      const activeCount = active.filter(l => (l.lane_status || l.status) === 'active').length;
       
       if (activeCount === 0) {
-        alert('No active lanes to generate CSV for. Create some lanes first.');
+        alert('No active lanes to generate CSV for. You need to save city choices first.');
         return;
       }
 
-      if (!confirm(`Generate DAT CSV for ${activeCount} active lane(s)? This will create a downloadable CSV file with RR numbers.`)) {
+      if (!confirm(`Generate DAT CSV for ${activeCount} active lane(s) with city choices? This will create a downloadable CSV file.`)) {
         return;
       }
 
-      // Call the CSV export API
-      const response = await fetch('/api/exportDatCsv?pending=1', {
+      // Call the CSV export API - no pending flag, use active lanes
+      const response = await fetch('/api/exportDatCsv', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${session.access_token}`
@@ -976,11 +976,11 @@ function LanesPage() {
               </button>
               <button 
                 onClick={generateCSV}
-                disabled={busy || pending.length === 0}
+                disabled={busy || active.length === 0}
                 className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium text-sm"
-                title={`Generate DAT CSV for ${pending.length} pending lane(s)`}
+                title={`Generate DAT CSV for ${active.length} active lane(s) with city choices`}
               >
-                {busy ? 'Generating...' : `📊 Generate CSV (${pending.length})`}
+                {busy ? 'Generating...' : `📊 Generate CSV (${active.length})`}
               </button>
               <div className="flex gap-2">
                 <button className={`px-3 py-1 rounded-md ${tab === 'pending' ? 'bg-purple-700 text-white' : 'text-gray-400 hover:bg-purple-700 hover:text-white'}`} onClick={() => setTab('pending')}>
@@ -1022,8 +1022,33 @@ function LanesPage() {
                     <span className="ml-3">Pickup: {l.pickup_earliest} → {l.pickup_latest}</span>
                     {l.comment ? <span className="ml-3">Note: {l.comment}</span> : null}
                   </div>
+                  {(l.lane_status || l.status) === 'active' && l.reference_id && (
+                    <div className="text-xs mt-1 text-blue-400">
+                      🎯 RR#{l.reference_id} - City choices saved • Ready for CSV export
+                    </div>
+                  )}
                 </div>
                 <div className="flex gap-2">
+                  {(l.lane_status || l.status) === 'active' && (
+                    <a href={`/post-options.manual?laneId=${l.id}`} className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-sm rounded-lg inline-block">
+                      🏙️ View/Edit Cities
+                    </a>
+                  )}
+                  {(l.lane_status || l.status) === 'active' && (
+                    <button onClick={() => window.location.href = `/recap?laneIds=${l.id}`} className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg">
+                      📊 Generate CSV
+                    </button>
+                  )}
+                  {(l.lane_status || l.status) === 'active' && (
+                    <button onClick={() => updateStatus(l, 'posted')} className="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white text-sm rounded-lg">
+                      ✅ Mark Posted
+                    </button>
+                  )}
+                  {(l.lane_status || l.status) === 'active' && (
+                    <button onClick={() => updateStatus(l, 'pending')} className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-sm rounded-lg">
+                      ↩️ Back to Pending
+                    </button>
+                  )}
                   {((l.lane_status || l.status) === 'pending' || (l.lane_status || l.status) === 'posted') && (
                     <button onClick={() => startEditLane(l)} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg">
                       ✏️ Edit
@@ -1055,7 +1080,7 @@ function LanesPage() {
                 </div>
               </div>
             ))}
-            {(tab === 'active' ? pending : tab === 'posted' ? posted : tab === 'covered' ? covered : recent).length === 0 && (
+            {(tab === 'pending' ? pending : tab === 'active' ? active : tab === 'posted' ? posted : tab === 'covered' ? covered : recent).length === 0 && (
               <div className="py-6 text-sm text-gray-400">No lanes in this category.</div>
             )}
           </div>
