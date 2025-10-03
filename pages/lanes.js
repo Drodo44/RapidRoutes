@@ -123,8 +123,8 @@ function LanesPage() {
   const [randOpen, setRandOpen] = useState(false);
   const [rememberSession, setRememberSession] = useState(true);
 
-  // Lists
-  const [tab, setTab] = useState('active');
+  // Lists - Simplified to 2 categories
+  const [tab, setTab] = useState('current');
   const [pending, setPending] = useState([]); // Holds "Pending" lanes
   const [active, setActive] = useState([]);   // Holds "Active" lanes (city choices saved)
   const [posted, setPosted] = useState([]);   // Holds "Posted" lanes  
@@ -983,33 +983,35 @@ function LanesPage() {
                 {busy ? 'Generating...' : `📊 Generate CSV (${active.length})`}
               </button>
               <div className="flex gap-2">
-                <button className={`px-3 py-1 rounded-md ${tab === 'pending' ? 'bg-purple-700 text-white' : 'text-gray-400 hover:bg-purple-700 hover:text-white'}`} onClick={() => setTab('pending')}>
-                  Pending ({pending.length})
+                <button className={`px-4 py-2 rounded-md font-medium ${tab === 'current' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-blue-600 hover:text-white'}`} onClick={() => setTab('current')}>
+                  Current Lanes ({pending.length + active.length + posted.length})
                 </button>
-                <button className={`px-3 py-1 rounded-md ${tab === 'active' ? 'bg-blue-700 text-white' : 'text-gray-400 hover:bg-blue-700 hover:text-white'}`} onClick={() => setTab('active')}>
-                  Active ({active.length})
-                </button>
-                <button className={`px-3 py-1 rounded-md ${tab === 'posted' ? 'bg-orange-700 text-white' : 'text-gray-400 hover:bg-orange-700 hover:text-white'}`} onClick={() => setTab('posted')}>
-                  Posted ({posted.length})
-                </button>
-                <button className={`px-3 py-1 rounded-md ${tab === 'covered' ? 'bg-green-700 text-white' : 'text-gray-400 hover:bg-green-700 hover:text-white'}`} onClick={() => setTab('covered')}>
-                  Covered ({covered.length})
-                </button>
-                <button className={`px-3 py-1 rounded-md ${tab === 'archived' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:bg-gray-700 hover:text-white'}`} onClick={() => setTab('archived')}>
-                  Archived ({recent.length})
+                <button className={`px-4 py-2 rounded-md font-medium ${tab === 'archive' ? 'bg-gray-600 text-white' : 'text-gray-400 hover:bg-gray-600 hover:text-white'}`} onClick={() => setTab('archive')}>
+                  Archive ({covered.length + recent.length})
                 </button>
               </div>
             </div>
           }
         >
           <div className="divide-y divide-gray-800">
-            {(tab === 'pending' ? pending : tab === 'active' ? active : tab === 'posted' ? posted : tab === 'covered' ? covered : recent).map(l => (
+            {(tab === 'current' ? [...pending, ...active, ...posted] : [...covered, ...recent]).map(l => (
               <div key={l.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 py-3">
                 <div className="text-sm">
-                  <div className="text-gray-100">
+                  <div className="text-gray-100 flex items-center gap-2">
                     {(l.reference_id || getDisplayReferenceId(l)) && (
-                      <span className="inline-block mr-3 px-2 py-0.5 text-xs font-mono font-bold rounded bg-green-900/60 text-green-200">
+                      <span className="inline-block px-2 py-0.5 text-xs font-mono font-bold rounded bg-green-900/60 text-green-200">
                         REF #{l.reference_id || getDisplayReferenceId(l)}
+                      </span>
+                    )}
+                    {/* Status badge for Current tab */}
+                    {tab === 'current' && (
+                      <span className={`inline-block px-2 py-0.5 text-xs font-medium rounded ${
+                        (l.lane_status || l.status) === 'pending' ? 'bg-purple-900/60 text-purple-200' :
+                        (l.lane_status || l.status) === 'active' ? 'bg-blue-900/60 text-blue-200' :
+                        'bg-orange-900/60 text-orange-200'
+                      }`}>
+                        {(l.lane_status || l.status) === 'pending' ? 'PENDING' :
+                         (l.lane_status || l.status) === 'active' ? 'ACTIVE' : 'POSTED'}
                       </span>
                     )}
                     <span className="font-medium">{l.origin_city}, {l.origin_state}</span>
@@ -1080,7 +1082,7 @@ function LanesPage() {
                 </div>
               </div>
             ))}
-            {(tab === 'pending' ? pending : tab === 'active' ? active : tab === 'posted' ? posted : tab === 'covered' ? covered : recent).length === 0 && (
+            {(tab === 'current' ? [...pending, ...active, ...posted] : [...covered, ...recent]).length === 0 && (
               <div className="py-6 text-sm text-gray-400">No lanes in this category.</div>
             )}
           </div>
