@@ -514,14 +514,21 @@ export default function PostOptionsManual() {
                                 c => c.city === city.city && c.state_or_province === city.state_or_province
                               );
                               return (
-                                <label key={i} className="flex items-center gap-2 text-sm text-gray-300 hover:bg-gray-800 px-2 py-1 rounded cursor-pointer">
-                                  <input 
-                                    type="checkbox" 
-                                    className="form-checkbox text-blue-600"
-                                    checked={!!isSelected}
-                                    onChange={() => toggleCitySelection(lane.id, 'origin', city)}
-                                  />
-                                  <span>{city.city}, {city.state_or_province}</span>
+                                <label key={i} className="flex items-center justify-between gap-2 text-sm text-gray-300 hover:bg-gray-800 px-2 py-1 rounded cursor-pointer">
+                                  <div className="flex items-center gap-2">
+                                    <input 
+                                      type="checkbox" 
+                                      className="form-checkbox text-blue-600"
+                                      checked={!!isSelected}
+                                      onChange={() => toggleCitySelection(lane.id, 'origin', city)}
+                                    />
+                                    <span className="font-medium">{city.city}, {city.state_or_province}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 text-xs">
+                                    <span className="text-blue-400 font-mono">{city.kma_code || kma}</span>
+                                    <span className="text-gray-500">•</span>
+                                    <span className="text-gray-400">{Math.round(city.miles || 0)} mi</span>
+                                  </div>
                                 </label>
                               );
                             })}
@@ -544,14 +551,21 @@ export default function PostOptionsManual() {
                                 c => c.city === city.city && c.state_or_province === city.state_or_province
                               );
                               return (
-                                <label key={i} className="flex items-center gap-2 text-sm text-gray-300 hover:bg-gray-800 px-2 py-1 rounded cursor-pointer">
-                                  <input 
-                                    type="checkbox" 
-                                    className="form-checkbox text-green-600"
-                                    checked={!!isSelected}
-                                    onChange={() => toggleCitySelection(lane.id, 'dest', city)}
-                                  />
-                                  <span>{city.city}, {city.state_or_province}</span>
+                                <label key={i} className="flex items-center justify-between gap-2 text-sm text-gray-300 hover:bg-gray-800 px-2 py-1 rounded cursor-pointer">
+                                  <div className="flex items-center gap-2">
+                                    <input 
+                                      type="checkbox" 
+                                      className="form-checkbox text-green-600"
+                                      checked={!!isSelected}
+                                      onChange={() => toggleCitySelection(lane.id, 'dest', city)}
+                                    />
+                                    <span className="font-medium">{city.city}, {city.state_or_province}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 text-xs">
+                                    <span className="text-green-400 font-mono">{city.kma_code || kma}</span>
+                                    <span className="text-gray-500">•</span>
+                                    <span className="text-gray-400">{Math.round(city.miles || 0)} mi</span>
+                                  </div>
                                 </label>
                               );
                             })}
