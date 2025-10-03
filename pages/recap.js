@@ -1,8 +1,9 @@
 // pages/recap.js
-// Updated: Sep 2, 2025 - Fixed dropdown selection and reference ID search
+// Enterprise UI Rebuild - Oct 3, 2025
 import { useEffect, useMemo, useState } from 'react';
 import supabase from '../utils/supabaseClient';
 import Head from 'next/head';
+import { useRouter } from 'next/router';
 import { getDisplayReferenceId, matchesReferenceId, cleanReferenceId } from '../lib/referenceIdUtils';
 
 // Generate reference ID for generated pairs (same logic as CSV)
@@ -46,67 +47,107 @@ function matches(q, l) {
 }
 
 function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs = [] }) {
+  const [expandedPairs, setExpandedPairs] = useState(false);
+  const router = useRouter();
+  
   // Check if lane has saved city choices
   const hasSavedChoices = lane.has_saved_choices && 
                           lane.saved_origin_cities?.length > 0 && 
                           lane.saved_dest_cities?.length > 0;
   
+  const totalPairs = hasSavedChoices 
+    ? lane.saved_origin_cities.length * lane.saved_dest_cities.length 
+    : 0;
+  
+  const isPosted = (lane.lane_status || lane.status) === 'posted';
+  
   return (
-    <article id={`lane-${lane.id}`} className="rounded-xl border border-gray-700 bg-gray-800 overflow-hidden transition-all duration-300">
-      <div className="p-4">
-        <div className="flex items-center justify-between">
-          <div className="font-medium text-gray-100">
-            {lane.origin_city}, {lane.origin_state} 
-            <span className="text-gray-400 mx-2">→</span> 
-            {lane.dest_city || lane.destination_city}, {lane.dest_state || lane.destination_state}
+    <div className="card">
+      {/* Header with route and status */}
+      <div className="card-header">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
+            <h3 style={{ fontSize: '14px', fontWeight: 600, margin: 0, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {lane.origin_city}, {lane.origin_state}
+              <span style={{ margin: '0 8px', opacity: 0.4 }}>→</span>
+              {lane.dest_city || lane.destination_city}, {lane.dest_state || lane.destination_state}
+            </h3>
           </div>
-          <div className="flex items-center gap-2">
-            {(lane.reference_id || !lane.reference_id) && (
-              <div className="text-xs px-2 py-1 rounded font-mono font-bold bg-green-900/60 text-green-200">
-                REF #{getDisplayReferenceId(lane)}
-              </div>
-            )}
-            <div className="text-xs px-2 py-1 rounded-full font-medium bg-blue-900/60 text-blue-200">{lane.lane_status || lane.status}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+            <span className="badge" style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '11px' }}>
+              {getDisplayReferenceId(lane)}
+            </span>
+            <span className={`badge badge-${isPosted ? 'posted' : 'active'}`}>
+              {isPosted ? 'Posted' : 'Active'}
+            </span>
           </div>
         </div>
-        <div className="text-xs text-gray-300 mt-1">
-          <span className="inline-block px-2 py-0.5 rounded bg-gray-700 text-xs font-medium">
-            {lane.equipment_code} • {lane.length_ft}ft
-          </span>
-          <span className="ml-2">
-            {lane.randomize_weight 
-              ? `${lane.weight_min.toLocaleString()}-${lane.weight_max.toLocaleString()} lbs` 
-              : `${lane.weight_lbs?.toLocaleString() || '—'} lbs`}
-          </span>
-          <span className="ml-2">Pickup: {lane.pickup_earliest} → {lane.pickup_latest}</span>
-        </div>
-        {lane.comment && <div className="text-xs text-gray-300 mt-2 italic">"{lane.comment}"</div>}
       </div>
 
-      {/* Show saved city choices */}
+      {/* Lane specs - compact row */}
+      <div className="card-body" style={{ padding: '12px 16px' }}>
+        <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
+          <span style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{lane.equipment_code}</span>
+          <span>{lane.length_ft}ft</span>
+          <span>
+            {lane.randomize_weight 
+              ? `${lane.weight_min?.toLocaleString() || '—'}-${lane.weight_max?.toLocaleString() || '—'} lbs` 
+              : `${lane.weight_lbs?.toLocaleString() || '—'} lbs`}
+          </span>
+          <span>{lane.pickup_earliest} – {lane.pickup_latest}</span>
+        </div>
+        {lane.comment && (
+          <div style={{ marginTop: '8px', fontSize: '12px', fontStyle: 'italic', color: 'var(--text-secondary)' }}>
+            "{lane.comment}"
+          </div>
+        )}
+      </div>
+
+      {/* City Selection Section - Clean Two-Column Layout */}
       {hasSavedChoices && (
-        <div className="border-t border-gray-700 bg-gray-900 p-4">
-          <div className="mb-3">
-            <h4 className="text-sm font-medium text-green-300 mb-2 flex items-center">
-              <span className="mr-2">✅</span>
-              Your Selected Cities 
-              <span className="ml-2 text-xs text-gray-400">
-                ({lane.saved_origin_cities.length} pickup × {lane.saved_dest_cities.length} delivery = {lane.saved_origin_cities.length * lane.saved_dest_cities.length} total pairs)
-              </span>
-            </h4>
+        <div style={{ borderTop: '1px solid var(--border)' }}>
+          <div className="card-body">
+            <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h4 style={{ fontSize: '12px', fontWeight: 600, margin: 0, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ color: 'var(--success)' }}>✓</span>
+                <span>Selected Cities</span>
+                <span style={{ fontSize: '11px', opacity: 0.5, fontWeight: 400 }}>
+                  ({lane.saved_origin_cities.length} × {lane.saved_dest_cities.length} = {totalPairs} pairs)
+                </span>
+              </h4>
+              {isPosted && (
+                <span className="badge badge-posted" style={{ fontSize: '11px' }}>
+                  Posted to DAT
+                </span>
+              )}
+            </div>
             
-            <div className="grid grid-cols-2 gap-4">
+            {/* Two-Column City Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               {/* Pickup Cities */}
               <div>
-                <div className="text-xs font-medium text-blue-300 mb-2">PICKUP CITIES:</div>
-                <div className="space-y-1.5">
+                <div style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px', color: 'var(--text-secondary)' }}>
+                  Pickup Locations ({lane.saved_origin_cities.length})
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   {lane.saved_origin_cities.map((city, idx) => (
-                    <div key={idx} className="text-sm bg-gray-800 p-2 rounded border border-gray-700">
-                      <div className="font-medium">{city.city}, {city.state}</div>
+                    <div 
+                      key={idx} 
+                      style={{ 
+                        padding: '10px 12px', 
+                        background: 'var(--bg-secondary)', 
+                        border: '1px solid var(--border)', 
+                        borderRadius: 'var(--radius)',
+                        fontSize: '12px',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
+                        {city.city}, {city.state}
+                      </div>
                       {(city.kma_code || city.kma_name) && (
-                        <div className="text-xs text-blue-400 mt-1">
-                          KMA: {city.kma_code || city.kma_name} 
-                          {city.miles && ` • ${Math.round(city.miles)} mi`}
+                        <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginTop: '3px' }}>
+                          {city.kma_code || city.kma_name}{city.miles && ` • ${Math.round(city.miles)} mi`}
                         </div>
                       )}
                     </div>
@@ -116,15 +157,28 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
               
               {/* Delivery Cities */}
               <div>
-                <div className="text-xs font-medium text-orange-300 mb-2">DELIVERY CITIES:</div>
-                <div className="space-y-1.5">
+                <div style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px', color: 'var(--text-secondary)' }}>
+                  Delivery Locations ({lane.saved_dest_cities.length})
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   {lane.saved_dest_cities.map((city, idx) => (
-                    <div key={idx} className="text-sm bg-gray-800 p-2 rounded border border-gray-700">
-                      <div className="font-medium">{city.city}, {city.state}</div>
+                    <div 
+                      key={idx} 
+                      style={{ 
+                        padding: '10px 12px', 
+                        background: 'var(--bg-secondary)', 
+                        border: '1px solid var(--border)', 
+                        borderRadius: 'var(--radius)',
+                        fontSize: '12px',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
+                        {city.city}, {city.state}
+                      </div>
                       {(city.kma_code || city.kma_name) && (
-                        <div className="text-xs text-orange-400 mt-1">
-                          KMA: {city.kma_code || city.kma_name}
-                          {city.miles && ` • ${Math.round(city.miles)} mi`}
+                        <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginTop: '3px' }}>
+                          {city.kma_code || city.kma_name}{city.miles && ` • ${Math.round(city.miles)} mi`}
                         </div>
                       )}
                     </div>
@@ -133,59 +187,93 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
               </div>
             </div>
             
-            {(lane.lane_status || lane.status) === 'posted' && (
-              <div className="mt-3 text-xs text-green-300 bg-green-900/20 rounded p-2 border border-green-800">
-                ✅ These city combinations have been posted to DAT
-              </div>
-            )}
-            
-            {/* Show all generated pairs with RR numbers */}
-            <details className="mt-4">
-              <summary className="cursor-pointer text-xs font-medium text-blue-300 hover:text-blue-200 flex items-center gap-2">
-                <span>📋</span>
-                <span>View All {lane.saved_origin_cities.length * lane.saved_dest_cities.length} Individual Pairs with RR#</span>
-              </summary>
-              <div className="mt-3 space-y-2 max-h-96 overflow-y-auto">
-                {lane.saved_origin_cities.flatMap((originCity, originIdx) => 
-                  lane.saved_dest_cities.map((destCity, destIdx) => {
-                    const pairIndex = originIdx * lane.saved_dest_cities.length + destIdx;
-                    const pairRefId = generatePairReferenceId(lane.reference_id, pairIndex);
-                    
-                    return (
-                      <div key={`${originIdx}-${destIdx}`} className="text-xs bg-gray-800/50 p-2.5 rounded border border-gray-700">
-                        <div className="flex items-center justify-between mb-1.5">
-                          <span className="text-gray-400">PAIR #{pairIndex + 1}</span>
-                          <span className="font-mono font-bold text-green-300 bg-green-900/40 px-2 py-0.5 rounded">
-                            {pairRefId}
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <div className="text-blue-400 font-medium">{originCity.city}, {originCity.state}</div>
-                            {(originCity.kma_code || originCity.kma_name) && (
-                              <div className="text-blue-400/70 text-2xs">
-                                {originCity.kma_code || originCity.kma_name} • {Math.round(originCity.miles)} mi
+            {/* Expandable All Pairs Section */}
+            <div style={{ marginTop: '16px' }}>
+              <button
+                onClick={() => setExpandedPairs(!expandedPairs)}
+                className="btn btn-secondary"
+                style={{ 
+                  width: '100%', 
+                  fontSize: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
+                }}
+              >
+                <span>{expandedPairs ? '▼' : '▶'}</span>
+                <span>View All {totalPairs} Pairs with Reference IDs</span>
+              </button>
+              
+              {expandedPairs && (
+                <div style={{ 
+                  marginTop: '12px', 
+                  maxHeight: '400px', 
+                  overflowY: 'auto', 
+                  padding: '12px',
+                  background: 'var(--bg-secondary)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius)'
+                }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {lane.saved_origin_cities.flatMap((originCity, originIdx) => 
+                      lane.saved_dest_cities.map((destCity, destIdx) => {
+                        const pairIndex = originIdx * lane.saved_dest_cities.length + destIdx;
+                        const pairRefId = generatePairReferenceId(lane.reference_id, pairIndex);
+                        
+                        return (
+                          <div 
+                            key={`${originIdx}-${destIdx}`} 
+                            style={{ 
+                              padding: '12px', 
+                              background: 'var(--surface)', 
+                              border: '1px solid var(--border)', 
+                              borderRadius: 'var(--radius)',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                              <span style={{ fontSize: '10px', color: 'var(--text-tertiary)', fontWeight: 500 }}>
+                                PAIR #{pairIndex + 1}
+                              </span>
+                              <span className="badge" style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 600 }}>
+                                {pairRefId}
+                              </span>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '12px', alignItems: 'center', fontSize: '12px' }}>
+                              <div>
+                                <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
+                                  {originCity.city}, {originCity.state}
+                                </div>
+                                {(originCity.kma_code || originCity.kma_name) && (
+                                  <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
+                                    {originCity.kma_code || originCity.kma_name}
+                                  </div>
+                                )}
                               </div>
-                            )}
-                          </div>
-                          <div>
-                            <div className="text-orange-400 font-medium">{destCity.city}, {destCity.state}</div>
-                            {(destCity.kma_code || destCity.kma_name) && (
-                              <div className="text-orange-400/70 text-2xs">
-                                {destCity.kma_code || destCity.kma_name} • {Math.round(destCity.miles)} mi
+                              <span style={{ opacity: 0.3, fontSize: '14px' }}>→</span>
+                              <div>
+                                <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
+                                  {destCity.city}, {destCity.state}
+                                </div>
+                                {(destCity.kma_code || destCity.kma_name) && (
+                                  <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
+                                    {destCity.kma_code || destCity.kma_name}
+                                  </div>
+                                )}
                               </div>
-                            )}
+                            </div>
                           </div>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-              <div className="mt-2 text-2xs text-gray-500">
-                💡 Use these RR# when posting individual loads to DAT
-              </div>
-            </details>
+                        );
+                      })
+                    )}
+                  </div>
+                  <div style={{ marginTop: '12px', fontSize: '11px', color: 'var(--text-tertiary)', textAlign: 'center' }}>
+                    💡 Use these reference IDs when posting individual loads to DAT
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -233,19 +321,67 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
         </div>
       )}
 
-      {/* Show generate button only for lanes that need AI insights and don't have generated pairs */}
-  {!recapData && (lane.lane_status || lane.status) !== 'posted' && (
-        <div className="border-t border-gray-700 bg-gray-900 p-4 flex items-center justify-center">
-          <button 
-            onClick={() => onGenerateRecap(lane.id)}
-            disabled={isGenerating}
-            className="text-xs px-3 py-1.5 rounded-md bg-blue-600 hover:bg-blue-700 text-white font-medium disabled:opacity-50"
-          >
-            {isGenerating ? 'Generating...' : 'Generate AI Insights'}
-          </button>
+      {/* Legacy AI recap display (only if specifically generated) */}
+      {recapData && recapData.bullets && (
+        <div style={{ borderTop: '1px solid var(--border)' }}>
+          <div className="card-body">
+            <div style={{ marginBottom: '12px' }}>
+              <h4 style={{ fontSize: '12px', fontWeight: 600, color: 'var(--primary)', marginBottom: '8px' }}>AI Talking Points</h4>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {recapData.bullets.map((bullet, i) => (
+                  <li key={i} style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', gap: '8px' }}>
+                    <span style={{ color: 'var(--primary)' }}>•</span>
+                    <span>{bullet}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {recapData.risks && recapData.risks.length > 0 && (
+              <div style={{ marginBottom: '12px' }}>
+                <h4 style={{ fontSize: '12px', fontWeight: 600, color: 'var(--warning)', marginBottom: '8px' }}>Risk Factors</h4>
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {recapData.risks.map((risk, i) => (
+                    <li key={i} style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', gap: '8px' }}>
+                      <span style={{ color: 'var(--warning)' }}>•</span>
+                      <span>{risk}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {recapData.price_hint && (
+              <div style={{ padding: '12px', background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: '12px' }}>
+                <div style={{ color: 'var(--text-secondary)', marginBottom: '8px' }}>Estimated Rate Range</div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--danger)' }}>${recapData.price_hint.low}/mi</span>
+                  <span style={{ color: 'var(--success)' }}>${recapData.price_hint.mid}/mi</span>
+                  <span style={{ color: 'var(--primary)' }}>${recapData.price_hint.high}/mi</span>
+                </div>
+                <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--text-tertiary)' }}>Based on: {recapData.price_hint.basis}</div>
+              </div>
+            )}
+          </div>
         </div>
       )}
-    </article>
+
+      {/* Show generate button only for lanes that need AI insights */}
+      {!recapData && (lane.lane_status || lane.status) !== 'posted' && (
+        <div style={{ borderTop: '1px solid var(--border)' }}>
+          <div className="card-body" style={{ display: 'flex', justifyContent: 'center' }}>
+            <button 
+              onClick={() => onGenerateRecap(lane.id)}
+              disabled={isGenerating}
+              className="btn btn-secondary"
+              style={{ fontSize: '12px' }}
+            >
+              {isGenerating ? 'Generating...' : 'Generate AI Insights'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -448,246 +584,108 @@ export default function RecapPage() {
         <title>Recap | RapidRoutes</title>
       </Head>
       
-      <div className="container mx-auto max-w-7xl px-4 space-y-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-100 mb-2">Active Lane Postings</h1>
-          <p className="text-gray-400">Generate AI-powered talking points for client conversations</p>
-          
-          {/* Add workflow guidance */}
-          {lanes.filter(lane => (lane.lane_status || lane.status) === 'pending').length > 0 && (
-            <div className="mt-4 p-3 bg-blue-900/30 border border-blue-700 rounded-lg">
-              <div className="text-sm text-blue-200">
-                <strong>💡 Workflow:</strong> Export CSV → Upload to DAT → Mark lanes as "Posted" → Use recap system to match incoming calls
-              </div>
-            </div>
-          )}
-          
-          {lanes.filter(lane => (lane.lane_status || lane.status) === 'posted').length === 0 && lanes.length > 0 && (
-            <div className="mt-4 p-3 bg-amber-900/30 border border-amber-700 rounded-lg">
-              <div className="text-sm text-amber-200">
-                <strong>📋 No Posted Lanes:</strong> Mark your lanes as "Posted" after uploading CSV to DAT to see generated pairs here
-              </div>
-            </div>
-          )}
+      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '24px' }}>
+        {/* Page Header */}
+        <div style={{ marginBottom: '32px' }}>
+          <h1 style={{ fontSize: '28px', fontWeight: 700, margin: 0, marginBottom: '8px' }}>
+            Active Lane Postings
+          </h1>
+          <p style={{ fontSize: '14px', opacity: 0.7, margin: 0 }}>
+            View your selected city combinations and reference IDs for DAT posting
+          </p>
         </div>
         
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-gray-800 rounded-lg p-4 border border-gray-700">
-          <div className="flex flex-wrap gap-3 items-center">
-            <div className="flex items-center space-x-4">
-              <div className="relative w-64">
+        {/* Search and Filter Bar */}
+        <div className="card" style={{ marginBottom: '24px', padding: '16px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', gap: '12px', flex: 1, minWidth: '300px' }}>
+              {/* Search Input */}
+              <div style={{ position: 'relative', flex: 1, maxWidth: '400px' }}>
                 <input 
                   type="text" 
                   value={q} 
-                  onChange={(e) => {
-                    setQ(e.target.value);
-                  }}
-                  placeholder="Search reference ID, city, state, or equipment"
-                  className="w-full pl-9 pr-3 py-2 bg-gray-900 border border-gray-600 rounded-md text-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  onChange={(e) => setQ(e.target.value)}
+                  placeholder="Search reference ID, city, state..."
+                  className="form-input"
+                  style={{ paddingLeft: '36px', width: '100%' }}
                 />
-                <span className="absolute left-3 top-2.5 text-gray-500">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }}>
+                  <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
                   </svg>
                 </span>
               </div>
               
-              <div className="relative w-80">
-                <select 
-                  value=""
-                  onChange={(e) => {
-                    const selectedValue = e.target.value;
-                    
-                    if (selectedValue) {
-                      // Handle both posted pairs and pending lanes
-                      let targetLaneId;
-                      
-                      if (selectedValue.startsWith('pending-')) {
-                        // Extract UUID directly (no parseInt for UUIDs)
-                        targetLaneId = selectedValue.replace('pending-', '');
-                      } else if (selectedValue.includes('-')) {
-                        // Extract lane ID from pair ID format: "base-uuid" or "pair-uuid-0"
-                        const parts = selectedValue.split('-');
-                        // For UUIDs, we need to reconstruct the full UUID
-                        if (parts.length >= 6) { // UUID parts split by dashes
-                          targetLaneId = parts.slice(1, 6).join('-'); // Skip first part (base/pair), join UUID parts
-                        } else {
-                          console.error('❌ DROPDOWN ERROR: Invalid UUID format in:', selectedValue);
-                          return;
-                        }
-                      }
-                      
-                      if (!targetLaneId || targetLaneId.length < 10) {
-                        console.error('❌ DROPDOWN ERROR: Failed to extract valid lane ID from:', selectedValue);
-                        alert('Error: Could not extract lane ID from selection: ' + selectedValue);
-                        return;
-                      }
-                      
-                      // Clear search to show all lanes
-                      setQ('');
-                      
-                      // Find the lane in our data
-                      const targetLane = lanes.find(l => l.id === targetLaneId);
-                      
-                      // Scroll to the lane immediately
-                      setTimeout(() => {
-                        const elementId = `lane-${targetLaneId}`;
-                        const element = document.getElementById(elementId);
-                        
-                        if (element) {
-                          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                          element.style.border = '3px solid #10B981';
-                          element.style.backgroundColor = '#1F2937'; // Keep dark theme
-                          element.style.boxShadow = '0 0 20px rgba(16, 185, 129, 0.5)';
-                          element.style.transition = 'all 0.5s ease';
-                          
-                          // Show which specific pair was selected
-                          const selectedPair = postedPairs.find(pair => pair.id === selectedValue);
-                          
-                          if (selectedPair) {
-                            // Create a notification showing the selected pair
-                            const notification = document.createElement('div');
-                            notification.className = 'fixed top-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg z-50 max-w-md';
-                            notification.innerHTML = `
-                              <div class="font-semibold">${selectedPair.isBase ? '🎯 BASE LANE' : '📊 GENERATED PAIR'}:</div>
-                              <div class="text-sm">${selectedPair.pickup.city}, ${selectedPair.pickup.state} → ${selectedPair.delivery.city}, ${selectedPair.delivery.state}</div>
-                              <div class="text-xs mt-1 opacity-80">REF #${cleanReferenceId(selectedPair.referenceId)}</div>
-                            `;
-                            document.body.appendChild(notification);
-                            
-                            setTimeout(() => {
-                              if (notification.parentNode) {
-                                notification.parentNode.removeChild(notification);
-                              }
-                            }, 5000);
-                          }
-                          
-                          // Remove highlighting after delay
-                          setTimeout(() => { 
-                            element.style.border = ''; 
-                            element.style.backgroundColor = '';
-                            element.style.boxShadow = '';
-                          }, 10000);
-                        } else {
-                          console.error('❌ DROPDOWN ERROR: Element not found:', elementId);
-                          alert(`Error: Could not find lane element: ${elementId}. Available lanes: ${Array.from(allLanes).map(el => el.id).join(', ')}`);
-                        }
-                      }, 100);
-                    }
-                  }}
-                  className="w-full bg-gray-900 border border-gray-600 rounded-md text-gray-200 py-2 px-3 appearance-none text-sm"
-                >
-                  <option value="">📍 Jump to posted lane/pair...</option>
-                  {/* Only show posted lanes with their actual generated pairs */}
-                  {lanes.filter(lane => ['active', 'posted'].includes(lane.lane_status || lane.status) && postedPairs.some(pair => pair.laneId === lane.id)).map(lane => {
-                    const basePair = postedPairs.find(pair => pair.laneId === lane.id && pair.isBase);
-                    const generatedPairs = postedPairs.filter(pair => pair.laneId === lane.id && !pair.isBase);
-                    
-                    return (
-                      <optgroup key={lane.id} label={`🏠 ${lane.origin_city}, ${lane.origin_state} → ${lane.dest_city}, ${lane.dest_state} • REF #${cleanReferenceId(lane.reference_id)} • ${generatedPairs.length} pairs`}>
-                        {basePair && (
-                          <option value={basePair.id} className="font-semibold">
-                            🎯 BASE: {basePair.display} • {cleanReferenceId(basePair.referenceId)}
-                          </option>
-                        )}
-                        {generatedPairs.slice(0, 15).map((pair, index) => (
-                          <option key={pair.id} value={pair.id}>
-                            📊 PAIR {index + 1}: {pair.display} • {pair.referenceId}
-                          </option>
-                        ))}
-                        {generatedPairs.length > 15 && (
-                          <option disabled>... and {generatedPairs.length - 15} more pairs</option>
-                        )}
-                      </optgroup>
-                    );
-                  })}
-                  
-                  {/* Show pending lanes for reference */}
-                  {lanes.filter(lane => (lane.lane_status || lane.status) === 'pending').length > 0 && (
-                    <optgroup label="⏳ PENDING LANES (Mark as posted after CSV upload)">
-                      {lanes.filter(lane => (lane.lane_status || lane.status) === 'pending').slice(0, 10).map((lane) => (
-                        <option key={`pending-${lane.id}`} value={`pending-${lane.id}`}>
-                          ⏳ {lane.origin_city}, {lane.origin_state} → {lane.dest_city}, {lane.dest_state}
-                          {lane.reference_id && ` • REF #${cleanReferenceId(lane.reference_id)}`}
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
-                </select>
-              </div>
-            </div>
-            
-            <div className="flex items-center">
-              <label className="text-sm text-gray-300 mr-2">Sort by:</label>
+              {/* Sort Dropdown */}
               <select 
-                value={sortOrder} 
-                onChange={(e) => setSortOrder(e.target.value)} 
-                className="bg-gray-900 border border-gray-600 rounded-md text-gray-200 text-sm py-1.5 px-2"
+                value={sortOrder}
+                onChange={(e) => setSortOrder(e.target.value)}
+                className="form-input"
+                style={{ width: 'auto', minWidth: '150px' }}
               >
-                <option value="date">Date Added</option>
-                <option value="origin">Origin</option>
-                <option value="dest">Destination</option>
-                <option value="equipment">Equipment</option>
+                <option value="date">Sort: Newest</option>
+                <option value="origin">Sort: Origin</option>
+                <option value="dest">Sort: Destination</option>
+                <option value="equipment">Sort: Equipment</option>
               </select>
             </div>
             
-            <label className="flex items-center">
-              <input
-                type="checkbox"
-                checked={showAIOnly}
-                onChange={(e) => setShowAIOnly(e.target.checked)}
-                className="rounded bg-gray-900 border-gray-600 text-blue-600 focus:ring-blue-500"
-              />
-              <span className="ml-2 text-sm text-gray-300">Show AI recaps only</span>
-            </label>
+            {/* Action Buttons */}
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button 
+                onClick={openExportView}
+                className="btn btn-primary"
+                disabled={filtered.length === 0}
+              >
+                📄 Export Recap
+              </button>
+            </div>
           </div>
           
-          <div className="flex gap-3">
-            <button 
-              onClick={handleGenerateAllRecaps} 
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium"
-            >
-              Generate All Recaps
-            </button>
-            
-            <button 
-              onClick={openExportView} 
-              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-100 rounded-md text-sm font-medium"
-            >
-              Export Recaps
-            </button>
+          {/* Stats Row */}
+          <div style={{ display: 'flex', gap: '16px', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border)' }}>
+            <div style={{ fontSize: '13px' }}>
+              <span style={{ opacity: 0.7 }}>Total Lanes:</span>
+              <strong style={{ marginLeft: '6px' }}>{filtered.length}</strong>
+            </div>
+            <div style={{ fontSize: '13px' }}>
+              <span style={{ opacity: 0.7 }}>Active:</span>
+              <strong style={{ marginLeft: '6px', color: 'var(--success)' }}>
+                {filtered.filter(l => (l.lane_status || l.status) === 'active').length}
+              </strong>
+            </div>
+            <div style={{ fontSize: '13px' }}>
+              <span style={{ opacity: 0.7 }}>Posted:</span>
+              <strong style={{ marginLeft: '6px', color: 'var(--primary)' }}>
+                {filtered.filter(l => (l.lane_status || l.status) === 'posted').length}
+              </strong>
+            </div>
           </div>
         </div>
         
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filtered.map(lane => (
-            <LaneCard
-              key={lane.id}
-              lane={lane}
-              recapData={recaps[lane.id]}
-              onGenerateRecap={handleGenerateRecap}
-              isGenerating={generatingIds.has(lane.id)}
-              postedPairs={postedPairs}
-            />
-          ))}
+        {/* Lane Cards */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {filtered.length === 0 ? (
+            <div className="card" style={{ padding: '48px', textAlign: 'center' }}>
+              <div style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.3 }}>📭</div>
+              <div style={{ fontSize: '16px', fontWeight: 500, marginBottom: '8px' }}>No lanes found</div>
+              <div style={{ fontSize: '14px', opacity: 0.6 }}>
+                {q ? 'Try adjusting your search' : 'Create your first lane to get started'}
+              </div>
+            </div>
+          ) : (
+            filtered.map((lane) => (
+              <LaneCard 
+                key={lane.id}
+                lane={lane}
+                recapData={recaps[lane.id]}
+                onGenerateRecap={handleGenerateRecap}
+                isGenerating={generatingIds.has(lane.id)}
+                postedPairs={postedPairs}
+              />
+            ))
+          )}
         </div>
-        
-        {filtered.length === 0 && (
-          <div className="text-center py-10">
-            <div className="text-gray-400 mb-2">No lanes match your search criteria</div>
-            <button 
-              onClick={() => { setQ(''); setShowAIOnly(false); }} 
-              className="text-sm text-blue-400 hover:text-blue-300"
-            >
-              Clear filters
-            </button>
-          </div>
-        )}
-        
-        <style jsx>{`
-          .text-2xs {
-            font-size: 0.65rem;
-          }
-        `}</style>
       </div>
     </>
   );
