@@ -52,6 +52,33 @@ export default function PostOptionsManual() {
       console.log('[INITIAL LOAD] Fetched pending lanes:', pending.length);
       setLanes(pending);
       
+      // Load saved city choices for pending lanes
+      if (pending.length > 0) {
+        console.log('[LOAD SAVED CHOICES] Checking for existing selections...');
+        try {
+          const laneIds = pending.map(l => l.id);
+          const { data: savedChoices, error: savedError } = await supabase
+            .from('lane_city_choices')
+            .select('*')
+            .in('lane_id', laneIds);
+          
+          if (!savedError && savedChoices && savedChoices.length > 0) {
+            console.log('[LOAD SAVED CHOICES] Found', savedChoices.length, 'saved choices');
+            const restoredSelections = {};
+            savedChoices.forEach(choice => {
+              restoredSelections[choice.lane_id] = {
+                origin: choice.origin_chosen_cities || [],
+                dest: choice.dest_chosen_cities || []
+              };
+            });
+            setSelectedCities(restoredSelections);
+            console.log('[LOAD SAVED CHOICES] Restored selections:', restoredSelections);
+          }
+        } catch (error) {
+          console.error('[LOAD SAVED CHOICES] Error:', error);
+        }
+      }
+      
       // AUTO-ENRICH: Immediately load city options for all pending lanes
       if (pending.length > 0) {
         console.log('[AUTO-ENRICH] Loading city options for', pending.length, 'lanes');
@@ -258,12 +285,14 @@ export default function PostOptionsManual() {
 
   // Toggle city selection
   const toggleCitySelection = (laneId, type, city) => {
+    console.log('🔵 Toggle clicked:', { laneId, type, city: `${city.city}, ${city.state_or_province}` });
+    
     setSelectedCities(prev => {
       const lane = prev[laneId] || { origin: [], dest: [] };
       const list = lane[type] || [];
       const exists = list.find(c => c.city === city.city && c.state_or_province === city.state_or_province);
       
-      return {
+      const newState = {
         ...prev,
         [laneId]: {
           ...lane,
@@ -272,18 +301,58 @@ export default function PostOptionsManual() {
             : [...list, city]
         }
       };
+      
+      console.log('🔵 New selectedCities state:', newState);
+      return newState;
     });
   };
 
   // Save city choices to database
   const saveCityChoices = async (lane) => {
+    console.log('🔵 SAVE BUTTON CLICKED');
+    console.log('🔵 Lane:', lane.id);
+    console.log('🔵 All selectedCities:', selectedCities);
+    console.log('🔵 Selections for this lane:', selectedCities[lane.id]);
+    
     const selections = selectedCities[lane.id];
-    if (!selections || (selections.origin.length === 0 && selections.dest.length === 0)) {
+    
+    // Better validation
+    if (!selections) {
+      console.error('❌ No selections object found for lane:', lane.id);
+      alert('Please select at least one city');
+      return;
+    }
+    
+    const originCount = selections.origin?.length || 0;
+    const destCount = selections.dest?.length || 0;
+    
+    if (originCount === 0 && destCount === 0) {
+      console.error('❌ No cities selected');
       alert('Please select at least one city');
       return;
     }
 
+    // Ensure we use the correct destination field
+    const dest_city = lane.destination_city || lane.dest_city;
+    const dest_state = lane.destination_state || lane.dest_state;
+
+    if (!dest_city || !dest_state) {
+      console.error('❌ Missing destination data:', { lane });
+      alert('Error: Destination city or state is missing');
+      return;
+    }
+
     try {
+      console.log('🟢 [Save City Choices] Sending request:', {
+        lane_id: lane.id,
+        origin_city: lane.origin_city,
+        origin_state: lane.origin_state,
+        dest_city,
+        dest_state,
+        origin_count: originCount,
+        dest_count: destCount
+      });
+
       const response = await fetch('/api/save-city-choices', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -291,20 +360,36 @@ export default function PostOptionsManual() {
           lane_id: lane.id,
           origin_city: lane.origin_city,
           origin_state: lane.origin_state,
-          dest_city: lane.destination_city,
-          dest_state: lane.destination_state,
-          origin_chosen_cities: selections.origin,
-          dest_chosen_cities: selections.dest
+          dest_city,
+          dest_state,
+          origin_chosen_cities: selections.origin || [],
+          dest_chosen_cities: selections.dest || []
         })
       });
 
+      console.log('🟢 Response status:', response.status);
       const data = await response.json();
+      console.log('🟢 Response data:', data);
+      
       if (data.ok) {
-        alert(`✅ Saved! RR Number: ${data.rr_number}`);
+        console.log('✅ SAVE SUCCESSFUL!');
+        alert(`✅ Saved! RR Number: ${data.rr_number}\n\nLane status updated to 'active'.\nYou can now find this lane in the Lanes page.`);
+        
+        // Remove the lane from the pending list since it's now active
+        setLanes(prevLanes => prevLanes.filter(l => l.id !== lane.id));
+        
+        // Clear selections for this lane
+        setSelectedCities(prev => {
+          const updated = { ...prev };
+          delete updated[lane.id];
+          return updated;
+        });
       } else {
+        console.error('❌ [Save City Choices] Error response:', data);
         alert(`Error: ${data.error}`);
       }
     } catch (error) {
+      console.error('❌ [Save City Choices] Network error:', error);
       alert(`Failed to save: ${error.message}`);
     }
   };

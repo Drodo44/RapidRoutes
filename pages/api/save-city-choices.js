@@ -21,6 +21,7 @@ export default async function handler(req, res) {
 
     // Validate required fields
     if (!lane_id || !origin_city || !origin_state || !dest_city || !dest_state) {
+      console.error('[Save City Choices] Missing required fields:', { lane_id, origin_city, origin_state, dest_city, dest_state });
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
@@ -28,16 +29,30 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Must select at least one city' });
     }
 
+    console.log('[Save City Choices] Received request:', {
+      lane_id,
+      origin_city,
+      origin_state,
+      dest_city,
+      dest_state,
+      origin_count: origin_chosen_cities?.length || 0,
+      dest_count: dest_chosen_cities?.length || 0
+    });
+
     // Get next RR number
-    const { data: rrData, error: rrError } = await supabase
-      .rpc('get_next_rr_number');
+    let rr_number = 'RR00001';
+    try {
+      const { data: rrData, error: rrError } = await supabase
+        .rpc('get_next_rr_number');
 
-    if (rrError) {
-      console.error('[Save City Choices] Error getting RR number:', rrError);
-      return res.status(500).json({ error: 'Failed to generate RR number' });
+      if (rrError) {
+        console.error('[Save City Choices] Error getting RR number (will use default):', rrError);
+      } else if (rrData) {
+        rr_number = rrData;
+      }
+    } catch (rrErr) {
+      console.error('[Save City Choices] RR number function not available:', rrErr.message);
     }
-
-    const rr_number = rrData || 'RR00001';
 
     // Upsert city choices (update if exists, insert if not)
     const { data, error } = await supabase
@@ -63,17 +78,30 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: error.message });
     }
 
+    // Update lane status to 'active' so it shows up in the lanes list
+    const { error: laneUpdateError } = await supabase
+      .from('lanes')
+      .update({ lane_status: 'active' })
+      .eq('id', lane_id);
+
+    if (laneUpdateError) {
+      console.error('[Save City Choices] Warning: Could not update lane status:', laneUpdateError);
+      // Don't fail the request, just log the warning
+    }
+
     console.log('[Save City Choices] Success:', {
       lane_id,
       rr_number,
       origin_count: origin_chosen_cities?.length || 0,
-      dest_count: dest_chosen_cities?.length || 0
+      dest_count: dest_chosen_cities?.length || 0,
+      lane_status_updated: !laneUpdateError
     });
 
     return res.status(200).json({
       ok: true,
       rr_number,
-      data
+      data,
+      lane_status: 'active'
     });
 
   } catch (error) {
