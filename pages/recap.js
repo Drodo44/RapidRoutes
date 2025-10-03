@@ -244,6 +244,8 @@ export default function RecapPage() {
               .order('created_at', { ascending: false });
             
             if (!error && cityChoices?.length > 0) {
+              const choice = cityChoices[0]; // Get the record with arrays
+              
               // Add base lane
               allPairs.push({
                 id: `base-${lane.id}`,
@@ -255,20 +257,28 @@ export default function RecapPage() {
                 delivery: { city: lane.dest_city || lane.destination_city, state: lane.dest_state || lane.destination_state }
               });
               
-              // Add saved city choices as pairs
-              cityChoices.forEach((choice, index) => {
-                const pairRefId = generatePairReferenceId(lane.reference_id, index);
-                allPairs.push({
-                  id: `pair-${lane.id}-${index}`,
-                  laneId: lane.id,
-                  isBase: false,
-                  display: `${choice.origin_city}, ${choice.origin_state} → ${choice.destination_city}, ${choice.destination_state}`,
-                  referenceId: pairRefId,
-                  baseReferenceId: lane.reference_id,
-                  pickup: { city: choice.origin_city, state: choice.origin_state },
-                  delivery: { city: choice.destination_city, state: choice.destination_state }
-                });
-              });
+              // Expand origin_chosen_cities and dest_chosen_cities arrays into individual pairs
+              const originCities = choice.origin_chosen_cities || [];
+              const destCities = choice.dest_chosen_cities || [];
+              
+              // Create all combinations of origin and destination cities
+              let pairIndex = 0;
+              for (const originCity of originCities) {
+                for (const destCity of destCities) {
+                  const pairRefId = generatePairReferenceId(lane.reference_id, pairIndex);
+                  allPairs.push({
+                    id: `pair-${lane.id}-${pairIndex}`,
+                    laneId: lane.id,
+                    isBase: false,
+                    display: `${originCity.city}, ${originCity.state} → ${destCity.city}, ${destCity.state}`,
+                    referenceId: pairRefId,
+                    baseReferenceId: lane.reference_id,
+                    pickup: { city: originCity.city, state: originCity.state },
+                    delivery: { city: destCity.city, state: destCity.state }
+                  });
+                  pairIndex++;
+                }
+              }
             }
           } catch (error) {
             console.error(`Error loading city choices for lane ${lane.id}:`, error);
