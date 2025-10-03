@@ -82,6 +82,35 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
       </div>
 
       {/* Show generated lanes instead of AI talking points */}
+      {(lane.lane_status || lane.status) === 'active' && laneGeneratedPairs.length > 0 && (
+        <div className="border-t border-gray-700 bg-gray-900 p-4">
+          <div className="mb-3">
+            <h4 className="text-sm font-medium text-green-300 mb-2 flex items-center">
+              <span className="mr-2">✅</span>
+              Saved City Choices ({laneGeneratedPairs.length} pairs ready for posting)
+            </h4>
+            <div className="space-y-1.5 max-h-48 overflow-y-auto">
+              {laneGeneratedPairs.map((pair, index) => (
+                <div key={pair.id} className="text-xs text-gray-200 flex items-center justify-between bg-gray-800/50 p-2 rounded">
+                  <div className="flex items-center flex-1">
+                    <span className="text-green-400 mr-2 min-w-[16px]">
+                      {pair.isBase ? '🎯' : '📍'}
+                    </span>
+                    <span className="flex-1">
+                      <span className="font-medium">{pair.pickup.city}, {pair.pickup.state}</span>
+                      <span className="text-gray-400 mx-1.5">→</span>
+                      <span className="font-medium">{pair.delivery.city}, {pair.delivery.state}</span>
+                    </span>
+                  </div>
+                  <span className="text-green-300 font-mono text-xs ml-2">
+                    #{pair.referenceId}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
   {(lane.lane_status || lane.status) === 'posted' && laneGeneratedPairs.length > 0 && (
         <div className="border-t border-gray-700 bg-gray-900 p-4">
           <div className="mb-3">
