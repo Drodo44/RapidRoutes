@@ -89,22 +89,39 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
               <span className="mr-2">✅</span>
               Saved City Choices ({laneGeneratedPairs.length} pairs ready for posting)
             </h4>
-            <div className="space-y-1.5 max-h-48 overflow-y-auto">
+            <div className="space-y-2 max-h-96 overflow-y-auto">
               {laneGeneratedPairs.map((pair, index) => (
-                <div key={pair.id} className="text-xs text-gray-200 flex items-center justify-between bg-gray-800/50 p-2 rounded">
-                  <div className="flex items-center flex-1">
-                    <span className="text-green-400 mr-2 min-w-[16px]">
-                      {pair.isBase ? '🎯' : '📍'}
-                    </span>
-                    <span className="flex-1">
-                      <span className="font-medium">{pair.pickup.city}, {pair.pickup.state}</span>
-                      <span className="text-gray-400 mx-1.5">→</span>
-                      <span className="font-medium">{pair.delivery.city}, {pair.delivery.state}</span>
-                    </span>
+                <div key={pair.id} className="text-sm text-gray-100 bg-gray-800/50 p-3 rounded border border-gray-700">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-green-400">
+                        {pair.isBase ? '🎯 BASE' : `📍 PAIR ${index}`}
+                      </span>
+                      <span className="text-green-300 font-mono text-xs px-2 py-0.5 bg-green-900/40 rounded">
+                        #{pair.referenceId}
+                      </span>
+                    </div>
                   </div>
-                  <span className="text-green-300 font-mono text-xs ml-2">
-                    #{pair.referenceId}
-                  </span>
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <div className="text-gray-400 mb-1">PICKUP</div>
+                      <div className="font-medium text-base">{pair.pickup.city}, {pair.pickup.state}</div>
+                      {pair.pickup.kma && (
+                        <div className="text-blue-400 mt-1">
+                          KMA: {pair.pickup.kma} {pair.pickup.miles && `• ${Math.round(pair.pickup.miles)} mi`}
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <div className="text-gray-400 mb-1">DELIVERY</div>
+                      <div className="font-medium text-base">{pair.delivery.city}, {pair.delivery.state}</div>
+                      {pair.delivery.kma && (
+                        <div className="text-orange-400 mt-1">
+                          KMA: {pair.delivery.kma} {pair.delivery.miles && `• ${Math.round(pair.delivery.miles)} mi`}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -273,8 +290,18 @@ export default function RecapPage() {
                     display: `${originCity.city}, ${originCity.state} → ${destCity.city}, ${destCity.state}`,
                     referenceId: pairRefId,
                     baseReferenceId: lane.reference_id,
-                    pickup: { city: originCity.city, state: originCity.state },
-                    delivery: { city: destCity.city, state: destCity.state }
+                    pickup: { 
+                      city: originCity.city, 
+                      state: originCity.state,
+                      kma: originCity.kma_code || originCity.kma_name,
+                      miles: originCity.miles
+                    },
+                    delivery: { 
+                      city: destCity.city, 
+                      state: destCity.state,
+                      kma: destCity.kma_code || destCity.kma_name,
+                      miles: destCity.miles
+                    }
                   });
                   pairIndex++;
                 }
