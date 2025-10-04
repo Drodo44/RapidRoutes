@@ -257,50 +257,13 @@ function Dashboard() {
           />
         </div>
         
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-6)' }}>
-          {/* DAT Market Heat Maps - NEW FEATURE */}
+        {/* LARGE Heat Map Section */}
+        <div style={{ marginBottom: 'var(--space-6)' }}>
           <DatMarketMaps />
+        </div>
 
-          <Section
-            title="Market Maps"
-            right={
-              <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-                {Object.keys(maps).map(k => (
-                  <button
-                    key={k}
-                    onClick={() => setTab(k)}
-                    className={tab===k ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
-                  >
-                    {k[0].toUpperCase()+k.slice(1)}
-                  </button>
-                ))}
-              </div>
-            }
-          >
-            {mapUrl ? (
-              <div style={{ border: '1px solid var(--border-default)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
-                <img src={mapUrl} alt={`${tab} map`} style={{ width: '100%', height: 'auto', display: 'block' }} />
-              </div>
-            ) : (
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center', 
-                height: '240px', 
-                backgroundColor: 'var(--bg-secondary)', 
-                border: '1px solid var(--border-default)', 
-                borderRadius: 'var(--radius-md)' 
-              }}>
-                <div style={{ textAlign: 'center' }}>
-                  <p style={{ color: 'var(--text-secondary)', marginBottom: 'var(--space-3)', fontSize: '13px' }}>No market map data available</p>
-                  <Link href="/market-data" className="btn btn-primary btn-sm">
-                    Upload Map Data
-                  </Link>
-                </div>
-              </div>
-            )}
-          </Section>
-
+        {/* Calculators Below - Side by side */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-6)', marginBottom: 'var(--space-6)' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
             <Section title="Floor Space Calculator">
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
@@ -376,7 +339,7 @@ function Dashboard() {
               </div>
             </Section>
 
-            <Section title="Heavy Haul Checker">
+          <Section title="Heavy Haul Checker">
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
                   <div>
@@ -446,16 +409,17 @@ function Dashboard() {
                 </div>
               </div>
             </Section>
-            
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
-              <Link 
-                href="/lanes"
-                className="btn btn-primary"
-              >
-                Create New Lane
-              </Link>
-            </div>
           </div>
+        </div>
+
+        {/* Action Button */}
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <Link 
+            href="/lanes"
+            className="btn btn-primary"
+          >
+            Create New Lane
+          </Link>
         </div>
       </div>
     </>

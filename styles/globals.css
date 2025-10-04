@@ -2,11 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Dark-only baseline */
-html, body {
-  background-color: #0b0d12;
-  color: #e5e7eb; /* gray-200 */
-}
+/* Removed hardcoded dark mode - now respects theme system in enterprise.css */
 
 /* Form focus ring tweak */
 :focus {
