@@ -79,16 +79,17 @@ export default function FloorSpaceCalculator() {
   };
 
   return (
-    <div className="bg-[#1a2236] p-6 rounded-2xl shadow-xl max-w-lg mx-auto mb-10 text-white">
+    <div className="p-6 rounded-2xl shadow-xl max-w-lg mx-auto mb-10" style={{ background: 'var(--surface)', color: 'var(--text-primary)' }}>
       <h2 className="text-2xl font-bold text-cyan-400 mb-4">Floor Space Calculator</h2>
       <div className="grid grid-cols-3 gap-4 mb-4">
         <div>
-          <label className="block text-xs mb-1 text-gray-300">Length (inches)</label>
+          <label className="block text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>Length (inches)</label>
           <input
             type="number"
             value={length}
             onChange={(e) => setLength(e.target.value)}
-            className="p-2 rounded bg-gray-800 border border-gray-600 w-full"
+            className="p-2 rounded w-full"
+            style={{ background: 'var(--input-bg)', borderColor: 'var(--border-default)', color: 'var(--text-primary)' }}
           />
         </div>
         <div>
