@@ -584,33 +584,39 @@ export default function RecapPage() {
         <title>Recap | RapidRoutes</title>
       </Head>
       
-      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '24px' }}>
+      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '16px' }}>
         {/* Page Header */}
-        <div style={{ marginBottom: '32px' }}>
-          <h1 style={{ fontSize: '28px', fontWeight: 700, margin: 0, marginBottom: '8px' }}>
+        <div style={{ marginBottom: '20px' }}>
+          <h1 style={{ fontSize: '20px', fontWeight: 600, margin: 0, marginBottom: '4px', color: 'var(--text-primary)' }}>
             Active Lane Postings
           </h1>
-          <p style={{ fontSize: '14px', opacity: 0.7, margin: 0 }}>
+          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
             View your selected city combinations and reference IDs for DAT posting
           </p>
         </div>
         
         {/* Search and Filter Bar */}
-        <div className="card" style={{ marginBottom: '24px', padding: '16px' }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', gap: '12px', flex: 1, minWidth: '300px' }}>
+        <div style={{ 
+          backgroundColor: 'var(--surface)', 
+          border: '1px solid var(--surface-border)',
+          borderRadius: '6px',
+          marginBottom: '16px',
+          padding: '12px'
+        }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', gap: '8px', flex: 1, minWidth: '280px' }}>
               {/* Search Input */}
-              <div style={{ position: 'relative', flex: 1, maxWidth: '400px' }}>
+              <div style={{ position: 'relative', flex: 1, maxWidth: '350px' }}>
                 <input 
                   type="text" 
                   value={q} 
                   onChange={(e) => setQ(e.target.value)}
                   placeholder="Search reference ID, city, state..."
                   className="form-input"
-                  style={{ paddingLeft: '36px', width: '100%' }}
+                  style={{ paddingLeft: '32px', width: '100%', fontSize: '12px', padding: '6px 6px 6px 32px' }}
                 />
-                <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }}>
-                  <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }}>
+                  <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                     <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
                   </svg>
                 </span>
@@ -621,7 +627,7 @@ export default function RecapPage() {
                 value={sortOrder}
                 onChange={(e) => setSortOrder(e.target.value)}
                 className="form-input"
-                style={{ width: 'auto', minWidth: '150px' }}
+                style={{ width: 'auto', minWidth: '130px', fontSize: '12px', padding: '6px 8px' }}
               >
                 <option value="date">Sort: Newest</option>
                 <option value="origin">Sort: Origin</option>
@@ -635,6 +641,7 @@ export default function RecapPage() {
               <button 
                 onClick={openExportView}
                 className="btn btn-primary"
+                style={{ fontSize: '12px', padding: '6px 12px' }}
                 disabled={filtered.length === 0}
               >
                 📄 Export Recap
@@ -643,20 +650,20 @@ export default function RecapPage() {
           </div>
           
           {/* Stats Row */}
-          <div style={{ display: 'flex', gap: '16px', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border)' }}>
-            <div style={{ fontSize: '13px' }}>
-              <span style={{ opacity: 0.7 }}>Total Lanes:</span>
-              <strong style={{ marginLeft: '6px' }}>{filtered.length}</strong>
+          <div style={{ display: 'flex', gap: '12px', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--surface-border)' }}>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+              <span>Total Lanes:</span>
+              <strong style={{ marginLeft: '4px', color: 'var(--text-primary)' }}>{filtered.length}</strong>
             </div>
-            <div style={{ fontSize: '13px' }}>
-              <span style={{ opacity: 0.7 }}>Active:</span>
-              <strong style={{ marginLeft: '6px', color: 'var(--success)' }}>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+              <span>Active:</span>
+              <strong style={{ marginLeft: '4px', color: 'var(--success)' }}>
                 {filtered.filter(l => (l.lane_status || l.status) === 'active').length}
               </strong>
             </div>
-            <div style={{ fontSize: '13px' }}>
-              <span style={{ opacity: 0.7 }}>Posted:</span>
-              <strong style={{ marginLeft: '6px', color: 'var(--primary)' }}>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+              <span>Posted:</span>
+              <strong style={{ marginLeft: '4px', color: 'var(--primary)' }}>
                 {filtered.filter(l => (l.lane_status || l.status) === 'posted').length}
               </strong>
             </div>
@@ -664,12 +671,18 @@ export default function RecapPage() {
         </div>
         
         {/* Lane Cards */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {filtered.length === 0 ? (
-            <div className="card" style={{ padding: '48px', textAlign: 'center' }}>
-              <div style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.3 }}>📭</div>
-              <div style={{ fontSize: '16px', fontWeight: 500, marginBottom: '8px' }}>No lanes found</div>
-              <div style={{ fontSize: '14px', opacity: 0.6 }}>
+            <div style={{ 
+              backgroundColor: 'var(--surface)', 
+              border: '1px solid var(--surface-border)',
+              borderRadius: '6px',
+              padding: '48px', 
+              textAlign: 'center' 
+            }}>
+              <div style={{ fontSize: '36px', marginBottom: '12px', opacity: 0.2 }}>📭</div>
+              <div style={{ fontSize: '14px', fontWeight: 500, marginBottom: '6px', color: 'var(--text-primary)' }}>No lanes found</div>
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                 {q ? 'Try adjusting your search' : 'Create your first lane to get started'}
               </div>
             </div>

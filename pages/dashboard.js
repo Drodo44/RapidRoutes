@@ -9,33 +9,33 @@ import DatMarketMaps from '../components/DatMarketMaps.jsx';
 
 function Section({ title, right, children, className = '' }) {
   return (
-    <section className={`bg-gray-800 rounded-lg border border-gray-700 shadow-lg overflow-hidden ${className}`}>
-      <div className="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700">
-        <h2 className="text-lg font-semibold text-gray-100">{title}</h2>
+    <section className={`card ${className}`}>
+      <div className="card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <h2 style={{ margin: 0 }}>{title}</h2>
         {right}
       </div>
-      <div className="p-4 bg-gray-900">{children}</div>
+      <div className="card-body">{children}</div>
     </section>
   );
 }
 
 function StatCard({ title, value, subValue, icon, color = 'blue' }) {
-  const colorClasses = {
-    blue: 'bg-blue-900/30 text-blue-300 border-blue-800',
-    green: 'bg-green-900/30 text-green-300 border-green-800',
-    amber: 'bg-amber-900/30 text-amber-300 border-amber-800',
-    red: 'bg-red-900/30 text-red-300 border-red-800',
+  const colorStyles = {
+    blue: { backgroundColor: 'var(--primary-light)', color: 'var(--primary-text)', borderColor: 'var(--primary)' },
+    green: { backgroundColor: 'var(--success-light)', color: 'var(--success-text)', borderColor: 'var(--success)' },
+    amber: { backgroundColor: 'var(--warning-light)', color: 'var(--warning-text)', borderColor: 'var(--warning)' },
+    red: { backgroundColor: 'var(--danger-light)', color: 'var(--danger-text)', borderColor: 'var(--danger)' },
   };
 
   return (
-    <div className={`rounded-lg border p-4 ${colorClasses[color] || colorClasses.blue}`}>
-      <div className="flex justify-between items-start">
+    <div className="stat-card" style={{ ...colorStyles[color] || colorStyles.blue, borderWidth: '1px', borderStyle: 'solid' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
-          <h3 className="text-sm font-medium opacity-80">{title}</h3>
-          <p className="text-2xl font-bold mt-2">{value}</p>
-          {subValue && <p className="text-xs mt-1 opacity-80">{subValue}</p>}
+          <h3 className="stat-label" style={{ opacity: 0.9 }}>{title}</h3>
+          <p className="stat-value">{value}</p>
+          {subValue && <p style={{ fontSize: '11px', marginTop: 'var(--space-1)', opacity: 0.8 }}>{subValue}</p>}
         </div>
-        <div className="text-2xl opacity-80">{icon}</div>
+        <div style={{ fontSize: '20px', opacity: 0.8 }}>{icon}</div>
       </div>
     </div>
   );
@@ -219,14 +219,14 @@ function Dashboard() {
         <title>Dashboard | RapidRoutes</title>
       </Head>
       
-      <div className="container mx-auto max-w-7xl px-4">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-100 mb-2">Broker Dashboard</h1>
-          <p className="text-gray-400">Freight management tools and market insights</p>
+      <div className="container">
+        <div className="page-header">
+          <h1 className="page-title">Broker Dashboard</h1>
+          <p className="page-subtitle">Freight management tools and market insights</p>
         </div>
 
         {/* Stats row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-4" style={{ marginBottom: 'var(--space-6)' }}>
           <StatCard 
             title="Pending Lanes" 
             value={stats.pendingLanes} 
@@ -257,23 +257,19 @@ function Dashboard() {
           />
         </div>
         
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* DAT Market Heat Maps - NEW FEATURE */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-6)' }}>
+          {/* DAT Market Heat Maps - NEW FEATURE */}
           <DatMarketMaps />
 
           <Section
             title="Market Maps"
             right={
-              <div className="flex space-x-2">
+              <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
                 {Object.keys(maps).map(k => (
                   <button
                     key={k}
                     onClick={() => setTab(k)}
-                    className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
-                      tab===k
-                        ? 'bg-blue-600 text-white border-blue-700'
-                        : 'border-gray-700 text-gray-300 hover:bg-gray-700'
-                    }`}
+                    className={tab===k ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
                   >
                     {k[0].toUpperCase()+k.slice(1)}
                   </button>
@@ -282,14 +278,22 @@ function Dashboard() {
             }
           >
             {mapUrl ? (
-              <div className="rounded-lg border border-gray-800 overflow-hidden">
-                <img src={mapUrl} alt={`${tab} map`} className="w-full h-auto" />
+              <div style={{ border: '1px solid var(--border-default)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+                <img src={mapUrl} alt={`${tab} map`} style={{ width: '100%', height: 'auto', display: 'block' }} />
               </div>
             ) : (
-              <div className="flex items-center justify-center h-64 bg-gray-800 rounded-lg border border-gray-700">
-                <div className="text-center">
-                  <p className="text-gray-400 mb-3">No market map data available</p>
-                  <Link href="/market-data" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm">
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                height: '240px', 
+                backgroundColor: 'var(--bg-secondary)', 
+                border: '1px solid var(--border-default)', 
+                borderRadius: 'var(--radius-md)' 
+              }}>
+                <div style={{ textAlign: 'center' }}>
+                  <p style={{ color: 'var(--text-secondary)', marginBottom: 'var(--space-3)', fontSize: '13px' }}>No market map data available</p>
+                  <Link href="/market-data" className="btn btn-primary btn-sm">
                     Upload Map Data
                   </Link>
                 </div>
@@ -297,41 +301,41 @@ function Dashboard() {
             )}
           </Section>
 
-          <div className="space-y-8">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
             <Section title="Floor Space Calculator">
-              <div className="space-y-4">
-                <div className="grid grid-cols-4 gap-3">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--space-3)' }}>
                   <div>
-                    <label className="block text-sm text-gray-300 mb-1">Length (in)</label>
+                    <label className="form-label">Length (in)</label>
                     <input 
-                      className="w-full rounded-lg bg-gray-800 border border-gray-600 px-3 py-2 text-gray-100" 
+                      className="form-input form-input-sm" 
                       type="number" 
                       value={pLen} 
                       onChange={e=>setPLen(e.target.value)} 
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-300 mb-1">Width (in)</label>
+                    <label className="form-label">Width (in)</label>
                     <input 
-                      className="w-full rounded-lg bg-gray-800 border border-gray-600 px-3 py-2 text-gray-100" 
+                      className="form-input form-input-sm" 
                       type="number" 
                       value={pWid} 
                       onChange={e=>setPWid(e.target.value)} 
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-300 mb-1">Height (in)</label>
+                    <label className="form-label">Height (in)</label>
                     <input 
-                      className="w-full rounded-lg bg-gray-800 border border-gray-600 px-3 py-2 text-gray-100" 
+                      className="form-input form-input-sm" 
                       type="number" 
                       value={pHei} 
                       onChange={e=>setPHei(e.target.value)} 
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-300 mb-1">Count</label>
+                    <label className="form-label">Count</label>
                     <input 
-                      className="w-full rounded-lg bg-gray-800 border border-gray-600 px-3 py-2 text-gray-100" 
+                      className="form-input form-input-sm" 
                       type="number" 
                       value={count} 
                       onChange={e=>setCount(e.target.value)} 
@@ -339,38 +343,33 @@ function Dashboard() {
                   </div>
                 </div>
                 
-                <div className="mb-3">
-                  <label className="flex items-center space-x-2 text-sm text-gray-300">
+                <div>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: '12px', color: 'var(--text-secondary)', cursor: 'pointer' }}>
                     <input
                       type="checkbox"
                       checked={stackable}
                       onChange={e=>setStackable(e.target.checked)}
-                      className="rounded bg-gray-800 border-gray-600 text-blue-600"
                     />
                     <span>Stackable freight (can stack multiple high)</span>
                   </label>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-4 text-sm text-gray-300">
-                  <div className="bg-gray-800 rounded p-2 border border-gray-700">
-                    <span className="block">Pallets Per Row: <span className="font-mono font-medium">{across}</span></span>
-                    <span className="block mt-1">Stack Levels: <span className="font-mono font-medium">{stackLevels}</span></span>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-4)', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                  <div style={{ backgroundColor: 'var(--bg-secondary)', padding: 'var(--space-2)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)' }}>
+                    <span style={{ display: 'block' }}>Pallets Per Row: <span style={{ fontFamily: 'monospace', fontWeight: 500 }}>{across}</span></span>
+                    <span style={{ display: 'block', marginTop: 'var(--space-1)' }}>Stack Levels: <span style={{ fontFamily: 'monospace', fontWeight: 500 }}>{stackLevels}</span></span>
                   </div>
-                  <div className="bg-gray-800 rounded p-2 border border-gray-700">
-                    <span className="block">26′ Capacity: <span className="font-mono font-medium">{cap26}</span></span>
-                    <span className="block mt-1">53′ Capacity: <span className="font-mono font-medium">{cap53}</span></span>
+                  <div style={{ backgroundColor: 'var(--bg-secondary)', padding: 'var(--space-2)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)' }}>
+                    <span style={{ display: 'block' }}>26′ Capacity: <span style={{ fontFamily: 'monospace', fontWeight: 500 }}>{cap26}</span></span>
+                    <span style={{ display: 'block', marginTop: 'var(--space-1)' }}>53′ Capacity: <span style={{ fontFamily: 'monospace', fontWeight: 500 }}>{cap53}</span></span>
                   </div>
                 </div>
                 
-                <div className="flex gap-3 mt-2">
-                  <span className={`px-3 py-1.5 rounded-md text-sm font-medium ${
-                    fits26 ? 'bg-green-900/30 text-green-300' : 'bg-red-900/30 text-red-300'
-                  }`}>
+                <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
+                  <span className={fits26 ? 'badge badge-active' : 'badge'} style={{ fontSize: '11px', padding: 'var(--space-2) var(--space-3)', backgroundColor: fits26 ? 'var(--success-light)' : 'var(--danger-light)', color: fits26 ? 'var(--success-text)' : 'var(--danger-text)' }}>
                     26′ Box: {fits26 ? 'Fits ✓' : `Over by ${count - cap26}`}
                   </span>
-                  <span className={`px-3 py-1.5 rounded-md text-sm font-medium ${
-                    fits53 ? 'bg-green-900/30 text-green-300' : 'bg-red-900/30 text-red-300'
-                  }`}>
+                  <span className={fits53 ? 'badge badge-active' : 'badge'} style={{ fontSize: '11px', padding: 'var(--space-2) var(--space-3)', backgroundColor: fits53 ? 'var(--success-light)' : 'var(--danger-light)', color: fits53 ? 'var(--success-text)' : 'var(--danger-text)' }}>
                     53′ Van: {fits53 ? 'Fits ✓' : `Over by ${count - cap53}`}
                   </span>
                 </div>
@@ -378,39 +377,39 @@ function Dashboard() {
             </Section>
 
             <Section title="Heavy Haul Checker">
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-3">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
                   <div>
-                    <label className="block text-sm text-gray-300 mb-1">Length (in)</label>
+                    <label className="form-label">Length (in)</label>
                     <input 
-                      className="w-full rounded-lg bg-gray-800 border border-gray-600 px-3 py-2 text-gray-100" 
+                      className="form-input form-input-sm" 
                       type="number" 
                       value={l} 
                       onChange={e=>setL(e.target.value)} 
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-300 mb-1">Width (in)</label>
+                    <label className="form-label">Width (in)</label>
                     <input 
-                      className="w-full rounded-lg bg-gray-800 border border-gray-600 px-3 py-2 text-gray-100" 
+                      className="form-input form-input-sm" 
                       type="number" 
                       value={w} 
                       onChange={e=>setW(e.target.value)} 
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-300 mb-1">Height (in)</label>
+                    <label className="form-label">Height (in)</label>
                     <input 
-                      className="w-full rounded-lg bg-gray-800 border border-gray-600 px-3 py-2 text-gray-100" 
+                      className="form-input form-input-sm" 
                       type="number" 
                       value={h} 
                       onChange={e=>setH(e.target.value)} 
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-300 mb-1">Weight (lbs)</label>
+                    <label className="form-label">Weight (lbs)</label>
                     <input 
-                      className="w-full rounded-lg bg-gray-800 border border-gray-600 px-3 py-2 text-gray-100" 
+                      className="form-input form-input-sm" 
                       type="number" 
                       value={wt} 
                       onChange={e=>setWt(e.target.value)} 
@@ -418,17 +417,26 @@ function Dashboard() {
                   </div>
                 </div>
                 
-                <div className={`p-3 rounded-md ${oversize ? 'bg-amber-900/20 border border-amber-800' : 'bg-green-900/20 border border-green-800'}`}>
-                  <p className={`text-sm font-medium ${oversize ? 'text-amber-300' : 'text-green-300'}`}>
+                <div style={{ 
+                  padding: 'var(--space-3)', 
+                  borderRadius: 'var(--radius-md)', 
+                  backgroundColor: oversize ? 'var(--warning-light)' : 'var(--success-light)', 
+                  border: `1px solid ${oversize ? 'var(--warning)' : 'var(--success)'}` 
+                }}>
+                  <p style={{ 
+                    fontSize: '12px', 
+                    fontWeight: 500, 
+                    color: oversize ? 'var(--warning-text)' : 'var(--success-text)' 
+                  }}>
                     {oversize 
                       ? `Oversize: ${oversizeDetails.join(', ')} exceeds legal limits` 
                       : 'Within standard legal limits'}
                   </p>
                   
                   {oversize && (
-                    <div className="mt-2 text-xs text-amber-200/80">
+                    <div style={{ marginTop: 'var(--space-2)', fontSize: '11px', color: oversize ? 'var(--warning-text)' : 'var(--success-text)', opacity: 0.9 }}>
                       <p>Consider special permits and specialized equipment:</p>
-                      <ul className="list-disc list-inside mt-1 space-y-0.5">
+                      <ul style={{ listStyle: 'disc', listStylePosition: 'inside', marginTop: 'var(--space-1)', display: 'flex', flexDirection: 'column', gap: '2px' }}>
                         <li>RGN/Lowboy trailer</li>
                         <li>Escort vehicles may be required</li>
                         <li>State-specific permits</li>
@@ -439,10 +447,10 @@ function Dashboard() {
               </div>
             </Section>
             
-            <div className="flex justify-center mt-3">
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
               <Link 
                 href="/lanes"
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                className="btn btn-primary"
               >
                 Create New Lane
               </Link>

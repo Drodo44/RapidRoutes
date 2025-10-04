@@ -15,12 +15,12 @@ import Head from 'next/head';
 
 function Section({ title, children, right, className = '' }) {
   return (
-    <section className={`bg-gray-800 rounded-lg border border-gray-700 shadow-lg overflow-hidden ${className}`}>
-      <div className="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700">
-        <h2 className="text-lg font-semibold text-gray-100">{title}</h2>
+    <section className={`card ${className}`}>
+      <div className="card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <h2 style={{ fontSize: '16px', fontWeight: 600, margin: 0 }}>{title}</h2>
         {right}
       </div>
-      <div className="p-4 bg-gray-900">{children}</div>
+      <div className="card-body">{children}</div>
     </section>
   );
 }
@@ -861,107 +861,144 @@ function LanesPage() {
         <title>Lane Management | RapidRoutes</title>
       </Head>
       
-      <div className="mx-auto max-w-7xl px-4 py-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-100 mb-2">Lane Management</h1>
-          <p className="text-gray-400">Create and manage freight lanes for DAT posting</p>
+      <div style={{ maxWidth: '1600px', margin: '0 auto', padding: '16px' }}>
+        {/* Page Header */}
+        <div style={{ marginBottom: '20px' }}>
+          <h1 style={{ fontSize: '20px', fontWeight: 600, margin: 0, marginBottom: '4px', color: 'var(--text-primary)' }}>
+            Lane Management
+          </h1>
+          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
+            Create and manage freight lanes for DAT posting
+          </p>
         </div>
 
         {/* RR# Search Section */}
-        <div className="bg-gray-800 rounded-lg border border-gray-700 shadow-lg overflow-hidden mb-6">
-          <div className="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700">
-            <h2 className="text-lg font-semibold text-gray-100">RR# Search</h2>
+        <div style={{ 
+          backgroundColor: 'var(--surface)', 
+          border: '1px solid var(--surface-border)',
+          borderRadius: '6px',
+          marginBottom: '16px',
+          overflow: 'hidden'
+        }}>
+          <div style={{
+            padding: '12px 16px',
+            borderBottom: '1px solid var(--surface-border)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between'
+          }}>
+            <h2 style={{ fontSize: '13px', fontWeight: 600, margin: 0, color: 'var(--text-primary)' }}>
+              RR# Search
+            </h2>
           </div>
-          <div className="p-4 bg-gray-900">
+          <div style={{ padding: '16px' }}>
             <RRSearch />
           </div>
         </div>
 
-        <div className="bg-gray-800 rounded-lg border border-gray-700 shadow-lg overflow-hidden mb-8">
-          <div className="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700">
-            <h2 className="text-lg font-semibold text-gray-100">New Lane</h2>
-          </div>
-          <div className="p-4 bg-gray-900">
-            <form onSubmit={submitLane} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div style={{ 
+          backgroundColor: 'var(--surface)', 
+          border: '1px solid var(--surface-border)',
+          borderRadius: '6px',
+          marginBottom: '16px',
+          padding: '12px'
+        }}>
+          <h2 style={{ fontSize: '13px', fontWeight: 600, marginBottom: '12px', color: 'var(--text-primary)' }}>New Lane</h2>
+          <form onSubmit={submitLane} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
               <CityAutocomplete id="origin" label="Origin (City, ST)" value={origin} onChange={setOrigin} onPick={onPickOrigin} />
               <CityAutocomplete id="dest" label="Destination (City, ST)" value={dest} onChange={setDest} onPick={onPickDest} />
               <EquipmentPicker code={equipment} onChange={setEquipment} />
 
               <div>
-                <label className="block text-sm text-gray-300 mb-1">Full / Partial</label>
-                <select value={fullPartial} onChange={(e) => setFullPartial(e.target.value)} className="inp">
+                <label className="form-label">Full / Partial</label>
+                <select value={fullPartial} onChange={(e) => setFullPartial(e.target.value)} className="form-input">
                   <option value="full">Full</option>
                   <option value="partial">Partial</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-sm text-gray-300 mb-1">Length (ft)</label>
-                <input type="number" min={1} value={lengthFt} onChange={(e) => setLengthFt(e.target.value)} className="inp" />
+                <label className="form-label">Length (ft)</label>
+                <input type="number" min={1} value={lengthFt} onChange={(e) => setLengthFt(e.target.value)} className="form-input" />
               </div>
 
               <div>
-                <label className="block text-sm text-gray-300 mb-1">Pickup Earliest</label>
-                <input type="date" value={pickupEarliest} onChange={(e) => setPickupEarliest(e.target.value)} className="inp" />
+                <label className="form-label">Pickup Earliest</label>
+                <input type="date" value={pickupEarliest} onChange={(e) => setPickupEarliest(e.target.value)} className="form-input" />
               </div>
               <div>
-                <label className="block text-sm text-gray-300 mb-1">Pickup Latest</label>
-                <input type="date" value={pickupLatest} onChange={(e) => setPickupLatest(e.target.value)} className="inp" />
+                <label className="form-label">Pickup Latest</label>
+                <input type="date" value={pickupLatest} onChange={(e) => setPickupLatest(e.target.value)} className="form-input" />
               </div>
 
               {!randomize && (
                 <div>
-                  <label className="block text-sm text-gray-300 mb-1">Weight (lbs)</label>
-                  <input type="number" min={1} value={weight} onChange={(e) => setWeight(e.target.value)} className="inp" />
+                  <label className="form-label">Weight (lbs)</label>
+                  <input type="number" min={1} value={weight} onChange={(e) => setWeight(e.target.value)} className="form-input" />
                 </div>
               )}
               {randomize && (
-                <div className="grid grid-cols-2 gap-4">
+                <div style={{ gridColumn: 'span 2', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   <div>
-                    <label className="block text-sm text-gray-300 mb-1">Random Min (lbs)</label>
-                    <input type="number" min={1} value={randMin} onChange={(e) => setRandMin(e.target.value)} className="inp" />
+                    <label className="form-label">Random Min (lbs)</label>
+                    <input type="number" min={1} value={randMin} onChange={(e) => setRandMin(e.target.value)} className="form-input" />
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-300 mb-1">Random Max (lbs)</label>
-                    <input type="number" min={1} value={randMax} onChange={(e) => setRandMax(e.target.value)} className="inp" />
+                    <label className="form-label">Random Max (lbs)</label>
+                    <input type="number" min={1} value={randMax} onChange={(e) => setRandMax(e.target.value)} className="form-input" />
                   </div>
                 </div>
               )}
 
-              <div className="col-span-full flex items-center gap-3">
-                <label className="inline-flex items-center gap-2 text-sm text-gray-300">
-                  <input type="checkbox" checked={randomize} onChange={(e) => setRandomize(e.target.checked)} className="accent-gray-300" />
+              <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={randomize} onChange={(e) => setRandomize(e.target.checked)} />
                   Randomize Weight
                 </label>
               </div>
 
-              <div className="col-span-full">
-                <label className="block text-sm text-gray-300 mb-1">Comment (optional)</label>
-                <input type="text" value={comment} onChange={(e) => setComment(e.target.value)} className="inp" />
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label className="form-label">Comment (optional)</label>
+                <input type="text" value={comment} onChange={(e) => setComment(e.target.value)} className="form-input" />
               </div>
               <div>
-                <label className="block text-sm text-gray-300 mb-1">Commodity (optional)</label>
-                <input type="text" value={commodity} onChange={(e) => setCommodity(e.target.value)} className="inp" />
+                <label className="form-label">Commodity (optional)</label>
+                <input type="text" value={commodity} onChange={(e) => setCommodity(e.target.value)} className="form-input" />
               </div>
 
-              {msg && <div className="col-span-full text-sm text-gray-300">{msg}</div>}
+              {msg && <div style={{ gridColumn: '1 / -1', fontSize: '13px', color: 'var(--danger)' }}>{msg}</div>}
 
-              <div className="col-span-full flex items-center gap-4">
-                <button type="submit" disabled={busy} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition">
+              <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <button type="submit" disabled={busy} className="btn btn-primary" style={{ fontSize: '12px', padding: '8px 16px' }}>
                   {busy ? 'Saving…' : 'Add Lane'}
                 </button>
               </div>
             </form>
-          </div>
         </div>
 
-        <Section
-          title="Lanes"
-          right={
-            <div className="flex gap-2 items-center">
+        {/* Lanes Section */}
+        <div style={{ 
+          backgroundColor: 'var(--surface)', 
+          border: '1px solid var(--surface-border)',
+          borderRadius: '6px',
+          padding: '12px'
+        }}>
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'space-between',
+            marginBottom: '12px',
+            flexWrap: 'wrap',
+            gap: '12px'
+          }}>
+            <h2 style={{ fontSize: '13px', fontWeight: 600, margin: 0, color: 'var(--text-primary)' }}>
+              Lanes
+            </h2>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
               <Link
                 href="/post-options.manual"
-                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-100 rounded-lg font-medium text-sm"
+                className="btn btn-secondary"
+                style={{ fontSize: '12px', padding: '6px 12px' }}
                 title="Manual Post Options (choose origin/destination posting cities)"
               >
                 Post Options
@@ -969,124 +1006,134 @@ function LanesPage() {
               <button 
                 onClick={() => router.push('/post-options')}
                 disabled={busy || pending.length === 0}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium text-sm"
+                className="btn btn-primary"
+                style={{ fontSize: '12px', padding: '6px 12px' }}
                 title={`Generate lane pairings for ${pending.length} pending lane(s)`}
               >
-                🎯 Generate Lane Pairings ({pending.length})
+                🎯 Generate Pairings ({pending.length})
               </button>
               <button 
                 onClick={generateCSV}
                 disabled={busy || active.length === 0}
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium text-sm"
+                className="btn btn-success"
+                style={{ fontSize: '12px', padding: '6px 12px' }}
                 title={`Generate DAT CSV for ${active.length} active lane(s) with city choices`}
               >
                 {busy ? 'Generating...' : `📊 Generate CSV (${active.length})`}
               </button>
-              <div className="flex gap-2">
-                <button className={`px-4 py-2 rounded-md font-medium ${tab === 'current' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-blue-600 hover:text-white'}`} onClick={() => setTab('current')}>
-                  Current Lanes ({pending.length + active.length + posted.length})
+              <div style={{ display: 'flex', gap: '4px' }}>
+                <button 
+                  className={tab === 'current' ? 'btn btn-primary' : 'btn btn-secondary'} 
+                  style={{ fontSize: '12px', padding: '6px 12px' }}
+                  onClick={() => setTab('current')}
+                >
+                  Current ({pending.length + active.length + posted.length})
                 </button>
-                <button className={`px-4 py-2 rounded-md font-medium ${tab === 'archive' ? 'bg-gray-600 text-white' : 'text-gray-400 hover:bg-gray-600 hover:text-white'}`} onClick={() => setTab('archive')}>
+                <button 
+                  className={tab === 'archive' ? 'btn btn-primary' : 'btn btn-secondary'}
+                  style={{ fontSize: '12px', padding: '6px 12px' }}
+                  onClick={() => setTab('archive')}
+                >
                   Archive ({covered.length + recent.length})
                 </button>
               </div>
             </div>
-          }
-        >
-          <div className="divide-y divide-gray-800">
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
             {(tab === 'current' ? [...pending, ...active, ...posted] : [...covered, ...recent]).map(l => (
-              <div key={l.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 py-3">
-                <div className="text-sm">
-                  <div className="text-gray-100 flex items-center gap-2">
+              <div key={l.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
+                <div style={{ flex: 1, fontSize: '13px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
                     {(l.reference_id || getDisplayReferenceId(l)) && (
-                      <span className="inline-block px-2 py-0.5 text-xs font-mono font-bold rounded bg-green-900/60 text-green-200">
-                        REF #{l.reference_id || getDisplayReferenceId(l)}
+                      <span className="badge" style={{ fontFamily: 'ui-monospace, monospace', fontWeight: 600 }}>
+                        #{l.reference_id || getDisplayReferenceId(l)}
                       </span>
                     )}
-                    {/* Status badge for Current tab */}
                     {tab === 'current' && (
-                      <span className={`inline-block px-2 py-0.5 text-xs font-medium rounded ${
-                        (l.lane_status || l.status) === 'pending' ? 'bg-purple-900/60 text-purple-200' :
-                        (l.lane_status || l.status) === 'active' ? 'bg-blue-900/60 text-blue-200' :
-                        'bg-orange-900/60 text-orange-200'
+                      <span className={`badge badge-${
+                        (l.lane_status || l.status) === 'pending' ? 'pending' :
+                        (l.lane_status || l.status) === 'active' ? 'active' :
+                        'posted'
                       }`}>
                         {(l.lane_status || l.status) === 'pending' ? 'PENDING' :
                          (l.lane_status || l.status) === 'active' ? 'ACTIVE' : 'POSTED'}
                       </span>
                     )}
-                    <span className="font-medium">{l.origin_city}, {l.origin_state}</span>
-                    <span className="mx-2 text-gray-500">→</span>
-                    <span className="font-medium">{l.dest_city || l.destination_city}, {l.dest_state || l.destination_state}</span>
-                    <span className="ml-2 text-gray-400">[{l.equipment_code} • {l.length_ft}ft]</span>
+                    <span style={{ fontWeight: 500 }}>{l.origin_city}, {l.origin_state}</span>
+                    <span style={{ opacity: 0.4 }}>→</span>
+                    <span style={{ fontWeight: 500 }}>{l.dest_city || l.destination_city}, {l.dest_state || l.destination_state}</span>
+                    <span style={{ opacity: 0.6 }}>{l.equipment_code} • {l.length_ft}ft</span>
                   </div>
-                  <div className="text-xs text-gray-400">
-                    {l.randomize_weight ? `Weight: ${l.weight_min}-${l.weight_max} lbs` : `Weight: ${l.weight_lbs || '—'} lbs`}
-                    <span className="ml-3">Pickup: {l.pickup_earliest} → {l.pickup_latest}</span>
-                    {l.comment ? <span className="ml-3">Note: {l.comment}</span> : null}
+                  <div style={{ fontSize: '12px', opacity: 0.6 }}>
+                    {l.randomize_weight ? `${l.weight_min}-${l.weight_max} lbs` : `${l.weight_lbs || '—'} lbs`}
+                    <span style={{ marginLeft: '12px' }}>📅 {l.pickup_earliest} → {l.pickup_latest}</span>
+                    {l.comment && <span style={{ marginLeft: '12px' }}>💬 {l.comment}</span>}
                   </div>
                   {(l.lane_status || l.status) === 'active' && l.reference_id && (
-                    <div className="text-xs mt-1 text-blue-400">
-                      🎯 RR#{l.reference_id} - City choices saved • Ready for CSV export
+                    <div style={{ fontSize: '11px', marginTop: '4px', color: 'var(--success)', opacity: 0.8 }}>
+                      ✓ City choices saved • Ready for CSV export
                     </div>
                   )}
                 </div>
-                <div className="flex gap-2">
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                   {(l.lane_status || l.status) === 'active' && (
-                    <a href={`/post-options.manual?laneId=${l.id}`} className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-sm rounded-lg inline-block">
-                      🏙️ View/Edit Cities
+                    <a href={`/post-options.manual?laneId=${l.id}`} className="btn btn-secondary" style={{ fontSize: '12px', padding: '4px 10px' }}>
+                      🏙️ Cities
                     </a>
                   )}
                   {(l.lane_status || l.status) === 'active' && (
-                    <button onClick={() => window.location.href = `/recap?laneIds=${l.id}`} className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg">
-                      📊 Generate CSV
+                    <button onClick={() => window.location.href = `/recap?laneIds=${l.id}`} className="btn btn-success" style={{ fontSize: '12px', padding: '4px 10px' }}>
+                      📊 CSV
                     </button>
                   )}
                   {(l.lane_status || l.status) === 'active' && (
-                    <button onClick={() => updateStatus(l, 'posted')} className="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white text-sm rounded-lg">
-                      ✅ Mark Posted
+                    <button onClick={() => updateStatus(l, 'posted')} className="btn btn-warning" style={{ fontSize: '12px', padding: '4px 10px' }}>
+                      ✅ Posted
                     </button>
                   )}
                   {(l.lane_status || l.status) === 'active' && (
-                    <button onClick={() => updateStatus(l, 'pending')} className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-sm rounded-lg">
-                      ↩️ Back to Pending
+                    <button onClick={() => updateStatus(l, 'pending')} className="btn btn-secondary" style={{ fontSize: '12px', padding: '4px 10px' }}>
+                      ↩️ Pending
                     </button>
                   )}
                   {((l.lane_status || l.status) === 'pending' || (l.lane_status || l.status) === 'posted') && (
-                    <button onClick={() => startEditLane(l)} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg">
+                    <button onClick={() => startEditLane(l)} className="btn btn-primary" style={{ fontSize: '12px', padding: '4px 10px' }}>
                       ✏️ Edit
                     </button>
                   )}
                   {((l.lane_status || l.status) === 'pending' || (l.lane_status || l.status) === 'posted') && (
-                    <button onClick={() => updateStatus(l, 'covered')} className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg">
-                      Mark Covered
+                    <button onClick={() => updateStatus(l, 'covered')} className="btn btn-success" style={{ fontSize: '12px', padding: '4px 10px' }}>
+                      Covered
                     </button>
                   )}
                   {(l.lane_status || l.status) === 'covered' && (
-                    <button onClick={() => postAgain(l)} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm rounded-lg">
+                    <button onClick={() => postAgain(l)} className="btn btn-success" style={{ fontSize: '12px', padding: '4px 10px' }}>
                       🚀 Post Again
                     </button>
                   )}
                   {(l.lane_status || l.status) === 'covered' && (
-                    <button onClick={() => updateStatus(l, 'archived')} className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-sm rounded-lg">
+                    <button onClick={() => updateStatus(l, 'archived')} className="btn btn-secondary" style={{ fontSize: '12px', padding: '4px 10px' }}>
                       Archive
                     </button>
                   )}
                   {(l.lane_status || l.status) === 'archived' && (
-                    <button onClick={() => updateStatus(l, 'covered')} className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg">
-                      Restore to Covered
+                    <button onClick={() => updateStatus(l, 'covered')} className="btn btn-primary" style={{ fontSize: '12px', padding: '4px 10px' }}>
+                      Restore
                     </button>
                   )}
-                  <button onClick={() => delLane(l)} className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg">
+                  <button onClick={() => delLane(l)} className="btn btn-danger" style={{ fontSize: '12px', padding: '4px 10px' }}>
                     Delete
                   </button>
                 </div>
               </div>
             ))}
             {(tab === 'current' ? [...pending, ...active, ...posted] : [...covered, ...recent]).length === 0 && (
-              <div className="py-6 text-sm text-gray-400">No lanes in this category.</div>
+              <div style={{ padding: '48px', textAlign: 'center', opacity: 0.5, fontSize: '12px', color: 'var(--text-secondary)' }}>
+                No lanes in this category
+              </div>
             )}
           </div>
-        </Section>
+        </div>
 
         {/* Intermodal Nudge Modal */}
         {showIntermodalNudge && (
@@ -1145,64 +1192,83 @@ function LanesPage() {
 
         {/* Edit Lane Modal */}
         {showEditModal && editingLane && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-            <div className="bg-gray-900 p-6 rounded-lg border border-gray-700 shadow-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-              <h3 className="text-lg font-semibold text-gray-100 mb-4">
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 50,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(0, 0, 0, 0.5)'
+          }}>
+            <div style={{
+              backgroundColor: 'var(--surface)',
+              border: '1px solid var(--border-default)',
+              borderRadius: 'var(--radius-lg)',
+              padding: 'var(--space-6)',
+              boxShadow: 'var(--shadow-lg)',
+              maxWidth: '600px',
+              width: '100%',
+              margin: '0 var(--space-4)',
+              maxHeight: '90vh',
+              overflowY: 'auto'
+            }}>
+              <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 'var(--space-4)' }}>
                 Edit Lane: {editingLane.origin_city}, {editingLane.origin_state} → {editingLane.dest_city}, {editingLane.dest_state}
               </h3>
               
-              <div className="space-y-4">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
                 {/* Pickup Dates */}
-                <div className="grid grid-cols-2 gap-4">
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-4)' }}>
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">Pickup Earliest</label>
+                    <label className="form-label">Pickup Earliest</label>
                     <input
                       type="date"
                       value={editingLane.pickup_earliest || ''}
                       onChange={(e) => setEditingLane({...editingLane, pickup_earliest: e.target.value})}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="form-input"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">Pickup Latest</label>
+                    <label className="form-label">Pickup Latest</label>
                     <input
                       type="date"
                       value={editingLane.pickup_latest || ''}
                       onChange={(e) => setEditingLane({...editingLane, pickup_latest: e.target.value})}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="form-input"
                     />
                   </div>
                 </div>
 
                 {/* Weight Fields */}
-                <div className="grid grid-cols-3 gap-4">
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-4)' }}>
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">Weight (lbs)</label>
+                    <label className="form-label">Weight (lbs)</label>
                     <input
                       type="number"
                       value={editingLane.weight_lbs || ''}
                       onChange={(e) => setEditingLane({...editingLane, weight_lbs: e.target.value ? parseInt(e.target.value) : null})}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="form-input"
                       placeholder="Exact weight"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">Weight Min</label>
+                    <label className="form-label">Weight Min</label>
                     <input
                       type="number"
                       value={editingLane.weight_min || ''}
                       onChange={(e) => setEditingLane({...editingLane, weight_min: e.target.value ? parseInt(e.target.value) : null})}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="form-input"
                       placeholder="Min weight"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">Weight Max</label>
+                    <label className="form-label">Weight Max</label>
                     <input
                       type="number"
                       value={editingLane.weight_max || ''}
                       onChange={(e) => setEditingLane({...editingLane, weight_max: e.target.value ? parseInt(e.target.value) : null})}
-                      className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="form-input"
                       placeholder="Max weight"
                     />
                   </div>
@@ -1210,41 +1276,42 @@ function LanesPage() {
 
                 {/* Comment */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Comment</label>
+                  <label className="form-label">Comment</label>
                   <textarea
                     value={editingLane.comment || ''}
                     onChange={(e) => setEditingLane({...editingLane, comment: e.target.value})}
                     rows={3}
-                    className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="form-input"
                     placeholder="Optional comment..."
                   />
                 </div>
 
                 {/* Commodity */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Commodity</label>
+                  <label className="form-label">Commodity</label>
                   <input
                     type="text"
                     value={editingLane.commodity || ''}
                     onChange={(e) => setEditingLane({...editingLane, commodity: e.target.value})}
-                    className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="form-input"
                     placeholder="Optional commodity..."
                   />
                 </div>
               </div>
 
-              <div className="flex gap-3 mt-6">
+              <div style={{ display: 'flex', gap: 'var(--space-3)', marginTop: 'var(--space-6)' }}>
                 <button
                   onClick={saveEditedLane}
                   disabled={busy}
-                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="btn btn-primary"
+                  style={{ flex: 1 }}
                 >
                   {busy ? 'Saving...' : 'Save Changes'}
                 </button>
                 <button
                   onClick={cancelEdit}
                   disabled={busy}
-                  className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg"
+                  className="btn btn-secondary"
                 >
                   Cancel
                 </button>
@@ -1255,57 +1322,76 @@ function LanesPage() {
 
         {/* Randomize Weight Modal */}
         {randOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-            <div className="bg-gray-900 p-6 rounded-lg border border-gray-700 shadow-lg max-w-md w-full mx-4">
-              <h3 className="text-lg font-semibold text-gray-100 mb-4">Randomize Weight Range</h3>
-              <div className="grid grid-cols-2 gap-4 mb-4">
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 50,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(0, 0, 0, 0.5)'
+          }}>
+            <div style={{
+              backgroundColor: 'var(--surface)',
+              border: '1px solid var(--border-default)',
+              borderRadius: 'var(--radius-lg)',
+              padding: 'var(--space-6)',
+              boxShadow: 'var(--shadow-lg)',
+              maxWidth: '450px',
+              width: '100%',
+              margin: '0 var(--space-4)'
+            }}>
+              <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 'var(--space-4)' }}>
+                Randomize Weight Range
+              </h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-4)', marginBottom: 'var(--space-4)' }}>
                 <div>
-                  <label className="block text-sm text-gray-300 mb-1">Min Weight (lbs)</label>
+                  <label className="form-label">Min Weight (lbs)</label>
                   <input 
                     type="number" 
                     min={1} 
                     value={randMin} 
                     onChange={(e) => setRandMin(e.target.value)} 
-                    className="inp"
+                    className="form-input"
                     placeholder="e.g., 20000"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-300 mb-1">Max Weight (lbs)</label>
+                  <label className="form-label">Max Weight (lbs)</label>
                   <input 
                     type="number" 
                     min={1} 
                     value={randMax} 
                     onChange={(e) => setRandMax(e.target.value)} 
-                    className="inp"
+                    className="form-input"
                     placeholder="e.g., 40000"
                   />
                 </div>
               </div>
-              <div className="mb-4">
-                <label className="flex items-center text-sm text-gray-300">
+              <div style={{ marginBottom: 'var(--space-4)' }}>
+                <label style={{ display: 'flex', alignItems: 'center', fontSize: '12px', color: 'var(--text-secondary)', cursor: 'pointer' }}>
                   <input 
                     type="checkbox" 
                     checked={rememberSession} 
                     onChange={(e) => setRememberSession(e.target.checked)}
-                    className="mr-2 rounded border-gray-600 bg-gray-700 text-blue-500 focus:ring-blue-500"
+                    style={{ marginRight: 'var(--space-2)' }}
                   />
                   Remember these values for this session
                 </label>
               </div>
-              <div className="flex justify-end gap-3">
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-3)' }}>
                 <button 
                   onClick={() => {
                     setRandomize(false);
                     setRandOpen(false);
                   }}
-                  className="btn-secondary"
+                  className="btn btn-secondary"
                 >
                   Cancel
                 </button>
                 <button 
                   onClick={() => setRandOpen(false)}
-                  className="btn-primary"
+                  className="btn btn-primary"
                 >
                   Set Range
                 </button>
@@ -1321,15 +1407,6 @@ function LanesPage() {
             onClose={() => setShowIntermodalEmail(false)}
           />
         )}
-
-        <style jsx>{`
-          .inp { @apply w-full rounded-lg bg-[#0b0d12] border border-gray-700 px-3 py-2 text-gray-100 outline-none focus:border-gray-500; }
-          .btn-primary { @apply rounded-lg bg-gray-100 text-black font-medium px-4 py-2 hover:bg-white disabled:opacity-60; }
-          .btn-secondary { @apply rounded-lg border border-gray-700 px-3 py-1.5 text-gray-200 hover:bg-gray-800; }
-          .btn-danger { @apply rounded-lg border border-red-700 px-3 py-1.5 text-red-300 hover:bg-red-900/30; }
-          .tab { @apply rounded-lg border border-gray-700 px-3 py-1.5 text-gray-300 hover:text-white; }
-          .tab-active { @apply bg-gray-800 text-white; }
-        `}</style>
       </div>
     </>
   );

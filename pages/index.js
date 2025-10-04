@@ -17,14 +17,43 @@ export default function IndexPage() {
   }, []);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-900">
-      <div className="animate-pulse text-lg text-gray-300 font-medium flex items-center">
-        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+    <div style={{ 
+      minHeight: '100vh', 
+      display: 'flex', 
+      alignItems: 'center', 
+      justifyContent: 'center', 
+      backgroundColor: 'var(--bg-primary)' 
+    }}>
+      <div style={{ 
+        fontSize: '14px', 
+        color: 'var(--text-secondary)', 
+        fontWeight: 500, 
+        display: 'flex', 
+        alignItems: 'center' 
+      }}>
+        <svg 
+          style={{ 
+            animation: 'spin 1s linear infinite', 
+            marginRight: 'var(--space-3)', 
+            height: '20px', 
+            width: '20px', 
+            color: 'var(--primary)' 
+          }} 
+          xmlns="http://www.w3.org/2000/svg" 
+          fill="none" 
+          viewBox="0 0 24 24"
+        >
+          <circle style={{ opacity: 0.25 }} cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+          <path style={{ opacity: 0.75 }} fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
         </svg>
         Loading RapidRoutes...
       </div>
+      <style jsx>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }
