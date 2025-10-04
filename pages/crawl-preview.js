@@ -45,7 +45,7 @@ export default function CrawlPreviewPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 text-gray-100 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
         <div className="text-center">
           <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
           <p className="text-lg">Generating intelligent freight crawl...</p>
@@ -57,7 +57,7 @@ export default function CrawlPreviewPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-900 text-gray-100 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
         <div className="text-center text-red-400">
           <div className="text-4xl mb-4">⚠️</div>
           <h1 className="text-xl font-bold mb-2">Preview Error</h1>
@@ -82,7 +82,7 @@ export default function CrawlPreviewPage() {
         <title>Lane Preview - RapidRoutes</title>
       </Head>
       
-      <div className="min-h-screen bg-gray-900 text-gray-100 p-6">
+      <div className="min-h-screen p-6" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
         <div className="max-w-6xl mx-auto">
           {/* Header */}
           <div className="border-b border-gray-700 pb-6 mb-6">
@@ -115,7 +115,7 @@ export default function CrawlPreviewPage() {
 
           {/* Route Information */}
           <div className="grid md:grid-cols-2 gap-6 mb-6">
-            <div className="bg-gray-800 rounded-lg p-6">
+            <div className="rounded-lg p-6" style={{ background: 'var(--surface)' }}>
               <h3 className="text-lg font-semibold mb-3 text-green-400">📍 Origin</h3>
               <div className="space-y-2">
                 <div className="text-xl font-medium">{crawlData.baseOrigin.city}, {crawlData.baseOrigin.state}</div>
@@ -125,7 +125,7 @@ export default function CrawlPreviewPage() {
               </div>
             </div>
             
-            <div className="bg-gray-800 rounded-lg p-6">
+            <div className="rounded-lg p-6" style={{ background: 'var(--surface)' }}>
               <h3 className="text-lg font-semibold mb-3 text-red-400">🎯 Destination</h3>
               <div className="space-y-2">
                 <div className="text-xl font-medium">{crawlData.baseDest.city}, {crawlData.baseDest.state}</div>
@@ -137,7 +137,7 @@ export default function CrawlPreviewPage() {
           </div>
 
           {/* Postings List */}
-          <div className="bg-gray-800 rounded-lg p-6">
+          <div className="rounded-lg p-6" style={{ background: 'var(--surface)' }}>
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-semibold text-purple-400">🎯 Intelligent Posting Strategy</h2>
               <span className="bg-purple-600 text-white px-4 py-2 rounded-full text-sm font-medium">

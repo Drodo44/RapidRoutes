@@ -171,39 +171,39 @@ export default function SmartRecap() {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gray-900 p-6">
+      <div className="min-h-screen p-6" style={{ background: 'var(--bg-primary)' }}>
         <div className="max-w-6xl mx-auto">
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-100 mb-2">
+            <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
               🚛 Smart Recap System
             </h1>
-            <p className="text-gray-400">
+            <p style={{ color: 'var(--text-tertiary)' }}>
               Find generated lanes when carriers call in
             </p>
           </div>
 
           {/* Statistics */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <div className="bg-gray-800 rounded-lg p-4 text-center border border-gray-700">
+            <div className="rounded-lg p-4 text-center" style={{ background: 'var(--surface)', borderColor: 'var(--border-default)' }}>
               <div className="text-2xl font-bold text-blue-400">{lanes.length}</div>
-              <div className="text-sm text-gray-400">Active Lanes</div>
+              <div className="text-sm" style={{ color: 'var(--text-tertiary)' }}>Active Lanes</div>
             </div>
             <div className="bg-gray-800 rounded-lg p-4 text-center border border-gray-700">
               <div className="text-2xl font-bold text-green-400">{allPostedPairs.length}</div>
-              <div className="text-sm text-gray-400">Posted Pairs</div>
+              <div className="text-sm" style={{ color: 'var(--text-tertiary)' }}>Posted Pairs</div>
             </div>
             <div className="bg-gray-800 rounded-lg p-4 text-center border border-gray-700">
               <div className="text-2xl font-bold text-yellow-400">{allPostedPairs.length * 2}</div>
-              <div className="text-sm text-gray-400">Total Postings</div>
+              <div className="text-sm" style={{ color: 'var(--text-tertiary)' }}>Total Postings</div>
             </div>
             <div className="bg-gray-800 rounded-lg p-4 text-center border border-gray-700">
               <div className="text-2xl font-bold text-purple-400">DAT</div>
-              <div className="text-sm text-gray-400">Platform</div>
+              <div className="text-sm" style={{ color: 'var(--text-tertiary)' }}>Platform</div>
             </div>
           </div>
 
           {/* Dropdown Section */}
-          <div className="bg-gray-800 rounded-lg border border-gray-700 p-6 mb-8">
+          <div className="rounded-lg p-6 mb-8" style={{ background: 'var(--surface)', borderColor: 'var(--border-default)' }}>
             <label className="block text-lg font-medium text-blue-400 mb-4">
               🔍 Find Generated Lane (for incoming calls):
             </label>
@@ -220,7 +220,8 @@ export default function SmartRecap() {
                 <select
                   value={selectedPair?.id || ''}
                   onChange={(e) => handlePairSelect(e.target.value)}
-                  className="w-full bg-gray-700 border-2 border-blue-500 rounded-lg px-4 py-3 text-gray-100 text-lg focus:border-blue-400 focus:ring-2 focus:ring-blue-400 focus:outline-none"
+                  className="w-full border-2 border-blue-500 rounded-lg px-4 py-3 text-lg focus:border-blue-400 focus:ring-2 focus:ring-blue-400 focus:outline-none"
+                  style={{ background: 'var(--input-bg)', color: 'var(--text-primary)' }}
                   disabled={loading}
                 >
                   <option value="">Select a posted lane to find...</option>
@@ -246,15 +247,15 @@ export default function SmartRecap() {
           {selectedPair && originalLane && (
             <div className="space-y-6">
               {/* Matching Information */}
-              <div className="bg-gray-800 rounded-lg border-2 border-blue-500 p-6">
+              <div className="rounded-lg border-2 border-blue-500 p-6" style={{ background: 'var(--surface)' }}>
                 <h2 className="text-xl font-bold text-blue-400 mb-4">
                   📍 Lane Match Details
                 </h2>
                 
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
-                    <h3 className="font-semibold text-gray-300 mb-2">Original Lane:</h3>
-                    <div className="bg-gray-900 rounded p-4">
+                    <h3 className="font-semibold mb-2" style={{ color: 'var(--text-secondary)' }}>Original Lane:</h3>
+                    <div className="rounded p-4" style={{ background: 'var(--bg-primary)' }}>
                       <div className="text-gray-100">
                         {originalLane.origin_city}, {originalLane.origin_state} → {originalLane.dest_city}, {originalLane.dest_state}
                       </div>
@@ -265,8 +266,8 @@ export default function SmartRecap() {
                   </div>
                   
                   <div>
-                    <h3 className="font-semibold text-gray-300 mb-2">Posted Pair (Carrier Called About):</h3>
-                    <div className="bg-gray-900 rounded p-4">
+                    <h3 className="font-semibold mb-2" style={{ color: 'var(--text-secondary)' }}>Posted Pair (Carrier Called About):</h3>
+                    <div className="rounded p-4" style={{ background: 'var(--bg-primary)' }}>
                       <div className="text-gray-100">
                         {selectedPair.pickup.city}, {selectedPair.pickup.state} → {selectedPair.delivery.city}, {selectedPair.delivery.state}
                       </div>
@@ -280,13 +281,13 @@ export default function SmartRecap() {
                 {/* Distance Information */}
                 {distance && (
                   <div className="mt-6 grid md:grid-cols-2 gap-4">
-                    <div className="bg-gray-900 rounded p-4">
+                    <div className="rounded p-4" style={{ background: 'var(--bg-primary)' }}>
                       <h4 className="font-semibold text-gray-300 mb-2">Pickup Distance:</h4>
                       <div className={`text-2xl font-bold ${getDistanceColor(distance.pickup)}`}>
                         {distance.pickup ? `${distance.pickup.toFixed(1)} miles` : 'Unknown'}
                       </div>
                     </div>
-                    <div className="bg-gray-900 rounded p-4">
+                    <div className="rounded p-4" style={{ background: 'var(--bg-primary)' }}>
                       <h4 className="font-semibold text-gray-300 mb-2">Delivery Distance:</h4>
                       <div className={`text-2xl font-bold ${getDistanceColor(distance.delivery)}`}>
                         {distance.delivery ? `${distance.delivery.toFixed(1)} miles` : 'Unknown'}
@@ -298,8 +299,8 @@ export default function SmartRecap() {
 
               {/* Action Buttons */}
               <div className="grid md:grid-cols-2 gap-6">
-                <div className="bg-gray-800 rounded-lg border border-gray-700 p-6">
-                  <h3 className="text-lg font-semibold text-gray-100 mb-4">Track Performance</h3>
+                <div className="rounded-lg p-6" style={{ background: 'var(--surface)', borderColor: 'var(--border-default)' }}>
+                  <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Track Performance</h3>
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       onClick={() => trackPerformance('email_sent')}
@@ -328,8 +329,8 @@ export default function SmartRecap() {
                   </div>
                 </div>
 
-                <div className="bg-gray-800 rounded-lg border border-gray-700 p-6">
-                  <h3 className="text-lg font-semibold text-gray-100 mb-4">Lane Actions</h3>
+                <div className="rounded-lg p-6" style={{ background: 'var(--surface)', borderColor: 'var(--border-default)' }}>
+                  <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Lane Actions</h3>
                   <div className="space-y-3">
                     <button
                       onClick={markAsCovered}

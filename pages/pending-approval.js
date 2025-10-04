@@ -35,21 +35,21 @@ export default function PendingApprovalPage() {
   }, [router]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-900">
+    <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-primary)' }}>
       <div className="max-w-md w-full mx-4">
         <div className="text-center">
           <img src="/logo.png" alt="RapidRoutes Logo" className="h-16 mx-auto mb-6" />
           <h1 className="text-2xl font-bold text-white mb-4">
             Account Pending Approval
           </h1>
-          <div className="bg-gray-800 border border-gray-700 rounded-lg p-6 mb-4">
+          <div className="rounded-lg p-6 mb-4" style={{ background: 'var(--surface)', borderColor: 'var(--border-default)' }}>
             <div className="animate-pulse flex justify-center mb-4">
               <div className="h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
             </div>
-            <p className="text-gray-300 mb-4">
+            <p className="mb-4" style={{ color: 'var(--text-secondary)' }}>
               Your account is currently under review. You will receive access once an administrator approves your account.
             </p>
-            <p className="text-sm text-gray-400">
+            <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>
               This page will automatically update when your account is approved.
             </p>
           </div>

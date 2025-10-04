@@ -24,13 +24,14 @@ export default function ResetPasswordPage() {
   return (
     <>
       <Head><title>Reset password — RapidRoutes</title></Head>
-      <main className="min-h-screen flex items-center justify-center bg-[#0f1115] text-gray-100">
-        <form onSubmit={onSubmit} className="w-full max-w-sm rounded-xl border border-gray-700 bg-[#0f1115] p-6">
+      <main className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
+        <form onSubmit={onSubmit} className="w-full max-w-sm rounded-xl p-6" style={{ background: 'var(--bg-primary)', borderColor: 'var(--border-default)' }}>
           <h1 className="text-xl font-semibold">Reset password</h1>
           <div className="mt-4">
-            <label className="mb-1 block text-xs text-gray-400">Email</label>
+            <label className="mb-1 block text-xs" style={{ color: 'var(--text-tertiary)' }}>Email</label>
             <input
-              className="w-full rounded-lg border border-gray-700 bg-gray-900 p-2 text-white"
+              className="w-full rounded-lg p-2"
+              style={{ background: 'var(--input-bg)', color: 'var(--text-primary)', borderColor: 'var(--border-default)' }}
               type="email" value={email} onChange={(e) => setEmail(e.target.value)} required
             />
           </div>
@@ -43,7 +44,7 @@ export default function ResetPasswordPage() {
             {loading ? "Sending…" : "Send reset email"}
           </button>
           <div className="mt-4 text-center text-sm">
-            <a href="/login" className="text-gray-300 hover:underline">Back to login</a>
+            <a href="/login" style={{ color: 'var(--text-secondary)' }} className="hover:underline">Back to login</a>
           </div>
         </form>
       </main>
