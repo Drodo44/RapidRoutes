@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { useRouter } from "next/router";
+import ThemeToggle from "./ThemeToggle";
 
 export default function Navbar() {
   const router = useRouter();
@@ -56,30 +57,35 @@ export default function Navbar() {
           </span>
         </Link>
         
-        <ul style={{ display: 'flex', gap: 'var(--space-1)', listStyle: 'none', margin: 0, padding: 0 }}>
-          {navLinks.map((link) => (
-            <li key={link.href}>
-              <Link href={link.href}>
-                <span style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 'var(--space-2)',
-                  padding: 'var(--space-2) var(--space-3)',
-                  fontSize: '13px',
-                  fontWeight: 500,
-                  borderRadius: 'var(--radius-md)',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s',
-                  color: currentPath === link.href ? 'var(--primary)' : 'var(--text-secondary)',
-                  backgroundColor: currentPath === link.href ? 'var(--primary-light)' : 'transparent'
-                }}>
-                  <span>{link.icon}</span>
-                  {link.label}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+          <ul style={{ display: 'flex', gap: 'var(--space-1)', listStyle: 'none', margin: 0, padding: 0 }}>
+            {navLinks.map((link) => (
+              <li key={link.href}>
+                <Link href={link.href}>
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 'var(--space-2)',
+                    padding: 'var(--space-2) var(--space-3)',
+                    fontSize: '13px',
+                    fontWeight: 500,
+                    borderRadius: 'var(--radius-md)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s',
+                    color: currentPath === link.href ? 'var(--primary)' : 'var(--text-secondary)',
+                    backgroundColor: currentPath === link.href ? 'var(--primary-light)' : 'transparent'
+                  }}>
+                    <span>{link.icon}</span>
+                    {link.label}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+          
+          {/* Theme Toggle integrated into NavBar */}
+          <ThemeToggle />
+        </div>
       </div>
     </nav>
   );

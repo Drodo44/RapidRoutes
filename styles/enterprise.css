@@ -5,11 +5,11 @@
   /* === LIGHT MODE (DEFAULT) === */
   
   /* Backgrounds - Clean whites and soft grays */
-  --bg-primary: #fafafa;
-  --bg-secondary: #f5f5f5;
-  --bg-tertiary: #eeeeee;
-  --bg-hover: #f5f5f5;
-  --bg-active: #e3f2fd;
+  --bg-primary: #f8fafc;
+  --bg-secondary: #f1f5f9;
+  --bg-tertiary: #e2e8f0;
+  --bg-hover: #f1f5f9;
+  --bg-active: #dbeafe;
   
   /* Surface colors - Cards and panels */
   --surface: #ffffff;
@@ -17,9 +17,9 @@
   --surface-border: #cbd5e1;
   
   /* Text colors - Professional hierarchy */
-  --text-primary: #1a1a1a;
-  --text-secondary: #616161;
-  --text-tertiary: #9e9e9e;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-tertiary: #64748b;
   --text-inverse: #ffffff;
   
   /* Brand colors - Professional blues */
@@ -522,20 +522,16 @@ body {
 /* === THEME TOGGLE === */
 
 .theme-toggle {
-  position: fixed;
-  top: var(--space-4);
-  right: var(--space-4);
-  z-index: 1000;
   padding: var(--space-2) var(--space-3);
   background: var(--surface);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-sm);
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--text-secondary);
   transition: all 0.15s;
@@ -544,7 +540,8 @@ body {
 .theme-toggle:hover {
   background: var(--surface-hover);
   color: var(--text-primary);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-strong);
 }
 
 /* === ANIMATIONS === */
