@@ -61,8 +61,38 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
   
   const isPosted = (lane.lane_status || lane.status) === 'posted';
   
+  // Generate individual RR# for each city pair
+  const generatePairRRs = () => {
+    if (!hasSavedChoices) return [];
+    
+    const baseRefId = getDisplayReferenceId(lane);
+    const pairs = [];
+    let pairIndex = 0;
+    
+    for (let originIdx = 0; originIdx < lane.saved_origin_cities.length; originIdx++) {
+      for (let destIdx = 0; destIdx < lane.saved_dest_cities.length; destIdx++) {
+        const originCity = lane.saved_origin_cities[originIdx];
+        const destCity = lane.saved_dest_cities[destIdx];
+        const pairRR = generatePairReferenceId(baseRefId, pairIndex);
+        
+        pairs.push({
+          originCity,
+          destCity,
+          referenceId: pairRR,
+          pairNumber: pairIndex + 1
+        });
+        
+        pairIndex++;
+      }
+    }
+    
+    return pairs;
+  };
+  
+  const pairRRs = generatePairRRs();
+  
   return (
-    <div className="card">
+    <div className="card" id={`lane-${lane.id}`}>
       {/* Header with route and status */}
       <div className="card-header">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
@@ -351,6 +381,21 @@ export default function RecapPage() {
   const [showAIOnly, setShowAIOnly] = useState(false);
   const [sortOrder, setSortOrder] = useState('date');
   const [postedPairs, setPostedPairs] = useState([]); // Store all generated pairs for dropdown
+  const [selectedLaneId, setSelectedLaneId] = useState(''); // For dropdown snap-to functionality
+  
+  // Scroll to lane function
+  const scrollToLane = (laneId) => {
+    const element = document.getElementById(`lane-${laneId}`);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Add highlight effect
+      element.style.transition = 'box-shadow 0.3s ease';
+      element.style.boxShadow = '0 0 0 4px var(--primary-light)';
+      setTimeout(() => {
+        element.style.boxShadow = '';
+      }, 2000);
+    }
+  };
   
   useEffect(() => {
     // Load lanes with saved city choices (active) and posted lanes
@@ -561,14 +606,34 @@ export default function RecapPage() {
           padding: '12px'
         }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', gap: '8px', flex: 1, minWidth: '280px' }}>
+            <div style={{ display: 'flex', gap: '8px', flex: 1, minWidth: '280px', flexWrap: 'wrap' }}>
+              {/* Lane Jump Dropdown */}
+              <select 
+                value={selectedLaneId}
+                onChange={(e) => {
+                  setSelectedLaneId(e.target.value);
+                  if (e.target.value) {
+                    scrollToLane(e.target.value);
+                  }
+                }}
+                className="form-input"
+                style={{ width: 'auto', minWidth: '200px', fontSize: '12px', padding: '6px 8px' }}
+              >
+                <option value="">Jump to Lane...</option>
+                {filtered.map(lane => (
+                  <option key={lane.id} value={lane.id}>
+                    {getDisplayReferenceId(lane)} • {lane.origin_city}, {lane.origin_state} → {lane.dest_city || lane.destination_city}, {lane.dest_state || lane.destination_state}
+                  </option>
+                ))}
+              </select>
+              
               {/* Search Input */}
-              <div style={{ position: 'relative', flex: 1, maxWidth: '350px' }}>
+              <div style={{ position: 'relative', flex: 1, maxWidth: '250px' }}>
                 <input 
                   type="text" 
                   value={q} 
                   onChange={(e) => setQ(e.target.value)}
-                  placeholder="Search reference ID, city, state..."
+                  placeholder="Search RR#, city..."
                   className="form-input"
                   style={{ paddingLeft: '32px', width: '100%', fontSize: '12px', padding: '6px 6px 6px 32px' }}
                 />

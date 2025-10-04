@@ -1,6 +1,6 @@
 // pages/_app.js
-import '../styles/globals.css';
-import '../styles/enterprise.css';
+import '../styles/enterprise.css';  // Load FIRST for CSS variables
+import '../styles/globals.css';   // Load AFTER so Tailwind respects variables
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
