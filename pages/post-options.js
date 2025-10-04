@@ -770,10 +770,10 @@ export default function PostOptions() {
     return (
       <>
         <Header />
-        <div className="min-h-screen bg-gray-900">
+        <div className="min-h-screen" style={{ background: 'var(--bg-primary)' }}>
           <div className="container mx-auto px-4 py-8">
             <div className="text-center">
-              <div className="text-gray-400">Loading pending lanes...</div>
+              <div style={{ color: 'var(--text-tertiary)' }}>Loading pending lanes...</div>
             </div>
           </div>
         </div>
@@ -784,13 +784,13 @@ export default function PostOptions() {
   return (
     <>
       <Header />
-      <div className="min-h-screen bg-gray-900">
+      <div className="min-h-screen" style={{ background: 'var(--bg-primary)' }}>
         <div className="container mx-auto px-4 py-8">
           {/* Header */}
           <div className="flex justify-between items-center mb-8">
             <div>
-              <h1 className="text-3xl font-bold text-gray-100">Post Options</h1>
-              <p className="text-gray-400 mt-2">Manual posting workflow for {lanes.length} pending lanes</p>
+              <h1 className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>Post Options</h1>
+              <p className="mt-2" style={{ color: 'var(--text-tertiary)' }}>Manual posting workflow for {lanes.length} pending lanes</p>
             </div>
             <div className="flex gap-3">
               <button
@@ -849,9 +849,9 @@ export default function PostOptions() {
           )}
 
           {debugMode && lanes.length > 0 && (
-            <div className="mb-8 bg-gray-800 border border-gray-700 rounded-lg p-4">
+            <div className="mb-8 rounded-lg p-4" style={{ background: 'var(--bg-secondary)', border: 'var(--border)' }}>
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-lg font-semibold text-gray-100">Debug Overlay</h2>
+                <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Debug Overlay</h2>
                 <span className="text-xs text-gray-400">{lanes.length} lanes</span>
               </div>
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-72 overflow-y-auto text-xs font-mono">
@@ -861,12 +861,12 @@ export default function PostOptions() {
                   const pairs = pairings[l.id];
                   const pairCount = Array.isArray(pairs) ? pairs.length : 0;
                   return (
-                    <div key={l.id} className="bg-gray-700/70 rounded p-3 border border-gray-600">
+                    <div key={l.id} className="rounded p-3" style={{ background: 'var(--bg-tertiary)', border: 'var(--border)' }}>
                       <div className="flex justify-between mb-1">
-                        <span className="text-gray-200">Lane {l.id}</span>
-                        <span className="text-gray-400 truncate ml-2">{l.origin_city},{l.origin_state}→{l.destination_city},{l.destination_state}</span>
+                        <span style={{ color: 'var(--text-secondary)' }}>Lane {l.id}</span>
+                        <span className="truncate ml-2" style={{ color: 'var(--text-tertiary)' }}>{l.origin_city},{l.origin_state}→{l.destination_city},{l.destination_state}</span>
                       </div>
-                      <div className="flex flex-wrap gap-2 text-gray-300">
+                      <div className="flex flex-wrap gap-2" style={{ color: 'var(--text-secondary)' }}>
                         <span>Pairs:{pairCount}</span>
                         {stats && (
                           <>
@@ -899,11 +899,15 @@ export default function PostOptions() {
           ) : (
             <div className="space-y-6">
               {lanes.map((lane) => (
-                <div key={lane.id} className="bg-gray-800 rounded-lg border border-gray-700 p-6">
+                <div key={lane.id} className="rounded-lg p-6" style={{ background: 'var(--bg-secondary)', border: 'var(--border)' }}>
                   {/* Lane Card Header */}
                   <div className="flex justify-between items-start mb-4">
                     <div 
-                      className="bg-gray-700 p-4 rounded-lg font-mono text-sm text-gray-100 cursor-pointer hover:bg-gray-600 transition-colors"
+                      className="p-4 rounded-lg font-mono text-sm cursor-pointer transition-colors"
+                      style={{ 
+                        background: 'var(--bg-tertiary)', 
+                        color: 'var(--text-primary)'
+                      }}
                       onClick={() => copyToClipboard(formatLaneCard(lane))}
                       title="Click to copy lane card"
                     >
@@ -920,7 +924,7 @@ export default function PostOptions() {
                   {/* City Pairings */}
                   {Array.isArray(pairings[lane.id]) && (
                     <div className="mt-6">
-                      <h3 className="text-lg font-semibold text-gray-100 mb-3">
+                      <h3 className="text-lg font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
                         City Pairings ({pairings[lane.id].length})
                       </h3>
                       {Array.isArray(pairings[lane.id]) && pairings[lane.id].length === 0 ? (
@@ -949,11 +953,11 @@ export default function PostOptions() {
                             const pairText = `${originCity}, ${originState}${originZip} → ${destCity}, ${destState}${destZip}`;
                             
                             return (
-                              <div key={index} className="flex items-center justify-between bg-gray-700 p-3 rounded text-sm font-mono">
-                                <span className="text-gray-100">
+                              <div key={index} className="flex items-center justify-between p-3 rounded text-sm font-mono" style={{ background: 'var(--bg-tertiary)' }}>
+                                <span style={{ color: 'var(--text-primary)' }}>
                                   {pairText}
                                   {pair.origin.kma && pair.destination?.kma && (
-                                    <span className="ml-2 text-xs text-gray-400">
+                                    <span className="ml-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
                                       ({pair.origin.kma} → {pair.destination.kma})
                                     </span>
                                   )}
@@ -971,7 +975,7 @@ export default function PostOptions() {
                         </div>
                       )}
                       {debugMode && laneStats[lane.id] && (
-                        <div className="mt-4 bg-gray-700/60 border border-gray-600 rounded p-3 text-xs font-mono text-gray-300">
+                        <div className="mt-4 rounded p-3 text-xs font-mono" style={{ background: 'var(--bg-tertiary)', border: 'var(--border)', color: 'var(--text-secondary)' }}>
                           <div className="flex gap-4 flex-wrap">
                             <span>Total Pairs: {laneStats[lane.id].totalCityPairs}</span>
                             <span>Origin KMAs: {laneStats[lane.id].uniqueOriginKmas}</span>

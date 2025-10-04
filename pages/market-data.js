@@ -81,12 +81,12 @@ export default function MarketDataPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 space-y-6">
-      <h1 className="text-lg font-semibold text-gray-100">Admin Upload – Rate Matrices</h1>
+      <h1 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Admin Upload – Rate Matrices</h1>
 
-      <div className="rounded-xl border border-gray-800 bg-[#0f1115] p-4 space-y-4">
+      <div className="rounded-xl p-4 space-y-4" style={{ border: 'var(--border)', background: 'var(--bg-secondary)' }}>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div>
-            <label className="block text-sm text-gray-300 mb-1">Equipment</label>
+            <label className="block text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>Equipment</label>
             <select value={equipment} onChange={(e) => setEquipment(e.target.value)} className="select">
               <option value="van">van</option>
               <option value="reefer">reefer</option>
@@ -94,21 +94,21 @@ export default function MarketDataPage() {
             </select>
           </div>
           <div>
-            <label className="block text-sm text-gray-300 mb-1">Level</label>
+            <label className="block text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>Level</label>
             <select value={level} onChange={(e) => setLevel(e.target.value)} className="select">
               <option value="state">state</option>
               <option value="region">region</option>
             </select>
           </div>
           <div>
-            <label className="block text-sm text-gray-300 mb-1">Source</label>
+            <label className="block text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>Source</label>
             <select value={source} onChange={(e) => setSource(e.target.value)} className="select">
               <option value="avg">avg</option>
               <option value="spot">spot</option>
               <option value="contract">contract</option>
             </select>
           </div>
-          <label className="inline-flex items-center gap-2 text-sm text-gray-300">
+          <label className="inline-flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
             <input type="checkbox" checked={denorm} onChange={(e) => setDenorm(e.target.checked)} className="accent-gray-300" />
             Denormalize to rates_flat
           </label>
@@ -117,7 +117,8 @@ export default function MarketDataPage() {
         <div
           onDragOver={(e) => e.preventDefault()}
           onDrop={onDrop}
-          className="rounded-lg border border-dashed border-gray-700 p-6 text-center text-gray-300 bg-[#0b0d12]"
+          className="rounded-lg border border-dashed p-6 text-center"
+          style={{ borderColor: 'var(--border-default)', color: 'var(--text-secondary)', background: 'var(--bg-tertiary)' }}
         >
           Drag & Drop CSV here or
           <label className="ml-2 underline cursor-pointer">
@@ -125,18 +126,18 @@ export default function MarketDataPage() {
           </label>
         </div>
 
-        {msg && <div className="text-sm text-gray-300">{msg}</div>}
+        {msg && <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>{msg}</div>}
 
         {rowsPreview.length > 0 && (
-          <div className="rounded-lg border border-gray-800 p-3">
-            <div className="text-xs text-gray-400 mb-2">Preview (first 20 rows)</div>
-            <div className="grid grid-cols-3 text-xs text-gray-200">
+          <div className="rounded-lg p-3" style={{ border: 'var(--border)' }}>
+            <div className="text-xs mb-2" style={{ color: 'var(--text-tertiary)' }}>Preview (first 20 rows)</div>
+            <div className="grid grid-cols-3 text-xs" style={{ color: 'var(--text-secondary)' }}>
               <div className="font-mono">Origin</div>
               <div className="font-mono">Destination</div>
               <div className="font-mono">Rate</div>
             </div>
             {rowsPreview.map((r, i) => (
-              <div key={i} className="grid grid-cols-3 text-xs text-gray-300">
+              <div key={i} className="grid grid-cols-3 text-xs" style={{ color: 'var(--text-secondary)' }}>
                 <div>{r.origin}</div>
                 <div>{r.destination}</div>
                 <div>{r.rate}</div>
@@ -147,7 +148,18 @@ export default function MarketDataPage() {
       </div>
 
       <style jsx>{`
-        .select { @apply w-full rounded-lg bg-[#0b0d12] border border-gray-700 px-3 py-2 text-gray-100 outline-none focus:border-gray-500; }
+        .select { 
+          width: 100%;
+          border-radius: var(--radius);
+          background: var(--bg-tertiary);
+          border: var(--border);
+          padding: 0.5rem 0.75rem;
+          color: var(--text-primary);
+          outline: none;
+        }
+        .select:focus {
+          border-color: var(--primary);
+        }
       `}</style>
     </div>
   );
