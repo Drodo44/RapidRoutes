@@ -2,28 +2,63 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Removed hardcoded dark mode - now respects theme system in enterprise.css */
+/* Ensure html and body inherit theme */
+html {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
 
 /* Form focus ring tweak */
 :focus {
   outline: none;
 }
 
-/* Common button styles */
+/* Override Tailwind's forced classes if they appear */
 @layer components {
   .btn-primary {
-    @apply px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition;
+    @apply px-3 py-1.5 text-white text-sm font-medium rounded-lg transition;
+    background: var(--primary);
+  }
+  .btn-primary:hover {
+    background: var(--primary-hover);
   }
   .btn-secondary {
-    @apply px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white text-sm font-medium rounded-lg transition;
+    @apply px-3 py-1.5 text-sm font-medium rounded-lg transition;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-default);
+  }
+  .btn-secondary:hover {
+    background: var(--bg-hover);
   }
   .btn-success {
-    @apply px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition;
+    @apply px-3 py-1.5 text-white text-sm font-medium rounded-lg transition;
+    background: var(--success);
+  }
+  .btn-success:hover {
+    opacity: 0.9;
   }
   .btn-danger {
-    @apply px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition;
+    @apply px-3 py-1.5 text-white text-sm font-medium rounded-lg transition;
+    background: var(--danger);
+  }
+  .btn-danger:hover {
+    opacity: 0.9;
   }
   .inp {
-    @apply w-full rounded-lg bg-gray-800 border border-gray-700 px-3 py-2 text-gray-100 outline-none focus:border-gray-600 focus:ring-1 focus:ring-blue-500;
+    @apply w-full rounded-lg px-3 py-2 outline-none transition;
+    background: var(--surface);
+    border: 1px solid var(--border-default);
+    color: var(--text-primary);
+  }
+  .inp:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-light);
   }
 }

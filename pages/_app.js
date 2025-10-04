@@ -69,26 +69,26 @@ function AppContent({ Component, pageProps }) {
         
         {/* Loading indicator */}
         {(loading || routeLoading) && (
-          <div className="fixed top-0 left-0 right-0 h-1 z-50" style={{ background: 'var(--color-primary)' }}>
-            <div className="h-full animate-pulse" style={{ background: 'var(--color-primary-hover)' }}></div>
+          <div className="fixed top-0 left-0 right-0 h-1 z-50" style={{ background: 'var(--primary)' }}>
+            <div className="h-full animate-pulse" style={{ background: 'var(--primary-hover)' }}></div>
           </div>
         )}
         
         {loading ? (
           <div className="flex-grow flex items-center justify-center">
-            <div className="text-lg" style={{ color: 'var(--color-text-secondary)' }}>Loading RapidRoutes...</div>
+            <div className="text-lg" style={{ color: 'var(--text-secondary)' }}>Loading RapidRoutes...</div>
           </div>
         ) : (
-          <main className="flex-grow pt-20 pb-12" style={{ background: 'var(--color-bg-primary)' }}>
+          <main className="flex-grow pt-20 pb-12" style={{ background: 'var(--bg-primary)' }}>
             <Component {...pageProps} />
           </main>
         )}
         
         <footer className="py-4" style={{ 
-          borderTop: '1px solid var(--color-border-default)', 
-          background: 'var(--color-bg-secondary)' 
+          borderTop: '1px solid var(--border-default)', 
+          background: 'var(--bg-secondary)' 
         }}>
-          <div className="container mx-auto px-4 text-center text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
+          <div className="container mx-auto px-4 text-center text-xs" style={{ color: 'var(--text-tertiary)' }}>
             © 2025 RapidRoutes | Created by Andrew Connellan - Logistics Account Executive at Total Quality Logistics
           </div>
         </footer>

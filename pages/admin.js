@@ -261,12 +261,37 @@ function AdminPage() {
         </Section>
 
         {/* Heat Map Management */}
-        <Section title="DAT Market Heat Maps">
+        <Section title="🗺️ DAT Market Heat Maps Upload">
+          <div style={{ 
+            padding: '16px',
+            background: 'var(--primary-light)',
+            border: '2px solid var(--primary)',
+            borderRadius: 'var(--radius)',
+            marginBottom: '20px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+              <div style={{ fontSize: '24px' }}>📊</div>
+              <div>
+                <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--primary-text)' }}>
+                  Heat Map Image Upload
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                  This is where you upload weekly heat map screenshots from DAT blog posts
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div style={{ marginBottom: '20px' }}>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
-              Upload weekly heat map images from DAT blog posts. Visit the URLs below to download the latest market heat maps, 
-              then upload them here to display on the dashboard.
-            </p>
+            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: '1.6' }}>
+              <strong>Instructions:</strong>
+              <ol style={{ marginLeft: '20px', marginTop: '8px' }}>
+                <li>Visit the DAT blog post link below for your equipment type</li>
+                <li>Right-click and save the heat map image from the article</li>
+                <li>Click the file upload button below to select and upload the image</li>
+                <li>The heat map will instantly appear on the Dashboard for all users</li>
+              </ol>
+            </div>
             
             {/* Equipment Type Tabs */}
             <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>

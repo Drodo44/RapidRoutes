@@ -27,25 +27,31 @@
   --primary-hover: #2563eb;
   --primary-light: #dbeafe;
   --primary-text: #1e40af;
+  --primary-alpha: rgba(59, 130, 246, 0.1);
   
   /* Status colors */
   --success: #10b981;
   --success-light: #d1fae5;
   --success-text: #065f46;
+  --success-alpha: rgba(16, 185, 129, 0.1);
   
   --warning: #f59e0b;
   --warning-light: #fef3c7;
   --warning-text: #92400e;
+  --warning-alpha: rgba(245, 158, 11, 0.1);
   
   --danger: #ef4444;
   --danger-light: #fee2e2;
   --danger-text: #991b1b;
+  --danger-alpha: rgba(239, 68, 68, 0.1);
   
   --info: #06b6d4;
   --info-light: #cffafe;
   --info-text: #155e75;
+  --info-alpha: rgba(6, 182, 212, 0.1);
   
   /* Borders */
+  --border: #cbd5e1;  /* Shorthand for most common use */
   --border-light: #e2e8f0;
   --border-default: #cbd5e1;
   --border-strong: #94a3b8;
@@ -57,6 +63,7 @@
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
   
   /* Radius */
+  --radius: 8px;  /* Shorthand for most common use */
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
@@ -101,25 +108,31 @@
   --primary-hover: #60a5fa;
   --primary-light: #1e3a5f;
   --primary-text: #93c5fd;
+  --primary-alpha: rgba(59, 130, 246, 0.15);
   
   /* Status colors */
   --success: #10b981;
   --success-light: #064e3b;
   --success-text: #6ee7b7;
+  --success-alpha: rgba(16, 185, 129, 0.15);
   
   --warning: #f59e0b;
   --warning-light: #78350f;
   --warning-text: #fcd34d;
+  --warning-alpha: rgba(245, 158, 11, 0.15);
   
   --danger: #ef4444;
   --danger-light: #7f1d1d;
   --danger-text: #fca5a5;
+  --danger-alpha: rgba(239, 68, 68, 0.15);
   
   --info: #06b6d4;
   --info-light: #164e63;
   --info-text: #67e8f9;
+  --info-alpha: rgba(6, 182, 212, 0.15);
   
   /* Borders */
+  --border: #334155;  /* Shorthand for most common use */
   --border-light: #1e293b;
   --border-default: #334155;
   --border-strong: #475569;
