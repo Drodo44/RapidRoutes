@@ -1,32 +1,51 @@
 // pages/settings.js
 import { useState } from "react";
+import Head from "next/head";
 
 export default function Settings() {
   const [notification, setNotification] = useState(false);
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-950 text-white">
-      <h1 className="text-4xl font-bold mb-4 text-cyan-400">Settings</h1>
-      <div className="bg-[#1a2236] p-8 rounded-2xl shadow-2xl max-w-md w-full">
-        <div className="flex items-center mb-6">
-          <label className="mr-3 font-semibold text-gray-300" htmlFor="notif-toggle">
-            Email Notifications
-          </label>
-          <input
-            id="notif-toggle"
-            type="checkbox"
-            checked={notification}
-            onChange={() => setNotification(!notification)}
-            className="w-5 h-5"
-          />
+    <>
+      <Head>
+        <title>Settings | RapidRoutes</title>
+      </Head>
+      
+      <div className="container">
+        <div className="page-header">
+          <h1 className="page-title">Settings</h1>
+          <p className="page-subtitle">Manage application settings and preferences</p>
         </div>
-        <button
-          onClick={() => alert("Settings saved!")}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-2xl mt-4 transition"
-        >
-          Save Settings
-        </button>
+        
+        <div className="card" style={{ maxWidth: '600px' }}>
+          <div className="card-header">
+            <h2 style={{ margin: 0 }}>Notification Preferences</h2>
+          </div>
+          <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', cursor: 'pointer' }}>
+              <input
+                id="notif-toggle"
+                type="checkbox"
+                checked={notification}
+                onChange={() => setNotification(!notification)}
+              />
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)' }}>Email Notifications</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>Receive email updates about your lanes and loads</div>
+              </div>
+            </label>
+            
+            <div style={{ borderTop: '1px solid var(--border-default)', paddingTop: 'var(--space-4)', marginTop: 'var(--space-2)' }}>
+              <button
+                onClick={() => alert("Settings saved!")}
+                className="btn btn-primary"
+              >
+                Save Settings
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

@@ -32,74 +32,79 @@ export default function Profile() {
   }
 
   if (!prefs) return (
-    <div className="mx-auto max-w-7xl px-4 py-6">
+    <div className="container">
       <Head>
         <title>Profile | RapidRoutes</title>
       </Head>
-      <div className="p-6 text-sm text-gray-400">Loading…</div>
+      <div style={{ padding: 'var(--space-6)', fontSize: '13px', color: 'var(--text-secondary)' }}>Loading…</div>
     </div>
   );
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-6 space-y-6">
+    <div className="container" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
       <Head>
         <title>Profile | RapidRoutes</title>
       </Head>
 
-      <div className="rounded-lg border border-gray-700 shadow-lg overflow-hidden">
-        <div className="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700">
-          <h2 className="text-lg font-semibold text-gray-100">User Preferences</h2>
+      <div className="page-header">
+        <h1 className="page-title">Profile & Preferences</h1>
+        <p className="page-subtitle">Manage your account settings and defaults</p>
+      </div>
+
+      <div className="card">
+        <div className="card-header">
+          <h2 style={{ margin: 0 }}>User Preferences</h2>
         </div>
-        <div className="p-4 bg-gray-900 space-y-4">
+        <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
           <div>
-            <label className="block text-sm text-gray-300 mb-1">Theme</label>
-            <select value={prefs.theme} onChange={(e) => setPrefs({ ...prefs, theme: e.target.value })} className="w-full rounded-lg bg-gray-800 border border-gray-700 px-3 py-2 text-gray-100 outline-none focus:border-gray-500">
-              <option value="dark">dark</option>
+            <label className="form-label">Theme</label>
+            <select value={prefs.theme} onChange={(e) => setPrefs({ ...prefs, theme: e.target.value })} className="form-input">
+              <option value="dark">Dark</option>
+              <option value="light">Light</option>
             </select>
           </div>
-          <label className="inline-flex items-center gap-2 text-sm text-gray-300">
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: '13px', color: 'var(--text-secondary)', cursor: 'pointer' }}>
             <input
               type="checkbox"
               checked={!!prefs.show_rrsi}
               onChange={(e) => setPrefs({ ...prefs, show_rrsi: e.target.checked })}
-              className="accent-gray-300"
             />
             Show RRSI overlays
           </label>
-          <div className="grid grid-cols-2 gap-4">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-4)' }}>
             <div>
-              <label className="block text-sm text-gray-300 mb-1">Default Random Min (lbs)</label>
+              <label className="form-label">Default Random Min (lbs)</label>
               <input
                 type="number"
                 value={prefs.default_weight_min || ''}
                 onChange={(e) => setPrefs({ ...prefs, default_weight_min: e.target.value ? Number(e.target.value) : null })}
-                className="w-full rounded-lg bg-gray-800 border border-gray-700 px-3 py-2 text-gray-100 outline-none focus:border-gray-500"
+                className="form-input"
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-300 mb-1">Default Random Max (lbs)</label>
+              <label className="form-label">Default Random Max (lbs)</label>
               <input
                 type="number"
                 value={prefs.default_weight_max || ''}
                 onChange={(e) => setPrefs({ ...prefs, default_weight_max: e.target.value ? Number(e.target.value) : null })}
-                className="w-full rounded-lg bg-gray-800 border border-gray-700 px-3 py-2 text-gray-100 outline-none focus:border-gray-500"
+                className="form-input"
               />
             </div>
           </div>
           <div>
-            <button onClick={save} className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2">Save</button>
-            {msg && <span className="ml-3 text-sm text-gray-300">{msg}</span>}
+            <button onClick={save} className="btn btn-primary">Save Preferences</button>
+            {msg && <span style={{ marginLeft: 'var(--space-3)', fontSize: '13px', color: 'var(--text-secondary)' }}>{msg}</span>}
           </div>
         </div>
       </div>
 
       {/* Preferred Pickup Locations */}
-      <div className="rounded-lg border border-gray-700 shadow-lg overflow-hidden">
-        <div className="flex items-center justify-between p-4 bg-gray-800 border-b border-gray-700">
-          <h2 className="text-lg font-semibold text-gray-100">My Preferred Pickup Locations</h2>
-          <span className="text-sm text-gray-400">Your most common pickup cities</span>
+      <div className="card">
+        <div className="card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <h2 style={{ margin: 0 }}>My Preferred Pickup Locations</h2>
+          <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>Your most common pickup cities</span>
         </div>
-        <div className="p-4 bg-gray-900">
+        <div className="card-body">
           <PreferredPickupsManager />
         </div>
       </div>
