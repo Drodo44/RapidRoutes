@@ -146,6 +146,12 @@ function LanesPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [pendingAction, setPendingAction] = useState(null); // Track what action to continue after intermodal check
 
+  // Master Date Setter state
+  const [showMasterDateModal, setShowMasterDateModal] = useState(false);
+  const [masterEarliest, setMasterEarliest] = useState('');
+  const [masterLatest, setMasterLatest] = useState('');
+  const [masterScope, setMasterScope] = useState('all'); // 'all', 'pending', 'active'
+
   // Redirect if not authenticated
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -307,6 +313,66 @@ function LanesPage() {
     console.log('Initial load effect triggered');
     loadLists();
   }, []);
+
+  // Master Date Setter - Bulk update dates for multiple lanes
+  async function applyMasterDates() {
+    if (!masterEarliest) {
+      setMsg('❌ Pickup Earliest date is required');
+      return;
+    }
+    
+    setBusy(true);
+    setMsg('');
+    
+    try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      if (!session?.access_token) {
+        throw new Error('Authentication required. Please log in again.');
+      }
+
+      // Determine which lanes to update based on scope
+      let laneIds = [];
+      if (masterScope === 'all') {
+        laneIds = [...pending, ...active].map(l => l.id);
+      } else if (masterScope === 'pending') {
+        laneIds = pending.map(l => l.id);
+      } else if (masterScope === 'active') {
+        laneIds = active.map(l => l.id);
+      }
+
+      if (laneIds.length === 0) {
+        setMsg('❌ No lanes found to update');
+        setBusy(false);
+        return;
+      }
+
+      // Bulk update via Supabase
+      const { error } = await supabase
+        .from('lanes')
+        .update({
+          pickup_earliest: masterEarliest,
+          pickup_latest: masterLatest || masterEarliest
+        })
+        .in('id', laneIds);
+
+      if (error) throw error;
+
+      setMsg(`✅ Successfully updated ${laneIds.length} lane(s)`);
+      setShowMasterDateModal(false);
+      setMasterEarliest('');
+      setMasterLatest('');
+      setMasterScope('all');
+      
+      // Reload lanes to show updated dates
+      await loadLists();
+    } catch (error) {
+      console.error('Bulk date update failed:', error);
+      setMsg(`❌ Failed to update dates: ${error.message}`);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   // When user toggles randomize ON, open modal. Respect session memory
   useEffect(() => {
@@ -863,13 +929,39 @@ function LanesPage() {
       
       <div style={{ maxWidth: '1600px', margin: '0 auto', padding: '16px' }}>
         {/* Page Header */}
-        <div style={{ marginBottom: '20px' }}>
-          <h1 style={{ fontSize: '20px', fontWeight: 600, margin: 0, marginBottom: '4px', color: 'var(--text-primary)' }}>
-            Lane Management
-          </h1>
-          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
-            Create and manage freight lanes for DAT posting
-          </p>
+        <div style={{ 
+          marginBottom: '20px', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between' 
+        }}>
+          <div>
+            <h1 style={{ fontSize: '20px', fontWeight: 600, margin: 0, marginBottom: '4px', color: 'var(--text-primary)' }}>
+              Lane Management
+            </h1>
+            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
+              Create and manage freight lanes for DAT posting
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowMasterDateModal(true)}
+            className="btn btn-primary"
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '6px',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+              <line x1="16" y1="2" x2="16" y2="6"/>
+              <line x1="8" y1="2" x2="8" y2="6"/>
+              <line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+            Set Dates for All Lanes
+          </button>
         </div>
 
         {/* RR# Search Section */}
@@ -1406,6 +1498,271 @@ function LanesPage() {
             lane={intermodalLane}
             onClose={() => setShowIntermodalEmail(false)}
           />
+        )}
+
+        {/* Master Date Setter Modal */}
+        {showMasterDateModal && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '16px'
+          }}>
+            <div style={{
+              backgroundColor: 'var(--surface)',
+              border: '1px solid var(--surface-border)',
+              borderRadius: '8px',
+              maxWidth: '500px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflow: 'auto'
+            }}>
+              {/* Modal Header */}
+              <div style={{
+                padding: '16px',
+                borderBottom: '1px solid var(--surface-border)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}>
+                <h3 style={{ 
+                  margin: 0, 
+                  fontSize: '16px', 
+                  fontWeight: 600,
+                  color: 'var(--text-primary)'
+                }}>
+                  Set Dates for All Lanes
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMasterDateModal(false);
+                    setMasterEarliest('');
+                    setMasterLatest('');
+                    setMasterScope('all');
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    fontSize: '20px',
+                    lineHeight: 1,
+                    padding: '4px'
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div style={{ padding: '20px' }}>
+                <p style={{ 
+                  fontSize: '13px', 
+                  color: 'var(--text-secondary)', 
+                  marginBottom: '20px',
+                  lineHeight: 1.5
+                }}>
+                  Bulk update pickup dates for multiple lanes at once. This saves time when moving from one day to the next.
+                </p>
+
+                {/* Date Inputs */}
+                <div style={{ marginBottom: '20px' }}>
+                  <label className="form-label" style={{ marginBottom: '8px' }}>
+                    Pickup Earliest <span style={{ color: 'var(--danger)' }}>*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={masterEarliest}
+                    onChange={(e) => setMasterEarliest(e.target.value)}
+                    className="form-input"
+                    required
+                  />
+                </div>
+
+                <div style={{ marginBottom: '20px' }}>
+                  <label className="form-label" style={{ marginBottom: '8px' }}>
+                    Pickup Latest
+                  </label>
+                  <input
+                    type="date"
+                    value={masterLatest}
+                    onChange={(e) => setMasterLatest(e.target.value)}
+                    className="form-input"
+                    placeholder="Optional - defaults to earliest date"
+                  />
+                  <p style={{ 
+                    fontSize: '11px', 
+                    color: 'var(--text-secondary)', 
+                    marginTop: '4px' 
+                  }}>
+                    If left blank, will use the same date as Pickup Earliest
+                  </p>
+                </div>
+
+                {/* Scope Selection */}
+                <div style={{ marginBottom: '20px' }}>
+                  <label className="form-label" style={{ marginBottom: '12px' }}>
+                    Apply to:
+                  </label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <label style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      cursor: 'pointer',
+                      padding: '12px',
+                      backgroundColor: masterScope === 'all' ? 'var(--primary-alpha)' : 'transparent',
+                      border: '1px solid',
+                      borderColor: masterScope === 'all' ? 'var(--primary)' : 'var(--surface-border)',
+                      borderRadius: '6px',
+                      transition: 'all 0.2s'
+                    }}>
+                      <input
+                        type="radio"
+                        name="masterScope"
+                        value="all"
+                        checked={masterScope === 'all'}
+                        onChange={(e) => setMasterScope(e.target.value)}
+                        style={{ marginRight: '10px' }}
+                      />
+                      <div>
+                        <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
+                          All Lanes
+                        </div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                          Update {pending.length + active.length} lanes (Pending + Active)
+                        </div>
+                      </div>
+                    </label>
+
+                    <label style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      cursor: 'pointer',
+                      padding: '12px',
+                      backgroundColor: masterScope === 'pending' ? 'var(--primary-alpha)' : 'transparent',
+                      border: '1px solid',
+                      borderColor: masterScope === 'pending' ? 'var(--primary)' : 'var(--surface-border)',
+                      borderRadius: '6px',
+                      transition: 'all 0.2s'
+                    }}>
+                      <input
+                        type="radio"
+                        name="masterScope"
+                        value="pending"
+                        checked={masterScope === 'pending'}
+                        onChange={(e) => setMasterScope(e.target.value)}
+                        style={{ marginRight: '10px' }}
+                      />
+                      <div>
+                        <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
+                          Pending Only
+                        </div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                          Update {pending.length} pending lanes
+                        </div>
+                      </div>
+                    </label>
+
+                    <label style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      cursor: 'pointer',
+                      padding: '12px',
+                      backgroundColor: masterScope === 'active' ? 'var(--primary-alpha)' : 'transparent',
+                      border: '1px solid',
+                      borderColor: masterScope === 'active' ? 'var(--primary)' : 'var(--surface-border)',
+                      borderRadius: '6px',
+                      transition: 'all 0.2s'
+                    }}>
+                      <input
+                        type="radio"
+                        name="masterScope"
+                        value="active"
+                        checked={masterScope === 'active'}
+                        onChange={(e) => setMasterScope(e.target.value)}
+                        style={{ marginRight: '10px' }}
+                      />
+                      <div>
+                        <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
+                          Active Only
+                        </div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                          Update {active.length} active lanes
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                {msg && (
+                  <div style={{
+                    padding: '12px',
+                    backgroundColor: msg.includes('✅') ? 'var(--success-alpha)' : 'var(--danger-alpha)',
+                    border: '1px solid',
+                    borderColor: msg.includes('✅') ? 'var(--success)' : 'var(--danger)',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    marginBottom: '16px'
+                  }}>
+                    {msg}
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div style={{
+                padding: '16px',
+                borderTop: '1px solid var(--surface-border)',
+                display: 'flex',
+                gap: '10px',
+                justifyContent: 'flex-end'
+              }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMasterDateModal(false);
+                    setMasterEarliest('');
+                    setMasterLatest('');
+                    setMasterScope('all');
+                  }}
+                  className="btn"
+                  disabled={busy}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={applyMasterDates}
+                  className="btn btn-primary"
+                  disabled={busy || !masterEarliest}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  {busy ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm" />
+                      Updating...
+                    </>
+                  ) : (
+                    <>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                      Apply Dates
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </>
