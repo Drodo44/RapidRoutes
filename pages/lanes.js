@@ -162,10 +162,10 @@ function LanesPage() {
   // Show loading if auth is still loading
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 text-gray-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p className="text-lg">Loading Lanes...</p>
+      <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div className="spinner-border" style={{ margin: '0 auto 16px' }} />
+          <p style={{ fontSize: '16px' }}>Loading Lanes...</p>
         </div>
       </div>
     );
@@ -174,10 +174,10 @@ function LanesPage() {
   // Show loading if not authenticated (during redirect)
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gray-900 text-gray-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p className="text-lg">Redirecting to login...</p>
+      <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div className="spinner-border" style={{ margin: '0 auto 16px' }} />
+          <p style={{ fontSize: '16px' }}>Redirecting to login...</p>
         </div>
       </div>
     );
@@ -852,61 +852,64 @@ function LanesPage() {
   function RRSearch() {
     return (
       <div className="space-y-4">
-        <form onSubmit={searchByRR} className="flex gap-3">
+        <form onSubmit={searchByRR} style={{ display: 'flex', gap: '12px' }}>
           <input
             type="text"
             value={searchRR}
             onChange={(e) => setSearchRR(e.target.value)}
             placeholder="Enter RR# (e.g., RR12345)"
-            className="flex-1 px-3 py-2 bg-gray-800 border border-gray-600 rounded-md text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="form-input"
+            style={{ flex: 1 }}
           />
           <button
             type="submit"
             disabled={searchLoading || !searchRR.trim()}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded-md font-medium"
+            className="btn btn-primary"
           >
             {searchLoading ? 'Searching...' : 'Search'}
           </button>
         </form>
 
         {searchResult && (
-          <div className="bg-gray-800 rounded-lg border border-gray-600 p-4">
+          <div className="card">
             {searchResult.error ? (
-              <p className="text-red-400">❌ {searchResult.error}</p>
+              <p style={{ color: 'var(--danger)' }}>❌ {searchResult.error}</p>
             ) : (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-gray-100">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
                     Found Lane: {searchResult.lane.origin_city}, {searchResult.lane.origin_state} → {searchResult.lane.dest_city}, {searchResult.lane.dest_state}
                   </h3>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    (searchResult.lane.lane_status || searchResult.lane.status) === 'covered' ? 'bg-green-100 text-green-800' :
-                    (searchResult.lane.lane_status || searchResult.lane.status) === 'archived' ? 'bg-gray-100 text-gray-800' :
-                    'bg-blue-100 text-blue-800'
-                  }`}>
+                  <span className="badge" style={{
+                    backgroundColor: 
+                      (searchResult.lane.lane_status || searchResult.lane.status) === 'covered' ? 'var(--success)' :
+                      (searchResult.lane.lane_status || searchResult.lane.status) === 'archived' ? 'var(--muted)' :
+                      'var(--primary)',
+                    color: 'white'
+                  }}>
                     {searchResult.lane.lane_status || searchResult.lane.status}
                   </span>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm text-gray-300">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px', fontSize: '14px', color: 'var(--text-secondary)' }}>
                   <div>
-                    <span className="font-medium">Equipment:</span> {searchResult.lane.equipment_code}
+                    <span style={{ fontWeight: 500 }}>Equipment:</span> {searchResult.lane.equipment_code}
                   </div>
                   <div>
-                    <span className="font-medium">Weight:</span> {searchResult.lane.weight_lbs?.toLocaleString()} lbs
+                    <span style={{ fontWeight: 500 }}>Weight:</span> {searchResult.lane.weight_lbs?.toLocaleString()} lbs
                   </div>
                   <div>
-                    <span className="font-medium">Created:</span> {new Date(searchResult.lane.created_at).toLocaleDateString()}
+                    <span style={{ fontWeight: 500 }}>Created:</span> {new Date(searchResult.lane.created_at).toLocaleDateString()}
                   </div>
                   <div>
-                    <span className="font-medium">Generated RRs:</span> {searchResult.totalPostings}
+                    <span style={{ fontWeight: 500 }}>Generated RRs:</span> {searchResult.totalPostings}
                   </div>
                 </div>
                 {searchResult.postedPairs.length > 0 && (
                   <div>
-                    <p className="text-sm font-medium text-gray-300 mb-2">Generated Reference IDs:</p>
-                    <div className="flex flex-wrap gap-1">
+                    <p style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '8px' }}>Generated Reference IDs:</p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                       {searchResult.postedPairs.map((pair, idx) => (
-                        <span key={idx} className="px-2 py-1 bg-gray-700 text-gray-200 text-xs rounded">
+                        <span key={idx} className="badge badge-secondary">
                           {pair.reference_id}
                         </span>
                       ))}
