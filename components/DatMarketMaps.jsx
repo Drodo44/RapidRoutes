@@ -98,19 +98,16 @@ const DatMarketMaps = () => {
   };
 
   return (
-    <div className="bg-gray-800 rounded-lg p-6 shadow-lg">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold text-gray-100">DAT Market Heat Maps</h2>
-        <div className="flex space-x-2">
+    <div className="card" style={{ padding: '24px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+        <h2 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>DAT Market Heat Maps</h2>
+        <div style={{ display: 'flex', gap: '8px' }}>
           {equipmentTypes.map((equipment) => (
             <button
               key={equipment.value}
               onClick={() => setSelectedEquipment(equipment.value)}
-              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                selectedEquipment === equipment.value
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-              }`}
+              className={selectedEquipment === equipment.value ? 'btn btn-primary' : 'btn btn-secondary'}
+              style={{ fontSize: '14px' }}
             >
               {equipment.label}
             </button>
@@ -119,51 +116,51 @@ const DatMarketMaps = () => {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-          <span className="ml-3 text-gray-300">Loading market data...</span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '256px' }}>
+          <div className="spinner" style={{ width: '32px', height: '32px' }}></div>
+          <span style={{ marginLeft: '12px', color: 'var(--text-secondary)' }}>Loading market data...</span>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {mapData ? (
             <>
-              <div className="bg-gray-900 rounded p-4">
-                <h3 className="text-lg font-semibold text-gray-100 mb-2">
+              <div style={{ background: 'var(--bg-secondary)', borderRadius: 'var(--radius)', padding: '16px' }}>
+                <h3 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>
                   {equipmentTypes.find(e => e.value === selectedEquipment)?.label} Market Overview
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-green-400">{mapData.avgRate || '$2.45'}</div>
-                    <div className="text-sm text-gray-400">Avg Rate/Mile</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px', marginBottom: '16px' }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--success)' }}>{mapData.avgRate || '$2.45'}</div>
+                    <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Avg Rate/Mile</div>
                   </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-400">{mapData.loadVolume || '15,234'}</div>
-                    <div className="text-sm text-gray-400">Loads Posted</div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--primary)' }}>{mapData.loadVolume || '15,234'}</div>
+                    <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Loads Posted</div>
                   </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-yellow-400">{mapData.truckVolume || '12,891'}</div>
-                    <div className="text-sm text-gray-400">Trucks Posted</div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--warning)' }}>{mapData.truckVolume || '12,891'}</div>
+                    <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Trucks Posted</div>
                   </div>
                 </div>
                 
                 {/* DAT Market Heat Map Display */}
-                <div className="bg-gray-800 rounded h-64 flex items-center justify-center relative overflow-hidden">
+                <div style={{ background: 'var(--bg-tertiary)', borderRadius: 'var(--radius)', height: '256px', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
                   {uploadedImage ? (
                     <img 
                       src={uploadedImage} 
                       alt={`${equipmentTypes.find(e => e.value === selectedEquipment)?.label} Heat Map`}
-                      className="w-full h-full object-cover rounded"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'var(--radius)' }}
                     />
                   ) : (
                     <>
-                      <div className="absolute inset-0 bg-gradient-to-br from-red-500/20 via-yellow-500/20 to-green-500/20 opacity-50"></div>
-                      <div className="relative z-10 text-center">
-                        <div className="text-4xl mb-2">🗺️</div>
-                        <div className="text-gray-300">DAT Market Heat Map</div>
-                        <div className="text-sm text-gray-500 mt-1">
+                      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(234, 179, 8, 0.1), rgba(34, 197, 94, 0.1))', opacity: 0.5 }}></div>
+                      <div style={{ position: 'relative', zIndex: 10, textAlign: 'center' }}>
+                        <div style={{ fontSize: '36px', marginBottom: '8px' }}>🗺️</div>
+                        <div style={{ color: 'var(--text-secondary)' }}>DAT Market Heat Map</div>
+                        <div style={{ fontSize: '14px', color: 'var(--text-tertiary)', marginTop: '4px' }}>
                           {equipmentTypes.find(e => e.value === selectedEquipment)?.label} Market Activity
                         </div>
-                        <div className="text-xs text-gray-600 mt-2">
+                        <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '8px' }}>
                           Upload heat map in Admin panel to display here
                         </div>
                       </div>
@@ -178,47 +175,47 @@ const DatMarketMaps = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-gray-900 rounded p-4">
-                  <h4 className="font-semibold text-gray-100 mb-2">Hot Markets 🔥</h4>
-                  <div className="space-y-2">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '16px' }}>
+                <div style={{ background: 'var(--bg-secondary)', borderRadius: 'var(--radius)', padding: '16px' }}>
+                  <h4 style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>Hot Markets 🔥</h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {(mapData.hotMarkets || ['Atlanta, GA', 'Dallas, TX', 'Chicago, IL']).map((market, index) => (
-                      <div key={index} className="flex justify-between items-center">
-                        <span className="text-gray-300">{market}</span>
-                        <span className="text-green-400 font-medium">High</span>
+                      <div key={index} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>{market}</span>
+                        <span style={{ color: 'var(--success)', fontWeight: 500 }}>High</span>
                       </div>
                     ))}
                   </div>
                 </div>
                 
-                <div className="bg-gray-900 rounded p-4">
-                  <h4 className="font-semibold text-gray-100 mb-2">Rate Trends 📈</h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-300">This Week</span>
-                      <span className="text-green-400 font-medium">+2.3%</span>
+                <div style={{ background: 'var(--bg-secondary)', borderRadius: 'var(--radius)', padding: '16px' }}>
+                  <h4 style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>Rate Trends 📈</h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>This Week</span>
+                      <span style={{ color: 'var(--success)', fontWeight: 500 }}>+2.3%</span>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-300">This Month</span>
-                      <span className="text-yellow-400 font-medium">+0.8%</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>This Month</span>
+                      <span style={{ color: 'var(--warning)', fontWeight: 500 }}>+0.8%</span>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-300">YTD</span>
-                      <span className="text-red-400 font-medium">-1.2%</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>YTD</span>
+                      <span style={{ color: 'var(--danger)', fontWeight: 500 }}>-1.2%</span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="text-xs text-gray-500 text-center">
+              <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', textAlign: 'center' }}>
                 Last updated: {new Date().toLocaleString()} | Data source: DAT iQ
               </div>
             </>
           ) : (
-            <div className="text-center text-gray-400 py-8">
-              <div className="text-2xl mb-2">📊</div>
+            <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '32px' }}>
+              <div style={{ fontSize: '24px', marginBottom: '8px' }}>📊</div>
               <div>Market data will be available here</div>
-              <div className="text-sm mt-1">Updates weekly on Mondays</div>
+              <div style={{ fontSize: '14px', marginTop: '4px' }}>Updates weekly on Mondays</div>
             </div>
           )}
         </div>
