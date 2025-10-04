@@ -280,49 +280,6 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
 
       {/* Legacy AI recap display (only if specifically generated) */}
       {recapData && recapData.bullets && (
-        <div className="border-t border-gray-700 bg-gray-900 p-4">
-          <div className="mb-3">
-            <h4 className="text-sm font-medium text-blue-300 mb-2">AI Talking Points</h4>
-            <ul className="space-y-1.5">
-              {recapData.bullets.map((bullet, i) => (
-                <li key={i} className="text-xs text-gray-200 flex">
-                  <span className="text-blue-400 mr-2">•</span>
-                  <span>{bullet}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {recapData.risks && recapData.risks.length > 0 && (
-            <div className="mb-3">
-              <h4 className="text-sm font-medium text-amber-300 mb-2">Risk Factors</h4>
-              <ul className="space-y-1.5">
-                {recapData.risks.map((risk, i) => (
-                  <li key={i} className="text-xs text-gray-200 flex">
-                    <span className="text-amber-400 mr-2">•</span>
-                    <span>{risk}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {recapData.price_hint && (
-            <div className="rounded bg-gray-800 p-2 text-xs">
-              <div className="text-gray-400">Estimated Rate Range</div>
-              <div className="flex items-center justify-between mt-1">
-                <span className="text-red-300">${recapData.price_hint.low}/mi</span>
-                <span className="text-green-300">${recapData.price_hint.mid}/mi</span>
-                <span className="text-blue-300">${recapData.price_hint.high}/mi</span>
-              </div>
-              <div className="mt-1 text-2xs text-gray-500">Based on: {recapData.price_hint.basis}</div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Legacy AI recap display (only if specifically generated) */}
-      {recapData && recapData.bullets && (
         <div style={{ borderTop: '1px solid var(--border)' }}>
           <div className="card-body">
             <div style={{ marginBottom: '12px' }}>
