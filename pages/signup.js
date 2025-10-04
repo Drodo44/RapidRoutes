@@ -39,16 +39,33 @@ export default function SignupPage() {
       display: 'flex', 
       alignItems: 'center', 
       justifyContent: 'center', 
-      backgroundColor: 'var(--bg-primary)' 
+      backgroundColor: 'var(--bg-primary)',
+      backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.08) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(16, 185, 129, 0.08) 0%, transparent 50%)'
     }}>
       <div style={{ width: '100%', maxWidth: '400px', padding: '0 var(--space-4)' }}>
         <div style={{ textAlign: 'center', marginBottom: 'var(--space-8)' }}>
           <div style={{ marginBottom: 'var(--space-4)' }}>
-            <img src="/logo.png" alt="RapidRoutes Logo" style={{ height: '64px', margin: '0 auto' }} />
+            <img 
+              src="/logo.png" 
+              alt="RapidRoutes Logo" 
+              style={{ 
+                height: '64px', 
+                margin: '0 auto',
+                filter: 'drop-shadow(0 4px 12px rgba(59, 130, 246, 0.4))'
+              }} 
+            />
           </div>
-          <h1 style={{ fontSize: '24px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 'var(--space-2)' }}>
-            <span style={{ color: 'var(--primary)' }}>Rapid</span>
-            <span>Routes</span>
+          <h1 style={{ 
+            fontSize: '24px', 
+            fontWeight: 700, 
+            marginBottom: 'var(--space-2)',
+            background: 'linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            letterSpacing: '-0.02em'
+          }}>
+            RapidRoutes
           </h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>Create your account</p>
         </div>

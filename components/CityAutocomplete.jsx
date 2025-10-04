@@ -91,34 +91,64 @@ export default function CityAutocomplete({ label, value, onChange, onPick }) {
   const list = useMemo(() => items.slice(0, 12), [items]);
 
   return (
-    <div className="relative" ref={boxRef}>
-      <label className="mb-1 block text-xs text-gray-400">{label}</label>
+    <div style={{ position: 'relative' }} ref={boxRef}>
+      <label className="form-label">{label}</label>
       <input
         value={value}
         onChange={(e) => onChange?.(e.target.value)}
         onFocus={() => canQuery(value) && setOpen(true)}
         onKeyDown={onKey}
-        className="w-full rounded-lg border border-gray-700 bg-gray-900 p-2 text-white"
+        className="form-input"
         placeholder="City, ST"
         autoCapitalize="none" autoCorrect="off" spellCheck={false}
       />
       {open && list.length > 0 && (
-        <div className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-lg border border-gray-700 bg-[#0f1115] shadow">
+        <div style={{
+          position: 'absolute',
+          zIndex: 20,
+          marginTop: 'var(--space-1)',
+          maxHeight: '240px',
+          width: '100%',
+          overflowY: 'auto',
+          borderRadius: 'var(--radius-md)',
+          border: '1px solid var(--border-default)',
+          backgroundColor: 'var(--surface)',
+          boxShadow: 'var(--shadow-lg)'
+        }}>
           {list.map((it, i) => (
             <button
               key={`${it.city}-${it.state}-${i}`}
               type="button"
               onMouseDown={(e) => { e.preventDefault(); pick(it); }}
-              className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm ${
-                i === idx ? "bg-gray-800 text-white" : "text-gray-200 hover:bg-gray-800"
-              }`}
+              style={{
+                display: 'flex',
+                width: '100%',
+                alignItems: 'center',
+                gap: 'var(--space-2)',
+                padding: 'var(--space-2) var(--space-3)',
+                textAlign: 'left',
+                fontSize: '13px',
+                border: 'none',
+                cursor: 'pointer',
+                backgroundColor: i === idx ? 'var(--bg-hover)' : 'transparent',
+                color: 'var(--text-primary)',
+                transition: 'background 0.15s'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'}
+              onMouseLeave={(e) => { if (i !== idx) e.currentTarget.style.backgroundColor = 'transparent'; }}
             >
-              <span className="inline-block h-4 w-4 rounded-sm bg-gray-600" />
-              <span className="flex-1">{it.label}</span>
-              {it.zip && <span className="text-xs text-gray-400">{it.zip}</span>}
+              <span style={{ 
+                display: 'inline-block', 
+                height: '14px', 
+                width: '14px', 
+                borderRadius: '3px', 
+                backgroundColor: 'var(--border-default)' 
+              }} />
+              <span style={{ flex: 1 }}>{it.label}</span>
+              {it.zip && <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{it.zip}</span>}
             </button>
           ))}
-          {loading && <div className="px-3 py-2 text-sm text-gray-400">Searching…</div>}
+          {loading && <div style={{ padding: 'var(--space-2) var(--space-3)', fontSize: '13px', color: 'var(--text-secondary)' }}>Searching…</div>}
         </div>
       )}
       

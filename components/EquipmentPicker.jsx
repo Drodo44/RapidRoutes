@@ -136,15 +136,15 @@ export default function EquipmentPicker({ id='equipment', label='Equipment Type'
   };
 
   return (
-    <div className="w-full relative">
-      <label htmlFor={id} className="block text-sm text-gray-300 mb-1">{label}</label>
-      <div className="relative">
+    <div style={{ width: '100%', position: 'relative' }}>
+      <label htmlFor={id} className="form-label">{label}</label>
+      <div style={{ position: 'relative' }}>
         <input
           ref={inputRef}
           id={id}
           type="text"
           placeholder="Type to search equipment..."
-          className="w-full rounded-lg bg-gray-800 border border-gray-600 px-3 py-2 text-gray-100 outline-none focus:border-gray-500"
+          className="form-input"
           value={inputValue}
           onChange={handleInputChange}
           onFocus={() => setShowDropdown(true)}
@@ -152,13 +152,22 @@ export default function EquipmentPicker({ id='equipment', label='Equipment Type'
         />
         {/* Dropdown arrow */}
         <div 
-          className="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer"
+          style={{
+            position: 'absolute',
+            top: 0,
+            bottom: 0,
+            right: 0,
+            display: 'flex',
+            alignItems: 'center',
+            paddingRight: 'var(--space-3)',
+            cursor: 'pointer'
+          }}
           onClick={() => {
             setShowDropdown(!showDropdown);
             if (!showDropdown) inputRef.current?.focus();
           }}
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg xmlns="http://www.w3.org/2000/svg" style={{ height: '16px', width: '16px', color: 'var(--text-tertiary)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </div>
@@ -167,21 +176,47 @@ export default function EquipmentPicker({ id='equipment', label='Equipment Type'
       {showDropdown && filtered.length > 0 && (
         <div 
           ref={dropdownRef}
-          className="absolute z-10 w-full mt-1 bg-gray-800 border border-gray-600 rounded-md shadow-lg max-h-60 overflow-auto"
+          style={{
+            position: 'absolute',
+            zIndex: 10,
+            width: '100%',
+            marginTop: 'var(--space-1)',
+            backgroundColor: 'var(--surface)',
+            border: '1px solid var(--border-default)',
+            borderRadius: 'var(--radius-md)',
+            boxShadow: 'var(--shadow-lg)',
+            maxHeight: '240px',
+            overflowY: 'auto'
+          }}
         >
-          <ul className="py-1">
+          <ul style={{ padding: 'var(--space-1) 0', listStyle: 'none', margin: 0 }}>
             {filtered.map(item => (
               <li 
                 key={item.code}
-                className={`px-3 py-2 text-sm cursor-pointer flex justify-between ${
-                  selectedItem?.code === item.code 
-                    ? 'bg-blue-600 text-white' 
-                    : 'text-gray-200 hover:bg-gray-700'
-                }`}
+                style={{
+                  padding: 'var(--space-2) var(--space-3)',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  backgroundColor: selectedItem?.code === item.code ? 'var(--primary-light)' : 'transparent',
+                  color: selectedItem?.code === item.code ? 'var(--primary-text)' : 'var(--text-primary)',
+                  transition: 'background 0.15s'
+                }}
                 onClick={() => handleItemClick(item)}
+                onMouseEnter={(e) => { 
+                  if (selectedItem?.code !== item.code) {
+                    e.currentTarget.style.backgroundColor = 'var(--bg-hover)'; 
+                  }
+                }}
+                onMouseLeave={(e) => { 
+                  if (selectedItem?.code !== item.code) {
+                    e.currentTarget.style.backgroundColor = 'transparent'; 
+                  }
+                }}
               >
                 <span>{item.label}</span>
-                <span className="text-xs text-gray-400">{item.code}</span>
+                <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontFamily: 'monospace' }}>{item.code}</span>
               </li>
             ))}
           </ul>
@@ -189,8 +224,8 @@ export default function EquipmentPicker({ id='equipment', label='Equipment Type'
       )}
       
       {selectedItem && (
-        <div className="text-xs text-blue-400 mt-1">
-          Selected: <span className="font-medium">{selectedItem.label}</span> <span className="font-mono">({selectedItem.code})</span>
+        <div style={{ fontSize: '11px', color: 'var(--primary)', marginTop: 'var(--space-1)' }}>
+          Selected: <span style={{ fontWeight: 500 }}>{selectedItem.label}</span> <span style={{ fontFamily: 'monospace' }}>({selectedItem.code})</span>
         </div>
       )}
     </div>
