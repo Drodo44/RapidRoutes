@@ -158,10 +158,10 @@ function Dashboard() {
   // Show loading if auth is still loading
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 text-gray-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p className="text-lg">Loading Dashboard...</p>
+      <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div className="spinner" style={{ width: '32px', height: '32px', margin: '0 auto 16px' }}></div>
+          <p style={{ fontSize: '18px' }}>Loading Dashboard...</p>
         </div>
       </div>
     );
@@ -170,10 +170,10 @@ function Dashboard() {
   // Show loading if not authenticated (during redirect)
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gray-900 text-gray-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
-          <p className="text-lg">Redirecting to login...</p>
+      <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div className="spinner" style={{ width: '32px', height: '32px', margin: '0 auto 16px' }}></div>
+          <p style={{ fontSize: '18px' }}>Redirecting to login...</p>
         </div>
       </div>
     );
