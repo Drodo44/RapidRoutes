@@ -37,7 +37,9 @@ export default async function handler(req, res) {
     }
 
     // Only return pairs for posted lanes
-    if (lane.status !== 'posted') {
+    // Check both status and lane_status fields for compatibility
+    const laneStatus = lane.lane_status || lane.status;
+    if (laneStatus !== 'posted') {
       return res.status(200).json({
         lane,
         postedPairs: [],
