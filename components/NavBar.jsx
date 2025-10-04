@@ -10,6 +10,7 @@ export default function Navbar() {
     { href: "/dashboard", label: "Dashboard", icon: "📊" },
     { href: "/lanes", label: "Lanes", icon: "🛣️" },
     { href: "/recap", label: "Recap", icon: "📋" },
+    { href: "/admin", label: "Admin", icon: "🔧" },
     { href: "/profile", label: "Profile", icon: "👤" },
     { href: "/settings", label: "Settings", icon: "⚙️" },
   ];
