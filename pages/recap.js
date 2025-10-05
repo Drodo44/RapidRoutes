@@ -92,75 +92,37 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
   
   return (
     <div className="card" id={`lane-${lane.id}`} style={{ overflow: 'hidden' }}>
-      {/* Header with RR# - SUPER PROMINENT */}
-      <div style={{ 
-        background: 'linear-gradient(135deg, var(--primary-light) 0%, var(--primary-alpha) 100%)', 
-        borderBottom: '3px solid var(--primary)',
-        padding: '12px 20px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: '0'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ 
-            fontSize: '11px', 
-            fontWeight: 700, 
-            color: 'var(--primary)', 
-            letterSpacing: '1px',
-            textTransform: 'uppercase'
-          }}>
-            REFERENCE #
-          </span>
-          <span style={{ 
-            fontFamily: 'Monaco, Consolas, monospace', 
-            fontSize: '18px', 
-            fontWeight: 800, 
-            color: 'var(--primary)',
-            letterSpacing: '2px',
-            textShadow: '0 1px 2px rgba(0,0,0,0.1)'
-          }}>
-            {getDisplayReferenceId(lane)}
-          </span>
-        </div>
-        <span className={`badge badge-${isPosted ? 'posted' : 'active'}`} style={{ fontSize: '11px', padding: '4px 10px' }}>
-          {isPosted ? 'Posted' : 'Active'}
-        </span>
-      </div>
-      
-      {/* Route Header */}
-      <div className="card-header">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
-            <h3 style={{ fontSize: '14px', fontWeight: 600, margin: 0, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {lane.origin_city}, {lane.origin_state}
-              <span style={{ margin: '0 8px', opacity: 0.4 }}>→</span>
-              {lane.dest_city || lane.destination_city}, {lane.dest_state || lane.destination_state}
-            </h3>
+      {/* Compact Header with RR# and Lane Info */}
+      <div className="card-header" style={{ padding: '12px 16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span style={{ 
+              fontFamily: 'Monaco, Consolas, monospace', 
+              fontSize: '14px', 
+              fontWeight: 700, 
+              color: 'var(--primary)',
+              background: 'var(--primary-light)',
+              padding: '4px 10px',
+              borderRadius: '4px'
+            }}>
+              {getDisplayReferenceId(lane)}
+            </span>
+            <span className={`badge badge-${isPosted ? 'posted' : 'active'}`} style={{ fontSize: '11px' }}>
+              {isPosted ? 'Posted' : 'Active'}
+            </span>
+          </div>
+          <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+            {lane.equipment_code} • {lane.length_ft}ft • {lane.pickup_earliest}
           </div>
         </div>
-      </div>
-
-      {/* Lane specs - compact row */}
-      <div className="card-body" style={{ padding: '12px 16px' }}>
-        <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
-          <span style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{lane.equipment_code}</span>
-          <span>{lane.length_ft}ft</span>
-          <span>
-            {lane.randomize_weight 
-              ? `${lane.weight_min?.toLocaleString() || '—'}-${lane.weight_max?.toLocaleString() || '—'} lbs` 
-              : `${lane.weight_lbs?.toLocaleString() || '—'} lbs`}
-          </span>
-          <span>{lane.pickup_earliest} – {lane.pickup_latest}</span>
-        </div>
         {lane.comment && (
-          <div style={{ marginTop: '8px', fontSize: '12px', fontStyle: 'italic', color: 'var(--text-secondary)' }}>
+          <div style={{ fontSize: '11px', fontStyle: 'italic', color: 'var(--text-tertiary)' }}>
             "{lane.comment}"
           </div>
         )}
       </div>
 
-      {/* City Selection Section - Clean Two-Column Layout */}
+      {/* City Pairs Table - ONLY Display */}
       {hasSavedChoices && (
         <div style={{ borderTop: '1px solid var(--border)' }}>
           <div className="card-body">
