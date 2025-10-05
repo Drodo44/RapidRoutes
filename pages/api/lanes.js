@@ -22,7 +22,7 @@ export default async function handler(req, res) {
   try {
     // GET - Get lanes with filtering
     if (req.method === 'GET') {
-      const { status: laneStatusFilter, days, all, limit = 100 } = req.query;
+      const { lane_status: laneStatusFilter, days, all, limit = 100 } = req.query;
 
       let query = adminSupabase.from('lanes').select('*');
 
