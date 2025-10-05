@@ -1022,7 +1022,9 @@ export default function PostOptions() {
                     <div key={l.id} className="rounded p-3" style={{ background: 'var(--bg-tertiary)', border: 'var(--border)' }}>
                       <div className="flex justify-between mb-1">
                         <span style={{ color: 'var(--text-secondary)' }}>Lane {l.id}</span>
-                        <span className="truncate ml-2" style={{ color: 'var(--text-tertiary)' }}>{l.origin_city},{l.origin_state}→{l.destination_city},{l.destination_state}</span>
+                        <span className="truncate ml-2" style={{ color: 'var(--text-tertiary)' }}>
+                          {l.origin_city || '?'},{l.origin_state || '?'}→{l.dest_city || l.destination_city || '?'},{l.dest_state || l.destination_state || '?'}
+                        </span>
                       </div>
                       <div className="flex flex-wrap gap-2" style={{ color: 'var(--text-secondary)' }}>
                         <span>Pairs:{pairCount}</span>
