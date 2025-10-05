@@ -386,51 +386,33 @@ export default function RecapPage() {
   };
   
   useEffect(() => {
-    // Load lanes with saved city choices (active) and posted lanes
+    // Load lanes with saved city choices (active status with saved cities)
     supabase
       .from('lanes')
       .select('*')
-      .in('lane_status', ['active', 'posted'])
+      .eq('lane_status', 'active')
+      .not('saved_origin_cities', 'is', null)
+      .not('saved_dest_cities', 'is', null)
       .order('created_at', { ascending: false })
       .limit(200)
-      .then(async ({ data }) => {
-        setLanes(data || []);
+      .then(({ data }) => {
+        // Filter to only show lanes that actually have saved cities
+        const lanesWithChoices = (data || []).filter(lane => 
+          lane.saved_origin_cities?.length > 0 && 
+          lane.saved_dest_cities?.length > 0
+        );
         
-        // For active lanes, get their saved city choices
-        const activeLanes = (data || []).filter(lane => (lane.lane_status || lane.status) === 'active');
-        const postedLanes = (data || []).filter(lane => (lane.lane_status || lane.status) === 'posted');
-        const allPairs = [];
+        // Mark lanes as having saved choices
+        lanesWithChoices.forEach(lane => {
+          lane.has_saved_choices = true;
+        });
         
-        // Load saved city choices for active AND posted lanes
-        const allLanesWithChoices = [...activeLanes, ...postedLanes];
-        
-        for (const lane of allLanesWithChoices) {
-          try {
-            const { data: cityChoices, error } = await supabase
-              .from('lane_city_choices')
-              .select('*')
-              .eq('lane_id', lane.id)
-              .order('created_at', { ascending: false });
-            
-            if (!error && cityChoices?.length > 0) {
-              const choice = cityChoices[0]; // Get the latest saved choice
-              
-              // Store the saved selection info for this lane (don't expand into pairs yet)
-              const originCities = choice.origin_chosen_cities || [];
-              const destCities = choice.dest_chosen_cities || [];
-              
-              // Just store the lane with its saved cities - we'll display them grouped
-              lane.saved_origin_cities = originCities;
-              lane.saved_dest_cities = destCities;
-              lane.has_saved_choices = true;
-            }
-          } catch (error) {
-            console.error(`Error loading city choices for lane ${lane.id}:`, error);
-          }
-        }
-        
-        // No longer need posted pairs array
-        setPostedPairs([]);
+        setLanes(lanesWithChoices);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Error loading lanes:', err);
+        setLoading(false);
       });
     
     // Load crawl cities for dropdown

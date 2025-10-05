@@ -21,6 +21,8 @@ export default function PostOptions() {
   const [generatedLaneId, setGeneratedLaneId] = useState(null);
   const [generatedEquipmentCode, setGeneratedEquipmentCode] = useState(null);
   const [showPairings, setShowPairings] = useState(false);
+  const [selectedPairs, setSelectedPairs] = useState({}); // { laneId: [pairIndex1, pairIndex2, ...] }
+  const [savingCities, setSavingCities] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -701,6 +703,150 @@ export default function PostOptions() {
     return `RR${timestamp}${random}`;
   };
 
+  // Toggle pair selection
+  const togglePairSelection = (laneId, pairIndex) => {
+    setSelectedPairs(prev => {
+      const current = prev[laneId] || [];
+      const isSelected = current.includes(pairIndex);
+      
+      if (isSelected) {
+        // Remove from selection
+        return {
+          ...prev,
+          [laneId]: current.filter(i => i !== pairIndex)
+        };
+      } else {
+        // Add to selection
+        return {
+          ...prev,
+          [laneId]: [...current, pairIndex]
+        };
+      }
+    });
+  };
+
+  // Select/deselect all pairs for a lane
+  const toggleAllPairs = (laneId) => {
+    const lanePairings = pairings[laneId] || [];
+    const currentSelection = selectedPairs[laneId] || [];
+    
+    if (currentSelection.length === lanePairings.length) {
+      // All selected, deselect all
+      setSelectedPairs(prev => ({ ...prev, [laneId]: [] }));
+    } else {
+      // Select all
+      setSelectedPairs(prev => ({
+        ...prev,
+        [laneId]: lanePairings.map((_, idx) => idx)
+      }));
+    }
+  };
+
+  // Save selected cities to database
+  const saveCitiesToDatabase = async () => {
+    setSavingCities(true);
+    setAlert(null);
+    
+    try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      if (!session?.access_token) throw new Error('Authentication required');
+
+      let savedCount = 0;
+      let errorCount = 0;
+
+      // Process each lane with selections
+      for (const laneId in selectedPairs) {
+        const selectedIndices = selectedPairs[laneId] || [];
+        if (selectedIndices.length === 0) continue;
+
+        const lanePairings = pairings[laneId];
+        if (!lanePairings) continue;
+
+        // Extract selected origin and destination cities
+        const originCities = [];
+        const destCities = [];
+
+        selectedIndices.forEach(idx => {
+          const pair = lanePairings[idx];
+          if (!pair) return;
+
+          const originCity = {
+            city: pair.origin.city,
+            state: pair.origin.state,
+            zip: pair.origin.zip,
+            kma: pair.origin.kma
+          };
+          const destCity = {
+            city: pair.destination.city,
+            state: pair.destination.state,
+            zip: pair.destination.zip,
+            kma: pair.destination.kma
+          };
+
+          // Add unique origins and destinations
+          if (!originCities.find(c => c.city === originCity.city && c.state === originCity.state)) {
+            originCities.push(originCity);
+          }
+          if (!destCities.find(c => c.city === destCity.city && c.state === destCity.state)) {
+            destCities.push(destCity);
+          }
+        });
+
+        // Update lane with saved cities
+        const { error } = await supabase
+          .from('lanes')
+          .update({
+            saved_origin_cities: originCities,
+            saved_dest_cities: destCities,
+            lane_status: 'active' // Move to active when cities are saved
+          })
+          .eq('id', laneId);
+
+        if (error) {
+          console.error(`Failed to save cities for lane ${laneId}:`, error);
+          errorCount++;
+        } else {
+          savedCount++;
+        }
+      }
+
+      if (savedCount > 0) {
+        setAlert({ 
+          type: 'success', 
+          message: `✅ Successfully saved city selections for ${savedCount} lane(s)!` 
+        });
+        
+        // Clear selections after save
+        setSelectedPairs({});
+        
+        // Refresh lanes
+        await fetchPendingLanes();
+      } else {
+        setAlert({ 
+          type: 'warning', 
+          message: '⚠️ No city pairs selected. Please check the pairs you want to use.' 
+        });
+      }
+
+      if (errorCount > 0) {
+        setAlert({ 
+          type: 'error', 
+          message: `❌ Failed to save ${errorCount} lane(s)` 
+        });
+      }
+
+    } catch (error) {
+      console.error('Save cities error:', error);
+      setAlert({ 
+        type: 'error', 
+        message: `❌ Error: ${error.message}` 
+      });
+    } finally {
+      setSavingCities(false);
+    }
+  };
+
   const formatLaneCard = (lane) => {
     const originZip = lane.origin_zip ? `, ${lane.origin_zip}` : '';
     const destZip = lane.dest_zip ? `, ${lane.dest_zip}` : '';
@@ -816,6 +962,16 @@ export default function PostOptions() {
                   : `🎯 Generate All Pairings (${lanes.length})`
                 }
               </button>
+              <button
+                onClick={saveCitiesToDatabase}
+                disabled={savingCities || Object.keys(selectedPairs).filter(k => selectedPairs[k]?.length > 0).length === 0}
+                className="px-6 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium"
+              >
+                {savingCities 
+                  ? '💾 Saving...' 
+                  : `💾 Save Cities (${Object.keys(selectedPairs).filter(k => selectedPairs[k]?.length > 0).length})`
+                }
+              </button>
               {process.env.NODE_ENV !== 'production' && (
                 <button
                   onClick={async () => {
@@ -924,9 +1080,26 @@ export default function PostOptions() {
                   {/* City Pairings */}
                   {Array.isArray(pairings[lane.id]) && (
                     <div className="mt-6">
-                      <h3 className="text-lg font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
-                        City Pairings ({pairings[lane.id].length})
-                      </h3>
+                      <div className="flex justify-between items-center mb-3">
+                        <h3 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+                          City Pairings ({pairings[lane.id].length})
+                          {selectedPairs[lane.id]?.length > 0 && (
+                            <span className="ml-2 text-sm text-green-400">
+                              ({selectedPairs[lane.id].length} selected)
+                            </span>
+                          )}
+                        </h3>
+                        {pairings[lane.id].length > 0 && (
+                          <button
+                            onClick={() => toggleAllPairs(lane.id)}
+                            className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded text-sm"
+                          >
+                            {(selectedPairs[lane.id]?.length || 0) === pairings[lane.id].length 
+                              ? 'Deselect All' 
+                              : 'Select All'}
+                          </button>
+                        )}
+                      </div>
                       {Array.isArray(pairings[lane.id]) && pairings[lane.id].length === 0 ? (
                         <div className="bg-red-900 text-red-200 border border-red-700 p-3 rounded-lg">
                           No city pairings generated. Intelligence system may need attention.
@@ -951,10 +1124,25 @@ export default function PostOptions() {
                             const destZip = pair.destination?.zip ? `, ${pair.destination.zip}` : '';
                             
                             const pairText = `${originCity}, ${originState}${originZip} → ${destCity}, ${destState}${destZip}`;
+                            const isSelected = selectedPairs[lane.id]?.includes(index) || false;
                             
                             return (
-                              <div key={index} className="flex items-center justify-between p-3 rounded text-sm font-mono" style={{ background: 'var(--bg-tertiary)' }}>
-                                <span style={{ color: 'var(--text-primary)' }}>
+                              <div 
+                                key={index} 
+                                className={`flex items-center gap-3 p-3 rounded text-sm font-mono cursor-pointer transition-all ${
+                                  isSelected ? 'ring-2 ring-blue-500' : ''
+                                }`}
+                                style={{ background: isSelected ? 'var(--primary-light)' : 'var(--bg-tertiary)' }}
+                                onClick={() => togglePairSelection(lane.id, index)}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => togglePairSelection(lane.id, index)}
+                                  className="w-4 h-4 cursor-pointer"
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                                <span className="flex-1" style={{ color: 'var(--text-primary)' }}>
                                   {pairText}
                                   {pair.origin.kma && pair.destination?.kma && (
                                     <span className="ml-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
@@ -963,7 +1151,10 @@ export default function PostOptions() {
                                   )}
                                 </span>
                                 <button
-                                  onClick={() => copyToClipboard(pairText)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    copyToClipboard(pairText);
+                                  }}
                                   className="ml-3 px-2 py-1 bg-blue-700 hover:bg-blue-800 text-white rounded text-xs"
                                   title="Copy pairing to clipboard"
                                 >
