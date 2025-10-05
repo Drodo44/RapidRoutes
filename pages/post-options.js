@@ -64,11 +64,11 @@ export default function PostOptions() {
 
   const fetchPendingLanes = async () => {
     try {
-      console.log('🔄 Fetching pending lanes from database...');
+      console.log('🔄 Fetching current lanes from database...');
       const { data, error } = await supabase
         .from('lanes')
         .select('*')
-  .eq('lane_status', 'pending')
+        .eq('lane_status', 'current')
         .order('created_at', { ascending: false });
       
       if (error) throw error;
@@ -799,7 +799,7 @@ export default function PostOptions() {
           .update({
             saved_origin_cities: originCities,
             saved_dest_cities: destCities,
-            lane_status: 'active' // Move to active when cities are saved
+            lane_status: 'current' // Keep as current when cities are saved
           })
           .eq('id', laneId);
 

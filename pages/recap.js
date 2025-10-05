@@ -386,11 +386,11 @@ export default function RecapPage() {
   };
   
   useEffect(() => {
-    // Load lanes with saved city choices (active status with saved cities)
+    // Load lanes with saved city choices (current status with saved cities)
     supabase
       .from('lanes')
       .select('*')
-      .eq('lane_status', 'active')
+      .eq('lane_status', 'current')
       .not('saved_origin_cities', 'is', null)
       .not('saved_dest_cities', 'is', null)
       .order('created_at', { ascending: false })

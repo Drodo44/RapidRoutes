@@ -268,42 +268,34 @@ function LanesPage() {
       }
       
       const [
-        { data: pendingLanes = [], error: pendingError },
-        { data: activeLanes = [], error: activeError },
-        { data: postedLanes = [], error: postedError },
-        { data: covered = [], error: coveredError },
-        { data: archived = [], error: archivedError }
+        { data: currentLanes = [], error: currentError },
+        { data: archivedLanes = [], error: archivedError }
       ] = await Promise.all([
-  supabase.from('lanes').select('*').eq('lane_status', 'pending').order('created_at', { ascending: false }).limit(200),
-  supabase.from('lanes').select('*').eq('lane_status', 'active').order('created_at', { ascending: false }).limit(200),
-  supabase.from('lanes').select('*').eq('lane_status', 'posted').order('created_at', { ascending: false }).limit(200),
-  supabase.from('lanes').select('*').eq('lane_status', 'covered').order('created_at', { ascending: false }).limit(200),
-  supabase.from('lanes').select('*').eq('lane_status', 'archived').order('created_at', { ascending: false }).limit(50),
+        supabase.from('lanes').select('*').eq('lane_status', 'current').order('created_at', { ascending: false }).limit(200),
+        supabase.from('lanes').select('*').eq('lane_status', 'archive').order('created_at', { ascending: false }).limit(50),
       ]);
 
-      if (pendingError) throw pendingError;
-      if (activeError) throw activeError;
-      if (postedError) throw postedError;
-      if (coveredError) throw coveredError;
+      if (currentError) throw currentError;
       if (archivedError) throw archivedError;
 
       console.log('Lists loaded successfully:', {
-        pending: pendingLanes.length,
-        active: activeLanes.length,
-        posted: postedLanes.length,
-        covered: covered.length,
-        archived: archived.length
+        current: currentLanes.length,
+        archive: archivedLanes.length
       });
 
-      setPending(pendingLanes);
-      setActive(activeLanes);
-      setPosted(postedLanes);
-      setCovered(covered);
-      setRecent(archived);
+      setPending(currentLanes); // Reuse pending state for "current" lanes
+      setRecent(archivedLanes);
+      
+      // Clear old unused states
+      setActive([]);
+      setPosted([]);
+      setCovered([]);
     } catch (error) {
       console.error('Failed to load lanes:', error);
       setPending([]); 
-      setPosted([]); 
+      setActive([]);
+      setPosted([]);
+      setCovered([]);
       setRecent([]);
       setMsg(`❌ Failed to load lanes: ${error.message}`);
     }
@@ -334,11 +326,7 @@ function LanesPage() {
       // Determine which lanes to update based on scope
       let laneIds = [];
       if (masterScope === 'all') {
-        laneIds = [...pending, ...active].map(l => l.id);
-      } else if (masterScope === 'pending') {
-        laneIds = pending.map(l => l.id);
-      } else if (masterScope === 'active') {
-        laneIds = active.map(l => l.id);
+        laneIds = pending.map(l => l.id); // pending now holds "current" lanes
       }
 
       if (laneIds.length === 0) {
@@ -1135,23 +1123,13 @@ function LanesPage() {
             </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-            {(tab === 'current' ? [...pending, ...active, ...posted] : [...covered, ...recent]).map(l => (
+            {(tab === 'current' ? pending : recent).map(l => (
               <div key={l.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
                 <div style={{ flex: 1, fontSize: '13px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
                     {(l.reference_id || getDisplayReferenceId(l)) && (
                       <span className="badge" style={{ fontFamily: 'ui-monospace, monospace', fontWeight: 600 }}>
                         #{l.reference_id || getDisplayReferenceId(l)}
-                      </span>
-                    )}
-                    {tab === 'current' && (
-                      <span className={`badge badge-${
-                        (l.lane_status || l.status) === 'pending' ? 'pending' :
-                        (l.lane_status || l.status) === 'active' ? 'active' :
-                        'posted'
-                      }`}>
-                        {(l.lane_status || l.status) === 'pending' ? 'PENDING' :
-                         (l.lane_status || l.status) === 'active' ? 'ACTIVE' : 'POSTED'}
                       </span>
                     )}
                     <span style={{ fontWeight: 500 }}>{l.origin_city}, {l.origin_state}</span>
@@ -1164,56 +1142,36 @@ function LanesPage() {
                     <span style={{ marginLeft: '12px' }}>📅 {l.pickup_earliest} → {l.pickup_latest}</span>
                     {l.comment && <span style={{ marginLeft: '12px' }}>💬 {l.comment}</span>}
                   </div>
-                  {(l.lane_status || l.status) === 'active' && l.reference_id && (
+                  {l.saved_origin_cities?.length > 0 && (
                     <div style={{ fontSize: '11px', marginTop: '4px', color: 'var(--success)', opacity: 0.8 }}>
-                      ✓ City choices saved • Ready for CSV export
+                      ✓ City choices saved • Ready for recap
                     </div>
                   )}
                 </div>
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                  {(l.lane_status || l.status) === 'active' && (
-                    <a href={`/post-options.manual?laneId=${l.id}`} className="btn btn-secondary" style={{ fontSize: '12px', padding: '4px 10px' }}>
-                      🏙️ Cities
-                    </a>
+                  {/* Current lanes - show action buttons */}
+                  {tab === 'current' && (
+                    <>
+                      <a href={`/post-options?highlight=${l.id}`} className="btn btn-secondary" style={{ fontSize: '12px', padding: '4px 10px' }}>
+                        🎯 Post Options
+                      </a>
+                      {l.saved_origin_cities?.length > 0 && (
+                        <a href={`/recap`} className="btn btn-success" style={{ fontSize: '12px', padding: '4px 10px' }}>
+                          📊 Recap
+                        </a>
+                      )}
+                      <button onClick={() => startEditLane(l)} className="btn btn-primary" style={{ fontSize: '12px', padding: '4px 10px' }}>
+                        ✏️ Edit
+                      </button>
+                      <button onClick={() => updateStatus(l, 'archive')} className="btn btn-secondary" style={{ fontSize: '12px', padding: '4px 10px' }}>
+                        📦 Archive
+                      </button>
+                    </>
                   )}
-                  {(l.lane_status || l.status) === 'active' && (
-                    <button onClick={() => window.location.href = `/recap?laneIds=${l.id}`} className="btn btn-success" style={{ fontSize: '12px', padding: '4px 10px' }}>
-                      📊 CSV
-                    </button>
-                  )}
-                  {(l.lane_status || l.status) === 'active' && (
-                    <button onClick={() => updateStatus(l, 'posted')} className="btn btn-warning" style={{ fontSize: '12px', padding: '4px 10px' }}>
-                      ✅ Posted
-                    </button>
-                  )}
-                  {(l.lane_status || l.status) === 'active' && (
-                    <button onClick={() => updateStatus(l, 'pending')} className="btn btn-secondary" style={{ fontSize: '12px', padding: '4px 10px' }}>
-                      ↩️ Pending
-                    </button>
-                  )}
-                  {((l.lane_status || l.status) === 'pending' || (l.lane_status || l.status) === 'posted') && (
-                    <button onClick={() => startEditLane(l)} className="btn btn-primary" style={{ fontSize: '12px', padding: '4px 10px' }}>
-                      ✏️ Edit
-                    </button>
-                  )}
-                  {((l.lane_status || l.status) === 'pending' || (l.lane_status || l.status) === 'posted') && (
-                    <button onClick={() => updateStatus(l, 'covered')} className="btn btn-success" style={{ fontSize: '12px', padding: '4px 10px' }}>
-                      Covered
-                    </button>
-                  )}
-                  {(l.lane_status || l.status) === 'covered' && (
-                    <button onClick={() => postAgain(l)} className="btn btn-success" style={{ fontSize: '12px', padding: '4px 10px' }}>
-                      🚀 Post Again
-                    </button>
-                  )}
-                  {(l.lane_status || l.status) === 'covered' && (
-                    <button onClick={() => updateStatus(l, 'archived')} className="btn btn-secondary" style={{ fontSize: '12px', padding: '4px 10px' }}>
-                      Archive
-                    </button>
-                  )}
-                  {(l.lane_status || l.status) === 'archived' && (
-                    <button onClick={() => updateStatus(l, 'covered')} className="btn btn-primary" style={{ fontSize: '12px', padding: '4px 10px' }}>
-                      Restore
+                  {/* Archived lanes - show restore button */}
+                  {tab === 'archive' && (
+                    <button onClick={() => updateStatus(l, 'current')} className="btn btn-primary" style={{ fontSize: '12px', padding: '4px 10px' }}>
+                      🔄 Restore
                     </button>
                   )}
                   <button onClick={() => delLane(l)} className="btn btn-danger" style={{ fontSize: '12px', padding: '4px 10px' }}>
@@ -1222,7 +1180,7 @@ function LanesPage() {
                 </div>
               </div>
             ))}
-            {(tab === 'current' ? [...pending, ...active, ...posted] : [...covered, ...recent]).length === 0 && (
+            {(tab === 'current' ? pending : recent).length === 0 && (
               <div style={{ padding: '48px', textAlign: 'center', opacity: 0.5, fontSize: '12px', color: 'var(--text-secondary)' }}>
                 No lanes in this category
               </div>

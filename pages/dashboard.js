@@ -107,33 +107,28 @@ function useBrokerStats() {
         // Use API routes to bypass RLS issues
         const token = session.access_token;
         
-        const [pendingRes, postedRes, coveredRes] = await Promise.all([
-          fetch('/api/lanes?lane_status=pending', {
+        const [currentRes, archivedRes] = await Promise.all([
+          fetch('/api/lanes?lane_status=current', {
             headers: { 'Authorization': `Bearer ${token}` }
           }),
-          fetch('/api/lanes?lane_status=posted', {
-            headers: { 'Authorization': `Bearer ${token}` }
-          }),
-          fetch('/api/lanes?lane_status=covered', {
+          fetch('/api/lanes?lane_status=archive', {
             headers: { 'Authorization': `Bearer ${token}` }
           })
         ]);
 
-        const pendingData = pendingRes.ok ? await pendingRes.json() : [];
-        const postedData = postedRes.ok ? await postedRes.json() : [];
-        const coveredData = coveredRes.ok ? await coveredRes.json() : [];
+        const currentData = currentRes.ok ? await currentRes.json() : [];
+        const archivedData = archivedRes.ok ? await archivedRes.json() : [];
         
-        const pendingCount = Array.isArray(pendingData) ? pendingData.length : 0;
-        const postedCount = Array.isArray(postedData) ? postedData.length : 0;
-        const coveredCount = Array.isArray(coveredData) ? coveredData.length : 0;
-        const recapCount = 0; // TODO: Add recap API
+        const currentCount = Array.isArray(currentData) ? currentData.length : 0;
+        const archivedCount = Array.isArray(archivedData) ? archivedData.length : 0;
+        const recapCount = currentData.filter(l => l.saved_origin_cities?.length > 0).length;
 
-        console.log('Dashboard stats:', { pendingCount, postedCount, coveredCount, recapCount });
+        console.log('Dashboard stats:', { currentCount, archivedCount, recapCount });
 
         setStats({
-          pendingLanes: pendingCount,
-          postedLanes: postedCount,
-          coveredLanes: coveredCount,
+          pendingLanes: currentCount,
+          postedLanes: recapCount,
+          coveredLanes: archivedCount,
           totalRecaps: recapCount
         });
       } catch (error) {
@@ -264,30 +259,30 @@ function Dashboard() {
         {/* Stats row */}
         <div className="grid grid-4" style={{ marginBottom: 'var(--space-6)' }}>
           <StatCard 
-            title="Pending Lanes" 
+            title="Current Lanes" 
             value={stats.pendingLanes} 
-            subValue="Ready to post" 
+            subValue="Active lanes" 
             icon="🛣️" 
             color="blue" 
           />
           <StatCard 
-            title="Posted Lanes" 
+            title="Ready for Recap" 
             value={stats.postedLanes} 
-            subValue="Active on DAT" 
-            icon="📤" 
+            subValue="Cities selected" 
+            icon="�" 
             color="green" 
           />
           <StatCard 
-            title="Covered Loads" 
+            title="Archived" 
             value={stats.coveredLanes}
-            subValue="Completed" 
-            icon="✅" 
+            subValue="Completed/Inactive" 
+            icon="📦" 
             color="amber" 
           />
           <StatCard 
-            title="Recaps Generated" 
-            value={stats.totalRecaps}
-            subValue="HTML exports" 
+            title="Total Lanes" 
+            value={stats.totalRecaps + stats.pendingLanes + stats.coveredLanes}
+            subValue="All time" 
             icon="📋" 
             color="blue" 
           />
