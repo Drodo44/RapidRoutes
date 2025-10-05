@@ -69,23 +69,31 @@ export default async function handler(req, res) {
     
     const publicUrl = urlData.publicUrl;
 
-    // Save to database (optional - for tracking)
-    try {
-      await adminSupabase
-        .from('dat_market_images')
-        .upsert({
-          equipment_type: equipment || 'unknown',
-          image_url: publicUrl,
-          filename: filename,
-          file_size: file.size,
-          mime_type: file.mimetype,
-          uploaded_at: new Date().toISOString()
-        }, {
-          onConflict: 'equipment_type'
-        });
-    } catch (dbError) {
-      console.warn('Database save failed:', dbError);
-      // Continue - file is uploaded successfully
+    // Save to database for tracking and retrieval
+    console.log('Saving to database:', {
+      equipment_type: equipment,
+      image_url: publicUrl,
+      filename: filename
+    });
+    
+    const { data: dbData, error: dbError } = await adminSupabase
+      .from('dat_market_images')
+      .upsert({
+        equipment_type: equipment || 'unknown',
+        image_url: publicUrl,
+        filename: filename,
+        file_size: file.size,
+        mime_type: file.mimetype,
+        uploaded_at: new Date().toISOString()
+      }, {
+        onConflict: 'equipment_type'
+      });
+
+    if (dbError) {
+      console.error('❌ Database save failed:', dbError);
+      // Continue - file is uploaded successfully even if DB save fails
+    } else {
+      console.log('✅ Database saved successfully');
     }
 
     return res.status(200).json({
