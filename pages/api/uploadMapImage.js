@@ -1,5 +1,5 @@
 // pages/api/uploadMapImage.js
-// Upload PNG heat map images for DAT market data
+// Upload heat map images to Supabase Storage (Vercel-compatible)
 
 import { adminSupabase } from '../../utils/supabaseAdminClient';
 import formidable from 'formidable';
@@ -17,122 +17,94 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  try {
-    // Create upload directory if it doesn't exist - more robust path handling
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads');
-    
-    // Ensure directory exists
-    try {
-      if (!fs.existsSync(uploadDir)) {
-        fs.mkdirSync(uploadDir, { recursive: true });
-        console.log('Created upload directory:', uploadDir);
-      }
-    } catch (dirError) {
-      console.error('Directory creation error:', dirError);
-      // Continue anyway - might be permissions issue but formidable might still work
-    }
+  let tempFile = null;
 
+  try {
+    // Parse form (formidable uses OS temp dir which IS writable)
     const form = formidable({
-      uploadDir: uploadDir,
+      maxFileSize: 10 * 1024 * 1024, // 10MB
       keepExtensions: true,
-      maxFileSize: 10 * 1024 * 1024, // 10MB limit
-      multiples: false
     });
 
     const [fields, files] = await form.parse(req);
-    
-    console.log('Parsed fields:', fields);
-    console.log('Parsed files:', files);
     
     const file = Array.isArray(files.mapImage) ? files.mapImage[0] : files.mapImage;
     const equipment = Array.isArray(fields.equipment) ? fields.equipment[0] : fields.equipment;
 
     if (!file) {
-      console.error('No file found in upload');
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    console.log('File details:', {
-      originalName: file.originalFilename,
-      size: file.size,
-      mimetype: file.mimetype,
-      filepath: file.filepath
-    });
-
-    if (!file.mimetype || !file.mimetype.startsWith('image/')) {
-      console.error('Invalid file type:', file.mimetype);
+    if (!file.mimetype?.startsWith('image/')) {
       return res.status(400).json({ error: 'File must be an image' });
     }
 
-    // Generate unique filename
+    tempFile = file.filepath;
+
+    // Generate filename
     const timestamp = Date.now();
-    const originalName = file.originalFilename || 'map';
-    const extension = path.extname(originalName);
-    const filename = `dat-map-${equipment || 'unknown'}-${timestamp}${extension}`;
-    const publicPath = `/uploads/${filename}`;
-    const fullPath = path.join(process.cwd(), 'public', 'uploads', filename);
+    const ext = path.extname(file.originalFilename || '.png');
+    const filename = `dat-map-${equipment || 'unknown'}-${timestamp}${ext}`;
+    
+    // Read file into buffer
+    const fileBuffer = fs.readFileSync(tempFile);
+    
+    // Upload to Supabase Storage
+    const { data: uploadData, error: uploadError } = await adminSupabase.storage
+      .from('dat_maps')
+      .upload(filename, fileBuffer, {
+        contentType: file.mimetype,
+        upsert: true
+      });
 
-    console.log('Moving file from', file.filepath, 'to', fullPath);
-
-    // Ensure the uploads directory exists
-    const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
+    if (uploadError) {
+      console.error('Supabase upload error:', uploadError);
+      return res.status(500).json({ error: 'Storage upload failed: ' + uploadError.message });
     }
 
-    // Read and write file content - most reliable method across environments
-    try {
-      const fileBuffer = fs.readFileSync(file.filepath);
-      fs.writeFileSync(fullPath, fileBuffer);
-      console.log('File written successfully to:', fullPath);
-      
-      // Clean up temp file
-      try {
-        fs.unlinkSync(file.filepath);
-        console.log('Temp file cleaned up');
-      } catch (unlinkError) {
-        console.warn('Could not delete temp file:', unlinkError.message);
-      }
-    } catch (fileError) {
-      console.error('File operation failed:', fileError);
-      throw new Error(`Failed to save file: ${fileError.message}`);
-    }
+    // Get public URL
+    const { data: urlData } = adminSupabase.storage
+      .from('dat_maps')
+      .getPublicUrl(filename);
+    
+    const publicUrl = urlData.publicUrl;
 
-    console.log('File moved successfully');
-
-    // Save reference to database
+    // Save to database (optional - for tracking)
     try {
-      const { data, error } = await adminSupabase
+      await adminSupabase
         .from('dat_market_images')
-        .insert({
+        .upsert({
           equipment_type: equipment || 'unknown',
-          image_url: publicPath,
+          image_url: publicUrl,
           filename: filename,
           file_size: file.size,
-          mime_type: file.mimetype
+          mime_type: file.mimetype,
+          uploaded_at: new Date().toISOString()
+        }, {
+          onConflict: 'equipment_type'
         });
-
-      if (error) {
-        console.warn('Database save failed (table might not exist):', error);
-        // Continue anyway - file is saved to filesystem
-      } else {
-        console.log('Image reference saved to database');
-      }
     } catch (dbError) {
-      console.warn('Database operation failed:', dbError);
-      // Continue anyway - file is saved to filesystem
+      console.warn('Database save failed:', dbError);
+      // Continue - file is uploaded successfully
     }
 
     return res.status(200).json({
       success: true,
-      imageUrl: publicPath,
-      filename: filename,
-      size: file.size,
-      type: file.mimetype
+      imageUrl: publicUrl,
+      filename: filename
     });
 
   } catch (error) {
     console.error('Upload error:', error);
     return res.status(500).json({ error: 'Upload failed: ' + error.message });
+  } finally {
+    // Clean up temp file
+    if (tempFile) {
+      try {
+        fs.unlinkSync(tempFile);
+      } catch (e) {
+        console.warn('Could not delete temp file:', e.message);
+      }
+    }
   }
 }

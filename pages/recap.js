@@ -338,6 +338,76 @@ export default function RecapPage() {
   const [sortOrder, setSortOrder] = useState('date');
   const [postedPairs, setPostedPairs] = useState([]); // Store all generated pairs for dropdown
   const [selectedLaneId, setSelectedLaneId] = useState(''); // For dropdown snap-to functionality
+  const [isGeneratingCSV, setIsGeneratingCSV] = useState(false);
+  
+  // Generate CSV for all visible lanes (active or posted)
+  async function generateCSV() {
+    try {
+      setIsGeneratingCSV(true);
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        alert('Authentication required. Please refresh the page and try again.');
+        return;
+      }
+
+      // Get filtered lanes that have saved choices
+      const lanesWithChoices = filtered.filter(l => 
+        l.has_saved_choices && 
+        l.saved_origin_cities?.length > 0 && 
+        l.saved_dest_cities?.length > 0
+      );
+      
+      if (lanesWithChoices.length === 0) {
+        alert('No lanes with saved city choices to export. Please select city choices on the lanes page first.');
+        return;
+      }
+
+      const totalPairs = lanesWithChoices.reduce((sum, lane) => 
+        sum + (lane.saved_origin_cities.length * lane.saved_dest_cities.length), 0
+      );
+
+      if (!confirm(`Generate DAT CSV for ${lanesWithChoices.length} lane(s) with ${totalPairs} total city pairs?`)) {
+        return;
+      }
+
+      // Call the CSV export API
+      const response = await fetch('/api/exportDatCsv', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate CSV');
+      }
+
+      // Download the CSV file
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      const today = new Date();
+      const dateStr = today.toISOString().split('T')[0];
+      link.download = `DAT_Export_${dateStr}.csv`;
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      alert(`CSV generated successfully! File contains ${lanesWithChoices.length} lane(s) with ${totalPairs} city pairs and RR# tracking numbers.`);
+      
+    } catch (error) {
+      console.error('CSV Generation Error:', error);
+      alert(`Failed to generate CSV: ${error.message}`);
+    } finally {
+      setIsGeneratingCSV(false);
+    }
+  }
   
   // Scroll to lane function
   const scrollToLane = (laneId) => {
@@ -616,6 +686,14 @@ export default function RecapPage() {
             
             {/* Action Buttons */}
             <div style={{ display: 'flex', gap: '8px' }}>
+              <button 
+                onClick={generateCSV}
+                className="btn btn-success"
+                style={{ fontSize: '12px', padding: '6px 12px' }}
+                disabled={filtered.length === 0 || isGeneratingCSV}
+              >
+                {isGeneratingCSV ? '⏳ Generating...' : '📊 Export CSV'}
+              </button>
               <button 
                 onClick={openExportView}
                 className="btn btn-primary"
