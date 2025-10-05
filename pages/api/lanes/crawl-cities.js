@@ -30,7 +30,7 @@ export default async function handler(req, res) {
     // Generate crawl cities for each lane
     for (const lane of lanes) {
       try {
-        const result = await generateCrawlPairs({
+        const result = await generateGeographicCrawlPairs({
           origin: { 
             city: lane.origin_city, 
             state: lane.origin_state, 
