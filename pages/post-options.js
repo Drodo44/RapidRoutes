@@ -887,7 +887,7 @@ export default function PostOptions() {
       }
 
       console.log('🚀 Generating options for lane', lane.id);
-      const res = await fetch('/api/post-options.manual', {
+      const res = await fetch('/api/post-options', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ lane })

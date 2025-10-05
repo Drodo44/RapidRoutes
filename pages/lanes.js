@@ -1079,7 +1079,7 @@ function LanesPage() {
             </h2>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
               <Link
-                href="/post-options.manual"
+                href="/post-options"
                 className="btn btn-secondary"
                 style={{ fontSize: '12px', padding: '6px 12px' }}
                 title="Manual Post Options (choose origin/destination posting cities)"

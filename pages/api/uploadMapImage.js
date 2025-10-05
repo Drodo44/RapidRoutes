@@ -31,8 +31,14 @@ export default async function handler(req, res) {
     const file = Array.isArray(files.mapImage) ? files.mapImage[0] : files.mapImage;
     const equipment = Array.isArray(fields.equipment) ? fields.equipment[0] : fields.equipment;
 
+    console.log('📦 Upload request:', { equipment, filename: file?.originalFilename });
+
     if (!file) {
       return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    if (!equipment) {
+      return res.status(400).json({ error: 'Equipment type is required' });
     }
 
     if (!file.mimetype?.startsWith('image/')) {
@@ -79,7 +85,7 @@ export default async function handler(req, res) {
     const { data: dbData, error: dbError } = await adminSupabase
       .from('dat_market_images')
       .upsert({
-        equipment_type: equipment || 'unknown',
+        equipment_type: equipment,
         image_url: publicUrl,
         filename: filename,
         file_size: file.size,
@@ -91,10 +97,14 @@ export default async function handler(req, res) {
 
     if (dbError) {
       console.error('❌ Database save failed:', dbError);
-      // Continue - file is uploaded successfully even if DB save fails
-    } else {
-      console.log('✅ Database saved successfully');
+      // Return error instead of continuing silently
+      return res.status(500).json({ 
+        error: 'File uploaded to storage but database save failed: ' + dbError.message,
+        imageUrl: publicUrl // Still return URL for debugging
+      });
     }
+    
+    console.log('✅ Database saved successfully:', dbData);
 
     return res.status(200).json({
       success: true,
