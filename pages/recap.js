@@ -675,16 +675,41 @@ export default function RecapPage() {
           {filtered.length === 0 ? (
             <div style={{ 
               backgroundColor: 'var(--surface)', 
-              border: '1px solid var(--surface-border)',
-              borderRadius: '6px',
-              padding: '48px', 
+              border: '2px solid var(--border)',
+              borderRadius: '8px',
+              padding: '64px 48px', 
               textAlign: 'center' 
             }}>
-              <div style={{ fontSize: '36px', marginBottom: '12px', opacity: 0.2 }}>📭</div>
-              <div style={{ fontSize: '14px', fontWeight: 500, marginBottom: '6px', color: 'var(--text-primary)' }}>No lanes found</div>
-              <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                {q ? 'Try adjusting your search' : 'Create your first lane to get started'}
+              <div style={{ fontSize: '48px', marginBottom: '16px' }}>�</div>
+              <div style={{ fontSize: '20px', fontWeight: 600, marginBottom: '12px', color: 'var(--text-primary)' }}>
+                No lanes ready for recap
               </div>
+              <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '24px', lineHeight: '1.6' }}>
+                {q ? 'No lanes match your search criteria.' : 'To see lanes here, you need to select city pairs first.'}
+              </div>
+              {!q && (
+                <div style={{ background: 'var(--bg-secondary)', borderRadius: '8px', padding: '24px', maxWidth: '500px', margin: '0 auto', textAlign: 'left' }}>
+                  <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '12px', color: 'var(--text-primary)' }}>Quick Start Guide:</div>
+                  <ol style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '2', paddingLeft: '20px', margin: 0 }}>
+                    <li>Go to <a href="/lanes" className="text-blue-400 hover:text-blue-300">Lanes page</a></li>
+                    <li>Create a new lane (origin → destination)</li>
+                    <li>Click "🎯 Post Options" button</li>
+                    <li>Click "Generate All Pairings"</li>
+                    <li>Check the city pairs you want to use</li>
+                    <li>Click "💾 Save Cities" button</li>
+                    <li>Come back here to see your recap!</li>
+                  </ol>
+                  <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--border)' }}>
+                    <a 
+                      href="/lanes" 
+                      className="btn btn-primary"
+                      style={{ display: 'inline-block', fontSize: '14px' }}
+                    >
+                      Go to Lanes Page →
+                    </a>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             filtered.map((lane) => (

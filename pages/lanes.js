@@ -1152,11 +1152,11 @@ function LanesPage() {
                   {/* Current lanes - show action buttons */}
                   {tab === 'current' && (
                     <>
-                      <a href={`/post-options?highlight=${l.id}`} className="btn btn-secondary" style={{ fontSize: '12px', padding: '4px 10px' }}>
+                      <a href="/post-options" className="btn btn-secondary" style={{ fontSize: '12px', padding: '4px 10px' }}>
                         🎯 Post Options
                       </a>
                       {l.saved_origin_cities?.length > 0 && (
-                        <a href={`/recap`} className="btn btn-success" style={{ fontSize: '12px', padding: '4px 10px' }}>
+                        <a href="/recap" className="btn btn-success" style={{ fontSize: '12px', padding: '4px 10px' }}>
                           📊 Recap
                         </a>
                       )}
