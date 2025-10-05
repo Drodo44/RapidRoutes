@@ -144,12 +144,12 @@ const DatMarketMaps = () => {
                 </div>
                 
                 {/* DAT Market Heat Map Display */}
-                <div style={{ background: 'var(--bg-tertiary)', borderRadius: 'var(--radius)', height: '256px', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
+                <div style={{ background: 'var(--bg-tertiary)', borderRadius: 'var(--radius)', minHeight: '500px', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
                   {uploadedImage ? (
                     <img 
                       src={uploadedImage} 
                       alt={`${equipmentTypes.find(e => e.value === selectedEquipment)?.label} Heat Map`}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'var(--radius)' }}
+                      style={{ width: '100%', height: 'auto', maxHeight: '600px', objectFit: 'contain', borderRadius: 'var(--radius)' }}
                     />
                   ) : (
                     <>

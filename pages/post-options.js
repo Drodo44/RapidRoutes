@@ -849,9 +849,11 @@ export default function PostOptions() {
 
   const formatLaneCard = (lane) => {
     const originZip = lane.origin_zip ? `, ${lane.origin_zip}` : '';
-    const destZip = lane.dest_zip ? `, ${lane.dest_zip}` : '';
+    const destZip = lane.dest_zip || lane.destination_zip ? `, ${lane.dest_zip || lane.destination_zip}` : '';
+    const destCity = lane.dest_city || lane.destination_city || 'Unknown';
+    const destState = lane.dest_state || lane.destination_state || '??';
     const rr = rrNumbers[lane.id] || 'RR#####';
-    return `${lane.origin_city}, ${lane.origin_state}${originZip} → ${lane.destination_city}, ${lane.destination_state}${destZip} | ${lane.equipment_code} | ${rr}`;
+    return `${lane.origin_city}, ${lane.origin_state}${originZip} → ${destCity}, ${destState}${destZip} | ${lane.equipment_code} | ${rr}`;
   };
 
   const copyToClipboard = (text) => {
