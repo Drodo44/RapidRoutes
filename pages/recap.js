@@ -92,31 +92,39 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
   const pairRRs = generatePairRRs();
   
   return (
-    <div className="card" id={`lane-${lane.id}`}>
-      {/* Header with RR# - PROMINENT */}
+    <div className="card" id={`lane-${lane.id}`} style={{ overflow: 'hidden' }}>
+      {/* Header with RR# - SUPER PROMINENT */}
       <div style={{ 
-        background: 'var(--primary-light)', 
-        borderBottom: '2px solid var(--primary)',
-        padding: '8px 16px',
+        background: 'linear-gradient(135deg, var(--primary-light) 0%, var(--primary-alpha) 100%)', 
+        borderBottom: '3px solid var(--primary)',
+        padding: '12px 20px',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'space-between'
+        justifyContent: 'space-between',
+        marginBottom: '0'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--primary)', letterSpacing: '0.5px' }}>
-            REFERENCE
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <span style={{ 
+            fontSize: '11px', 
+            fontWeight: 700, 
+            color: 'var(--primary)', 
+            letterSpacing: '1px',
+            textTransform: 'uppercase'
+          }}>
+            REFERENCE #
           </span>
           <span style={{ 
-            fontFamily: 'var(--font-mono)', 
-            fontSize: '16px', 
-            fontWeight: 700, 
+            fontFamily: 'Monaco, Consolas, monospace', 
+            fontSize: '18px', 
+            fontWeight: 800, 
             color: 'var(--primary)',
-            letterSpacing: '1px'
+            letterSpacing: '2px',
+            textShadow: '0 1px 2px rgba(0,0,0,0.1)'
           }}>
             {getDisplayReferenceId(lane)}
           </span>
         </div>
-        <span className={`badge badge-${isPosted ? 'posted' : 'active'}`}>
+        <span className={`badge badge-${isPosted ? 'posted' : 'active'}`} style={{ fontSize: '11px', padding: '4px 10px' }}>
           {isPosted ? 'Posted' : 'Active'}
         </span>
       </div>

@@ -80,17 +80,22 @@ export default async function handler(req, res) {
       fs.mkdirSync(uploadsDir, { recursive: true });
     }
 
-    // Move file to final location - use rename if possible, copy as fallback
+    // Read and write file content - most reliable method across environments
     try {
-      fs.renameSync(file.filepath, fullPath);
-    } catch (renameError) {
-      console.log('Rename failed, trying copy:', renameError.message);
-      fs.copyFileSync(file.filepath, fullPath);
+      const fileBuffer = fs.readFileSync(file.filepath);
+      fs.writeFileSync(fullPath, fileBuffer);
+      console.log('File written successfully to:', fullPath);
+      
+      // Clean up temp file
       try {
-        fs.unlinkSync(file.filepath); // Clean up temp file
+        fs.unlinkSync(file.filepath);
+        console.log('Temp file cleaned up');
       } catch (unlinkError) {
         console.warn('Could not delete temp file:', unlinkError.message);
       }
+    } catch (fileError) {
+      console.error('File operation failed:', fileError);
+      throw new Error(`Failed to save file: ${fileError.message}`);
     }
 
     console.log('File moved successfully');
