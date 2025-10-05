@@ -70,13 +70,28 @@ export default async function handler(req, res) {
     const extension = path.extname(originalName);
     const filename = `dat-map-${equipment || 'unknown'}-${timestamp}${extension}`;
     const publicPath = `/uploads/${filename}`;
-    const fullPath = path.join('./public/uploads', filename);
+    const fullPath = path.join(process.cwd(), 'public', 'uploads', filename);
 
     console.log('Moving file from', file.filepath, 'to', fullPath);
 
-    // Move file to final location
-    fs.copyFileSync(file.filepath, fullPath);
-    fs.unlinkSync(file.filepath); // Clean up temp file
+    // Ensure the uploads directory exists
+    const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+
+    // Move file to final location - use rename if possible, copy as fallback
+    try {
+      fs.renameSync(file.filepath, fullPath);
+    } catch (renameError) {
+      console.log('Rename failed, trying copy:', renameError.message);
+      fs.copyFileSync(file.filepath, fullPath);
+      try {
+        fs.unlinkSync(file.filepath); // Clean up temp file
+      } catch (unlinkError) {
+        console.warn('Could not delete temp file:', unlinkError.message);
+      }
+    }
 
     console.log('File moved successfully');
 

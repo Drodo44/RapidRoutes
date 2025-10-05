@@ -21,21 +21,57 @@ function Section({ title, right, children, className = '' }) {
 
 function StatCard({ title, value, subValue, icon, color = 'blue' }) {
   const colorStyles = {
-    blue: { backgroundColor: 'var(--primary-light)', color: 'var(--primary-text)', borderColor: 'var(--primary)' },
-    green: { backgroundColor: 'var(--success-light)', color: 'var(--success-text)', borderColor: 'var(--success)' },
-    amber: { backgroundColor: 'var(--warning-light)', color: 'var(--warning-text)', borderColor: 'var(--warning)' },
-    red: { backgroundColor: 'var(--danger-light)', color: 'var(--danger-text)', borderColor: 'var(--danger)' },
+    blue: { 
+      backgroundColor: 'var(--primary-light)', 
+      color: 'var(--text-primary)', 
+      borderColor: 'var(--primary)',
+      iconColor: 'var(--primary)'
+    },
+    green: { 
+      backgroundColor: 'var(--success-light)', 
+      color: 'var(--text-primary)', 
+      borderColor: 'var(--success)',
+      iconColor: 'var(--success)'
+    },
+    amber: { 
+      backgroundColor: 'var(--warning-light)', 
+      color: 'var(--text-primary)', 
+      borderColor: 'var(--warning)',
+      iconColor: 'var(--warning)'
+    },
+    red: { 
+      backgroundColor: 'var(--danger-light)', 
+      color: 'var(--text-primary)', 
+      borderColor: 'var(--danger)',
+      iconColor: 'var(--danger)'
+    },
   };
 
+  const style = colorStyles[color] || colorStyles.blue;
+
   return (
-    <div className="stat-card" style={{ ...colorStyles[color] || colorStyles.blue, borderWidth: '1px', borderStyle: 'solid' }}>
+    <div 
+      className="stat-card" 
+      style={{ 
+        backgroundColor: style.backgroundColor,
+        borderWidth: '2px', 
+        borderStyle: 'solid',
+        borderColor: style.borderColor,
+        color: style.color,
+        boxShadow: 'var(--shadow-sm)'
+      }}
+    >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
-          <h3 className="stat-label" style={{ opacity: 0.9 }}>{title}</h3>
-          <p className="stat-value">{value}</p>
-          {subValue && <p style={{ fontSize: '11px', marginTop: 'var(--space-1)', opacity: 0.8 }}>{subValue}</p>}
+          <h3 className="stat-label" style={{ color: 'var(--text-secondary)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            {title}
+          </h3>
+          <p className="stat-value" style={{ fontSize: '28px', fontWeight: 700, margin: '4px 0', color: 'var(--text-primary)' }}>
+            {value}
+          </p>
+          {subValue && <p style={{ fontSize: '11px', marginTop: '4px', color: 'var(--text-secondary)' }}>{subValue}</p>}
         </div>
-        <div style={{ fontSize: '20px', opacity: 0.8 }}>{icon}</div>
+        <div style={{ fontSize: '24px', color: style.iconColor, opacity: 0.9 }}>{icon}</div>
       </div>
     </div>
   );

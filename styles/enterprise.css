@@ -83,65 +83,65 @@
 }
 
 [data-theme="dark"] {
-  /* === DARK MODE === */
+  /* === DARK MODE - OPTIMIZED FOR CLARITY === */
   
-  /* Backgrounds - Rich darks */
-  --bg-primary: #0f172a;
-  --bg-secondary: #1e293b;
-  --bg-tertiary: #334155;
-  --bg-hover: #1e293b;
+  /* Backgrounds - Deep, rich darks with better contrast */
+  --bg-primary: #0a0f1a;
+  --bg-secondary: #111827;
+  --bg-tertiary: #1f2937;
+  --bg-hover: #1f2937;
   --bg-active: #1e3a5f;
   
-  /* Surface colors */
-  --surface: #1e293b;
-  --surface-hover: #334155;
-  --surface-border: #334155;
+  /* Surface colors - More distinct layers */
+  --surface: #1a2332;
+  --surface-hover: #232d3f;
+  --surface-border: #2d3748;
   
-  /* Text colors */
-  --text-primary: #f1f5f9;
-  --text-secondary: #cbd5e1;
-  --text-tertiary: #64748b;
-  --text-inverse: #0f172a;
+  /* Text colors - Higher contrast */
+  --text-primary: #f8fafc;
+  --text-secondary: #e2e8f0;
+  --text-tertiary: #94a3b8;
+  --text-inverse: #0a0f1a;
   
-  /* Brand colors - Brighter for dark backgrounds */
-  --primary: #3b82f6;
-  --primary-hover: #60a5fa;
-  --primary-light: #1e3a5f;
-  --primary-text: #93c5fd;
-  --primary-alpha: rgba(59, 130, 246, 0.15);
+  /* Brand colors - Vibrant but professional */
+  --primary: #60a5fa;
+  --primary-hover: #93c5fd;
+  --primary-light: #1e3a8a;
+  --primary-text: #bfdbfe;
+  --primary-alpha: rgba(96, 165, 250, 0.2);
   
-  /* Status colors */
-  --success: #10b981;
-  --success-light: #064e3b;
-  --success-text: #6ee7b7;
-  --success-alpha: rgba(16, 185, 129, 0.15);
+  /* Status colors - High visibility */
+  --success: #34d399;
+  --success-light: #065f46;
+  --success-text: #86efac;
+  --success-alpha: rgba(52, 211, 153, 0.2);
   
-  --warning: #f59e0b;
-  --warning-light: #78350f;
-  --warning-text: #fcd34d;
-  --warning-alpha: rgba(245, 158, 11, 0.15);
+  --warning: #fbbf24;
+  --warning-light: #92400e;
+  --warning-text: #fde68a;
+  --warning-alpha: rgba(251, 191, 36, 0.2);
   
-  --danger: #ef4444;
-  --danger-light: #7f1d1d;
+  --danger: #f87171;
+  --danger-light: #991b1b;
   --danger-text: #fca5a5;
-  --danger-alpha: rgba(239, 68, 68, 0.15);
+  --danger-alpha: rgba(248, 113, 113, 0.2);
   
-  --info: #06b6d4;
-  --info-light: #164e63;
-  --info-text: #67e8f9;
-  --info-alpha: rgba(6, 182, 212, 0.15);
+  --info: #22d3ee;
+  --info-light: #155e75;
+  --info-text: #a5f3fc;
+  --info-alpha: rgba(34, 211, 238, 0.2);
   
-  /* Borders */
-  --border: #334155;  /* Shorthand for most common use */
-  --border-light: #1e293b;
-  --border-default: #334155;
-  --border-strong: #475569;
+  /* Borders - Visible but not distracting */
+  --border: #374151;  /* Shorthand for most common use */
+  --border-light: #2d3748;
+  --border-default: #374151;
+  --border-strong: #4b5563;
   
-  /* Shadows - Deeper for dark mode */
-  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
-  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.4), 0 1px 2px 0 rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.6), 0 4px 6px -2px rgba(0, 0, 0, 0.5);
+  /* Shadows - Strong depth for dark mode */
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.5);
+  --shadow-sm: 0 2px 4px 0 rgba(0, 0, 0, 0.6), 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 6px 10px -1px rgba(0, 0, 0, 0.7), 0 2px 6px -1px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 12px 20px -3px rgba(0, 0, 0, 0.8), 0 4px 8px -2px rgba(0, 0, 0, 0.6);
 }
 
 /* === BASE STYLES === */
@@ -198,23 +198,32 @@ body {
 .card {
   background-color: var(--surface);
   border: 1px solid var(--surface-border);
-  border-radius: 6px;
-  padding: 12px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-  transition: all 0.15s ease;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s ease;
 }
 
 .card:hover {
-  background-color: var(--surface-hover);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-strong);
+}
+
+.card-header {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border-light);
 }
 
 .card-compact {
-  padding: 8px 12px;
+  padding: 12px;
 }
 
 .card-title {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-primary);
   margin: 0 0 8px 0;
@@ -222,15 +231,15 @@ body {
 }
 
 .card-body {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text-secondary);
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
 .card-footer {
-  margin-top: 12px;
+  margin-top: 16px;
   padding-top: 12px;
-  border-top: 1px solid var(--surface-border);
+  border-top: 1px solid var(--border-light);
   display: flex;
   gap: 8px;
   align-items: center;
@@ -470,23 +479,33 @@ body {
 
 .stat-card {
   background: var(--surface);
-  border: 1px solid var(--surface-border);
+  border: 2px solid var(--surface-border);
   border-radius: var(--radius-lg);
-  padding: var(--space-4);
-  box-shadow: var(--shadow-sm);
+  padding: 20px;
+  box-shadow: var(--shadow-md);
+  transition: all 0.2s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
 }
 
 .stat-label {
-  font-size: 13px;
+  font-size: 11px;
+  font-weight: 600;
   color: var(--text-secondary);
-  margin-bottom: var(--space-2);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .stat-value {
-  font-size: 24px;
+  font-size: 32px;
   font-weight: 700;
   color: var(--text-primary);
-  margin-bottom: var(--space-1);
+  margin-bottom: 4px;
+  line-height: 1;
 }
 
 .stat-change {

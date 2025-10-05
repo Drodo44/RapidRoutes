@@ -93,7 +93,35 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
   
   return (
     <div className="card" id={`lane-${lane.id}`}>
-      {/* Header with route and status */}
+      {/* Header with RR# - PROMINENT */}
+      <div style={{ 
+        background: 'var(--primary-light)', 
+        borderBottom: '2px solid var(--primary)',
+        padding: '8px 16px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--primary)', letterSpacing: '0.5px' }}>
+            REFERENCE
+          </span>
+          <span style={{ 
+            fontFamily: 'var(--font-mono)', 
+            fontSize: '16px', 
+            fontWeight: 700, 
+            color: 'var(--primary)',
+            letterSpacing: '1px'
+          }}>
+            {getDisplayReferenceId(lane)}
+          </span>
+        </div>
+        <span className={`badge badge-${isPosted ? 'posted' : 'active'}`}>
+          {isPosted ? 'Posted' : 'Active'}
+        </span>
+      </div>
+      
+      {/* Route Header */}
       <div className="card-header">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
@@ -102,14 +130,6 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
               <span style={{ margin: '0 8px', opacity: 0.4 }}>→</span>
               {lane.dest_city || lane.destination_city}, {lane.dest_state || lane.destination_state}
             </h3>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-            <span className="badge" style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '11px' }}>
-              {getDisplayReferenceId(lane)}
-            </span>
-            <span className={`badge badge-${isPosted ? 'posted' : 'active'}`}>
-              {isPosted ? 'Posted' : 'Active'}
-            </span>
           </div>
         </div>
       </div>
