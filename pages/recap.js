@@ -47,7 +47,6 @@ function matches(q, l) {
 }
 
 function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs = [] }) {
-  const [expandedPairs, setExpandedPairs] = useState(false);
   const router = useRouter();
   
   // Check if lane has saved city choices
@@ -180,157 +179,86 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
               )}
             </div>
             
-            {/* Two-Column City Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-              {/* Pickup Cities */}
-              <div>
-                <div style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px', color: 'var(--text-secondary)' }}>
-                  Pickup Locations ({lane.saved_origin_cities.length})
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  {lane.saved_origin_cities.map((city, idx) => (
-                    <div 
-                      key={idx} 
-                      style={{ 
-                        padding: '10px 12px', 
-                        background: 'var(--bg-secondary)', 
-                        border: '1px solid var(--border)', 
-                        borderRadius: 'var(--radius)',
-                        fontSize: '12px',
-                        transition: 'all 0.15s ease'
-                      }}
-                    >
-                      <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
-                        {city.city}, {city.state}
-                      </div>
-                      {(city.kma_code || city.kma_name) && (
-                        <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginTop: '3px' }}>
-                          {city.kma_code || city.kma_name}{city.miles && ` • ${Math.round(city.miles)} mi`}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-              {/* Delivery Cities */}
-              <div>
-                <div style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px', color: 'var(--text-secondary)' }}>
-                  Delivery Locations ({lane.saved_dest_cities.length})
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  {lane.saved_dest_cities.map((city, idx) => (
-                    <div 
-                      key={idx} 
-                      style={{ 
-                        padding: '10px 12px', 
-                        background: 'var(--bg-secondary)', 
-                        border: '1px solid var(--border)', 
-                        borderRadius: 'var(--radius)',
-                        fontSize: '12px',
-                        transition: 'all 0.15s ease'
-                      }}
-                    >
-                      <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
-                        {city.city}, {city.state}
-                      </div>
-                      {(city.kma_code || city.kma_name) && (
-                        <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginTop: '3px' }}>
-                          {city.kma_code || city.kma_name}{city.miles && ` • ${Math.round(city.miles)} mi`}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-            
-            {/* Expandable All Pairs Section */}
-            <div style={{ marginTop: '16px' }}>
-              <button
-                onClick={() => setExpandedPairs(!expandedPairs)}
-                className="btn btn-secondary"
-                style={{ 
-                  width: '100%', 
-                  fontSize: '12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px'
-                }}
-              >
-                <span>{expandedPairs ? '▼' : '▶'}</span>
-                <span>View All {totalPairs} Pairs with Reference IDs</span>
-              </button>
-              
-              {expandedPairs && (
-                <div style={{ 
-                  marginTop: '12px', 
-                  maxHeight: '400px', 
-                  overflowY: 'auto', 
-                  padding: '12px',
-                  background: 'var(--bg-secondary)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius)'
-                }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {lane.saved_origin_cities.flatMap((originCity, originIdx) => 
-                      lane.saved_dest_cities.map((destCity, destIdx) => {
-                        const pairIndex = originIdx * lane.saved_dest_cities.length + destIdx;
-                        const pairRefId = generatePairReferenceId(lane.reference_id, pairIndex);
-                        
-                        return (
-                          <div 
-                            key={`${originIdx}-${destIdx}`} 
-                            style={{ 
-                              padding: '12px', 
-                              background: 'var(--surface)', 
-                              border: '1px solid var(--border)', 
-                              borderRadius: 'var(--radius)',
-                              transition: 'all 0.15s ease'
-                            }}
-                          >
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                              <span style={{ fontSize: '10px', color: 'var(--text-tertiary)', fontWeight: 500 }}>
-                                PAIR #{pairIndex + 1}
-                              </span>
-                              <span className="badge" style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 600 }}>
-                                {pairRefId}
-                              </span>
+            {/* All Pairs Table with RR# Column */}
+            <div style={{ marginTop: '12px', overflowX: 'auto', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
+              <table style={{ 
+                width: '100%', 
+                fontSize: '12px',
+                borderCollapse: 'collapse'
+              }}>
+                <thead>
+                  <tr style={{ background: 'var(--bg-tertiary)' }}>
+                    <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text-secondary)', borderBottom: '2px solid var(--border)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      RR#
+                    </th>
+                    <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text-secondary)', borderBottom: '2px solid var(--border)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      Pickup Location
+                    </th>
+                    <th style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 600, color: 'var(--text-secondary)', borderBottom: '2px solid var(--border)', fontSize: '11px', width: '40px' }}>
+                      →
+                    </th>
+                    <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text-secondary)', borderBottom: '2px solid var(--border)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      Delivery Location
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lane.saved_origin_cities.flatMap((originCity, originIdx) => 
+                    lane.saved_dest_cities.map((destCity, destIdx) => {
+                      const pairIndex = originIdx * lane.saved_dest_cities.length + destIdx;
+                      const pairRefId = generatePairReferenceId(lane.reference_id, pairIndex);
+                      
+                      return (
+                        <tr 
+                          key={`${originIdx}-${destIdx}`}
+                          style={{ 
+                            borderBottom: '1px solid var(--border)',
+                            background: pairIndex % 2 === 0 ? 'transparent' : 'var(--bg-secondary)'
+                          }}
+                        >
+                          <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
+                            <span style={{ 
+                              fontFamily: 'var(--font-mono)', 
+                              fontSize: '11px', 
+                              fontWeight: 600,
+                              color: 'var(--primary)',
+                              background: 'var(--primary-light)',
+                              padding: '4px 8px',
+                              borderRadius: '4px',
+                              display: 'inline-block'
+                            }}>
+                              {pairRefId}
+                            </span>
+                          </td>
+                          <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
+                            <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
+                              {originCity.city}, {originCity.state}
                             </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '12px', alignItems: 'center', fontSize: '12px' }}>
-                              <div>
-                                <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
-                                  {originCity.city}, {originCity.state}
-                                </div>
-                                {(originCity.kma_code || originCity.kma_name) && (
-                                  <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
-                                    {originCity.kma_code || originCity.kma_name}
-                                  </div>
-                                )}
+                            {(originCity.kma_code || originCity.kma_name) && (
+                              <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
+                                {originCity.kma_code || originCity.kma_name}{originCity.miles && ` • ${Math.round(originCity.miles)} mi`}
                               </div>
-                              <span style={{ opacity: 0.3, fontSize: '14px' }}>→</span>
-                              <div>
-                                <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
-                                  {destCity.city}, {destCity.state}
-                                </div>
-                                {(destCity.kma_code || destCity.kma_name) && (
-                                  <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
-                                    {destCity.kma_code || destCity.kma_name}
-                                  </div>
-                                )}
-                              </div>
+                            )}
+                          </td>
+                          <td style={{ padding: '10px 12px', textAlign: 'center', verticalAlign: 'middle', color: 'var(--text-tertiary)', opacity: 0.5 }}>
+                            →
+                          </td>
+                          <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
+                            <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
+                              {destCity.city}, {destCity.state}
                             </div>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                  <div style={{ marginTop: '12px', fontSize: '11px', color: 'var(--text-tertiary)', textAlign: 'center' }}>
-                    💡 Use these reference IDs when posting individual loads to DAT
-                  </div>
-                </div>
-              )}
+                            {(destCity.kma_code || destCity.kma_name) && (
+                              <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
+                                {destCity.kma_code || destCity.kma_name}{destCity.miles && ` • ${Math.round(destCity.miles)} mi`}
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
