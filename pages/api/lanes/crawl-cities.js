@@ -37,8 +37,8 @@ export default async function handler(req, res) {
             zip: lane.origin_zip 
           },
           destination: { 
-            city: lane.dest_city, 
-            state: lane.dest_state, 
+            city: lane.destination_city, 
+            state: lane.destination_state, 
             zip: lane.dest_zip 
           },
           equipment: lane.equipment_code,
@@ -51,7 +51,7 @@ export default async function handler(req, res) {
           type: 'base',
           laneId: lane.id,
           referenceId: cleanRefId,
-          displayName: `${lane.origin_city}, ${lane.origin_state} → ${lane.dest_city}, ${lane.dest_state}`,
+          displayName: `${lane.origin_city}, ${lane.origin_state} → ${lane.destination_city}, ${lane.destination_state}`,
           isOriginal: true
         });
 
@@ -75,7 +75,7 @@ export default async function handler(req, res) {
           type: 'base',
           laneId: lane.id,
           referenceId: cleanRefId,
-          displayName: `${lane.origin_city}, ${lane.origin_state} → ${lane.dest_city}, ${lane.dest_state}`,
+          displayName: `${lane.origin_city}, ${lane.origin_state} → ${lane.destination_city}, ${lane.destination_state}`,
           isOriginal: true
         });
       }
