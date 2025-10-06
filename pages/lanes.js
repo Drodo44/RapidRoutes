@@ -275,10 +275,7 @@ function LanesPage() {
       if (currentError) throw currentError;
       if (archivedError) throw archivedError;
 
-      console.log('Lists loaded successfully:', {
-        current: currentLanes.length,
-        archive: archivedLanes.length
-      });
+      console.log('Lists loaded successfully - Current:', currentLanes.length, 'Archive:', archivedLanes.length);
 
       setCurrent(currentLanes);
       setArchive(archivedLanes);
@@ -1134,8 +1131,10 @@ function LanesPage() {
                     <span style={{ opacity: 0.6 }}>{l.equipment_code} • {l.length_ft}ft</span>
                   </div>
                   <div style={{ fontSize: '12px', opacity: 0.6 }}>
-                    {l.randomize_weight ? `${l.weight_min}-${l.weight_max} lbs` : `${l.weight_lbs || '—'} lbs`}
-                    <span style={{ marginLeft: '12px' }}>📅 {l.pickup_earliest} → {l.pickup_latest}</span>
+                    {l.randomize_weight 
+                      ? `${l.weight_min || 0}-${l.weight_max || 0} lbs` 
+                      : `${l.weight_lbs || '—'} lbs`}
+                    <span style={{ marginLeft: '12px' }}>📅 {l.pickup_earliest || '—'} → {l.pickup_latest || '—'}</span>
                     {l.comment && <span style={{ marginLeft: '12px' }}>💬 {l.comment}</span>}
                   </div>
                   {l.saved_origin_cities?.length > 0 && (
