@@ -25,9 +25,9 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Missing id or lane_status' });
     }
 
-    const validStatuses = ['pending', 'posted', 'covered', 'archived'];
+    const validStatuses = ['current', 'archive'];
     if (!validStatuses.includes(lane_status)) {
-      return res.status(400).json({ error: 'Invalid lane_status value' });
+      return res.status(400).json({ error: 'Invalid lane_status value. Must be "current" or "archive"' });
     }
 
     const { error } = await adminSupabase

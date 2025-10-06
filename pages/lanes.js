@@ -428,7 +428,7 @@ function LanesPage() {
         comment: laneData.comment,
         commodity: laneData.commodity,
   // Use new lane_status column; do not set deprecated status
-  lane_status: 'pending',
+  lane_status: 'current',
         user_id: authSession.user.id,
         created_by: authSession.user.id
       };
@@ -610,12 +610,13 @@ function LanesPage() {
     try {
   console.log('🔄 Updating UI - New lane lane_status:', newLane.lane_status || newLane.status);
   const laneStatus = newLane.lane_status || newLane.status;
-  if (laneStatus === 'posted') {
-        console.log('📮 Adding to Posted list');
-        setPosted((prev) => [newLane, ...(prev || [])]);
-      } else {
-        console.log('⏳ Adding to Pending list');
-        setPending((prev) => [newLane, ...(prev || [])]);
+  // All new lanes go to current list (simplified status system)
+  if (laneStatus === 'current' || !laneStatus) {
+        console.log('✅ Adding to Current list');
+        setCurrent((prev) => [newLane, ...(prev || [])]);
+      } else if (laneStatus === 'archive') {
+        console.log('📦 Adding to Archive list');
+        setArchive((prev) => [newLane, ...(prev || [])]);
       }
     } catch (uiErr) {
       console.warn('Failed to optimistic-update lists:', uiErr);

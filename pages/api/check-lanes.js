@@ -10,7 +10,7 @@ export default async function handler(req, res) {
     const { data: lanes, error } = await supabase
       .from('lanes')
       .select('*')
-      .eq('lane_status', 'pending')
+      .eq('lane_status', 'current')
       .order('created_at', { ascending: false });
     
     if (error) {

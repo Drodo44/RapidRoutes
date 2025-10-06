@@ -32,18 +32,18 @@ export default async function handler(req, res) {
     }
 
     // 2. Pending lanes fallback
-    console.log('[generateAll] Step 2: Fetching pending lanes...');
+    console.log('[generateAll] Step 2: Fetching current lanes...');
     let lanes = [];
     const { data: lanesData, error: lanesErr } = await adminSupabase
       .from('lanes')
       .select('id, origin_city, origin_state, origin_zip5, origin_zip, origin_latitude, origin_longitude, lane_status, destination_city, destination_state, dest_city, dest_state')
-      .eq('lane_status', 'pending');
+      .eq('lane_status', 'current');
     if (lanesErr) {
       console.error('[generateAll] lanes query failed:', lanesErr.message);
       return res.status(500).json({ error: 'Failed to fetch lanes' });
     } else if (Array.isArray(lanesData)) {
       lanes = lanesData;
-      console.log('[generateAll] Found', lanes.length, 'pending lanes');
+      console.log('[generateAll] Found', lanes.length, 'current lanes');
     }
 
     // 3. Build combined list (core pickups first). Avoid duplicate origin_zip5.
@@ -61,7 +61,7 @@ export default async function handler(req, res) {
         origin_state: p.state,
         origin_zip5,
         origin_zip,
-        lane_status: 'pending'
+        lane_status: 'current'
       });
     }
 
@@ -75,7 +75,7 @@ export default async function handler(req, res) {
         origin_state: l.origin_state,
         origin_zip5: origin_zip5,
         origin_zip: l.origin_zip || (origin_zip5 ? origin_zip5.slice(0,3) : null),
-        lane_status: l.lane_status || 'pending'
+        lane_status: l.lane_status || 'current'
       });
     }
 

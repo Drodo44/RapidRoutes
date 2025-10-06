@@ -78,10 +78,10 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: error.message });
     }
 
-    // Update lane status to 'active' so it shows up in the lanes list
+    // Update lane status to 'current' so it shows up in the lanes list
     const { error: laneUpdateError } = await supabase
       .from('lanes')
-      .update({ lane_status: 'active' })
+      .update({ lane_status: 'current' })
       .eq('id', lane_id);
 
     if (laneUpdateError) {
