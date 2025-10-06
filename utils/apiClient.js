@@ -33,16 +33,15 @@ export async function fetchLanes(options = {}) {
 
 export async function fetchLaneStats() {
   try {
-    const [pending, posted, covered] = await Promise.all([
-      fetchLanes({ status: 'pending' }),
-      fetchLanes({ status: 'posted' }),
-      fetchLanes({ status: 'covered' }),
+    const [current, archive] = await Promise.all([
+      fetchLanes({ lane_status: 'current' }),
+      fetchLanes({ lane_status: 'archive' }),
     ]);
 
     return {
-      pendingCount: pending.length,
-      postedCount: posted.length,
-      coveredCount: covered.length,
+      currentCount: current.length,
+      archiveCount: archive.length,
+      totalCount: current.length + archive.length,
       recapCount: 0, // Will add this later
     };
   } catch (error) {

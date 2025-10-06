@@ -552,7 +552,7 @@ function LanesPage() {
   comment: lane.comment || null,
   commodity: lane.commodity || null,
   // Use new lane_status column for reposted lanes
-  lane_status: 'pending',
+  lane_status: 'current',
       reference_id: generateNewReferenceId(),
       user_id: session.user.id,
       created_by: session.user.id
@@ -860,8 +860,8 @@ function LanesPage() {
                   </h3>
                   <span className="badge" style={{
                     backgroundColor: 
-                      (searchResult.lane.lane_status || searchResult.lane.status) === 'covered' ? 'var(--success)' :
-                      (searchResult.lane.lane_status || searchResult.lane.status) === 'archived' ? 'var(--muted)' :
+                      (searchResult.lane.lane_status || searchResult.lane.status) === 'current' ? 'var(--success)' :
+                      (searchResult.lane.lane_status || searchResult.lane.status) === 'archive' ? 'var(--muted)' :
                       'var(--primary)',
                     color: 'white'
                   }}>

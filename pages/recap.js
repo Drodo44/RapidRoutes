@@ -58,7 +58,7 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
     ? lane.saved_origin_cities.length * lane.saved_dest_cities.length 
     : 0;
   
-  const isPosted = (lane.lane_status || lane.status) === 'posted';
+  const isCurrent = (lane.lane_status || lane.status) === 'current';
   
   // Generate individual RR# for each city pair
   const generatePairRRs = () => {
@@ -107,8 +107,8 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
             }}>
               {getDisplayReferenceId(lane)}
             </span>
-            <span className={`badge badge-${isPosted ? 'posted' : 'active'}`} style={{ fontSize: '11px' }}>
-              {isPosted ? 'Posted' : 'Active'}
+            <span className={`badge badge-${isCurrent ? 'current' : 'archive'}`} style={{ fontSize: '11px' }}>
+              {isCurrent ? 'Current' : 'Archive'}
             </span>
           </div>
           <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
@@ -272,7 +272,7 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
       )}
 
       {/* Show generate button only for lanes that need AI insights */}
-      {!recapData && (lane.lane_status || lane.status) !== 'posted' && (
+      {!recapData && (lane.lane_status || lane.status) !== 'archive' && (
         <div style={{ borderTop: '1px solid var(--border)' }}>
           <div className="card-body" style={{ display: 'flex', justifyContent: 'center' }}>
             <button 
@@ -293,6 +293,7 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
 export default function RecapPage() {
   const [q, setQ] = useState('');
   const [lanes, setLanes] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [crawlData, setCrawlData] = useState([]);
   const [recaps, setRecaps] = useState({});
   const [generatingIds, setGeneratingIds] = useState(new Set());
@@ -656,15 +657,15 @@ export default function RecapPage() {
               <strong style={{ marginLeft: '4px', color: 'var(--text-primary)' }}>{filtered.length}</strong>
             </div>
             <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-              <span>Active:</span>
+              <span>Current:</span>
               <strong style={{ marginLeft: '4px', color: 'var(--success)' }}>
-                {filtered.filter(l => (l.lane_status || l.status) === 'active').length}
+                {filtered.filter(l => (l.lane_status || l.status) === 'current').length}
               </strong>
             </div>
             <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-              <span>Posted:</span>
-              <strong style={{ marginLeft: '4px', color: 'var(--primary)' }}>
-                {filtered.filter(l => (l.lane_status || l.status) === 'posted').length}
+              <span>Archive:</span>
+              <strong style={{ marginLeft: '4px', color: 'var(--muted)' }}>
+                {filtered.filter(l => (l.lane_status || l.status) === 'archive').length}
               </strong>
             </div>
           </div>

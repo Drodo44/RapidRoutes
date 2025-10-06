@@ -36,15 +36,15 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'Lane not found' });
     }
 
-    // Only return pairs for posted lanes
+    // Only return pairs for current lanes
     // Check both status and lane_status fields for compatibility
     const laneStatus = lane.lane_status || lane.status;
-    if (laneStatus !== 'posted') {
+    if (laneStatus !== 'current') {
       return res.status(200).json({
         lane,
         postedPairs: [],
         totalPairs: 0,
-        message: 'Lane not posted yet'
+        message: 'Lane not current yet'
       });
     }
 

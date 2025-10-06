@@ -20,7 +20,7 @@ export default function LaneRecapCard({ lane }) {
 
   return (
     <div className="rounded-xl border border-gray-700 bg-[#0f1115] p-4 shadow">
-      <div className="mb-2 text-sm uppercase tracking-wide text-gray-400">{lane.status}</div>
+      <div className="mb-2 text-sm uppercase tracking-wide text-gray-400">{lane.lane_status || lane.status || 'current'}</div>
       <div className="mb-1 font-semibold text-gray-100">{laneText}</div>
       <div className="mb-2 text-sm text-gray-300">{lane.equipment_code} • {lane.length_ft} ft • {weightText}</div>
       <div className="mb-3 text-xs text-gray-400">Pickup: {win(lane.pickup_earliest, lane.pickup_latest)}</div>

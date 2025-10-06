@@ -37,11 +37,11 @@ export default function RecapExport() {
     async function fetchLanes() {
       setLoading(true);
       if (ids.length === 0) {
-        // fallback to active lanes
+        // fallback to current lanes
         const { data } = await supabase
           .from('lanes')
           .select('*')
-          .in('lane_status', ['pending', 'posted'])
+          .eq('lane_status', 'current')
           .limit(200);
         setLanes(data || []);
         setLoading(false);
@@ -63,11 +63,11 @@ export default function RecapExport() {
       if (lanesData.length > 0) {
         await fetchAIRecaps(lanesData.map(l => l.id));
         
-        // Load posted pairs for posted lanes (same logic as main recap page)
-  const postedLanes = lanesData.filter(lane => (lane.lane_status || lane.status) === 'posted');
+        // Load posted pairs for current lanes (same logic as main recap page)
+  const currentLanes = lanesData.filter(lane => (lane.lane_status || lane.status) === 'current');
         const allPairs = [];
         
-        for (const lane of postedLanes) {
+        for (const lane of currentLanes) {
           try {
             const response = await fetch(`/api/getPostedPairs?laneId=${lane.id}`);
             if (response.ok) {
@@ -272,8 +272,8 @@ export default function RecapExport() {
               className="px-3 py-2 border border-gray-300 rounded-lg text-sm max-w-80"
             >
               <option value="">Jump to lane...</option>
-              {/* Posted lanes with their pairs */}
-              {lanes.filter(lane => (lane.lane_status || lane.status) === 'posted').map(lane => {
+              {/* Current lanes with their pairs */}
+              {lanes.filter(lane => (lane.lane_status || lane.status) === 'current').map(lane => {
                 const lanePostedPairs = postedPairs.filter(pair => pair.laneId === lane.id);
                 const basePair = lanePostedPairs.find(pair => pair.isBase);
                 const generatedPairs = lanePostedPairs.filter(pair => !pair.isBase);
@@ -292,12 +292,12 @@ export default function RecapExport() {
                   </optgroup>
                 ) : null;
               })}
-              {/* Pending lanes */}
-              {lanes.filter(lane => (lane.lane_status || lane.status) === 'pending').length > 0 && (
-                <optgroup label="⏳ PENDING LANES">
-                  {lanes.filter(lane => (lane.lane_status || lane.status) === 'pending').slice(0, 10).map((lane) => (
-                    <option key={`pending-${lane.id}`} value={`pending-${lane.id}`}>
-                      ⏳ {lane.origin_city}, {lane.origin_state} → {lane.dest_city}, {lane.dest_state} • REF #{getDisplayReferenceId(lane)}
+              {/* Archived lanes */}
+              {lanes.filter(lane => (lane.lane_status || lane.status) === 'archive').length > 0 && (
+                <optgroup label="📦 ARCHIVED LANES">
+                  {lanes.filter(lane => (lane.lane_status || lane.status) === 'archive').slice(0, 10).map((lane) => (
+                    <option key={`archive-${lane.id}`} value={`archive-${lane.id}`}>
+                      📦 {lane.origin_city}, {lane.origin_state} → {lane.dest_city}, {lane.dest_state} • REF #{getDisplayReferenceId(lane)}
                     </option>
                   ))}
                 </optgroup>
@@ -384,10 +384,10 @@ export default function RecapExport() {
                     </div>
                     
                     <div className="p-3">
-                      {/* Show generated pairs for posted lanes */}
-                      {(lane.lane_status || lane.status) === 'posted' && postedPairs.filter(pair => pair.laneId === lane.id).length > 0 && (
+                      {/* Show generated pairs for current lanes */}
+                      {(lane.lane_status || lane.status) === 'current' && postedPairs.filter(pair => pair.laneId === lane.id).length > 0 && (
                         <div className="mb-3">
-                          <h4 className="text-sm font-medium text-gray-700 mb-1">Posted Lanes ({postedPairs.filter(pair => pair.laneId === lane.id).length} total)</h4>
+                          <h4 className="text-sm font-medium text-gray-700 mb-1">Current Lanes ({postedPairs.filter(pair => pair.laneId === lane.id).length} total)</h4>
                           <div className="space-y-1 max-h-32 overflow-y-auto">
                             {postedPairs.filter(pair => pair.laneId === lane.id).slice(0, 12).map((pair, index) => (
                               <div key={pair.id} className="text-xs text-gray-600 flex items-center justify-between">
@@ -462,15 +462,15 @@ export default function RecapExport() {
                       )}
                       
                       {/* Fallbacks when no data available */}
-                      {!recap && (lane.lane_status || lane.status) !== 'posted' && lane.comment && (
+                      {!recap && (lane.lane_status || lane.status) !== 'current' && lane.comment && (
                         <div className="text-sm text-gray-600">{lane.comment}</div>
                       )}
                       
-                      {!recap && (lane.lane_status || lane.status) !== 'posted' && !lane.comment && (
-                        <div className="text-sm text-gray-500 italic">Generate AI insights or mark as posted to see more details</div>
+                      {!recap && (lane.lane_status || lane.status) !== 'current' && !lane.comment && (
+                        <div className="text-sm text-gray-500 italic">Generate AI insights or use Post Options to see more details</div>
                       )}
                       
-                      {(lane.lane_status || lane.status) === 'posted' && postedPairs.filter(pair => pair.laneId === lane.id).length === 0 && (
+                      {(lane.lane_status || lane.status) === 'current' && postedPairs.filter(pair => pair.laneId === lane.id).length === 0 && (
                         <div className="text-sm text-gray-500 italic">Loading posted pairs...</div>
                       )}
                     </div>

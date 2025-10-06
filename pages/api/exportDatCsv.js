@@ -36,15 +36,15 @@ async function selectLanes({ pending, days, all }) {
     .order('created_at', { ascending: false });
 
   if (pending) {
-    q = q.eq('lane_status', 'pending');
+    q = q.eq('lane_status', 'current');
   } else if (all) {
     // no additional filters
   } else if (days != null) {
     const since = daysAgoUTC(Number(days));
     q = q.gte('created_at', since);
   } else {
-    // default: active lanes (lanes with city choices saved)
-    q = q.eq('lane_status', 'active');
+    // default: current lanes (lanes with city choices saved)
+    q = q.eq('lane_status', 'current');
   }
 
   const { data, error } = await q.limit(2000); // sane cap for bulk exports
@@ -119,7 +119,7 @@ export default async function handler(req, res) {
     debugLog(`📦 [TRACE] Supabase returned ${lanes?.length || 0} lanes (pre-validation)`);
     if (lanes && lanes.length) {
       lanes.slice(0, 50).forEach((lane, i) => {
-        debugLog(`  ▶ Lane[${i}] id=${lane.id} status=${lane.status} pickup_earliest=${lane.pickup_earliest} pickup_latest=${lane.pickup_latest}`);
+        debugLog(`  ▶ Lane[${i}] id=${lane.id} lane_status=${lane.lane_status} pickup_earliest=${lane.pickup_earliest} pickup_latest=${lane.pickup_latest}`);
       });
       if (lanes.length > 50) debugLog(`  … (${lanes.length - 50} more lanes omitted)`);
     }
@@ -262,15 +262,15 @@ export default async function handler(req, res) {
       });
     }
 
-    // Update lane statuses to 'posted' after successful CSV generation
+    // Update lane statuses after successful CSV generation
     try {
       const laneIds = lanes.map(lane => lane.id);
       if (laneIds.length > 0) {
         await adminSupabase
           .from('lanes')
-          .update({ status: 'posted', posted_at: new Date().toISOString() })
+          .update({ lane_status: 'current', posted_at: new Date().toISOString() })
           .in('id', laneIds);
-        monitor.log('info', `Updated ${laneIds.length} lanes to 'posted' status`);
+        monitor.log('info', `Updated ${laneIds.length} lanes to 'current' status`);
       }
     } catch (updateError) {
       await monitor.logError(updateError, 'Failed to update lane statuses');

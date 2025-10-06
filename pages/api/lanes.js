@@ -164,7 +164,7 @@ export default async function handler(req, res) {
       // Create the final lane object with standardized fields only
       const lane = {
         ...payloadWithoutDestFields, // Base fields excluding any dest_* variants
-        lane_status: payload.lane_status || payload.status || 'pending',
+        lane_status: payload.lane_status || payload.status || 'current',
         reference_id: generateReferenceId(),
         created_at: new Date().toISOString(),
         created_by: auth.user.id,

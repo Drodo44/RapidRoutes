@@ -1,4 +1,10 @@
-// pages/api/lanes/crawl-cities.js
+// pages/api/lan  try {
+    // Get all active lanes
+    const { data: lanes, error: lanesError } = await adminSupabase
+      .from('lanes')
+      .select('*')
+      .eq('lane_status', 'current')
+      .order('created_at', { ascending: false });l-cities.js
 // API to get crawl cities for dropdown functionality
 import { adminSupabase } from '../../../utils/supabaseAdminClient';
 import { generateGeographicCrawlPairs } from '../../../lib/geographicCrawl.js';

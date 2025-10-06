@@ -194,7 +194,7 @@ export default async function handler(req, res) {
             origin_longitude: o?.longitude ?? null,
             dest_latitude: d?.latitude ?? null,
             dest_longitude: d?.longitude ?? null,
-            lane_status: l.lane_status || 'pending',
+            lane_status: l.lane_status || 'current',
             origin_kma: o?.kma_code ?? null,
             dest_kma: d?.kma_code ?? null,
           };

@@ -15,14 +15,14 @@ export default async function handler(req, res) {
     }
     
     // Validate status value
-    const validStatuses = ['pending', 'posted', 'covered'];
+    const validStatuses = ['current', 'archive'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ error: 'Invalid status value' });
     }
 
     const { data, error } = await adminSupabase
       .from('lanes')
-      .update({ status })
+      .update({ lane_status: status })
       .eq('id', id)
       .select('*');
     

@@ -26,7 +26,7 @@ export default function SmartRecap() {
       const lanesData = await lanesResponse.json();
       
       const activeLanes = lanesData.filter(lane => 
-        lane.status === 'pending' || lane.status === 'posted'
+        (lane.lane_status || lane.status) === 'current'
       );
       
       setLanes(activeLanes);
@@ -142,7 +142,7 @@ export default function SmartRecap() {
         },
         body: JSON.stringify({
           id: originalLane.id,
-          status: 'covered'
+          lane_status: 'archive'
         }),
       });
 

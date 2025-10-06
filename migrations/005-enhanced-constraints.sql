@@ -27,7 +27,7 @@ ADD CONSTRAINT check_length
 CHECK (length_ft > 0 AND length_ft <= 53);
 
 -- Add indexes for common queries
-CREATE INDEX IF NOT EXISTS idx_lanes_status ON lanes(status) WHERE status IN ('pending', 'active');
+CREATE INDEX IF NOT EXISTS idx_lanes_status ON lanes(lane_status) WHERE lane_status IN ('current', 'archive');
 CREATE INDEX IF NOT EXISTS idx_lanes_created_by ON lanes(created_by);
 CREATE INDEX IF NOT EXISTS idx_lanes_equipment ON lanes(equipment_code);
 

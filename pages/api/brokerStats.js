@@ -32,34 +32,33 @@ export default async function handler(req, res) {
     }
 
     // Get lanes by status
-    const { data: pendingLanesData, error: pendingLanesError, count: pendingLanesCount } = await adminSupabase
+    const { data: currentLanesData, error: currentLanesError, count: currentLanesCount } = await adminSupabase
       .from('lanes')
       .select('*', { count: 'exact' })
-  .eq('lane_status', 'pending');
+  .eq('lane_status', 'current');
 
-    if (pendingLanesError) {
-      console.error('❌ Error fetching pending lanes:', pendingLanesError);
-      throw pendingLanesError;
+    if (currentLanesError) {
+      console.error('❌ Error fetching current lanes:', currentLanesError);
+      throw currentLanesError;
     }
 
-    const { data: postedLanesData, error: postedLanesError, count: postedLanesCount } = await adminSupabase
+    const { data: archiveLanesData, error: archiveLanesError, count: archiveLanesCount } = await adminSupabase
       .from('lanes')
       .select('*', { count: 'exact' })
-  .eq('lane_status', 'posted');
+  .eq('lane_status', 'archive');
 
-    if (postedLanesError) {
-      console.error('❌ Error fetching posted lanes:', postedLanesError);
-      throw postedLanesError;
+    if (archiveLanesError) {
+      console.error('❌ Error fetching archive lanes:', archiveLanesError);
+      throw archiveLanesError;
     }
 
-    const { data: coveredLanesData, error: coveredLanesError, count: coveredLanesCount } = await adminSupabase
+    const { data: allLanesData, error: allLanesError, count: allLanesCount } = await adminSupabase
       .from('lanes')
-      .select('*', { count: 'exact' })
-  .eq('lane_status', 'covered');
+      .select('*', { count: 'exact' });
 
     if (coveredLanesError) {
       console.error('❌ Error fetching covered lanes:', coveredLanesError);
-      throw coveredLanesError;
+      throw allLanesError;
     }
 
     // Get total recaps (gracefully handle if table doesn't exist)
@@ -83,9 +82,9 @@ export default async function handler(req, res) {
     const stats = {
       totalLanes: totalLanesCount || 0,
       todayLanes: todayLanesCount || 0,
-      pendingLanes: pendingLanesCount || 0,
-      postedLanes: postedLanesCount || 0,
-      coveredLanes: coveredLanesCount || 0,
+      currentLanes: currentLanesCount || 0,
+      archiveLanes: archiveLanesCount || 0,
+      totalLanes: allLanesCount || 0,
       totalRecaps: totalRecaps || 0
     };
 

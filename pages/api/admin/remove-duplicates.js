@@ -11,12 +11,12 @@ export default async function handler(req, res) {
   try {
     console.log('🔍 DUPLICATE CHECKER: Scanning for duplicate lanes...');
     
-    // Get all active lanes
-    const { data: lanes, error } = await adminSupabase
+        // Get all lanes to check for duplicates
+    const { data: lanes, error: lanesError } = await adminSupabase
       .from('lanes')
       .select('*')
-      .in('status', ['pending', 'posted'])
-      .order('created_at', { ascending: true }); // Oldest first to keep originals
+      .eq('lane_status', 'current')
+      .order('created_at', { ascending: false });
     
     if (error) throw error;
     
