@@ -277,8 +277,9 @@ function LanesPage() {
 
       console.log('Lists loaded successfully - Current:', currentLanes.length, 'Archive:', archivedLanes.length);
 
-      setCurrent(currentLanes);
-      setArchive(archivedLanes);
+      // Ensure we always have arrays, not objects
+      setCurrent(Array.isArray(currentLanes) ? currentLanes : []);
+      setArchive(Array.isArray(archivedLanes) ? archivedLanes : []);
     } catch (error) {
       console.error('Failed to load lanes:', error);
       setCurrent([]); 
@@ -1116,7 +1117,7 @@ function LanesPage() {
             </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-            {(tab === 'current' ? current : archive).map(l => (
+            {Array.isArray(tab === 'current' ? current : archive) && (tab === 'current' ? current : archive).map(l => (
               <div key={l.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
                 <div style={{ flex: 1, fontSize: '13px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
