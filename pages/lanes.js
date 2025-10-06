@@ -125,11 +125,8 @@ function LanesPage() {
 
   // Lists - Simplified to 2 categories
   const [tab, setTab] = useState('current');
-  const [pending, setPending] = useState([]); // Holds "Pending" lanes
-  const [active, setActive] = useState([]);   // Holds "Active" lanes (city choices saved)
-  const [posted, setPosted] = useState([]);   // Holds "Posted" lanes  
-  const [covered, setCovered] = useState([]); // Holds "Covered" lanes
-  const [recent, setRecent] = useState([]);   // Holds "Archived" lanes
+  const [current, setCurrent] = useState([]); // Current working lanes
+  const [archive, setArchive] = useState([]); // Archived lanes
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
 
@@ -283,20 +280,12 @@ function LanesPage() {
         archive: archivedLanes.length
       });
 
-      setPending(currentLanes); // Reuse pending state for "current" lanes
-      setRecent(archivedLanes);
-      
-      // Clear old unused states
-      setActive([]);
-      setPosted([]);
-      setCovered([]);
+      setCurrent(currentLanes);
+      setArchive(archivedLanes);
     } catch (error) {
       console.error('Failed to load lanes:', error);
-      setPending([]); 
-      setActive([]);
-      setPosted([]);
-      setCovered([]);
-      setRecent([]);
+      setCurrent([]); 
+      setArchive([]);
       setMsg(`❌ Failed to load lanes: ${error.message}`);
     }
   }
@@ -326,7 +315,7 @@ function LanesPage() {
       // Determine which lanes to update based on scope
       let laneIds = [];
       if (masterScope === 'all') {
-        laneIds = pending.map(l => l.id); // pending now holds "current" lanes
+        laneIds = current.map(l => l.id);
       }
 
       if (laneIds.length === 0) {
@@ -1089,21 +1078,21 @@ function LanesPage() {
               </Link>
               <button 
                 onClick={() => router.push('/post-options')}
-                disabled={busy || pending.length === 0}
+                disabled={busy || current.length === 0}
                 className="btn btn-primary"
                 style={{ fontSize: '12px', padding: '6px 12px' }}
-                title={`Generate lane pairings for ${pending.length} pending lane(s)`}
+                title={`Generate lane pairings for ${current.length} current lane(s)`}
               >
-                🎯 Generate Pairings ({pending.length})
+                🎯 Generate Pairings ({current.length})
               </button>
               <button 
                 onClick={generateCSV}
-                disabled={busy || active.length === 0}
+                disabled={busy || current.length === 0}
                 className="btn btn-success"
                 style={{ fontSize: '12px', padding: '6px 12px' }}
-                title={`Generate DAT CSV for ${active.length} active lane(s) with city choices`}
+                title={`Generate DAT CSV for ${current.length} current lane(s) with city choices`}
               >
-                {busy ? 'Generating...' : `📊 Generate CSV (${active.length})`}
+                {busy ? 'Generating...' : `📊 Generate CSV (${current.length})`}
               </button>
               <div style={{ display: 'flex', gap: '4px' }}>
                 <button 
@@ -1111,20 +1100,20 @@ function LanesPage() {
                   style={{ fontSize: '12px', padding: '6px 12px' }}
                   onClick={() => setTab('current')}
                 >
-                  Current ({pending.length + active.length + posted.length})
+                  Current ({current.length})
                 </button>
                 <button 
                   className={tab === 'archive' ? 'btn btn-primary' : 'btn btn-secondary'}
                   style={{ fontSize: '12px', padding: '6px 12px' }}
                   onClick={() => setTab('archive')}
                 >
-                  Archive ({covered.length + recent.length})
+                  Archive ({archive.length})
                 </button>
               </div>
             </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-            {(tab === 'current' ? pending : recent).map(l => (
+            {(tab === 'current' ? current : archive).map(l => (
               <div key={l.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
                 <div style={{ flex: 1, fontSize: '13px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
@@ -1181,7 +1170,7 @@ function LanesPage() {
                 </div>
               </div>
             ))}
-            {(tab === 'current' ? pending : recent).length === 0 && (
+            {(tab === 'current' ? current : archive).length === 0 && (
               <div style={{ padding: '48px', textAlign: 'center', opacity: 0.5, fontSize: '12px', color: 'var(--text-secondary)' }}>
                 No lanes in this category
               </div>
@@ -1593,10 +1582,10 @@ function LanesPage() {
                       />
                       <div>
                         <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
-                          All Lanes
+                          All Current Lanes
                         </div>
                         <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                          Update {pending.length + active.length} lanes (Pending + Active)
+                          Update {current.length} lanes
                         </div>
                       </div>
                     </label>
@@ -1622,10 +1611,10 @@ function LanesPage() {
                       />
                       <div>
                         <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
-                          Pending Only
+                          Selected Lanes
                         </div>
                         <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                          Update {pending.length} pending lanes
+                          Update specific lanes only
                         </div>
                       </div>
                     </label>
@@ -1651,10 +1640,10 @@ function LanesPage() {
                       />
                       <div>
                         <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
-                          Active Only
+                          Reserved
                         </div>
                         <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                          Update {active.length} active lanes
+                          (Not used)
                         </div>
                       </div>
                     </label>
