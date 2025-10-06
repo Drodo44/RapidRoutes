@@ -1030,9 +1030,9 @@ export default function PostOptions() {
                         <span>Pairs:{pairCount}</span>
                         {stats && (
                           <>
-                            <span>T:{stats.totalCityPairs}</span>
-                            <span>O:{stats.uniqueOriginKmas}</span>
-                            <span>D:{stats.uniqueDestKmas}</span>
+                            <span>T:{stats.totalCityPairs ?? 0}</span>
+                            <span>O:{stats.uniqueOriginKmas ?? 0}</span>
+                            <span>D:{stats.uniqueDestKmas ?? 0}</span>
                           </>
                         )}
                         {warning && <span className="text-yellow-400">⚠ {warning}</span>}
@@ -1172,9 +1172,9 @@ export default function PostOptions() {
                       {debugMode && laneStats[lane.id] && (
                         <div className="mt-4 rounded p-3 text-xs font-mono" style={{ background: 'var(--bg-tertiary)', border: 'var(--border)', color: 'var(--text-secondary)' }}>
                           <div className="flex gap-4 flex-wrap">
-                            <span>Total Pairs: {laneStats[lane.id].totalCityPairs}</span>
-                            <span>Origin KMAs: {laneStats[lane.id].uniqueOriginKmas}</span>
-                            <span>Dest KMAs: {laneStats[lane.id].uniqueDestKmas}</span>
+                            <span>Total Pairs: {laneStats[lane.id].totalCityPairs ?? 0}</span>
+                            <span>Origin KMAs: {laneStats[lane.id].uniqueOriginKmas ?? 0}</span>
+                            <span>Dest KMAs: {laneStats[lane.id].uniqueDestKmas ?? 0}</span>
                             {laneWarnings[lane.id] && (
                               <span className="text-yellow-400">⚠ {laneWarnings[lane.id]}</span>
                             )}

@@ -30,6 +30,10 @@ export default async function handler(req, res) {
     // Generate crawl cities for each lane
     for (const lane of lanes) {
       try {
+        // Handle both column name formats (destination_city and dest_city)
+        const destCity = lane.destination_city || lane.dest_city;
+        const destState = lane.destination_state || lane.dest_state;
+        
         const result = await generateGeographicCrawlPairs({
           origin: { 
             city: lane.origin_city, 
@@ -37,8 +41,8 @@ export default async function handler(req, res) {
             zip: lane.origin_zip 
           },
           destination: { 
-            city: lane.destination_city, 
-            state: lane.destination_state, 
+            city: destCity, 
+            state: destState, 
             zip: lane.dest_zip 
           },
           equipment: lane.equipment_code,
@@ -51,7 +55,7 @@ export default async function handler(req, res) {
           type: 'base',
           laneId: lane.id,
           referenceId: cleanRefId,
-          displayName: `${lane.origin_city}, ${lane.origin_state} → ${lane.destination_city}, ${lane.destination_state}`,
+          displayName: `${lane.origin_city}, ${lane.origin_state} → ${destCity || 'Unknown'}, ${destState || 'Unknown'}`,
           isOriginal: true
         });
 
@@ -71,11 +75,14 @@ export default async function handler(req, res) {
         console.error(`Error generating crawl for lane ${lane.id}:`, error);
         // Still add the base lane even if crawl generation fails
         const cleanRefId = cleanReferenceId(lane.reference_id) || `RR${String(lane.id).slice(-5)}`;
+        // Handle both column name formats
+        const destCity = lane.destination_city || lane.dest_city;
+        const destState = lane.destination_state || lane.dest_state;
         crawlData.push({
           type: 'base',
           laneId: lane.id,
           referenceId: cleanRefId,
-          displayName: `${lane.origin_city}, ${lane.origin_state} → ${lane.destination_city}, ${lane.destination_state}`,
+          displayName: `${lane.origin_city}, ${lane.origin_state} → ${destCity || 'Unknown'}, ${destState || 'Unknown'}`,
           isOriginal: true
         });
       }
