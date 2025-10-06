@@ -1077,7 +1077,13 @@ function LanesPage() {
                 Post Options
               </Link>
               <button 
-                onClick={() => router.push('/post-options')}
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log('Post Options button clicked, navigating to /post-options');
+                  router.push('/post-options');
+                }}
                 disabled={busy || current.length === 0}
                 className="btn btn-primary"
                 style={{ fontSize: '12px', padding: '6px 12px' }}
