@@ -775,15 +775,15 @@ function LanesPage() {
         throw new Error('Authentication required');
       }
 
-      // Get only active lanes (lanes with city choices saved) for CSV generation
-      const activeCount = active.filter(l => (l.lane_status || l.status) === 'active').length;
+      // Get only current lanes with city choices saved for CSV generation
+      const lanesWithChoices = current.filter(l => l.saved_origin_cities?.length > 0 || l.saved_dest_cities?.length > 0);
       
-      if (activeCount === 0) {
-        alert('No active lanes to generate CSV for. You need to save city choices first.');
+      if (lanesWithChoices.length === 0) {
+        alert('No lanes with city choices saved. Go to Post Options to select cities first.');
         return;
       }
 
-      if (!confirm(`Generate DAT CSV for ${activeCount} active lane(s) with city choices? This will create a downloadable CSV file.`)) {
+      if (!confirm(`Generate DAT CSV for ${lanesWithChoices.length} lane(s) with city choices? This will create a downloadable CSV file.`)) {
         return;
       }
 
@@ -817,7 +817,7 @@ function LanesPage() {
       window.URL.revokeObjectURL(url);
 
       // Show success message with RR number info
-      alert(`CSV generated successfully! File contains ${activeCount} lane(s) with RR numbers for tracking and sourcing. Use the RR# search to find generated lanes later.`);
+      alert(`CSV generated successfully! File contains ${lanesWithChoices.length} lane(s) with RR numbers for tracking and sourcing. Use the RR# search to find generated lanes later.`);
       
     } catch (error) {
       console.error('CSV Generation Error:', error);
