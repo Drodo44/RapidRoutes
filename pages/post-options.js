@@ -1,24 +1,22 @@
 import { useState, useEffect } from 'react';
-console.log('[React130-Diag] useState type:', typeof useState, 'name:', useState?.name, 'keys:', Object.keys(useState||{}));
-console.log('[React130-Diag] useEffect type:', typeof useEffect, 'name:', useEffect?.name, 'keys:', Object.keys(useEffect||{}));
 import { useRouter } from 'next/router';
-console.log('[React130-Diag] useRouter type:', typeof useRouter, 'name:', useRouter?.name, 'keys:', Object.keys(useRouter||{}));
-import supabase from '../utils/supabaseClient';
-console.log('[React130-Diag] supabase type:', typeof supabase, 'name:', supabase?.name, 'keys:', Object.keys(supabase||{}));
-import HeaderComponent from '../components/HeaderComponent.jsx';
-console.log('[React130-Diag] HeaderComponent type:', typeof HeaderComponent, 'name:', HeaderComponent?.name, 'keys:', Object.keys(HeaderComponent||{}));
-// Auth utilities for token management
-import { getCurrentToken, getTokenInfo } from '../utils/authUtils';
-console.log('[React130-Diag] getCurrentToken type:', typeof getCurrentToken, 'name:', getCurrentToken?.name, 'keys:', Object.keys(getCurrentToken||{}));
-console.log('[React130-Diag] getTokenInfo type:', typeof getTokenInfo, 'name:', getTokenInfo?.name, 'keys:', Object.keys(getTokenInfo||{}));
-// Intelligence API adapter for properly formatted API calls
-import callIntelligencePairingApi from '../utils/intelligenceApiAdapter';
-console.log('[React130-Diag] callIntelligencePairingApi type:', typeof callIntelligencePairingApi, 'name:', callIntelligencePairingApi?.name, 'keys:', Object.keys(callIntelligencePairingApi||{}));
+import Head from 'next/head';
+// Import improved safe API adapters
+import { safeSupabase as supabase } from '../utils/safeApiAdapter';
+import { safeCallIntelligencePairingApi, safeGetCurrentToken, safeGetTokenInfo } from '../utils/safeApiAdapter';
+// Import fixed components
+import FixedHeader from '../components/FixedHeader';
+// Import diagnostic components
+import PostOptionsDiagnostic from '../components/PostOptionsDiagnostic';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 export default function PostOptions() {
-  console.log('[React130-Diag] PostOptions component type:', typeof PostOptions, 'name:', PostOptions?.name, 'keys:', Object.keys(PostOptions||{}));
+  // Add diagnostic logging
+  console.log('PostOptions component rendering with ES Modules enabled.');
+  console.log('⭐ All error boundaries active and diagnostic logging enabled');
+  console.log('💡 Using safe API adapters to prevent React Error #130');
+  
   const router = useRouter();
-  console.log('[React130-Diag] router type:', typeof router, 'name:', router?.name, 'keys:', Object.keys(router||{}));
   const [lanes, setLanes] = useState([]);
   const [generatingPairings, setGeneratingPairings] = useState(false);
   const [pairings, setPairings] = useState({});
@@ -150,8 +148,8 @@ export default function PostOptions() {
         return { ready: false, token: null, user: null, error: new Error('Authentication client not initialized') };
       }
       
-      // Import the auth utilities
-      const { getCurrentToken, getTokenInfo } = await import('../utils/authUtils');
+      // Use our safe imports instead of dynamic imports to fix React Error #130
+      console.log('Using safeGetCurrentToken and safeGetTokenInfo to avoid React Error #130');
       
       // CRITICAL FIX: Force a session refresh from Supabase first
       try {
@@ -178,7 +176,7 @@ export default function PostOptions() {
           await new Promise(resolve => setTimeout(resolve, attempts * 200));
         }
         
-        const result = await getCurrentToken();
+        const result = await safeGetCurrentToken();
         token = result.token;
         user = result.user;
         authError = result.error;
@@ -194,11 +192,11 @@ export default function PostOptions() {
       }
       
       // Verify that the token is still valid
-      const tokenStatus = getTokenInfo(token);
-      if (!tokenStatus.valid) {
-        console.error(`Token validation failed: ${tokenStatus.reason}`, {
-          timeLeft: tokenStatus.timeLeft,
-          expiresAt: tokenStatus.expiresAt
+      const tokenStatus = safeGetTokenInfo(token);
+      if (!tokenStatus?.valid) {
+        console.error(`Token validation failed: ${tokenStatus?.reason || 'Unknown error'}`, {
+          timeLeft: tokenStatus?.timeLeft,
+          expiresAt: tokenStatus?.expiresAt
         });
         return { 
           ready: false, 
@@ -316,9 +314,9 @@ export default function PostOptions() {
                      window.location.hostname === 'localhost' ||
                      process.env.NODE_ENV !== 'production';
 
-        // Use the intelligenceApiAdapter to make the API call with authentication session
+        // Use our safe API adapter to avoid React Error #130
         // This ensures correct parameter formatting and includes auth token
-        const result = await callIntelligencePairingApi(
+        const result = await safeCallIntelligencePairingApi(
           {
             lane_id: lane.id,
             origin_city: originCity,
@@ -592,9 +590,9 @@ export default function PostOptions() {
             expiresAt: authTokenInfo?.expiresAt || 'unknown'
           });
           
-          // Use the intelligenceApiAdapter to make the API call with proper parameter formatting
+          // Use the safe API adapter to avoid React Error #130
           try {
-            const result = await callIntelligencePairingApi(
+            const result = await safeCallIntelligencePairingApi(
               lane,
               { useTestMode: false, debug: debugMode },
               authSession
@@ -715,22 +713,30 @@ export default function PostOptions() {
 
   // Toggle pair selection
   const togglePairSelection = (laneId, pairIndex) => {
+    console.log(`Toggling selection for lane ${laneId}, pair ${pairIndex}`);
     setSelectedPairs(prev => {
-      const current = prev[laneId] || [];
-      const isSelected = current.includes(pairIndex);
-      
-      if (isSelected) {
-        // Remove from selection
-        return {
-          ...prev,
-          [laneId]: current.filter(i => i !== pairIndex)
-        };
-      } else {
-        // Add to selection
-        return {
-          ...prev,
-          [laneId]: [...current, pairIndex]
-        };
+      try {
+        const current = prev[laneId] || [];
+        const isSelected = current.includes(pairIndex);
+        
+        if (isSelected) {
+          // Remove from selection
+          console.log(`Deselecting lane ${laneId}, pair ${pairIndex}`);
+          return {
+            ...prev,
+            [laneId]: current.filter(i => i !== pairIndex)
+          };
+        } else {
+          // Add to selection
+          console.log(`Selecting lane ${laneId}, pair ${pairIndex}`);
+          return {
+            ...prev,
+            [laneId]: [...current, pairIndex]
+          };
+        }
+      } catch (error) {
+        console.error('Error updating selection:', error);
+        return prev;
       }
     });
   };
@@ -927,11 +933,16 @@ export default function PostOptions() {
   if (loading) {
     return (
       <>
-        <HeaderComponent />
+        <ErrorBoundary componentName="FixedHeader">
+          <FixedHeader />
+        </ErrorBoundary>
         <div className="min-h-screen" style={{ background: 'var(--bg-primary)' }}>
           <div className="container mx-auto px-4 py-8">
             <div className="text-center">
               <div style={{ color: 'var(--text-tertiary)' }}>Loading pending lanes...</div>
+              <ErrorBoundary componentName="PostOptionsDiagnostic">
+                <PostOptionsDiagnostic />
+              </ErrorBoundary>
             </div>
           </div>
         </div>
@@ -941,9 +952,19 @@ export default function PostOptions() {
 
   return (
     <>
-      <HeaderComponent />
+      <Head>
+        <title>Post Options - RapidRoutes</title>
+        <script src="/error-capture.js"></script>
+      </Head>
+      <ErrorBoundary componentName="FixedHeader">
+        <FixedHeader />
+      </ErrorBoundary>
       <div className="min-h-screen" style={{ background: 'var(--bg-primary)' }}>
         <div className="container mx-auto px-4 py-8">
+          {/* Diagnostic component to help identify React Error #130 */}
+          <ErrorBoundary componentName="PostOptionsDiagnostic">
+            <PostOptionsDiagnostic />
+          </ErrorBoundary>
           {/* Header */}
           <div className="flex justify-between items-center mb-8">
             <div>
@@ -1067,9 +1088,11 @@ export default function PostOptions() {
               </button>
             </div>
           ) : (
-            <div className="space-y-6">
-              {lanes.map((lane) => (
-                <div key={lane.id} className="rounded-lg p-6" style={{ background: 'var(--bg-secondary)', border: 'var(--border)' }}>
+            <ErrorBoundary componentName="AllLanesContainer">
+              <div className="space-y-6">
+                {lanes.map((lane) => (
+                <ErrorBoundary key={lane.id} componentName={`LaneCard-${lane.id}`}>
+                  <div className="rounded-lg p-6" style={{ background: 'var(--bg-secondary)', border: 'var(--border)' }}>
                   {/* Lane Card Header */}
                   <div className="flex justify-between items-start mb-4">
                     <div 
@@ -1083,13 +1106,15 @@ export default function PostOptions() {
                     >
                       {formatLaneCard(lane)}
                     </div>
-                    <button
-                      onClick={() => generatePairingsForLane(lane)}
-                      disabled={generatingPairings}
-                      className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-lg font-medium text-sm ml-4"
-                    >
-                      {generatingPairings ? '🔄' : '🎯'} Generate Pairings
-                    </button>
+                    <ErrorBoundary componentName={`GeneratePairingsBtn-${lane.id}`}>
+                      <button
+                        onClick={() => generatePairingsForLane(lane)}
+                        disabled={generatingPairings}
+                        className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-lg font-medium text-sm ml-4"
+                      >
+                        {generatingPairings ? '🔄' : '🎯'} Generate Pairings
+                      </button>
+                    </ErrorBoundary>
                   </div>
                   {/* City Pairings */}
                   {Array.isArray(pairings[lane.id]) && (
@@ -1104,14 +1129,16 @@ export default function PostOptions() {
                           )}
                         </h3>
                         {pairings[lane.id].length > 0 && (
-                          <button
-                            onClick={() => toggleAllPairs(lane.id)}
-                            className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded text-sm"
-                          >
-                            {(selectedPairs[lane.id]?.length || 0) === pairings[lane.id].length 
-                              ? 'Deselect All' 
-                              : 'Select All'}
-                          </button>
+                          <ErrorBoundary componentName={`ToggleAllBtn-${lane.id}`}>
+                            <button
+                              onClick={() => toggleAllPairs(lane.id)}
+                              className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded text-sm"
+                            >
+                              {(selectedPairs[lane.id]?.length || 0) === pairings[lane.id].length 
+                                ? 'Deselect All' 
+                                : 'Select All'}
+                            </button>
+                          </ErrorBoundary>
                         )}
                       </div>
                       {Array.isArray(pairings[lane.id]) && pairings[lane.id].length === 0 ? (
@@ -1119,8 +1146,9 @@ export default function PostOptions() {
                           No city pairings generated. Intelligence system may need attention.
                         </div>
                       ) : (
-                        <div className="grid gap-2 max-h-96 overflow-y-auto">
-                          {pairings[lane.id].map((pair, index) => {
+                        <ErrorBoundary componentName={`PairingsList-${lane.id}`}>
+                          <div className="grid gap-2 max-h-96 overflow-y-auto">
+                            {pairings[lane.id].map((pair, index) => {
                             // Protect against malformed data
                             if (!pair || !pair.origin || !pair.destination) {
                               return (
@@ -1163,6 +1191,12 @@ export default function PostOptions() {
                                       ({pair.origin.kma} → {pair.destination.kma})
                                     </span>
                                   )}
+                                  {/* Debug mileage display */}
+                                  {pair.miles && (
+                                    <span className="ml-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                                      {pair.miles} mi
+                                    </span>
+                                  )}
                                 </span>
                                 <button
                                   onClick={(e) => {
@@ -1176,8 +1210,9 @@ export default function PostOptions() {
                                 </button>
                               </div>
                             );
-                          })}
-                        </div>
+                            })}
+                          </div>
+                        </ErrorBoundary>
                       )}
                       {debugMode && laneStats[lane.id] && (
                         <div className="mt-4 rounded p-3 text-xs font-mono" style={{ background: 'var(--bg-tertiary)', border: 'var(--border)', color: 'var(--text-secondary)' }}>
@@ -1194,8 +1229,10 @@ export default function PostOptions() {
                     </div>
                   )}
                 </div>
+              </ErrorBoundary>
               ))}
             </div>
+            </ErrorBoundary>
           )}
         </div>
       </div>
