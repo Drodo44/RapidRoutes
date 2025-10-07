@@ -194,7 +194,7 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
                           </td>
                           <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
                             <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
-                              {originCity.city}, {originCity.state}
+                              {originCity.city || '?'}, {originCity.state || '?'}
                             </div>
                             {(originCity.kma_code || originCity.kma_name) && (
                               <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
@@ -207,7 +207,7 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
                           </td>
                           <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
                             <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
-                              {destCity.city}, {destCity.state}
+                              {destCity.city || '?'}, {destCity.state || '?'}
                             </div>
                             {(destCity.kma_code || destCity.kma_name) && (
                               <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
