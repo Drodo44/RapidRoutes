@@ -419,7 +419,7 @@ export default function PostOptions() {
         setPairings(prev => ({ ...prev, [lane.id]: [] }));
       }
     } catch (error) {
-      setAlert({ type: 'error', message: error.message });
+      setAlert({ type: 'error', message: String(error?.message || error || 'Failed to generate pairings') });
       setPairings(prev => ({ ...prev, [lane.id]: [] }));
     } finally {
       setGeneratingPairings(false);
@@ -984,10 +984,10 @@ export default function PostOptions() {
                       if (result.success) {
                         setAlert({ type: 'success', message: 'Auth flow test completed - check console for details' });
                       } else {
-                        setAlert({ type: 'error', message: `Auth flow test failed: ${result.error}` });
+                        setAlert({ type: 'error', message: `Auth flow test failed: ${String(result.error || 'Unknown error')}` });
                       }
                     } catch (error) {
-                      setAlert({ type: 'error', message: `Auth test error: ${error.message}` });
+                      setAlert({ type: 'error', message: `Auth test error: ${String(error?.message || error || 'Unknown error')}` });
                     }
                   }}
                   className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium"
@@ -1003,7 +1003,7 @@ export default function PostOptions() {
               alert.type === 'success' ? 'bg-green-900 text-green-200 border border-green-700' :
               alert.type === 'warning' ? 'bg-yellow-900 text-yellow-200 border border-yellow-700' :
               'bg-red-900 text-red-200 border border-red-700'
-            }`}>{alert.message}</div>
+            }`}>{String(alert.message || 'An error occurred')}</div>
           )}
 
           {debugMode && lanes.length > 0 && (
