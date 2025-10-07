@@ -59,7 +59,7 @@ export default function IntermodalNudge({ lane, onClose, onEmail }) {
             🚄 Intermodal Analysis
           </h2>
           <p className="text-lg font-semibold">
-            {lane.origin_city}, {lane.origin_state} → {lane.dest_city}, {lane.dest_state}
+            {lane.origin_city || '?'}, {lane.origin_state || '?'} → {lane.dest_city || '?'}, {lane.dest_state || '?'}
           </p>
         </div>
 

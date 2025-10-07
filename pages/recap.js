@@ -112,7 +112,7 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
             </span>
           </div>
           <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-            {lane.equipment_code} • {lane.length_ft}ft • {lane.pickup_earliest}
+            {lane.equipment_code || '?'} • {lane.length_ft || '?'}ft • {lane.pickup_earliest || '?'}
           </div>
         </div>
         {lane.comment && (
@@ -593,7 +593,7 @@ export default function RecapPage() {
                 <option value="">Jump to Lane...</option>
                 {filtered.map(lane => (
                   <option key={lane.id} value={lane.id}>
-                    {getDisplayReferenceId(lane)} • {lane.origin_city}, {lane.origin_state} → {lane.dest_city || lane.destination_city}, {lane.dest_state || lane.destination_state}
+                    {getDisplayReferenceId(lane)} • {lane.origin_city || '?'}, {lane.origin_state || '?'} → {lane.dest_city || lane.destination_city || '?'}, {lane.dest_state || lane.destination_state || '?'}
                   </option>
                 ))}
               </select>

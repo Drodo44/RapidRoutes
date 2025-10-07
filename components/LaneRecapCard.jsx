@@ -1,13 +1,13 @@
 // components/LaneRecapCard.js
 export default function LaneRecapCard({ lane }) {
   const laneText = [
-    lane.origin_city,
+    lane.origin_city || 'Unknown',
     lane.origin_state ? `, ${lane.origin_state}` : "",
     lane.origin_zip ? ` ${lane.origin_zip}` : "",
     " → ",
-    lane.dest_city,
-    lane.dest_state ? `, ${lane.dest_state}` : "",
-    lane.dest_zip ? ` ${lane.dest_zip}` : "",
+    lane.dest_city || lane.destination_city || 'Unknown',
+    lane.dest_state || lane.destination_state ? `, ${lane.dest_state || lane.destination_state}` : "",
+    lane.dest_zip || lane.destination_zip ? ` ${lane.dest_zip || lane.destination_zip}` : "",
   ].join("");
 
   const win = (a, b) => (!a || !b ? "—" : (a === b ? fmtUS(a) : `${fmtUS(a)}–${fmtUS(b)}`));
@@ -22,7 +22,7 @@ export default function LaneRecapCard({ lane }) {
     <div className="rounded-xl border border-gray-700 bg-[#0f1115] p-4 shadow">
       <div className="mb-2 text-sm uppercase tracking-wide text-gray-400">{lane.lane_status || lane.status || 'current'}</div>
       <div className="mb-1 font-semibold text-gray-100">{laneText}</div>
-      <div className="mb-2 text-sm text-gray-300">{lane.equipment_code} • {lane.length_ft} ft • {weightText}</div>
+      <div className="mb-2 text-sm text-gray-300">{lane.equipment_code || '?'} • {lane.length_ft || '?'} ft • {weightText}</div>
       <div className="mb-3 text-xs text-gray-400">Pickup: {win(lane.pickup_earliest, lane.pickup_latest)}</div>
       {lane.commodity && (<div className="mb-2 text-sm text-gray-200">Commodity: <span className="text-gray-300">{lane.commodity}</span></div>)}
       {lane.comment && (<div className="mb-3 text-sm text-gray-200">Note: <span className="text-gray-300">{lane.comment}</span></div>)}

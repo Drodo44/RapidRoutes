@@ -1126,10 +1126,10 @@ function LanesPage() {
                         #{l.reference_id || getDisplayReferenceId(l)}
                       </span>
                     )}
-                    <span style={{ fontWeight: 500 }}>{l.origin_city}, {l.origin_state}</span>
+                    <span style={{ fontWeight: 500 }}>{l.origin_city || '?'}, {l.origin_state || '?'}</span>
                     <span style={{ opacity: 0.4 }}>→</span>
-                    <span style={{ fontWeight: 500 }}>{l.dest_city || l.destination_city}, {l.dest_state || l.destination_state}</span>
-                    <span style={{ opacity: 0.6 }}>{l.equipment_code} • {l.length_ft}ft</span>
+                    <span style={{ fontWeight: 500 }}>{l.dest_city || l.destination_city || '?'}, {l.dest_state || l.destination_state || '?'}</span>
+                    <span style={{ opacity: 0.6 }}>{l.equipment_code || '?'} • {l.length_ft || '?'}ft</span>
                   </div>
                   <div style={{ fontSize: '12px', opacity: 0.6 }}>
                     {l.randomize_weight 

@@ -45,7 +45,7 @@ export default function SmartRecap() {
                 ...pair,
                 originalLane: lane,
                 displayText: `${pair.pickup.city}, ${pair.pickup.state} → ${pair.delivery.city}, ${pair.delivery.state}`,
-                laneInfo: `${lane.origin_city}, ${lane.origin_state} → ${lane.dest_city}, ${lane.dest_state}`
+                laneInfo: `${lane.origin_city || '?'}, ${lane.origin_state || '?'} → ${lane.dest_city || '?'}, ${lane.dest_state || '?'}`
               });
             });
           }
