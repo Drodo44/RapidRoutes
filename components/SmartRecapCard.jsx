@@ -59,7 +59,7 @@ const SmartRecapCard = ({ lane, postedPairs = [], onTrackPerformance }) => {
           actionType: action,
           pickupDistance: distances.pickup,
           deliveryDistance: distances.delivery,
-          notes: `${action} tracked for ${selectedPosting.pickup.city}, ${selectedPosting.pickup.state} → ${selectedPosting.delivery.city}, ${selectedPosting.delivery.state}`
+          notes: `${action} tracked for ${selectedPosting.pickup.city || '?'}, ${selectedPosting.pickup.state || '?'} → ${selectedPosting.delivery.city || '?'}, ${selectedPosting.delivery.state || '?'}`
         })
       });
 
@@ -88,24 +88,24 @@ const SmartRecapCard = ({ lane, postedPairs = [], onTrackPerformance }) => {
     <div className="bg-gray-800 rounded-lg border border-gray-700 p-6">
       <div className="mb-6">
         <h2 className="text-xl font-bold text-gray-100 mb-2">
-          Smart Recap: {lane.origin_city}, {lane.origin_state} → {lane.dest_city}, {lane.dest_state}
+          Smart Recap: {lane.origin_city || '?'}, {lane.origin_state || '?'} → {lane.dest_city || '?'}, {lane.dest_state || '?'}
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
           <div>
             <span className="text-gray-400">Equipment:</span>
-            <span className="text-gray-100 ml-2">{lane.equipment_code}</span>
+            <span className="text-gray-100 ml-2">{lane.equipment_code || '?'}</span>
           </div>
           <div>
             <span className="text-gray-400">Weight:</span>
-            <span className="text-gray-100 ml-2">{lane.weight_lbs?.toLocaleString()} lbs</span>
+            <span className="text-gray-100 ml-2">{lane.weight_lbs?.toLocaleString() || '?'} lbs</span>
           </div>
           <div>
             <span className="text-gray-400">Length:</span>
-            <span className="text-gray-100 ml-2">{lane.length_ft}′</span>
+            <span className="text-gray-100 ml-2">{lane.length_ft || '?'}′</span>
           </div>
           <div>
             <span className="text-gray-400">Pickup:</span>
-            <span className="text-gray-100 ml-2">{lane.pickup_earliest}</span>
+            <span className="text-gray-100 ml-2">{lane.pickup_earliest || '?'}</span>
           </div>
         </div>
       </div>
@@ -150,7 +150,7 @@ const SmartRecapCard = ({ lane, postedPairs = [], onTrackPerformance }) => {
                   distances.pickup <= 25 ? 'text-green-400' : 
                   distances.pickup <= 75 ? 'text-yellow-400' : 'text-red-400'
                 }`}>
-                  📍 {distances.pickup} miles from {lane.origin_city}
+                  📍 {distances.pickup} miles from {lane.origin_city || '?'}
                   {distances.pickup <= 25 && ' (Great match!)'}
                   {distances.pickup > 75 && ' (Far match)'}
                 </div>
@@ -161,7 +161,7 @@ const SmartRecapCard = ({ lane, postedPairs = [], onTrackPerformance }) => {
             <div className="space-y-2">
               <h4 className="font-medium text-green-400">Delivery Location</h4>
               <div className="text-gray-100">
-                {selectedPosting.delivery.city}, {selectedPosting.delivery.state}
+                {selectedPosting.delivery.city || '?'}, {selectedPosting.delivery.state || '?'}
                 {selectedPosting.delivery.zip && ` ${selectedPosting.delivery.zip}`}
               </div>
               {distances.delivery !== null && (
@@ -169,7 +169,7 @@ const SmartRecapCard = ({ lane, postedPairs = [], onTrackPerformance }) => {
                   distances.delivery <= 25 ? 'text-green-400' : 
                   distances.delivery <= 75 ? 'text-yellow-400' : 'text-red-400'
                 }`}>
-                  📍 {distances.delivery} miles from {lane.dest_city}
+                  📍 {distances.delivery} miles from {lane.dest_city || '?'}
                   {distances.delivery <= 25 && ' (Great match!)'}
                   {distances.delivery > 75 && ' (Far match)'}
                 </div>
