@@ -5,7 +5,7 @@
 // - Splits into ≤499 rows per part; HEAD returns X-Total-Parts for pagination
 // - If part is specified for GET, returns only that part.
 
-const { adminSupabase } = require('../../utils/supabaseClient.js');
+const { adminSupabase } = require('../../utils/supabaseAdminClient.js');
 const { EnterpriseCsvGenerator } = require('../../lib/enterpriseCsvGenerator.js');
 const { toCsv, chunkRows, DAT_HEADERS, MIN_PAIRS_REQUIRED, ROWS_PER_PAIR } = require('../../lib/datCsvBuilder.js');
 const { monitor } = require('../../lib/monitor.js');

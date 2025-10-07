@@ -8,7 +8,7 @@ const ZIP3_RETRY_ENABLED = process.env.ZIP3_RETRY_ENABLED === 'true';
 
 async function wait(ms){ return new Promise(r=>setTimeout(r, ms)); }
 
-export async function callIntelligencePairingApi({
+async function callIntelligencePairingApi({
   originCity,
   originState,
   destinationCity,
@@ -59,8 +59,6 @@ export async function callIntelligencePairingApi({
 
   return resp.json();
 }
-
-export default callIntelligencePairingApi;
 
 // ---------- Helpers ----------
 
@@ -141,3 +139,6 @@ async function cacheZip3Server(city, state, zip3) {
     body: JSON.stringify({ city, state, zip3 }),
   });
 }
+
+// Export as ES6 default for Next.js compatibility
+export default callIntelligencePairingApi;
