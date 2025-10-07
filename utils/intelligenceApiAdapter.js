@@ -8,13 +8,9 @@ const ZIP3_RETRY_ENABLED = process.env.ZIP3_RETRY_ENABLED === 'true';
 
 async function wait(ms){ return new Promise(r=>setTimeout(r, ms)); }
 
-async function callIntelligencePairingApi({
-  originCity,
-  originState,
-  destinationCity,
-  destinationState,
-  equipmentCode,
-}) {
+async function callIntelligencePairingApi(lane, options = {}, authSession = null) {
+  const { originCity, originState, destinationCity, destinationState, equipmentCode } = lane || {};
+  console.log('[React130-Diag] callIntelligencePairingApi function', typeof callIntelligencePairingApi, callIntelligencePairingApi?.name, Object.keys(callIntelligencePairingApi||{}));
   if (!originCity || !originState || !destinationCity || !destinationState) {
     throw new Error("[INTELLIGENCE] Missing required city/state fields");
   }

@@ -1,14 +1,24 @@
 import { useState, useEffect } from 'react';
+console.log('[React130-Diag] useState type:', typeof useState, 'name:', useState?.name, 'keys:', Object.keys(useState||{}));
+console.log('[React130-Diag] useEffect type:', typeof useEffect, 'name:', useEffect?.name, 'keys:', Object.keys(useEffect||{}));
 import { useRouter } from 'next/router';
+console.log('[React130-Diag] useRouter type:', typeof useRouter, 'name:', useRouter?.name, 'keys:', Object.keys(useRouter||{}));
 import supabase from '../utils/supabaseClient';
-import Header from '../components/Header';
+console.log('[React130-Diag] supabase type:', typeof supabase, 'name:', supabase?.name, 'keys:', Object.keys(supabase||{}));
+import HeaderComponent from '../components/HeaderComponent.jsx';
+console.log('[React130-Diag] HeaderComponent type:', typeof HeaderComponent, 'name:', HeaderComponent?.name, 'keys:', Object.keys(HeaderComponent||{}));
 // Auth utilities for token management
 import { getCurrentToken, getTokenInfo } from '../utils/authUtils';
+console.log('[React130-Diag] getCurrentToken type:', typeof getCurrentToken, 'name:', getCurrentToken?.name, 'keys:', Object.keys(getCurrentToken||{}));
+console.log('[React130-Diag] getTokenInfo type:', typeof getTokenInfo, 'name:', getTokenInfo?.name, 'keys:', Object.keys(getTokenInfo||{}));
 // Intelligence API adapter for properly formatted API calls
 import callIntelligencePairingApi from '../utils/intelligenceApiAdapter';
+console.log('[React130-Diag] callIntelligencePairingApi type:', typeof callIntelligencePairingApi, 'name:', callIntelligencePairingApi?.name, 'keys:', Object.keys(callIntelligencePairingApi||{}));
 
 export default function PostOptions() {
+  console.log('[React130-Diag] PostOptions component type:', typeof PostOptions, 'name:', PostOptions?.name, 'keys:', Object.keys(PostOptions||{}));
   const router = useRouter();
+  console.log('[React130-Diag] router type:', typeof router, 'name:', router?.name, 'keys:', Object.keys(router||{}));
   const [lanes, setLanes] = useState([]);
   const [generatingPairings, setGeneratingPairings] = useState(false);
   const [pairings, setPairings] = useState({});
@@ -917,7 +927,7 @@ export default function PostOptions() {
   if (loading) {
     return (
       <>
-        <Header />
+        <HeaderComponent />
         <div className="min-h-screen" style={{ background: 'var(--bg-primary)' }}>
           <div className="container mx-auto px-4 py-8">
             <div className="text-center">
@@ -931,7 +941,7 @@ export default function PostOptions() {
 
   return (
     <>
-      <Header />
+      <HeaderComponent />
       <div className="min-h-screen" style={{ background: 'var(--bg-primary)' }}>
         <div className="container mx-auto px-4 py-8">
           {/* Header */}
