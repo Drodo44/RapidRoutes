@@ -78,10 +78,10 @@ export default function RecapExport() {
                   id: `base-${lane.id}`,
                   laneId: lane.id,
                   isBase: true,
-                  display: `${lane.origin_city}, ${lane.origin_state} → ${lane.dest_city}, ${lane.dest_state}`,
+                  display: `${lane.origin_city || '?'}, ${lane.origin_state || '?'} → ${lane.dest_city || '?'}, ${lane.dest_state || '?'}`,
                   referenceId: getDisplayReferenceId(lane),
-                  pickup: { city: lane.origin_city, state: lane.origin_state },
-                  delivery: { city: lane.dest_city, state: lane.dest_state }
+                  pickup: { city: lane.origin_city || '?', state: lane.origin_state || '?' },
+                  delivery: { city: lane.dest_city || '?', state: lane.dest_state || '?' }
                 });
                 
                 // Add generated pairs with their own reference IDs
@@ -165,8 +165,8 @@ export default function RecapExport() {
     }
     
     // Check origin and destination
-    const origin = `${lane.origin_city}, ${lane.origin_state}`.toLowerCase();
-    const dest = `${lane.dest_city}, ${lane.dest_state}`.toLowerCase();
+    const origin = `${lane.origin_city || ''}, ${lane.origin_state || ''}`.toLowerCase();
+    const dest = `${lane.dest_city || ''}, ${lane.dest_state || ''}`.toLowerCase();
     
     if (origin.includes(q) || dest.includes(q)) return true;
     
@@ -279,7 +279,7 @@ export default function RecapExport() {
                 const generatedPairs = lanePostedPairs.filter(pair => !pair.isBase);
                 
                 return lanePostedPairs.length > 0 ? (
-                  <optgroup key={lane.id} label={`${lane.origin_city}, ${lane.origin_state} → ${lane.dest_city}, ${lane.dest_state} • REF #${getDisplayReferenceId(lane)} • ${lanePostedPairs.length} pairs`}>
+                  <optgroup key={lane.id} label={`${lane.origin_city || '?'}, ${lane.origin_state || '?'} → ${lane.dest_city || '?'}, ${lane.dest_state || '?'} • REF #${getDisplayReferenceId(lane)} • ${lanePostedPairs.length} pairs`}>
                     {basePair && (
                       <option value={basePair.id}>🎯 BASE: {basePair.display} • {basePair.referenceId}</option>
                     )}
@@ -297,7 +297,7 @@ export default function RecapExport() {
                 <optgroup label="📦 ARCHIVED LANES">
                   {lanes.filter(lane => (lane.lane_status || lane.status) === 'archive').slice(0, 10).map((lane) => (
                     <option key={`archive-${lane.id}`} value={`archive-${lane.id}`}>
-                      📦 {lane.origin_city}, {lane.origin_state} → {lane.dest_city}, {lane.dest_state} • REF #{getDisplayReferenceId(lane)}
+                      📦 {lane.origin_city || '?'}, {lane.origin_state || '?'} → {lane.dest_city || '?'}, {lane.dest_state || '?'} • REF #{getDisplayReferenceId(lane)}
                     </option>
                   ))}
                 </optgroup>
@@ -359,9 +359,9 @@ export default function RecapExport() {
                     <div className="bg-gray-100 p-3">
                       <div className="flex items-center justify-between">
                         <div className="font-medium text-lg">
-                          {lane.origin_city}, {lane.origin_state} 
+                          {lane.origin_city || '?'}, {lane.origin_state || '?'} 
                           <span className="text-gray-500 mx-2">→</span> 
-                          {lane.dest_city}, {lane.dest_state}
+                          {lane.dest_city || '?'}, {lane.dest_state || '?'}
                         </div>
                         <div className="text-sm font-mono text-gray-600 bg-white px-2 py-1 rounded">
                           {refId}
@@ -369,17 +369,17 @@ export default function RecapExport() {
                       </div>
                       <div className="text-xs text-gray-600 mt-1">
                         <span className="font-medium">
-                          {lane.equipment_code === 'V' ? 'Dry Van' : 
-                           lane.equipment_code === 'R' ? 'Reefer' : 
-                           lane.equipment_code === 'F' || lane.equipment_code === 'FD' ? 'Flatbed' : 
-                           lane.equipment_code} • {lane.length_ft}ft
+                          {(lane.equipment_code || '?') === 'V' ? 'Dry Van' : 
+                           (lane.equipment_code || '?') === 'R' ? 'Reefer' : 
+                           (lane.equipment_code || '?') === 'F' || (lane.equipment_code || '?') === 'FD' ? 'Flatbed' : 
+                           (lane.equipment_code || '?')} • {lane.length_ft || '?'}ft
                         </span>
                         <span className="ml-2">
                           {lane.randomize_weight 
-                            ? `${lane.weight_min.toLocaleString()}-${lane.weight_max.toLocaleString()} lbs` 
+                            ? `${lane.weight_min?.toLocaleString() || '?'}-${lane.weight_max?.toLocaleString() || '?'} lbs` 
                             : `${lane.weight_lbs?.toLocaleString() || '—'} lbs`}
                         </span>
-                        <span className="ml-2">Pickup: {lane.pickup_earliest} → {lane.pickup_latest}</span>
+                        <span className="ml-2">Pickup: {lane.pickup_earliest || '?'} → {lane.pickup_latest || '?'}</span>
                       </div>
                     </div>
                     
