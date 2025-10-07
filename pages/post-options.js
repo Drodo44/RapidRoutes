@@ -1023,7 +1023,7 @@ export default function PostOptions() {
                       <div className="flex justify-between mb-1">
                         <span style={{ color: 'var(--text-secondary)' }}>Lane {l.id}</span>
                         <span className="truncate ml-2" style={{ color: 'var(--text-tertiary)' }}>
-                          {l.origin_city || '?'},{l.origin_state || '?'}→{l.dest_city || l.destination_city || '?'},{l.dest_state || l.destination_state || '?'}
+                          {l.origin_city ?? '?'},{l.origin_state ?? '?'}→{l.dest_city ?? l.destination_city ?? '?'},{l.dest_state ?? l.destination_state ?? '?'}
                         </span>
                       </div>
                       <div className="flex flex-wrap gap-2" style={{ color: 'var(--text-secondary)' }}>
