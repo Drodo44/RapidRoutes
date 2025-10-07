@@ -312,10 +312,15 @@ export default function PostOptions() {
                      window.location.hostname === 'localhost' ||
                      process.env.NODE_ENV !== 'production';
 
-        // Use our safe API adapter to avoid React Error #130
-        // This ensures correct parameter formatting and includes auth token
-        const result = await safeCallIntelligencePairingApi(
-          {
+        // Make direct API call instead of using safeCallIntelligencePairingApi
+        console.log('Making direct API call to /api/intelligence/generate-pairings');
+        const response = await fetch('/api/intelligence/generate-pairings', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
             lane_id: lane.id,
             origin_city: originCity,
             origin_state: originState,
@@ -325,10 +330,20 @@ export default function PostOptions() {
             // Add these for debug purposes
             test_mode: isDev, // Enable test mode in development
             debug_env: true  // Enable detailed API debugging
-          },
-          { useTestMode: isDev, debug: debugMode },
-          { access_token: token } // Pass auth session with access token
-        );
+          })
+        });
+        
+        console.log('API response status:', response.status);
+        let result;
+        try {
+          result = await response.json();
+          console.log('API response parsed as JSON:', result);
+        } catch (parseError) {
+          console.error('Failed to parse API response as JSON:', parseError);
+          const text = await response.text();
+          console.log('Raw API response:', text);
+          throw new Error(`API response parsing failed: ${parseError.message}`);
+        }
         
         console.log(`📥 API response for lane ${lane.id}:`, {
           status: result.status || result.statusCode,
@@ -392,7 +407,33 @@ export default function PostOptions() {
         // Process the result and update UI (no client-side fallback injection)
         const pairs = Array.isArray(result.pairs) ? result.pairs : [];
         
-        setPairings(prev => ({ ...prev, [lane.id]: pairs }));
+        // Detailed inspection of pairs data structure
+        console.log(`🔍 Inspecting pairs for lane ${lane.id}:`);
+        console.log(`Pairs array type: ${typeof pairs}, isArray: ${Array.isArray(pairs)}, length: ${pairs.length}`);
+        
+        if (pairs.length > 0) {
+          console.log('First pair sample:', pairs[0]);
+          console.log('First pair origin type:', typeof pairs[0]?.origin);
+          console.log('First pair destination type:', typeof pairs[0]?.destination);
+          
+          // Check if any pairs have malformed structure
+          const malformedPairs = pairs.filter(p => 
+            typeof p !== 'object' || 
+            !p || 
+            typeof p.origin !== 'object' || 
+            typeof p.destination !== 'object'
+          );
+          
+          if (malformedPairs.length > 0) {
+            console.error(`⚠️ Found ${malformedPairs.length} malformed pairs:`, malformedPairs);
+          }
+        }
+        
+        setPairings(prev => {
+          console.log(`Setting pairings for lane ${lane.id}, pairs:`, pairs);
+          return { ...prev, [lane.id]: pairs };
+        });
+        
         setLaneStats(prev => ({ ...prev, [lane.id]: {
           totalCityPairs: result.totalCityPairs || pairs.length || 0,
           uniqueOriginKmas: result.uniqueOriginKmas || 0,
@@ -741,18 +782,29 @@ export default function PostOptions() {
 
   // Select/deselect all pairs for a lane
   const toggleAllPairs = (laneId) => {
+    console.log(`Toggle all pairs for lane ${laneId}`);
     const lanePairings = pairings[laneId] || [];
     const currentSelection = selectedPairs[laneId] || [];
+    console.log(`Current selection: ${currentSelection.length}/${lanePairings.length} pairs`);
     
     if (currentSelection.length === lanePairings.length) {
       // All selected, deselect all
-      setSelectedPairs(prev => ({ ...prev, [laneId]: [] }));
+      console.log('Deselecting all pairs');
+      setSelectedPairs(prev => {
+        const newState = { ...prev, [laneId]: [] };
+        console.log('New selection state:', newState);
+        return newState;
+      });
     } else {
       // Select all
-      setSelectedPairs(prev => ({
-        ...prev,
-        [laneId]: lanePairings.map((_, idx) => idx)
-      }));
+      console.log('Selecting all pairs');
+      setSelectedPairs(prev => {
+        const indices = lanePairings.map((_, idx) => idx);
+        console.log(`Generated indices:`, indices);
+        const newState = { ...prev, [laneId]: indices };
+        console.log('New selection state:', newState);
+        return newState;
+      });
     }
   };
 
@@ -1083,9 +1135,11 @@ export default function PostOptions() {
           ) : (
             <ErrorBoundary componentName="AllLanesContainer">
               <div className="space-y-6">
-                {lanes.map((lane) => (
-                <ErrorBoundary key={lane.id} componentName={`LaneCard-${lane.id}`}>
-                  <div className="rounded-lg p-6" style={{ background: 'var(--bg-secondary)', border: 'var(--border)' }}>
+                {lanes.map((lane) => {
+                console.log(`Rendering lane ${lane.id}:`, typeof lane, lane);
+                const laneCard = (
+                  <ErrorBoundary key={lane.id} componentName={`LaneCard-${lane.id}`}>
+                    <div className="rounded-lg p-6" style={{ background: 'var(--bg-secondary)', border: 'var(--border)' }}>
                   {/* Lane Card Header */}
                   <div className="flex justify-between items-start mb-4">
                     <div 
@@ -1142,14 +1196,20 @@ export default function PostOptions() {
                         <ErrorBoundary componentName={`PairingsList-${lane.id}`}>
                           <div className="grid gap-2 max-h-96 overflow-y-auto">
                             {pairings[lane.id].map((pair, index) => {
+                            console.log(`Rendering pair ${index} for lane ${lane.id}:`, typeof pair, pair);
+                            
                             // Protect against malformed data
                             if (!pair || !pair.origin || !pair.destination) {
+                              console.log(`Skipping pair ${index} due to incomplete data`);
                               return (
                                 <div key={index} className="bg-yellow-900 text-yellow-200 border border-yellow-700 p-3 rounded text-sm">
                                   ⚠️ Pair skipped due to incomplete data (missing city/state/zip)
                                 </div>
                               );
                             }
+                            
+                            console.log(`Origin data for pair ${index}:`, typeof pair.origin, pair.origin);
+                            console.log(`Destination data for pair ${index}:`, typeof pair.destination, pair.destination);
                             
                             const originCity = pair.origin.city || 'Unknown';
                             const originState = pair.origin.state || 'Unknown';
@@ -1161,7 +1221,7 @@ export default function PostOptions() {
                             const pairText = `${originCity}, ${originState}${originZip} → ${destCity}, ${destState}${destZip}`;
                             const isSelected = selectedPairs[lane.id]?.includes(index) || false;
                             
-                            return (
+                            const returnElement = (
                               <div 
                                 key={index} 
                                 className={`flex items-center gap-3 p-3 rounded text-sm font-mono cursor-pointer transition-all ${
@@ -1203,6 +1263,8 @@ export default function PostOptions() {
                                 </button>
                               </div>
                             );
+                            console.log(`Return value for pair ${index}:`, typeof returnElement, returnElement);
+                            return returnElement;
                             })}
                           </div>
                         </ErrorBoundary>
@@ -1222,8 +1284,11 @@ export default function PostOptions() {
                     </div>
                   )}
                 </div>
-              </ErrorBoundary>
-              ))}
+                </ErrorBoundary>
+                );
+                console.log(`Return value for lane ${lane.id}:`, typeof laneCard, laneCard);
+                return laneCard;
+              })}
             </div>
             </ErrorBoundary>
           )}
