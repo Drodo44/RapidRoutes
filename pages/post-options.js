@@ -1195,15 +1195,37 @@ export default function PostOptions() {
                       ) : (
                         <ErrorBoundary componentName={`PairingsList-${lane.id}`}>
                           <div className="grid gap-2 max-h-96 overflow-y-auto">
-                            {pairings[lane.id].map((pair, index) => {
+                            {Array.isArray(pairings[lane.id]) ? pairings[lane.id].map((pair, index) => {
                             console.log(`Rendering pair ${index} for lane ${lane.id}:`, typeof pair, pair);
                             
                             // Protect against malformed data
-                            if (!pair || !pair.origin || !pair.destination) {
+                            if (!pair || typeof pair !== 'object') {
+                              console.log(`Skipping pair ${index} due to invalid type:`, typeof pair);
+                              return (
+                                <div key={index} className="bg-red-900 text-red-200 border border-red-700 p-3 rounded text-sm">
+                                  ⚠️ Invalid pair data (not an object): {JSON.stringify(pair)}
+                                </div>
+                              );
+                            }
+                            
+                            if (!pair.origin || !pair.destination) {
                               console.log(`Skipping pair ${index} due to incomplete data`);
                               return (
                                 <div key={index} className="bg-yellow-900 text-yellow-200 border border-yellow-700 p-3 rounded text-sm">
-                                  ⚠️ Pair skipped due to incomplete data (missing city/state/zip)
+                                  ⚠️ Pair skipped due to incomplete data (missing origin/destination)
+                                </div>
+                              );
+                            }
+                            
+                            // Additional check for invalid origin/destination structure
+                            if (typeof pair.origin !== 'object' || typeof pair.destination !== 'object') {
+                              console.log(`Skipping pair ${index} due to invalid origin/destination structure:`, { 
+                                originType: typeof pair.origin, 
+                                destType: typeof pair.destination 
+                              });
+                              return (
+                                <div key={index} className="bg-orange-900 text-orange-200 border border-orange-700 p-3 rounded text-sm">
+                                  ⚠️ Invalid origin/destination structure
                                 </div>
                               );
                             }
@@ -1211,12 +1233,16 @@ export default function PostOptions() {
                             console.log(`Origin data for pair ${index}:`, typeof pair.origin, pair.origin);
                             console.log(`Destination data for pair ${index}:`, typeof pair.destination, pair.destination);
                             
-                            const originCity = pair.origin.city || 'Unknown';
-                            const originState = pair.origin.state || 'Unknown';
-                            const originZip = pair.origin.zip ? `, ${pair.origin.zip}` : '';
-                            const destCity = pair.destination?.city || 'Unknown';
-                            const destState = pair.destination?.state || 'Unknown';
-                            const destZip = pair.destination?.zip ? `, ${pair.destination.zip}` : '';
+                            // Safely access properties with defensive checks
+                            const origin = typeof pair.origin === 'object' ? pair.origin : {};
+                            const destination = typeof pair.destination === 'object' ? pair.destination : {};
+                            
+                            const originCity = origin.city || 'Unknown';
+                            const originState = origin.state || 'Unknown';
+                            const originZip = origin.zip ? `, ${origin.zip}` : '';
+                            const destCity = destination.city || 'Unknown';
+                            const destState = destination.state || 'Unknown';
+                            const destZip = destination.zip ? `, ${destination.zip}` : '';
                             
                             const pairText = `${originCity}, ${originState}${originZip} → ${destCity}, ${destState}${destZip}`;
                             const isSelected = selectedPairs[lane.id]?.includes(index) || false;
@@ -1239,13 +1265,13 @@ export default function PostOptions() {
                                 />
                                 <span className="flex-1" style={{ color: 'var(--text-primary)' }}>
                                   {pairText}
-                                  {pair.origin?.kma && pair.destination?.kma && (
+                                  {origin?.kma && destination?.kma && (
                                     <span className="ml-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                                      ({pair.origin.kma} → {pair.destination.kma})
+                                      ({origin.kma} → {destination.kma})
                                     </span>
                                   )}
                                   {/* Debug mileage display */}
-                                  {pair.miles && (
+                                  {typeof pair.miles === 'number' && (
                                     <span className="ml-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
                                       {pair.miles} mi
                                     </span>
@@ -1265,7 +1291,7 @@ export default function PostOptions() {
                             );
                             console.log(`Return value for pair ${index}:`, typeof returnElement, returnElement);
                             return returnElement;
-                            })}
+                            }) : <div className="p-3 bg-red-900 text-red-100 rounded">No valid pairings array found</div>}
                           </div>
                         </ErrorBoundary>
                       )}
