@@ -614,7 +614,7 @@ function LanesPage() {
       .then(() => console.log('✅ Background list reload completed'))
       .catch((e) => console.warn('Background reload failed:', e));
 
-    setMsg(`Lane reposted successfully: ${lane.origin_city}, ${lane.origin_state} to ${lane.dest_city}, ${lane.dest_state}`);
+    setMsg(`Lane reposted successfully: ${lane.origin_city || '?'}, ${lane.origin_state || '?'} to ${lane.dest_city || '?'}, ${lane.dest_state || '?'}`);
 
     // Simple performance tracking (no intelligence dependency)
     try {
@@ -854,7 +854,7 @@ function LanesPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <h3 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
-                    Found Lane: {searchResult.lane.origin_city}, {searchResult.lane.origin_state} → {searchResult.lane.dest_city}, {searchResult.lane.dest_state}
+                    Found Lane: {searchResult.lane.origin_city || '?'}, {searchResult.lane.origin_state || '?'} → {searchResult.lane.dest_city || '?'}, {searchResult.lane.dest_state || '?'}
                   </h3>
                   <span className="badge" style={{
                     backgroundColor: 
@@ -868,16 +868,16 @@ function LanesPage() {
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px', fontSize: '14px', color: 'var(--text-secondary)' }}>
                   <div>
-                    <span style={{ fontWeight: 500 }}>Equipment:</span> {searchResult.lane.equipment_code}
+                    <span style={{ fontWeight: 500 }}>Equipment:</span> {searchResult.lane.equipment_code || '?'}
                   </div>
                   <div>
-                    <span style={{ fontWeight: 500 }}>Weight:</span> {searchResult.lane.weight_lbs?.toLocaleString()} lbs
+                    <span style={{ fontWeight: 500 }}>Weight:</span> {searchResult.lane.weight_lbs ? searchResult.lane.weight_lbs.toLocaleString() : '?'} lbs
                   </div>
                   <div>
-                    <span style={{ fontWeight: 500 }}>Created:</span> {new Date(searchResult.lane.created_at).toLocaleDateString()}
+                    <span style={{ fontWeight: 500 }}>Created:</span> {searchResult.lane.created_at ? new Date(searchResult.lane.created_at).toLocaleDateString() : '?'}
                   </div>
                   <div>
-                    <span style={{ fontWeight: 500 }}>Generated RRs:</span> {searchResult.totalPostings}
+                    <span style={{ fontWeight: 500 }}>Generated RRs:</span> {searchResult.totalPostings || 0}
                   </div>
                 </div>
                 {searchResult.postedPairs.length > 0 && (
