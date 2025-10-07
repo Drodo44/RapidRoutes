@@ -238,7 +238,7 @@ function LanesPage() {
 
     } catch (error) {
       console.error('Edit lane error:', error);
-      setMsg(error.message || 'Failed to update lane');
+      setMsg(String(error.message || 'Failed to update lane'));
     } finally {
       setBusy(false);
     }
@@ -284,7 +284,7 @@ function LanesPage() {
       console.error('Failed to load lanes:', error);
       setCurrent([]); 
       setArchive([]);
-      setMsg(`❌ Failed to load lanes: ${error.message}`);
+      setMsg(`❌ Failed to load lanes: ${String(error.message || error)}`);
     }
   }
 
@@ -343,7 +343,7 @@ function LanesPage() {
       await loadLists();
     } catch (error) {
       console.error('Bulk date update failed:', error);
-      setMsg(`❌ Failed to update dates: ${error.message}`);
+      setMsg(`❌ Failed to update dates: ${String(error.message)}`);
     } finally {
       setBusy(false);
     }
@@ -478,7 +478,7 @@ function LanesPage() {
       console.error('🚛 Error details:', error.message);
       console.error('🚛 Error stack:', error.stack);
       alert(`🚛 Lane Creation Failed: ${error.message}`);
-      setMsg(`❌ Failed to create lane: ${error.message}`);
+      setMsg(`❌ Failed to create lane: ${String(error.message)}`);
       throw error; // Re-throw so calling function can handle it
     }
   }
@@ -1136,7 +1136,7 @@ function LanesPage() {
                       ? `${l.weight_min || 0}-${l.weight_max || 0} lbs` 
                       : `${l.weight_lbs || '—'} lbs`}
                     <span style={{ marginLeft: '12px' }}>📅 {l.pickup_earliest || '—'} → {l.pickup_latest || '—'}</span>
-                    {l.comment && <span style={{ marginLeft: '12px' }}>💬 {l.comment}</span>}
+                    {l.comment && <span style={{ marginLeft: '12px' }}>💬 {String(l.comment)}</span>}
                   </div>
                   {l.saved_origin_cities?.length > 0 && (
                     <div style={{ fontSize: '11px', marginTop: '4px', color: 'var(--success)', opacity: 0.8 }}>
