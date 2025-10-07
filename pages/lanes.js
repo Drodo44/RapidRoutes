@@ -94,7 +94,7 @@ function LanesPage() {
       setComment('');
       setCommodity('');
     } catch (error) {
-      setMsg(error.message || 'Failed to save lane.');
+      setMsg(String(error.message || 'Failed to save lane.'));
     } finally {
       setBusy(false);
     }
@@ -515,7 +515,7 @@ function LanesPage() {
       // After successful creation, reload the lists
       await loadLists();
     } catch (error) {
-      setMsg(error.message || 'Failed to save lane.');
+      setMsg(String(error.message || 'Failed to save lane.'));
     } finally {
       setBusy(false);
     }
@@ -1037,7 +1037,7 @@ function LanesPage() {
                 <input type="text" value={commodity} onChange={(e) => setCommodity(e.target.value)} className="form-input" />
               </div>
 
-              {msg && <div style={{ gridColumn: '1 / -1', fontSize: '13px', color: 'var(--danger)' }}>{msg}</div>}
+              {msg && <div style={{ gridColumn: '1 / -1', fontSize: '13px', color: 'var(--danger)' }}>{String(msg)}</div>}
 
               <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <button type="submit" disabled={busy} className="btn btn-primary" style={{ fontSize: '12px', padding: '8px 16px' }}>
@@ -1666,7 +1666,7 @@ function LanesPage() {
                     fontSize: '13px',
                     marginBottom: '16px'
                   }}>
-                    {msg}
+                    {String(msg)}
                   </div>
                 )}
               </div>
