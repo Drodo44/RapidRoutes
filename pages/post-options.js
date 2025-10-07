@@ -1,20 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
-// Import improved safe API adapters
-import { safeSupabase as supabase } from '../utils/safeApiAdapter';
-import { safeCallIntelligencePairingApi, safeGetCurrentToken, safeGetTokenInfo } from '../utils/safeApiAdapter';
-// Import fixed components
-import FixedHeader from '../components/FixedHeader';
-// Import diagnostic components
-import PostOptionsDiagnostic from '../components/PostOptionsDiagnostic';
+// Import original API clients to avoid breaking changes
+import { createClient } from '@supabase/supabase-js';
+import supabase from '../utils/supabaseClient';
+// Import original components
+import Header from '../components/Header';
+// Import error boundary
 import ErrorBoundary from '../components/ErrorBoundary';
 
 export default function PostOptions() {
   // Add diagnostic logging
-  console.log('PostOptions component rendering with ES Modules enabled.');
+  console.log('PostOptions component rendering');
   console.log('⭐ All error boundaries active and diagnostic logging enabled');
-  console.log('💡 Using safe API adapters to prevent React Error #130');
   
   const router = useRouter();
   const [lanes, setLanes] = useState([]);
@@ -940,9 +938,7 @@ export default function PostOptions() {
           <div className="container mx-auto px-4 py-8">
             <div className="text-center">
               <div style={{ color: 'var(--text-tertiary)' }}>Loading pending lanes...</div>
-              <ErrorBoundary componentName="PostOptionsDiagnostic">
-                <PostOptionsDiagnostic />
-              </ErrorBoundary>
+              {/* Diagnostic component removed to fix build */}
             </div>
           </div>
         </div>
@@ -956,15 +952,12 @@ export default function PostOptions() {
         <title>Post Options - RapidRoutes</title>
         <script src="/error-capture.js"></script>
       </Head>
-      <ErrorBoundary componentName="FixedHeader">
-        <FixedHeader />
+      <ErrorBoundary componentName="Header">
+        <Header />
       </ErrorBoundary>
       <div className="min-h-screen" style={{ background: 'var(--bg-primary)' }}>
         <div className="container mx-auto px-4 py-8">
-          {/* Diagnostic component to help identify React Error #130 */}
-          <ErrorBoundary componentName="PostOptionsDiagnostic">
-            <PostOptionsDiagnostic />
-          </ErrorBoundary>
+          {/* Diagnostic component removed to fix build */}
           {/* Header */}
           <div className="flex justify-between items-center mb-8">
             <div>
