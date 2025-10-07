@@ -5,7 +5,7 @@ import Header from '../components/Header';
 // Auth utilities for token management
 import { getCurrentToken, getTokenInfo } from '../utils/authUtils';
 // Intelligence API adapter for properly formatted API calls
-import { callIntelligencePairingApi } from '../utils/intelligenceApiAdapter';
+import callIntelligencePairingApi from '../utils/intelligenceApiAdapter';
 
 export default function PostOptions() {
   const router = useRouter();
