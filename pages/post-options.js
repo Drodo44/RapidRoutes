@@ -983,8 +983,8 @@ export default function PostOptions() {
   if (loading) {
     return (
       <>
-        <ErrorBoundary componentName="FixedHeader">
-          <FixedHeader />
+        <ErrorBoundary componentName="Header">
+          <Header />
         </ErrorBoundary>
         <div className="min-h-screen" style={{ background: 'var(--bg-primary)' }}>
           <div className="container mx-auto px-4 py-8">
