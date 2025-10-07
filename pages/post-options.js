@@ -1148,7 +1148,7 @@ export default function PostOptions() {
                                 />
                                 <span className="flex-1" style={{ color: 'var(--text-primary)' }}>
                                   {pairText}
-                                  {pair.origin.kma && pair.destination?.kma && (
+                                  {pair.origin?.kma && pair.destination?.kma && (
                                     <span className="ml-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
                                       ({pair.origin.kma} → {pair.destination.kma})
                                     </span>
