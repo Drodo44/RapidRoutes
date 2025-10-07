@@ -215,8 +215,8 @@ export default function EquipmentPicker({ id='equipment', label='Equipment Type'
                   }
                 }}
               >
-                <span>{item.label}</span>
-                <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontFamily: 'monospace' }}>{item.code}</span>
+                <span>{item.label || 'Unknown'}</span>
+                <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontFamily: 'monospace' }}>{item.code || '?'}</span>
               </li>
             ))}
           </ul>
@@ -225,7 +225,7 @@ export default function EquipmentPicker({ id='equipment', label='Equipment Type'
       
       {selectedItem && (
         <div style={{ fontSize: '11px', color: 'var(--primary)', marginTop: 'var(--space-1)' }}>
-          Selected: <span style={{ fontWeight: 500 }}>{selectedItem.label}</span> <span style={{ fontFamily: 'monospace' }}>({selectedItem.code})</span>
+          Selected: <span style={{ fontWeight: 500 }}>{selectedItem.label || 'Unknown'}</span> <span style={{ fontFamily: 'monospace' }}>({selectedItem.code || '?'})</span>
         </div>
       )}
     </div>
