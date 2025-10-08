@@ -12,18 +12,36 @@ import ErrorBoundary from '../components/ErrorBoundary';
 // Define safe authentication functions to fix React Error #130
 async function safeGetCurrentToken() {
   try {
+    console.log('📣 [DIAGNOSTIC] safeGetCurrentToken: Starting authentication check');
     const { data, error } = await supabase.auth.getSession();
-    if (error) throw error;
-    return data?.session?.access_token || null;
+    
+    if (error) {
+      console.error('📣 [DIAGNOSTIC] safeGetCurrentToken: Auth error', error);
+      throw error;
+    }
+    
+    const token = data?.session?.access_token || null;
+    console.log('📣 [DIAGNOSTIC] safeGetCurrentToken: Token retrieved?', !!token);
+    
+    if (token) {
+      // Log token details but not the actual token for security
+      const tokenParts = token.split('.');
+      console.log('📣 [DIAGNOSTIC] safeGetCurrentToken: Token format valid?', tokenParts.length === 3);
+    }
+    
+    return token;
   } catch (err) {
-    console.error('safeGetCurrentToken error:', err);
+    console.error('📣 [DIAGNOSTIC] safeGetCurrentToken error:', err);
     return null;
   }
 }
 
 async function safeGetTokenInfo() {
+  console.log('📣 [DIAGNOSTIC] safeGetTokenInfo: Starting token verification');
   const token = await safeGetCurrentToken();
-  return token ? { hasToken: true, token } : { hasToken: false };
+  const result = token ? { hasToken: true, token } : { hasToken: false };
+  console.log('📣 [DIAGNOSTIC] safeGetTokenInfo: Result', { hasToken: result.hasToken });
+  return result;
 }
 
 // Diagnostic logging to debug React Error #130
@@ -160,27 +178,29 @@ export default function PostOptions() {
    * @returns {Promise<{ready: boolean, token: string|null, user: object|null, error: Error|null}>}
    */
   const ensureAuthReady = async () => {
-    console.log('🔒 Ensuring authentication is ready...');
+    console.log('� [DIAGNOSTIC] ensureAuthReady: Ensuring authentication is ready...');
     try {
       // First, check if Supabase client is loaded
       if (!supabase?.auth) {
-        console.error('Authentication client not initialized');
+        console.error('📣 [DIAGNOSTIC] ensureAuthReady: Authentication client not initialized');
         return { ready: false, token: null, user: null, error: new Error('Authentication client not initialized') };
       }
       
       // Use our safe imports instead of dynamic imports to fix React Error #130
-      console.log('Using safeGetCurrentToken and safeGetTokenInfo to avoid React Error #130');
+      console.log('📣 [DIAGNOSTIC] ensureAuthReady: Using safeGetCurrentToken and safeGetTokenInfo to avoid React Error #130');
+      console.log('📣 [DIAGNOSTIC] safeGetCurrentToken type:', typeof safeGetCurrentToken);
+      console.log('📣 [DIAGNOSTIC] safeGetTokenInfo type:', typeof safeGetTokenInfo);
       
       // CRITICAL FIX: Force a session refresh from Supabase first
       try {
         const { data } = await supabase.auth.getSession();
-        console.log('🔐 Current session state:', {
+        console.log('� [DIAGNOSTIC] Session refresh result:', {
           hasSession: !!data?.session,
           expiresAt: data?.session?.expires_at ? new Date(data.session.expires_at * 1000).toISOString() : 'none',
           userId: data?.session?.user?.id || 'none'
         });
       } catch (sessionErr) {
-        console.warn('⚠️ Failed to get current session:', sessionErr?.message);
+        console.warn('📣 [DIAGNOSTIC] Failed to get current session:', sessionErr?.message);
       }
       
       // Wait for a session to be available - retry up to 3 times with a short delay
@@ -189,32 +209,51 @@ export default function PostOptions() {
       let user = null;
       let authError = null;
       
+      console.log('📣 [DIAGNOSTIC] Starting authentication retry loop');
       while (attempts < 3 && !token) {
         if (attempts > 0) {
-          console.log(`Authentication retry attempt ${attempts + 1}/3...`);
+          console.log(`📣 [DIAGNOSTIC] Authentication retry attempt ${attempts + 1}/3...`);
           // Small delay between retries (200ms, 400ms)
           await new Promise(resolve => setTimeout(resolve, attempts * 200));
         }
         
+        console.log(`📣 [DIAGNOSTIC] Calling safeGetCurrentToken() - attempt ${attempts + 1}`);
         token = await safeGetCurrentToken();
+        console.log('📣 [DIAGNOSTIC] safeGetCurrentToken result:', !!token);
         // Update to use new implementation - token is directly returned
-        user = token ? await supabase.auth.getUser().then(res => res.data?.user || null) : null;
+        console.log('📣 [DIAGNOSTIC] Getting user from token');
+        try {
+          if (token) {
+            const { data } = await supabase.auth.getUser();
+            user = data?.user || null;
+            console.log('📣 [DIAGNOSTIC] User retrieved?', !!user);
+          }
+        } catch (userErr) {
+          console.error('📣 [DIAGNOSTIC] Error getting user:', userErr);
+        }
+        
         authError = !token ? new Error('Failed to get token') : null;
         
-        if (token) break;
+        if (token) {
+          console.log('📣 [DIAGNOSTIC] Valid token found, breaking retry loop');
+          break;
+        }
         attempts++;
       }
       
       // Enhanced error handling for authentication issues
       if (authError || !token) {
-        console.error('Authentication error after retries:', authError?.message || 'No valid token');
+        console.error('📣 [DIAGNOSTIC] Authentication error after retries:', authError?.message || 'No valid token');
         return { ready: false, token: null, user: null, error: authError || new Error('No valid token available') };
       }
       
+      console.log('📣 [DIAGNOSTIC] Verifying token validity with safeGetTokenInfo()');
       // Verify that the token is still valid using our new implementation
       const tokenInfo = await safeGetTokenInfo();
+      console.log('📣 [DIAGNOSTIC] Token validation result:', tokenInfo);
+      
       if (!tokenInfo.hasToken) {
-        console.error('Token validation failed: No valid token available');
+        console.error('📣 [DIAGNOSTIC] Token validation failed: No valid token available');
         return { 
           ready: false, 
           token: null, 
@@ -223,10 +262,16 @@ export default function PostOptions() {
         };
       }
       
-      console.log('✅ Authentication ready with valid token');
-      return { ready: true, token, user, error: null, tokenInfo: tokenInfo };
+      console.log('📣 [DIAGNOSTIC] ✅ Authentication ready with valid token');
+      const result = { ready: true, token, user, error: null, tokenInfo: tokenInfo };
+      console.log('📣 [DIAGNOSTIC] Final auth result:', { 
+        ready: result.ready, 
+        hasToken: !!result.token, 
+        hasUser: !!result.user 
+      });
+      return result;
     } catch (error) {
-      console.error('Failed to initialize authentication:', error);
+      console.error('📣 [DIAGNOSTIC] Failed to initialize authentication:', error);
       return { ready: false, token: null, user: null, error };
     }
   };
@@ -1021,9 +1066,21 @@ export default function PostOptions() {
   }
 
   // Add runtime tracing to debug React Error #130
-  console.log('[TRACE] PostOptions render - about to return JSX');
-  console.log('[TRACE] Header component type:', typeof Header);
-  console.log('[TRACE] Header component stringified:', typeof Header === 'object' ? JSON.stringify(Header) : 'Not an object');
+  console.log('📣 [DIAGNOSTIC] PostOptions render - about to return JSX');
+  console.log('📣 [DIAGNOSTIC] Header component type:', typeof Header);
+  console.log('📣 [DIAGNOSTIC] ErrorBoundary component type:', typeof ErrorBoundary);
+  console.log('📣 [DIAGNOSTIC] safeGetCurrentToken type:', typeof safeGetCurrentToken);
+  console.log('📣 [DIAGNOSTIC] safeGetTokenInfo type:', typeof safeGetTokenInfo);
+  
+  // Verify that all necessary components and functions exist
+  const components = {
+    Header: typeof Header !== 'undefined',
+    ErrorBoundary: typeof ErrorBoundary !== 'undefined',
+    safeGetCurrentToken: typeof safeGetCurrentToken !== 'undefined',
+    safeGetTokenInfo: typeof safeGetTokenInfo !== 'undefined',
+  };
+  
+  console.log('📣 [DIAGNOSTIC] Required components/functions check:', components);
   
   const returnJsx = (
     <>
