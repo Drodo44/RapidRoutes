@@ -1,9 +1,8 @@
 // components/post-options/OptionsGenerator.js
-import { safeGetCurrentToken } from '../../lib/auth/safeAuth';
-import supabase from '../../utils/supabaseClient';
+import { submitOptions, prepareOptionsPayload } from '../../services/laneIntelligence';
 
 /**
- * Generates options for a lane by calling the post-options API
+ * Generates options for a lane by calling the post-options API through the laneIntelligence service
  * 
  * @param {Object} lane - The lane object to generate options for
  * @param {Function} onSuccess - Callback on successful generation
@@ -20,63 +19,56 @@ export async function generateOptions(lane, onSuccess, onError, schema = null) {
       return { success: false, error: 'Missing lane ID' };
     }
     
-    // Extract the required fields from the lane
-    const payload = {
-      laneId: lane.id,
-      originCity: lane.origin_city || '',
-      originState: lane.origin_state || '',
-      destinationCity: lane.destination_city || lane.dest_city || '',
-      destinationState: lane.destination_state || lane.dest_state || '',
-      equipmentCode: lane.equipment_code || '',
-    };
-
-    // Validate with schema if provided
-    if (schema) {
-      const validation = schema.safeParse(payload);
-      if (!validation.success) {
-        const error = new Error(`Validation failed: ${JSON.stringify(validation.error.format())}`);
-        console.error('Validation error:', validation.error);
-        onError?.(error);
-        return { success: false, error: 'Validation failed', details: validation.error.format() };
-      }
+    // Use the laneIntelligence service to submit options
+    const result = await submitOptions(lane);
+    
+    if (!result.success) {
+      console.error('Failed to generate options:', result.error);
+      onError?.(new Error(result.message || 'Failed to generate options'));
+      return result;
     }
-
-    // Get authentication token
-    const accessToken = await safeGetCurrentToken(supabase);
-    if (!accessToken) {
-      const error = new Error('Authentication required');
-      console.error('Missing access token when posting options');
-      onError?.(error);
-      return { success: false, error: 'Authentication required' };
-    }
-
-    console.log(`Generating options for lane ${payload.laneId}...`);
-
-    // Make API call to generate options
-    const response = await fetch('/api/post-options', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      const text = await response.text().catch(() => '');
-      const error = new Error(`API error: ${text || response.status}`);
-      console.error('Failed to generate options:', text || response.status);
-      onError?.(error);
-      return { success: false, error: `API error: ${response.status}`, details: text };
-    }
-
-    const data = await response.json();
-    console.log('Options generated successfully:', data);
-    onSuccess?.(data);
-    return { success: true, data };
+    
+    console.log('Options generated successfully:', result.data);
+    onSuccess?.(result.data);
+    return result;
   } catch (error) {
     console.error('Error in generateOptions:', error);
     onError?.(error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Generates options for multiple lanes in parallel or sequence
+ * 
+ * @param {Array<Object>} lanes - Lane objects to generate options for
+ * @param {Object} options - Options for batch generation
+ * @param {boolean} options.parallel - Whether to generate in parallel
+ * @param {Function} options.onProgress - Progress callback
+ * @param {Function} options.onComplete - Completion callback
+ * @returns {Promise<Object>} - The batch generation results
+ */
+export async function generateOptionsBatch(lanes, { 
+  parallel = false, 
+  onProgress = null,
+  onComplete = null 
+} = {}) {
+  try {
+    if (!lanes || !Array.isArray(lanes) || lanes.length === 0) {
+      const error = new Error('No lanes provided for batch generation');
+      console.error(error);
+      return { success: false, error: error.message };
+    }
+    
+    // Use the service's batch submission function directly
+    const result = await import('../../services/laneIntelligence')
+      .then(({ submitOptionsBatch }) => 
+        submitOptionsBatch(lanes, { parallel, onProgress }));
+    
+    onComplete?.(result);
+    return result;
+  } catch (error) {
+    console.error('Error in generateOptionsBatch:', error);
     return { success: false, error: error.message };
   }
 }

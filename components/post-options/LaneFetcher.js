@@ -1,6 +1,7 @@
 // components/post-options/LaneFetcher.js
 import { useState, useEffect } from 'react';
 import supabase from '../../utils/supabaseClient';
+import { validateLaneData } from '../../services/laneIntelligence';
 
 /**
  * Custom hook to fetch lanes from Supabase
@@ -53,7 +54,14 @@ export function useLanes({
       }
       
       console.log(`Fetched ${data?.length || 0} lanes`);
-      setLanes(data || []);
+      
+      // Validate lanes using the service
+      const validatedLanes = (data || []).map(lane => {
+        const validation = validateLaneData(lane);
+        return validation.success ? validation.data : lane;
+      });
+      
+      setLanes(validatedLanes);
     } catch (err) {
       console.error('Error fetching lanes:', err);
       setError(err.message || 'Failed to fetch lanes');

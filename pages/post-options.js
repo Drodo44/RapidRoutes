@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import Header from "../components/Header";
 import { useLanes } from "../components/post-options/LaneFetcher";
 import LaneList from "../components/post-options/LaneList";
-import { generateOptions } from "../components/post-options/OptionsGenerator";
+import { generateOptions, generateOptionsBatch } from "../components/post-options/OptionsGenerator";
 import { OptionsPayloadSchema } from "../components/post-options/ZodValidation";
 import { useToast } from "../components/post-options/Toast";
 
@@ -20,11 +20,13 @@ export default function PostOptions() {
 
   // State for tracking options generation
   const [processing, setProcessing] = useState(false);
+  const [progress, setProgress] = useState({ current: 0, total: 0 });
+  const [isBatchMode, setIsBatchMode] = useState(false);
   
   // Use our custom toast hook
   const { showToast, hideToast, ToastComponent } = useToast();
   
-  // Handler for generating options
+  // Handler for generating options for a single lane
   const handleGenerateOptions = async (lane) => {
     setProcessing(true);
     
@@ -51,6 +53,59 @@ export default function PostOptions() {
     await generateOptions(lane, onSuccess, onError, OptionsPayloadSchema);
   };
   
+  // Handler for batch generating options for all lanes
+  const handleBatchGenerate = async () => {
+    if (!lanes.length) {
+      showToast({
+        message: "No lanes available for batch processing",
+        type: "warning"
+      });
+      return;
+    }
+    
+    setIsBatchMode(true);
+    setProcessing(true);
+    setProgress({ current: 0, total: lanes.length });
+    
+    // Progress callback
+    const onProgress = (index, total, result) => {
+      setProgress({ current: index + 1, total });
+      
+      const lane = lanes[index];
+      const message = result.success
+        ? `(${index+1}/${total}) Generated options for ${lane.origin_city} → ${lane.destination_city || lane.dest_city}`
+        : `(${index+1}/${total}) Failed for ${lane.origin_city} → ${lane.destination_city || lane.dest_city}`;
+        
+      showToast({
+        message,
+        type: result.success ? "success" : "error",
+        duration: 3000
+      });
+    };
+    
+    // Completion callback
+    const onComplete = (result) => {
+      setProcessing(false);
+      setIsBatchMode(false);
+      
+      showToast({
+        message: `Batch processing complete: ${result.successCount}/${result.totalCount} successful`,
+        type: result.success ? "success" : "warning",
+        duration: 6000
+      });
+      
+      // Refresh lanes to get updated data
+      refetch();
+    };
+    
+    // Start batch processing
+    await generateOptionsBatch(lanes, {
+      parallel: false,
+      onProgress,
+      onComplete
+    });
+  };
+  
   return (
     <div className="bg-gray-900 text-gray-100 min-h-screen">
       <Header />
@@ -62,7 +117,23 @@ export default function PostOptions() {
         {ToastComponent}
         
         {/* Action buttons */}
-        <div className="flex justify-end mb-4">
+        <div className="flex flex-wrap justify-between items-center mb-4 gap-2">
+          <div className="flex gap-2">
+            <button
+              onClick={handleBatchGenerate}
+              disabled={loading || processing || !lanes.length}
+              className={`px-4 py-2 ${
+                loading || processing || !lanes.length
+                  ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                  : 'bg-green-600 hover:bg-green-700 text-white cursor-pointer'
+              } rounded`}
+            >
+              {processing && isBatchMode
+                ? `Processing ${progress.current}/${progress.total}`
+                : 'Generate All Options'}
+            </button>
+          </div>
+          
           <button
             onClick={refetch}
             disabled={loading || processing}
@@ -84,10 +155,23 @@ export default function PostOptions() {
           </div>
         )}
         
+        {/* Progress bar for batch processing */}
+        {processing && isBatchMode && (
+          <div className="w-full h-2 bg-gray-700 rounded-full mb-4 overflow-hidden">
+            <div 
+              className="h-full bg-blue-600 transition-all duration-300"
+              style={{ 
+                width: `${Math.round((progress.current / progress.total) * 100)}%` 
+              }}
+            />
+          </div>
+        )}
+        
         {/* Lane list component */}
         <LaneList 
           lanes={lanes} 
           loading={loading}
+          processing={processing}
           onGenerateOptions={handleGenerateOptions}
         />
       </main>
