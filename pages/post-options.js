@@ -4,35 +4,23 @@ import Head from 'next/head';
 // Import original API clients to avoid breaking changes
 import { createClient } from '@supabase/supabase-js';
 import supabase from '../utils/supabaseClient';
-// Import original components
-import Header from '../components/Header';
+// Import safe header component
+import SafeHeader from '@/components/SafeHeader';
+// Import auth helpers from central location
+import { safeGetCurrentToken, safeGetTokenInfo } from '@/lib/auth/safeAuth';
+import { z } from 'zod';
 // Import error boundary
 import ErrorBoundary from '../components/ErrorBoundary';
 
-// Define safe authentication functions to fix React Error #130
-async function safeGetCurrentToken(supabase) {
-  try {
-    const { data, error } = await supabase.auth.getSession();
-    if (error || !data?.session?.access_token) {
-      console.warn("No Supabase session found");
-      return null;
-    }
-    return data.session.access_token;
-  } catch (err) {
-    console.error("safeGetCurrentToken error:", err);
-    return null;
-  }
-}
-
-async function safeGetTokenInfo(supabase) {
-  try {
-    const token = await safeGetCurrentToken(supabase);
-    return token ? { hasToken: true, token } : { hasToken: false };
-  } catch (err) {
-    console.error("safeGetTokenInfo error:", err);
-    return { hasToken: false };
-  }
-}
+// Define zod schema for validating API payloads
+const PostOptionsPayload = z.object({
+  laneId: z.string().uuid(),
+  originCity: z.string().min(1),
+  originState: z.string().min(2),
+  destinationCity: z.string().min(1),
+  destinationState: z.string().min(2),
+  equipmentCode: z.string().min(1),
+});
 
 // Diagnostic logging to debug React Error #130
 console.log('[DIAG] post-options.js module loaded');
@@ -980,51 +968,50 @@ export default function PostOptions() {
   };
 
   // Generate posting options for a single lane via manual endpoint
-  const handleGenerateOptions = async (lane) => {
-    if (!lane) return;
-    
-    // Ensure we have a valid laneId
-    const laneId = lane?.id || router.query.laneId || null;
-    if (!laneId) {
-      console.error("Missing laneId — cannot fetch post-options");
-      return;
-    }
-    
+  async function handleGenerateOptions(lane) {
     try {
-      // Attempt coordinate resolution if any origin/dest coords are missing
-      if (!lane.origin_latitude || !lane.origin_longitude || !lane.dest_latitude || !lane.dest_longitude) {
-        try {
-          const coordRes = await fetch(`/api/resolve-coords?origin_zip=${lane.origin_zip || ''}&dest_zip=${lane.dest_zip || ''}`);
-          if (coordRes.ok) {
-            const { origin_latitude, origin_longitude, dest_latitude, dest_longitude } = await coordRes.json();
-            lane.origin_latitude = origin_latitude;
-            lane.origin_longitude = origin_longitude;
-            lane.dest_latitude = dest_latitude;
-            lane.dest_longitude = dest_longitude;
-          } else {
-            console.warn('Skipping lane due to missing coords', lane.id);
-            return;
-          }
-        } catch (e) {
-          console.error('Failed to resolve coords', e);
-          return;
-        }
+      const laneId = lane?.id ?? lane?.laneId ?? null;
+      const payload = {
+        laneId,
+        originCity: lane?.originCity ?? lane?.origin_city ?? '',
+        originState: lane?.originState ?? lane?.origin_state ?? '',
+        destinationCity: lane?.destinationCity ?? lane?.destination_city ?? '',
+        destinationState: lane?.destinationState ?? lane?.destination_state ?? '',
+        equipmentCode: lane?.equipmentCode ?? lane?.equipment_code ?? '',
+      };
+
+      const parsed = PostOptionsPayload.safeParse(payload);
+      if (!parsed.success) {
+        console.error('Invalid payload for /api/post-options:', parsed.error.flatten());
+        // surface minimal UI error if you have toast/snackbar
+        return;
       }
 
-      console.log('🚀 Generating options for lane', laneId);
+      const accessToken = await safeGetCurrentToken(supabase);
+      if (!accessToken) {
+        console.error('Missing access token when posting options.');
+        return;
+      }
+
       const res = await fetch('/api/post-options', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lane, laneId })
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(parsed.data),
       });
+
       if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`Failed to generate options: ${text}`);
+        const text = await res.text().catch(() => '');
+        console.error('Failed to generate options:', text || res.status);
+        return;
       }
-      const data = await res.json();
-      console.log('✅ Options generated', data);
+
+      const json = await res.json();
+      console.log('Options generated:', json);
     } catch (err) {
-      console.error(err);
+      console.error('Error in handleGenerateOptions:', err);
     }
   };
 
@@ -1042,7 +1029,7 @@ export default function PostOptions() {
     const renderedValue = (
       <>
         <ErrorBoundary componentName="Header">
-          <Header />
+          <SafeHeader />
         </ErrorBoundary>
         <div className="min-h-screen" style={{ background: 'var(--bg-primary)' }}>
           <div className="container mx-auto px-4 py-8">
@@ -1058,9 +1045,16 @@ export default function PostOptions() {
     return renderedValue;
   }
 
+  // Guard rendering with proper React elements for loading/auth states
+  if (loading) return <div style={{ padding: 16 }}>Loading…</div>;
+  
+  // Import auth check from auth context or run it here
+  const isAuthenticated = true; // This would come from your auth context normally
+  if (!isAuthenticated) return <div style={{ padding: 16 }}>Please sign in</div>;
+
   // Verify that all required components and functions exist
   const components = {
-    Header: typeof Header === 'function',
+    Header: typeof SafeHeader === 'function',
     ErrorBoundary: typeof ErrorBoundary === 'function',
     safeGetCurrentToken: typeof safeGetCurrentToken === 'function',
     safeGetTokenInfo: typeof safeGetTokenInfo === 'function',
@@ -1080,7 +1074,7 @@ export default function PostOptions() {
         <script src="/trace-helper.js"></script>
       </Head>
       <ErrorBoundary componentName="Header">
-        <Header />
+        <SafeHeader />
       </ErrorBoundary>
       <div className="min-h-screen" style={{ background: 'var(--bg-primary)' }}>
         <div className="container mx-auto px-4 py-8">

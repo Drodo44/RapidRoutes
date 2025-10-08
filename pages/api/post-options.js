@@ -6,7 +6,17 @@
 // This preserves backward compatibility for existing UI while enabling scalable batch creation.
 import { adminSupabase as supabase } from "@/utils/supabaseAdminClient";
 import { resolveCoords } from "@/lib/resolve-coords";
+import { z } from 'zod';
 // NOTE: Not using external p-limit dependency to avoid adding new package; implementing lightweight limiter inline.
+
+const ApiSchema = z.object({
+  laneId: z.string().uuid(),
+  originCity: z.string(),
+  originState: z.string(),
+  destinationCity: z.string(),
+  destinationState: z.string(),
+  equipmentCode: z.string(),
+});
 
 function toRad(value) {
   return (value * Math.PI) / 180;
@@ -117,13 +127,17 @@ async function generateOptionsForLane(laneId) {
 }
 
 export default async function handler(req, res) {
-  try {
-    if (req.method !== "POST") {
-      return res.status(405).json({ ok: false, error: "Method not allowed" });
-    }
+  if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'Method not allowed' });
 
+  const parsed = ApiSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ ok: false, error: 'Missing or invalid body', detail: parsed.error.flatten() });
+  }
+
+  try {
     // Branch detection
-    const { lanes: batchLanes, laneId } = req.body || {};
+    const { lanes: batchLanes } = req.body || {};
+    const laneId = parsed.data.laneId;
 
     // --- Batch Mode ---------------------------------------------------------
     if (Array.isArray(batchLanes)) {
@@ -252,10 +266,6 @@ export default async function handler(req, res) {
     }
 
     // --- Legacy Single-Lane Options Mode ------------------------------------
-    if (!laneId) {
-      return res.status(400).json({ ok: false, error: "Missing laneId" });
-    }
-
     try {
       const details = await generateOptionsForLane(laneId);
       return res.status(200).json({ ok: true, ...details });
