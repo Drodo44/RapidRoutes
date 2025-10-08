@@ -10,38 +10,28 @@ import Header from '../components/Header';
 import ErrorBoundary from '../components/ErrorBoundary';
 
 // Define safe authentication functions to fix React Error #130
-async function safeGetCurrentToken() {
+async function safeGetCurrentToken(supabase) {
   try {
-    console.log('📣 [DIAGNOSTIC] safeGetCurrentToken: Starting authentication check');
     const { data, error } = await supabase.auth.getSession();
-    
-    if (error) {
-      console.error('📣 [DIAGNOSTIC] safeGetCurrentToken: Auth error', error);
-      throw error;
+    if (error || !data?.session?.access_token) {
+      console.warn("No Supabase session found");
+      return null;
     }
-    
-    const token = data?.session?.access_token || null;
-    console.log('📣 [DIAGNOSTIC] safeGetCurrentToken: Token retrieved?', !!token);
-    
-    if (token) {
-      // Log token details but not the actual token for security
-      const tokenParts = token.split('.');
-      console.log('📣 [DIAGNOSTIC] safeGetCurrentToken: Token format valid?', tokenParts.length === 3);
-    }
-    
-    return token;
+    return data.session.access_token;
   } catch (err) {
-    console.error('📣 [DIAGNOSTIC] safeGetCurrentToken error:', err);
+    console.error("safeGetCurrentToken error:", err);
     return null;
   }
 }
 
-async function safeGetTokenInfo() {
-  console.log('📣 [DIAGNOSTIC] safeGetTokenInfo: Starting token verification');
-  const token = await safeGetCurrentToken();
-  const result = token ? { hasToken: true, token } : { hasToken: false };
-  console.log('📣 [DIAGNOSTIC] safeGetTokenInfo: Result', { hasToken: result.hasToken });
-  return result;
+async function safeGetTokenInfo(supabase) {
+  try {
+    const token = await safeGetCurrentToken(supabase);
+    return token ? { hasToken: true, token } : { hasToken: false };
+  } catch (err) {
+    console.error("safeGetTokenInfo error:", err);
+    return { hasToken: false };
+  }
 }
 
 // Diagnostic logging to debug React Error #130
@@ -217,9 +207,9 @@ export default function PostOptions() {
           await new Promise(resolve => setTimeout(resolve, attempts * 200));
         }
         
-        console.log(`📣 [DIAGNOSTIC] Calling safeGetCurrentToken() - attempt ${attempts + 1}`);
-        token = await safeGetCurrentToken();
-        console.log('📣 [DIAGNOSTIC] safeGetCurrentToken result:', !!token);
+        console.log(`Authentication attempt ${attempts + 1}`);
+        token = await safeGetCurrentToken(supabase);
+        console.log('Authentication token result:', !!token);
         // Update to use new implementation - token is directly returned
         console.log('📣 [DIAGNOSTIC] Getting user from token');
         try {
@@ -247,13 +237,13 @@ export default function PostOptions() {
         return { ready: false, token: null, user: null, error: authError || new Error('No valid token available') };
       }
       
-      console.log('📣 [DIAGNOSTIC] Verifying token validity with safeGetTokenInfo()');
+      console.log('Verifying token validity');
       // Verify that the token is still valid using our new implementation
-      const tokenInfo = await safeGetTokenInfo();
-      console.log('📣 [DIAGNOSTIC] Token validation result:', tokenInfo);
+      const tokenInfo = await safeGetTokenInfo(supabase);
+      console.log('Token validation result:', tokenInfo);
       
       if (!tokenInfo.hasToken) {
-        console.error('📣 [DIAGNOSTIC] Token validation failed: No valid token available');
+        console.error('Token validation failed: No valid token available');
         return { 
           ready: false, 
           token: null, 
@@ -262,16 +252,11 @@ export default function PostOptions() {
         };
       }
       
-      console.log('📣 [DIAGNOSTIC] ✅ Authentication ready with valid token');
+      console.log('✅ Authentication ready with valid token');
       const result = { ready: true, token, user, error: null, tokenInfo: tokenInfo };
-      console.log('📣 [DIAGNOSTIC] Final auth result:', { 
-        ready: result.ready, 
-        hasToken: !!result.token, 
-        hasUser: !!result.user 
-      });
       return result;
     } catch (error) {
-      console.error('📣 [DIAGNOSTIC] Failed to initialize authentication:', error);
+      console.error('Failed to initialize authentication:', error);
       return { ready: false, token: null, user: null, error };
     }
   };
@@ -997,6 +982,14 @@ export default function PostOptions() {
   // Generate posting options for a single lane via manual endpoint
   const handleGenerateOptions = async (lane) => {
     if (!lane) return;
+    
+    // Ensure we have a valid laneId
+    const laneId = lane?.id || router.query.laneId || null;
+    if (!laneId) {
+      console.error("Missing laneId — cannot fetch post-options");
+      return;
+    }
+    
     try {
       // Attempt coordinate resolution if any origin/dest coords are missing
       if (!lane.origin_latitude || !lane.origin_longitude || !lane.dest_latitude || !lane.dest_longitude) {
@@ -1018,11 +1011,11 @@ export default function PostOptions() {
         }
       }
 
-      console.log('🚀 Generating options for lane', lane.id);
+      console.log('🚀 Generating options for lane', laneId);
       const res = await fetch('/api/post-options', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lane })
+        body: JSON.stringify({ lane, laneId })
       });
       if (!res.ok) {
         const text = await res.text();
@@ -1065,22 +1058,19 @@ export default function PostOptions() {
     return renderedValue;
   }
 
-  // Add runtime tracing to debug React Error #130
-  console.log('📣 [DIAGNOSTIC] PostOptions render - about to return JSX');
-  console.log('📣 [DIAGNOSTIC] Header component type:', typeof Header);
-  console.log('📣 [DIAGNOSTIC] ErrorBoundary component type:', typeof ErrorBoundary);
-  console.log('📣 [DIAGNOSTIC] safeGetCurrentToken type:', typeof safeGetCurrentToken);
-  console.log('📣 [DIAGNOSTIC] safeGetTokenInfo type:', typeof safeGetTokenInfo);
-  
-  // Verify that all necessary components and functions exist
+  // Verify that all required components and functions exist
   const components = {
-    Header: typeof Header !== 'undefined',
-    ErrorBoundary: typeof ErrorBoundary !== 'undefined',
-    safeGetCurrentToken: typeof safeGetCurrentToken !== 'undefined',
-    safeGetTokenInfo: typeof safeGetTokenInfo !== 'undefined',
+    Header: typeof Header === 'function',
+    ErrorBoundary: typeof ErrorBoundary === 'function',
+    safeGetCurrentToken: typeof safeGetCurrentToken === 'function',
+    safeGetTokenInfo: typeof safeGetTokenInfo === 'function',
   };
   
-  console.log('📣 [DIAGNOSTIC] Required components/functions check:', components);
+  // Log only if we detect any issues
+  if (!Object.values(components).every(Boolean)) {
+    console.error('Missing required components or functions:', 
+      Object.entries(components).filter(([_, exists]) => !exists).map(([name]) => name));
+  }
   
   const returnJsx = (
     <>
