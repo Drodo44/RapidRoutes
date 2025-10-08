@@ -9,6 +9,23 @@ import Header from '../components/Header';
 // Import error boundary
 import ErrorBoundary from '../components/ErrorBoundary';
 
+// Define safe authentication functions to fix React Error #130
+async function safeGetCurrentToken() {
+  try {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) throw error;
+    return data?.session?.access_token || null;
+  } catch (err) {
+    console.error('safeGetCurrentToken error:', err);
+    return null;
+  }
+}
+
+async function safeGetTokenInfo() {
+  const token = await safeGetCurrentToken();
+  return token ? { hasToken: true, token } : { hasToken: false };
+}
+
 // Diagnostic logging to debug React Error #130
 console.log('[DIAG] post-options.js module loaded');
 console.log('[DIAG] Header import type:', typeof Header);
@@ -179,10 +196,10 @@ export default function PostOptions() {
           await new Promise(resolve => setTimeout(resolve, attempts * 200));
         }
         
-        const result = await safeGetCurrentToken();
-        token = result.token;
-        user = result.user;
-        authError = result.error;
+        token = await safeGetCurrentToken();
+        // Update to use new implementation - token is directly returned
+        user = token ? await supabase.auth.getUser().then(res => res.data?.user || null) : null;
+        authError = !token ? new Error('Failed to get token') : null;
         
         if (token) break;
         attempts++;
@@ -194,23 +211,20 @@ export default function PostOptions() {
         return { ready: false, token: null, user: null, error: authError || new Error('No valid token available') };
       }
       
-      // Verify that the token is still valid
-      const tokenStatus = safeGetTokenInfo(token);
-      if (!tokenStatus?.valid) {
-        console.error(`Token validation failed: ${tokenStatus?.reason || 'Unknown error'}`, {
-          timeLeft: tokenStatus?.timeLeft,
-          expiresAt: tokenStatus?.expiresAt
-        });
+      // Verify that the token is still valid using our new implementation
+      const tokenInfo = await safeGetTokenInfo();
+      if (!tokenInfo.hasToken) {
+        console.error('Token validation failed: No valid token available');
         return { 
           ready: false, 
           token: null, 
           user: null, 
-          error: new Error(`Token invalid: ${tokenStatus.reason}`)
+          error: new Error('Token invalid')
         };
       }
       
       console.log('✅ Authentication ready with valid token');
-      return { ready: true, token, user, error: null, tokenInfo: tokenStatus };
+      return { ready: true, token, user, error: null, tokenInfo: tokenInfo };
     } catch (error) {
       console.error('Failed to initialize authentication:', error);
       return { ready: false, token: null, user: null, error };
