@@ -9,6 +9,11 @@ import Header from '../components/Header';
 // Import error boundary
 import ErrorBoundary from '../components/ErrorBoundary';
 
+// Diagnostic logging to debug React Error #130
+console.log('[DIAG] post-options.js module loaded');
+console.log('[DIAG] Header import type:', typeof Header);
+console.log('[DIAG] ErrorBoundary import type:', typeof ErrorBoundary);
+
 export default function PostOptions() {
   // Add diagnostic logging
   console.log('PostOptions component rendering');
@@ -981,7 +986,8 @@ export default function PostOptions() {
   };
 
   if (loading) {
-    return (
+    console.log('[TRACE] PostOptions loading return - before rendering');
+    const renderedValue = (
       <>
         <ErrorBoundary componentName="Header">
           <Header />
@@ -996,13 +1002,21 @@ export default function PostOptions() {
         </div>
       </>
     );
+    console.log('[TRACE] PostOptions loading state', typeof renderedValue, typeof renderedValue === 'object' ? 'Object (valid JSX)' : 'Not an object');
+    return renderedValue;
   }
 
-  return (
+  // Add runtime tracing to debug React Error #130
+  console.log('[TRACE] PostOptions render - about to return JSX');
+  console.log('[TRACE] Header component type:', typeof Header);
+  console.log('[TRACE] Header component stringified:', typeof Header === 'object' ? JSON.stringify(Header) : 'Not an object');
+  
+  const returnJsx = (
     <>
       <Head>
         <title>Post Options - RapidRoutes</title>
         <script src="/error-capture.js"></script>
+        <script src="/trace-helper.js"></script>
       </Head>
       <ErrorBoundary componentName="Header">
         <Header />
@@ -1322,4 +1336,10 @@ export default function PostOptions() {
       </div>
     </>
   );
+  
+  console.log('[TRACE] PostOptions return value type:', typeof returnJsx);
+  console.log('[TRACE] PostOptions return value:', 
+    typeof returnJsx === 'object' ? 'Object (valid JSX)' : 'Not an object');
+  
+  return returnJsx;
 }
