@@ -1,5 +1,8 @@
-// Header.js - HARD KILL fix for React #130
-// This is a null component to guarantee no React #130 errors
+// Header.js - Safe minimal component
 export default function Header() {
-  return null;
+  return (
+    <header style={{padding:"8px 16px",background:"#111",color:"#0ff",fontWeight:"600"}}>
+      RapidRoutes
+    </header>
+  );
 }
