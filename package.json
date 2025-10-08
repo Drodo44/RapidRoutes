@@ -2,6 +2,7 @@
   "name": "rapidroutes",
   "private": true,
   "type": "module",
+  "sideEffects": false,
   "engines": {
     "node": ">=18"
   },
@@ -11,6 +12,7 @@
     "verify-migration": "node scripts/02-verify-migration.js",
     "dev": "next dev",
     "build": "next build",
+    "analyze": "ANALYZE=true next build",
     "start": "next start -p 3000",
     "vercel-build": "next build",
     "test": "vitest run",
@@ -41,6 +43,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@next/bundle-analyzer": "^15.5.4",
     "@types/react": "19.1.15",
     "autoprefixer": "^10.4.19",
     "chai": "^6.0.1",

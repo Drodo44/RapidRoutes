@@ -12,6 +12,7 @@
 
 import { adminSupabase as supabase } from '../../../../utils/supabaseAdminClient';
 import { DAT_HEADERS } from '../../../../lib/datHeaders';
+import { withAuth } from '../../../../middleware/authMiddleware';
 
 // Equipment weight limits (from datCsvBuilder.js)
 const EQUIPMENT_WEIGHT_LIMITS = {
@@ -121,7 +122,7 @@ function rowsToCsv(rows) {
 /**
  * Main export handler
  */
-export default async function handler(req, res) {
+async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -129,6 +130,10 @@ export default async function handler(req, res) {
   const { id } = req.query;
 
   try {
+    // Extract user from request (added by withAuth middleware)
+    const user = req.user;
+    console.log(`👤 User ${user.email} exporting DAT CSV for lane ${id}...`);
+    
     // 1. Get lane data
     console.log(`📥 Fetching lane ${id} for DAT CSV export...`);
     const { data: lane, error: laneError } = await supabase
@@ -233,3 +238,6 @@ export default async function handler(req, res) {
     });
   }
 }
+
+// Export handler wrapped with authentication middleware
+export default withAuth(handler, { requireAuth: true });

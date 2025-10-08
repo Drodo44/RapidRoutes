@@ -4,10 +4,11 @@ import '../styles/globals.css';   // Load AFTER so Tailwind respects variables
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
-import NavBar from '../components/NavBar.jsx';
+import NavBar from '../components/Navbar.jsx';
 import ThemeToggle from '../components/ThemeToggle';
 import useKeyboardShortcuts from '../hooks/useKeyboardShortcuts';
 import Head from 'next/head';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 const PUBLIC_ROUTES = new Set(['/login', '/signup', '/']);
 
@@ -80,7 +81,9 @@ function AppContent({ Component, pageProps }) {
           </div>
         ) : (
           <main className="flex-grow pt-20 pb-12" style={{ background: 'var(--bg-primary)' }}>
-            <Component {...pageProps} />
+            <ErrorBoundary componentName={Component.displayName || Component.name || 'Page'}>
+              <Component {...pageProps} />
+            </ErrorBoundary>
           </main>
         )}
         
@@ -105,10 +108,12 @@ export default function App({ Component, pageProps }) {
   }, []);
 
   return (
-    <AuthProvider>
-      {mounted ? (
-        <AppContent Component={Component} pageProps={pageProps} />
-      ) : null}
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        {mounted ? (
+          <AppContent Component={Component} pageProps={pageProps} />
+        ) : null}
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
