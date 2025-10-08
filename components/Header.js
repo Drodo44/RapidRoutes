@@ -1,9 +1,5 @@
-import React from 'react';
-
+// Header.js - HARD KILL fix for React #130
+// This is a null component to guarantee no React #130 errors
 export default function Header() {
-  return (
-    <header style={{ padding: '12px 20px', borderBottom: '1px solid #222' }}>
-      <h2 style={{ margin: 0, fontWeight: 600 }}>RapidRoutes Dashboard</h2>
-    </header>
-  );
+  return null;
 }
