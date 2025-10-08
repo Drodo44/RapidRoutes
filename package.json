@@ -22,7 +22,7 @@
     "diagnose:csv": "node ./phase9-csv-diagnostics.js"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.58.0",
+    "@supabase/supabase-js": "^2.45.0",
     "axios": "^1.12.2",
     "body-parser": "^2.2.0",
     "chalk": "^5.6.2",
@@ -37,7 +37,7 @@
     "react-hot-toast": "^2.6.0",
     "undici": "^7.16.0",
     "xlsx": "^0.18.5",
-    "zod": "^4.1.12"
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/react": "19.1.15",
