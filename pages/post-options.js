@@ -1,64 +1,96 @@
-import { useEffect, useState } from "react";
+import React, { useState } from "react";
 import Header from "../components/Header";
-import supabase from "../utils/supabaseClient";
-import { z } from "zod";
+import { useLanes } from "../components/post-options/LaneFetcher";
+import LaneList from "../components/post-options/LaneList";
+import { generateOptions } from "../components/post-options/OptionsGenerator";
+import { OptionsPayloadSchema } from "../components/post-options/ZodValidation";
+import { useToast } from "../components/post-options/Toast";
 
-// Define zod schema for validating API payloads
-const PostOptionsPayload = z.object({
-  laneId: z.string().uuid(),
-  originCity: z.string().min(1),
-  originState: z.string().min(2),
-  destinationCity: z.string().min(1),
-  destinationState: z.string().min(2),
-  equipmentCode: z.string().min(1),
-});
-
+/**
+ * Post Options page for generating lane options
+ */
 export default function PostOptions() {
-  const [lanes, setLanes] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Use our custom hook to fetch lanes
+  const { lanes, loading, error, refetch } = useLanes({
+    limit: 50,
+    currentOnly: true,
+    orderBy: 'created_at',
+    ascending: false
+  });
 
-  // Simple lane loading function
-  async function loadLanes() {
-    try {
-      setLoading(true);
-      console.log('Fetching current lanes from database...');
-      
-      const { data, error } = await supabase
-        .from("lanes")
-        .select("*")
-        .eq("lane_status", "current")
-        .limit(50);
-      
-      if (error) throw error;
-      
-      console.log(`Received ${data?.length || 0} lanes from database`);
-      setLanes(data || []);
-    } catch (error) {
-      console.error('Error fetching lanes:', error);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    loadLanes();
-  }, []);
-
-  if (loading) return <div style={{padding:16}}>Loading lanes...</div>;
-
+  // State for tracking options generation
+  const [processing, setProcessing] = useState(false);
+  
+  // Use our custom toast hook
+  const { showToast, hideToast, ToastComponent } = useToast();
+  
+  // Handler for generating options
+  const handleGenerateOptions = async (lane) => {
+    setProcessing(true);
+    
+    // Success callback
+    const onSuccess = (data) => {
+      showToast({
+        message: `Options generated for ${lane.origin_city} → ${lane.destination_city || lane.dest_city}`,
+        type: 'success',
+      });
+      setProcessing(false);
+    };
+    
+    // Error callback
+    const onError = (error) => {
+      showToast({
+        message: `Error: ${error.message}`,
+        type: 'error',
+        duration: 6000
+      });
+      setProcessing(false);
+    };
+    
+    // Call the options generator with our schema
+    await generateOptions(lane, onSuccess, onError, OptionsPayloadSchema);
+  };
+  
   return (
-    <main style={{padding:16}}>
+    <div className="bg-gray-900 text-gray-100 min-h-screen">
       <Header />
-      <h2>Post Options</h2>
-      {lanes.length === 0 ? (
-        <p>No lanes found.</p>
-      ) : (
-        lanes.map((l) => (
-          <div key={l.id} style={{marginBottom:8,borderBottom:"1px solid #222",paddingBottom:4}}>
-            {l.origin_city} ({l.origin_state}) → {l.destination_city || l.dest_city} ({l.destination_state || l.dest_state})
+      
+      <main className="container mx-auto p-4 md:p-6">
+        <h1 className="text-2xl font-bold mb-6">Post Options</h1>
+        
+        {/* Toast notifications */}
+        {ToastComponent}
+        
+        {/* Action buttons */}
+        <div className="flex justify-end mb-4">
+          <button
+            onClick={refetch}
+            disabled={loading || processing}
+            className={`px-4 py-2 ${
+              loading || processing
+                ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                : 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer'
+            } rounded`}
+          >
+            {loading ? 'Loading...' : 'Refresh Lanes'}
+          </button>
+        </div>
+        
+        {/* Error display from useLanes */}
+        {error && (
+          <div className="p-4 bg-red-900 text-red-100 border border-red-700 rounded mb-4">
+            <p className="font-medium">Error</p>
+            <p className="text-sm">{error}</p>
           </div>
-        ))
-      )}
-    </main>
+        )}
+        
+        {/* Lane list component */}
+        <LaneList 
+          lanes={lanes} 
+          loading={loading}
+          onGenerateOptions={handleGenerateOptions}
+        />
+      </main>
+    </div>
   );
 }
