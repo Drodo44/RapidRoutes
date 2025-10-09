@@ -34,15 +34,15 @@ export default function AnalyticsDashboard() {
       // Fetch summary metrics
       const { data: summaryData, error: summaryError } = await supabase
         .from('lanes')
-        .select('id, lane_status, distance_miles');
+        .select('id, lane_status, distance');
       
       if (summaryError) throw summaryError;
       
       // Calculate summary metrics
       const totalLanes = summaryData.length;
       const activeLanes = summaryData.filter(lane => lane.lane_status === 'current').length;
-      const avgDistance = summaryData.reduce((sum, lane) => sum + (lane.distance_miles || 0), 0) / 
-                         (summaryData.filter(lane => lane.distance_miles).length || 1);
+      const avgDistance = summaryData.reduce((sum, lane) => sum + (lane.distance || 0), 0) / 
+                         (summaryData.filter(lane => lane.distance).length || 1);
       
       // Fetch quote accuracy metrics (sample data if table doesn't exist)
       let quoteAccuracy = 0;

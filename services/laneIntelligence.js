@@ -15,7 +15,7 @@ import { dedupeFetch, allowAction } from '../lib/loopGuard';
 const KMAPairingSchema = z.object({
   origin_kma: z.string(),
   destination_kma: z.string(),
-  distance_miles: z.number().positive(),
+  distance: z.number().positive(), // Changed from distance_miles to distance
   frequency: z.number().int().positive().optional()
 });
 
@@ -314,38 +314,49 @@ export async function submitOptions(lane, accessToken = null) {
     logMessage(`Submitting options with payload:`, formattedPayload, LOG_LEVELS.DEBUG);
     
     // Make API call to generate options with deduplication protection
-    const fetchResult = await dedupeFetch(
-      '/api/post-options', 
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+    let fetchResult;
+    try {
+      fetchResult = await dedupeFetch(
+        '/api/post-options', 
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify(formattedPayload),
         },
-        body: JSON.stringify(formattedPayload),
-      },
-      fetchId, // Unique identifier for this fetch
-      30000,   // 30 second timeout
-      `lane-${lane.id}` // Cache key for deduplication
-    );
+        fetchId, // Unique identifier for this fetch
+        30000,   // 30 second timeout
+        `lane-${lane.id}` // Cache key for deduplication
+      );
+    } catch (fetchError) {
+      logMessage(`Network error calling /api/post-options: ${fetchError.message}`, null, LOG_LEVELS.ERROR);
+      return { success: false, error: `Network error: ${fetchError.message}` };
+    }
     
     // Check if we got a cached response or an error from dedupeFetch
-    if (fetchResult.cached) {
+    if (fetchResult?.cached) {
       logMessage(`Using cached options result for lane ${lane.id}`, null, LOG_LEVELS.INFO);
       return fetchResult.data;
     }
     
-    if (fetchResult.error) {
+    if (fetchResult?.error) {
       logMessage(`Fetch error: ${fetchResult.error}`, null, LOG_LEVELS.ERROR);
       return { success: false, error: fetchResult.error };
     }
     
-    // Process the real response
-    const response = fetchResult.response;
+    // Process the real response - add null check
+    const response = fetchResult?.response;
+    
+    if (!response) {
+      logMessage(`[LANE-INTELLIGENCE] Bad response: Undefined response from API`, null, LOG_LEVELS.ERROR);
+      return { success: false, error: 'Undefined response from API' };
+    }
     
     if (!response.ok) {
       const text = await response.text().catch(() => '');
-      logMessage(`API error: ${text || response.status}`, null, LOG_LEVELS.ERROR);
+      logMessage(`[LANE-INTELLIGENCE] Bad response: ${text || response.status}`, null, LOG_LEVELS.ERROR);
       return { success: false, error: `API error: ${response.status}`, details: text };
     }
     
@@ -657,7 +668,7 @@ export async function runLaneIntelligencePipeline({
             weight_lbs: weight,
             // These fields would be filled by the API
             lane_status: 'pending',
-            distance_miles: pair.distance_miles,
+            distance: pair.distance_miles || pair.distance, // Support both field names during transition
             kma_pair: `${pair.origin_kma}-${pair.destination_kma}`
           });
         }

@@ -20,17 +20,35 @@ export async function generateOptions(lane, onSuccess, onError, schema = null) {
     }
     
     // Use the laneIntelligence service to submit options
-    const result = await submitOptions(lane);
-    
-    if (!result.success) {
-      console.error('Failed to generate options:', result.error);
-      onError?.(new Error(result.message || 'Failed to generate options'));
+    let result;
+    try {
+      result = await submitOptions(lane);
+      
+      if (!result) {
+        console.error('[OptionsGenerator] No result returned from submitOptions');
+        onError?.(new Error('No result returned from API'));
+        return { success: false, error: 'No result returned from API' };
+      }
+      
+      if (!result.success) {
+        console.error('[OptionsGenerator] Failed to generate options:', result.error);
+        onError?.(new Error(result.message || 'Failed to generate options'));
+        return result;
+      }
+      
+      console.log('[OptionsGenerator] Options generated successfully:', result.data);
+      if (result.data) {
+        onSuccess?.(result.data);
+      } else {
+        console.warn('[OptionsGenerator] Success reported but no data returned');
+        onSuccess?.({});
+      }
       return result;
+    } catch (apiError) {
+      console.error('[OptionsGenerator] API error in submitOptions:', apiError);
+      onError?.(apiError);
+      return { success: false, error: apiError.message || 'API call failed' };
     }
-    
-    console.log('Options generated successfully:', result.data);
-    onSuccess?.(result.data);
-    return result;
   } catch (error) {
     console.error('Error in generateOptions:', error);
     onError?.(error);
@@ -63,17 +81,40 @@ export async function generateOptionsBatch(lanes, {
     // Avoid dynamic imports during render by using a pre-loaded module
     // Import the module at the top level instead
     let laneIntelligence;
+    let submitOptionsBatch;
     
     try {
       // Use dynamic import but only in this async function context
       laneIntelligence = await import('../../services/laneIntelligence');
+      
+      if (!laneIntelligence) {
+        console.error('[OptionsGenerator] Failed to import laneIntelligence module');
+        return { success: false, error: 'Failed to load required modules' };
+      }
+      
+      submitOptionsBatch = laneIntelligence.submitOptionsBatch;
+      
+      if (!submitOptionsBatch || typeof submitOptionsBatch !== 'function') {
+        console.error('[OptionsGenerator] submitOptionsBatch function not found in module');
+        return { success: false, error: 'Required function not found in module' };
+      }
     } catch (importError) {
-      console.error('Failed to load lane intelligence service:', importError);
-      return { success: false, error: 'Failed to load required modules' };
+      console.error('[OptionsGenerator] Failed to load lane intelligence service:', importError);
+      return { success: false, error: `Failed to load required modules: ${importError.message}` };
     }
     
-    const { submitOptionsBatch } = laneIntelligence;
-    const result = await submitOptionsBatch(lanes, { parallel, onProgress });
+    let result;
+    try {
+      result = await submitOptionsBatch(lanes, { parallel, onProgress });
+    } catch (batchError) {
+      console.error('[OptionsGenerator] Error executing submitOptionsBatch:', batchError);
+      return { success: false, error: `Batch processing error: ${batchError.message}` };
+    }
+    
+    if (!result) {
+      console.error('[OptionsGenerator] No result returned from submitOptionsBatch');
+      return { success: false, error: 'No result returned from batch processing' };
+    }
     
     onComplete?.(result);
     return result;
