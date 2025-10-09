@@ -9,7 +9,8 @@ export default async function handler(req, res) {
     // Get current user
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
-      return res.status(401).json({ error: 'Authentication required' });
+      // Return empty list instead of 401 to prevent console spam
+      return res.status(200).json({ pickups: [] });
     }
 
     const userId = user.id;

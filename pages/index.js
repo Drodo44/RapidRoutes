@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 import supabase from '../utils/supabaseClient';
 import Header from '../components/Header';
 import AnalyticsDashboard from '../components/analytics/AnalyticsDashboard';
+import { getDashboardStats } from "../lib/getDashboardStats";
 
 export default function IndexPage() {
   const router = useRouter();
