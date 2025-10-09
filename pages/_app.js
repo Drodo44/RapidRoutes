@@ -5,7 +5,6 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import NavBar from '../components/Navbar.jsx';
-import ThemeToggle from '../components/ThemeToggle';
 import useKeyboardShortcuts from '../hooks/useKeyboardShortcuts';
 import Head from 'next/head';
 import ErrorBoundary from '../components/ErrorBoundary';
@@ -64,9 +63,7 @@ function AppContent({ Component, pageProps }) {
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
       </Head>
       
-      <ThemeToggle />
-      
-      <div className="min-h-screen flex flex-col">
+      <div className="min-h-screen flex flex-col dark">
         {!loading && <NavBar />}
         
         {/* Loading indicator */}
@@ -110,7 +107,7 @@ export default function App({ Component, pageProps }) {
 
   return (
     <ErrorBoundary>
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem={true}>
+      <ThemeProvider attribute="class" defaultTheme="dark" forcedTheme="dark" enableSystem={false}>
         <AuthProvider>
           {mounted ? (
             <AppContent Component={Component} pageProps={pageProps} />

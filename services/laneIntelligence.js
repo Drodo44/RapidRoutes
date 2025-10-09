@@ -9,6 +9,7 @@ import {
   validateLane,
   validateOptionsPayload
 } from '../components/post-options/ZodValidation';
+import { dedupeFetch, allowAction } from '../lib/loopGuard';
 
 // Additional validation schemas
 const KMAPairingSchema = z.object({
@@ -174,17 +175,26 @@ export async function getCitiesForKma(kmaCode, limit = 10) {
 }
 
 /**
- * Validates a lane against the Lane schema
+ * Validates a lane against the Lane schema with loop protection
  * @param {Object} lane - Lane object to validate
  * @returns {Object} - Validation result
  */
 export function validateLaneData(lane) {
+  // Prevent re-entrant calls for the same lane
+  const actionId = `validate-lane-${lane?.id || 'unknown'}`;
+  
+  if (!allowAction(actionId, 500)) {
+    logMessage(`Skipping duplicate validation for lane ${lane?.id}`, null, LOG_LEVELS.DEBUG);
+    return { success: true, data: lane, cached: true };
+  }
+  
   try {
     const result = validateLane(lane);
     if (!result.success) {
       logMessage('Lane validation failed', result.error, LOG_LEVELS.WARN);
+    } else {
+      console.log("[LaneIntelligence] Validation done, no re-fetch trigger");
     }
-    console.log("[LaneIntelligence] Validation done, no re-fetch trigger");
     return result;
   } catch (error) {
     logMessage('Exception in validateLaneData', error, LOG_LEVELS.ERROR);
@@ -230,12 +240,15 @@ export function prepareOptionsPayload(lane) {
 }
 
 /**
- * Submit options for a single lane
+ * Submit options for a single lane with loop protection
  * @param {Object} lane - Lane to submit options for
  * @param {string} accessToken - Authentication token
  * @returns {Promise<Object>} - Submission result
  */
 export async function submitOptions(lane, accessToken = null) {
+  // Generate a unique ID for this specific lane submission
+  const fetchId = `submit-options-${lane?.id || 'unknown'}-${Date.now()}`;
+  
   try {
     logMessage(`Submitting options for lane ${lane.id}`);
     
@@ -257,15 +270,35 @@ export async function submitOptions(lane, accessToken = null) {
       }
     }
     
-    // Make API call to generate options
-    const response = await fetch('/api/post-options', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
+    // Make API call to generate options with deduplication protection
+    const fetchResult = await dedupeFetch(
+      '/api/post-options', 
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
       },
-      body: JSON.stringify(payload),
-    });
+      fetchId, // Unique identifier for this fetch
+      30000,   // 30 second timeout
+      `lane-${lane.id}` // Cache key for deduplication
+    );
+    
+    // Check if we got a cached response or an error from dedupeFetch
+    if (fetchResult.cached) {
+      logMessage(`Using cached options result for lane ${lane.id}`, null, LOG_LEVELS.INFO);
+      return fetchResult.data;
+    }
+    
+    if (fetchResult.error) {
+      logMessage(`Fetch error: ${fetchResult.error}`, null, LOG_LEVELS.ERROR);
+      return { success: false, error: fetchResult.error };
+    }
+    
+    // Process the real response
+    const response = fetchResult.response;
     
     if (!response.ok) {
       const text = await response.text().catch(() => '');
@@ -282,8 +315,11 @@ export async function submitOptions(lane, accessToken = null) {
       return { success: false, error: 'Invalid API response', details: responseValidation.error.format() };
     }
     
+    // Store successful result for future deduplication
+    const result = { success: true, data: responseValidation.data };
+    
     logMessage(`Options generated successfully for lane ${lane.id}`);
-    return { success: true, data: responseValidation.data };
+    return result;
   } catch (error) {
     logMessage(`Error in submitOptions for lane ${lane?.id}`, error, LOG_LEVELS.ERROR);
     return { success: false, error, message: `Exception submitting options for lane ${lane?.id}` };
@@ -291,7 +327,7 @@ export async function submitOptions(lane, accessToken = null) {
 }
 
 /**
- * Submit options for multiple lanes in batch
+ * Submit options for multiple lanes in batch with loop protection
  * @param {Array<Object>} lanes - Lanes to submit options for
  * @param {Object} options - Options for batch submission
  * @param {boolean} options.parallel - Whether to submit in parallel
@@ -302,13 +338,27 @@ export async function submitOptionsBatch(lanes, {
   parallel = false, 
   onProgress = null 
 } = {}) {
+  // Generate unique batch ID to prevent concurrent identical batches
+  const batchId = `batch-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+  
+  // Check if we're already processing a similar batch
+  if (!allowAction(`submitOptionsBatch-${lanes.length}`, 2000)) {
+    logMessage('Skipping duplicate batch submission', null, LOG_LEVELS.WARN);
+    return { 
+      success: false, 
+      cached: true,
+      error: 'Duplicate batch submission detected',
+      message: 'Another similar batch is already being processed'
+    };
+  }
+  
   try {
     if (!lanes || !Array.isArray(lanes) || lanes.length === 0) {
       logMessage('No lanes provided for batch submission', null, LOG_LEVELS.WARN);
       return { success: false, error: 'No lanes provided' };
     }
     
-    logMessage(`Batch submitting options for ${lanes.length} lanes (parallel: ${parallel})`);
+    logMessage(`Batch submitting options for ${lanes.length} lanes (parallel: ${parallel}, batchId: ${batchId})`);
     
     // Get authentication token once for all requests
     const token = await safeGetCurrentToken(supabase);
@@ -320,17 +370,52 @@ export async function submitOptionsBatch(lanes, {
     const results = [];
     const total = lanes.length;
     
+    // Limit parallel processing to prevent overloading the API
+    const maxConcurrent = parallel ? Math.min(lanes.length, 5) : 1;
+    let activeRequests = 0;
+    let nextIndex = 0;
+    
     if (parallel) {
-      // Submit all requests in parallel
-      const promises = lanes.map((lane, index) => 
-        submitOptions(lane, token)
-          .then(result => {
-            onProgress?.(index, total, result);
-            return { index, result };
-          })
-      );
+      // Use controlled concurrency for parallel execution
+      const processBatch = async () => {
+        const processingPromises = [];
+        
+        // Process lanes in batches with controlled concurrency
+        while (nextIndex < total && activeRequests < maxConcurrent) {
+          const index = nextIndex++;
+          activeRequests++;
+          
+          const processPromise = submitOptions(lanes[index], token)
+            .then(result => {
+              activeRequests--;
+              onProgress?.(index, total, result);
+              return { index, result };
+            })
+            .catch(error => {
+              activeRequests--;
+              logMessage(`Error processing lane at index ${index}`, error, LOG_LEVELS.ERROR);
+              return { 
+                index, 
+                result: { 
+                  success: false, 
+                  error: error.message || 'Unknown error', 
+                  message: `Failed to process lane at index ${index}` 
+                } 
+              };
+            });
+          
+          processingPromises.push(processPromise);
+        }
+        
+        return Promise.all(processingPromises);
+      };
       
-      const allResults = await Promise.all(promises);
+      // Process all lanes with controlled concurrency
+      const allResults = [];
+      while (nextIndex < total) {
+        const batchResults = await processBatch();
+        allResults.push(...batchResults);
+      }
       
       // Sort results by index to maintain order
       allResults.sort((a, b) => a.index - b.index);
@@ -338,6 +423,12 @@ export async function submitOptionsBatch(lanes, {
     } else {
       // Submit sequentially
       for (let i = 0; i < lanes.length; i++) {
+        // Check for abort signal after each iteration
+        if (!allowAction(`continue-batch-${batchId}`, 0)) {
+          logMessage('Batch processing aborted', null, LOG_LEVELS.WARN);
+          break;
+        }
+        
         const result = await submitOptions(lanes[i], token);
         results.push(result);
         onProgress?.(i, total, result);
