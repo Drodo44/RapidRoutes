@@ -9,6 +9,7 @@ import ThemeToggle from '../components/ThemeToggle';
 import useKeyboardShortcuts from '../hooks/useKeyboardShortcuts';
 import Head from 'next/head';
 import ErrorBoundary from '../components/ErrorBoundary';
+import { ThemeProvider } from 'next-themes';
 
 const PUBLIC_ROUTES = new Set(['/login', '/signup', '/']);
 
@@ -109,11 +110,13 @@ export default function App({ Component, pageProps }) {
 
   return (
     <ErrorBoundary>
-      <AuthProvider>
-        {mounted ? (
-          <AppContent Component={Component} pageProps={pageProps} />
-        ) : null}
-      </AuthProvider>
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem={true}>
+        <AuthProvider>
+          {mounted ? (
+            <AppContent Component={Component} pageProps={pageProps} />
+          ) : null}
+        </AuthProvider>
+      </ThemeProvider>
     </ErrorBoundary>
   );
 }

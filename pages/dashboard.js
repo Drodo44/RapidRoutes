@@ -6,6 +6,8 @@ import Link from 'next/link';
 import Head from 'next/head';
 import supabase from '../utils/supabaseClient';
 import DatMarketMaps from '../components/DatMarketMaps.jsx';
+import AnalyticsDashboard from "../components/analytics/AnalyticsDashboard";
+import LaneOverview from "../components/post-options/LaneList";
 
 function Section({ title, right, children, className = '' }) {
   return (
@@ -252,39 +254,29 @@ function Dashboard() {
       
       <div className="container">
         <div className="page-header">
-          <h1 className="page-title">Broker Dashboard</h1>
+          <h1 className="page-title">RapidRoutes Command Center</h1>
           <p className="page-subtitle">Freight management tools and market insights</p>
         </div>
 
-        {/* Stats row */}
-        <div className="grid grid-4" style={{ marginBottom: 'var(--space-6)' }}>
-          <StatCard 
-            title="Current Lanes" 
-            value={stats.pendingLanes} 
-            subValue="Active lanes" 
-            icon="🛣️" 
-            color="blue" 
-          />
-          <StatCard 
-            title="Ready for Recap" 
-            value={stats.postedLanes} 
-            subValue="Cities selected" 
-            icon="�" 
-            color="green" 
-          />
-          <StatCard 
-            title="Archived" 
-            value={stats.coveredLanes}
-            subValue="Completed/Inactive" 
-            icon="📦" 
-            color="amber" 
-          />
-          <StatCard 
-            title="Total Lanes" 
-            value={stats.totalRecaps + stats.pendingLanes + stats.coveredLanes}
-            subValue="All time" 
-            icon="📋" 
-            color="blue" 
+        {/* Embedded Analytics Dashboard Section */}
+        <div className="border border-gray-800 rounded-2xl shadow-lg bg-[#0f172a] p-4" style={{ marginBottom: 'var(--space-6)' }}>
+          <AnalyticsDashboard compact />
+        </div>
+        
+        {/* Core Lane Overview Section */}
+        <div style={{ marginBottom: 'var(--space-6)' }}>
+          <h2 className="text-2xl font-semibold text-cyan-300 mb-2">Active Lanes</h2>
+          <LaneOverview 
+            lanes={stats.pendingLanes > 0 ? Array(stats.pendingLanes).fill({
+              id: "sample-id",
+              origin_city: "Chicago",
+              origin_state: "IL",
+              dest_city: "Atlanta",
+              dest_state: "GA",
+              equipment_code: "V",
+              weight_lbs: 45000
+            }) : []} 
+            onGenerateOptions={(lane) => router.push(`/post-options?laneId=${lane.id}`)}
           />
         </div>
         

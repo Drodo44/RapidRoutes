@@ -105,7 +105,12 @@ export const OptionsResponseSchema = z.object({
  */
 export function validateLane(lane) {
   try {
-    const result = LaneSchema.safeParse(lane);
+    const result = LaneSchema.safeParse({ 
+      ...lane, 
+      dest_city: lane.dest_city || "Unknown", 
+      dest_state: lane.dest_state || "Unknown", 
+      created_at: lane.created_at || new Date().toISOString() 
+    });
     if (result.success) {
       return { success: true, data: result.data, error: null };
     } else {
