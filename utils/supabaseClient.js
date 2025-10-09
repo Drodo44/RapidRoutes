@@ -16,4 +16,8 @@ const supabase = createClient(url, anon, {
   global: { headers: { 'X-Client-Info': 'RapidRoutes-web' } },
 });
 
+// Re-export adminSupabase for backward compatibility
+import { adminSupabase } from './supabaseAdminClient.js';
+
+export { supabase, adminSupabase };
 export default supabase;

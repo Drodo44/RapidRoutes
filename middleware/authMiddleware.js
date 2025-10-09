@@ -1,5 +1,5 @@
 // middleware/authMiddleware.js
-import { supabase } from '../utils/supabaseClient';
+import supabase from '../utils/supabaseClient';
 
 /**
  * Authorization middleware for API routes

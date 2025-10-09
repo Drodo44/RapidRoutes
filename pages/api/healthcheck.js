@@ -1,5 +1,5 @@
 // pages/api/healthcheck.js
-import { adminSupabase as supabase } from '../../utils/supabaseClient.js';
+import { adminSupabase as supabase } from '../../utils/supabaseAdminClient.js';
 
 export default async function handler(req, res) {
   // Only allow GET requests
