@@ -215,7 +215,7 @@ export function prepareOptionsPayload(lane) {
       return laneValidation;
     }
     
-    // Extract the required fields from the lane
+    // Extract the required fields from the lane and ensure consistent naming
     const payload = {
       laneId: lane.id,
       originCity: lane.origin_city || '',
@@ -224,6 +224,37 @@ export function prepareOptionsPayload(lane) {
       destinationState: lane.destination_state || lane.dest_state || '',
       equipmentCode: lane.equipment_code || '',
     };
+    
+    // Additional validation to ensure no empty strings
+    if (!payload.laneId || payload.laneId.trim() === '') {
+      logMessage('Missing lane ID in payload', lane, LOG_LEVELS.WARN);
+      return { success: false, error: 'Missing lane ID', message: 'Lane ID is required' };
+    }
+    
+    if (!payload.originCity || payload.originCity.trim() === '') {
+      logMessage('Missing origin city in payload', lane, LOG_LEVELS.WARN);
+      return { success: false, error: 'Missing origin city', message: 'Origin city is required' };
+    }
+    
+    if (!payload.originState || payload.originState.trim() === '') {
+      logMessage('Missing origin state in payload', lane, LOG_LEVELS.WARN);
+      return { success: false, error: 'Missing origin state', message: 'Origin state is required' };
+    }
+    
+    if (!payload.destinationCity || payload.destinationCity.trim() === '') {
+      logMessage('Missing destination city in payload', lane, LOG_LEVELS.WARN);
+      return { success: false, error: 'Missing destination city', message: 'Destination city is required' };
+    }
+    
+    if (!payload.destinationState || payload.destinationState.trim() === '') {
+      logMessage('Missing destination state in payload', lane, LOG_LEVELS.WARN);
+      return { success: false, error: 'Missing destination state', message: 'Destination state is required' };
+    }
+    
+    if (!payload.equipmentCode || payload.equipmentCode.trim() === '') {
+      logMessage('Missing equipment code in payload', lane, LOG_LEVELS.WARN);
+      return { success: false, error: 'Missing equipment code', message: 'Equipment code is required' };
+    }
     
     // Validate the payload
     const payloadValidation = validateOptionsPayload(payload);
@@ -270,6 +301,18 @@ export async function submitOptions(lane, accessToken = null) {
       }
     }
     
+    // Ensure payload is correctly formatted according to the API schema
+    const formattedPayload = {
+      laneId: payload.laneId,
+      originCity: payload.originCity,
+      originState: payload.originState,
+      destinationCity: payload.destinationCity,
+      destinationState: payload.destinationState,
+      equipmentCode: payload.equipmentCode
+    };
+    
+    logMessage(`Submitting options with payload:`, formattedPayload, LOG_LEVELS.DEBUG);
+    
     // Make API call to generate options with deduplication protection
     const fetchResult = await dedupeFetch(
       '/api/post-options', 
@@ -279,7 +322,7 @@ export async function submitOptions(lane, accessToken = null) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(formattedPayload),
       },
       fetchId, // Unique identifier for this fetch
       30000,   // 30 second timeout

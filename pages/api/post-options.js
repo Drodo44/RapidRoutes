@@ -10,12 +10,12 @@ import { z } from 'zod';
 // NOTE: Not using external p-limit dependency to avoid adding new package; implementing lightweight limiter inline.
 
 const ApiSchema = z.object({
-  laneId: z.string().uuid(),
-  originCity: z.string(),
-  originState: z.string(),
-  destinationCity: z.string(),
-  destinationState: z.string(),
-  equipmentCode: z.string(),
+  laneId: z.string().min(1, "Lane ID is required"),
+  originCity: z.string().min(1, "Origin city is required"),
+  originState: z.string().min(1, "Origin state is required"),
+  destinationCity: z.string().min(1, "Destination city is required"),
+  destinationState: z.string().min(1, "Destination state is required"),
+  equipmentCode: z.string().min(1, "Equipment code is required"),
 });
 
 function toRad(value) {
@@ -129,9 +129,29 @@ async function generateOptionsForLane(laneId) {
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'Method not allowed' });
 
-  const parsed = ApiSchema.safeParse(req.body);
+  // Normalize the request body to handle both snake_case and camelCase
+  let normalizedBody = req.body;
+  if (normalizedBody) {
+    normalizedBody = {
+      ...normalizedBody,
+      laneId: normalizedBody.laneId || normalizedBody.lane_id || '',
+      originCity: normalizedBody.originCity || normalizedBody.origin_city || '',
+      originState: normalizedBody.originState || normalizedBody.origin_state || '',
+      destinationCity: normalizedBody.destinationCity || normalizedBody.destination_city || normalizedBody.dest_city || '',
+      destinationState: normalizedBody.destinationState || normalizedBody.destination_state || normalizedBody.dest_state || '',
+      equipmentCode: normalizedBody.equipmentCode || normalizedBody.equipment_code || '',
+    };
+  }
+
+  const parsed = ApiSchema.safeParse(normalizedBody);
   if (!parsed.success) {
-    return res.status(400).json({ ok: false, error: 'Missing or invalid body', detail: parsed.error.flatten() });
+    console.error('API validation failed:', parsed.error.flatten());
+    return res.status(400).json({ 
+      ok: false, 
+      error: 'Missing or invalid body', 
+      detail: parsed.error.flatten(),
+      receivedBody: JSON.stringify(req.body)
+    });
   }
 
   try {

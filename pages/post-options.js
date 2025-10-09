@@ -109,7 +109,7 @@ export default function PostOptions() {
         <h1 className="text-2xl font-bold mb-6">Post Options</h1>
         
         {/* Toast notifications */}
-        {ToastComponent}
+        {ToastComponent && <>{ToastComponent}</>}
         
         {/* Action buttons */}
         <div className="flex flex-wrap justify-between items-center mb-4 gap-2">
