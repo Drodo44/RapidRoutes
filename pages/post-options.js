@@ -23,12 +23,15 @@ export default function PostOptions() {
   
   // Handler for generating options for a single lane
   const handleGenerateOptions = async (lane) => {
+    // Pre-generate success message template once, avoiding render-time string concatenation
+    const successMessageTemplate = `Options generated for ${lane.origin_city} → ${lane.destinationCity}`;
+    
     setProcessing(true);
     
     // Success callback
     const onSuccess = (data) => {
       showToast({
-        message: `Options generated for ${lane.origin_city} → ${lane.destination_city || lane.dest_city}`,
+        message: successMessageTemplate,
         type: 'success',
       });
       setProcessing(false);
@@ -36,8 +39,10 @@ export default function PostOptions() {
     
     // Error callback
     const onError = (error) => {
+      const errorMessage = `Error: ${error.message || 'Unknown error'}`;
+      
       showToast({
-        message: `Error: ${error.message}`,
+        message: errorMessage,
         type: 'error',
         duration: 6000
       });
@@ -48,6 +53,13 @@ export default function PostOptions() {
     await generateOptions(lane, onSuccess, onError, OptionsPayloadSchema);
   };
   
+  // Create progress message ahead of time
+  const createProgressMessage = (index, total, lane, isSuccess) => {
+    return isSuccess
+      ? `(${index+1}/${total}) Generated options for ${lane.origin_city} → ${lane.destinationCity}`
+      : `(${index+1}/${total}) Failed for ${lane.origin_city} → ${lane.destinationCity}`;
+  };
+
   // Handler for batch generating options for all lanes
   const handleBatchGenerate = async () => {
     if (!lanes.length) {
@@ -67,9 +79,7 @@ export default function PostOptions() {
       setProgress({ current: index + 1, total });
       
       const lane = lanes[index];
-      const message = result.success
-        ? `(${index+1}/${total}) Generated options for ${lane.origin_city} → ${lane.destination_city || lane.dest_city}`
-        : `(${index+1}/${total}) Failed for ${lane.origin_city} → ${lane.destination_city || lane.dest_city}`;
+      const message = createProgressMessage(index, total, lane, result.success);
         
       showToast({
         message,

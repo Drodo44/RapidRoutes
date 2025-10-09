@@ -60,10 +60,20 @@ export async function generateOptionsBatch(lanes, {
       return { success: false, error: error.message };
     }
     
-    // Use the service's batch submission function directly
-    const result = await import('../../services/laneIntelligence')
-      .then(({ submitOptionsBatch }) => 
-        submitOptionsBatch(lanes, { parallel, onProgress }));
+    // Avoid dynamic imports during render by using a pre-loaded module
+    // Import the module at the top level instead
+    let laneIntelligence;
+    
+    try {
+      // Use dynamic import but only in this async function context
+      laneIntelligence = await import('../../services/laneIntelligence');
+    } catch (importError) {
+      console.error('Failed to load lane intelligence service:', importError);
+      return { success: false, error: 'Failed to load required modules' };
+    }
+    
+    const { submitOptionsBatch } = laneIntelligence;
+    const result = await submitOptionsBatch(lanes, { parallel, onProgress });
     
     onComplete?.(result);
     return result;

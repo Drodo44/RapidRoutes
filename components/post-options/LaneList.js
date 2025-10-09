@@ -50,7 +50,7 @@ export default function LaneList({ lanes = [], onGenerateOptions, loading = fals
         >
           <div className="flex-grow">
             <div className="font-medium">
-              {lane.origin_city}, {lane.origin_state} → {lane.destination_city || lane.dest_city}, {lane.destination_state || lane.dest_state}
+              {lane.origin_city}, {lane.origin_state} → {lane.destinationCity}, {lane.destinationState}
             </div>
             <div className="text-sm text-gray-400 mt-1 flex flex-wrap gap-2">
               <span className="bg-gray-700 text-gray-300 px-2 py-0.5 rounded text-xs">
@@ -58,7 +58,7 @@ export default function LaneList({ lanes = [], onGenerateOptions, loading = fals
               </span>
               {lane.weight_lbs && (
                 <span className="text-xs">
-                  {lane.weight_lbs.toLocaleString()} lbs
+                  {lane.formattedWeight} lbs
                 </span>
               )}
               {lane.length_ft && (
@@ -67,7 +67,7 @@ export default function LaneList({ lanes = [], onGenerateOptions, loading = fals
                 </span>
               )}
               <span className="text-xs text-gray-500">
-                ID: {lane.id.substring(0,8)}...
+                ID: {lane.shortId}...
               </span>
             </div>
           </div>

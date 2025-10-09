@@ -22,22 +22,19 @@ export default function Toast({ message, type = 'info', onClose, duration = 4000
 
   if (!message) return null;
 
-  const getTypeStyles = () => {
-    switch (type) {
-      case 'success':
-        return 'bg-green-800 text-green-100 border border-green-700';
-      case 'error':
-        return 'bg-red-800 text-red-100 border border-red-700';
-      case 'warning':
-        return 'bg-yellow-800 text-yellow-100 border border-yellow-700';
-      case 'info':
-      default:
-        return 'bg-blue-800 text-blue-100 border border-blue-700';
-    }
+  // Pre-define all style variants to avoid function calls during render
+  const typeStyles = {
+    success: 'bg-green-800 text-green-100 border border-green-700',
+    error: 'bg-red-800 text-red-100 border border-red-700',
+    warning: 'bg-yellow-800 text-yellow-100 border border-yellow-700',
+    info: 'bg-blue-800 text-blue-100 border border-blue-700'
   };
+  
+  // Use the pre-defined style or fall back to info style
+  const styleClass = typeStyles[type] || typeStyles.info;
 
   return (
-    <div className={`p-4 mb-4 rounded ${getTypeStyles()} flex justify-between items-center`}>
+    <div className={`p-4 mb-4 rounded ${styleClass} flex justify-between items-center`}>
       <div>{message}</div>
       {onClose && (
         <button 
