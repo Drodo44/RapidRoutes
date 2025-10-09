@@ -184,6 +184,7 @@ export function validateLaneData(lane) {
     if (!result.success) {
       logMessage('Lane validation failed', result.error, LOG_LEVELS.WARN);
     }
+    console.log("[LaneIntelligence] Validation done, no re-fetch trigger");
     return result;
   } catch (error) {
     logMessage('Exception in validateLaneData', error, LOG_LEVELS.ERROR);

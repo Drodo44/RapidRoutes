@@ -61,6 +61,7 @@ export function useLanes({
         return validation.success ? validation.data : lane;
       });
       
+      console.log("[LaneIntelligence] Validation done, no re-fetch trigger");
       setLanes(validatedLanes);
     } catch (err) {
       console.error('Error fetching lanes:', err);

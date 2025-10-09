@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import Header from "../components/Header";
-import { useLanes } from "../components/post-options/LaneFetcher";
+import { useLanes } from "../hooks/useLanes";
 import LaneList from "../components/post-options/LaneList";
 import { generateOptions, generateOptionsBatch } from "../components/post-options/OptionsGenerator";
 import { OptionsPayloadSchema } from "../components/post-options/ZodValidation";
@@ -11,12 +11,7 @@ import { useToast } from "../components/post-options/Toast";
  */
 export default function PostOptions() {
   // Use our custom hook to fetch lanes
-  const { lanes, loading, error, refetch } = useLanes({
-    limit: 50,
-    currentOnly: true,
-    orderBy: 'created_at',
-    ascending: false
-  });
+  const { lanes, loading, refresh } = useLanes();
 
   // State for tracking options generation
   const [processing, setProcessing] = useState(false);
@@ -95,7 +90,7 @@ export default function PostOptions() {
       });
       
       // Refresh lanes to get updated data
-      refetch();
+      refresh();
     };
     
     // Start batch processing
@@ -135,7 +130,7 @@ export default function PostOptions() {
           </div>
           
           <button
-            onClick={refetch}
+            onClick={refresh}
             disabled={loading || processing}
             className={`px-4 py-2 ${
               loading || processing
@@ -147,13 +142,7 @@ export default function PostOptions() {
           </button>
         </div>
         
-        {/* Error display from useLanes */}
-        {error && (
-          <div className="p-4 bg-red-900 text-red-100 border border-red-700 rounded mb-4">
-            <p className="font-medium">Error</p>
-            <p className="text-sm">{error}</p>
-          </div>
-        )}
+        {/* Error handling is now done internally in useLanes hook */}
         
         {/* Progress bar for batch processing */}
         {processing && isBatchMode && (
