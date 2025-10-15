@@ -5,6 +5,7 @@ import supabase from '../utils/supabaseClient';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { getDisplayReferenceId, matchesReferenceId, cleanReferenceId } from '../lib/referenceIdUtils';
+import { fetchLaneRecords, hasSavedCities } from '../services/laneService.js';
 
 // Generate reference ID for generated pairs (same logic as CSV)
 function generatePairReferenceId(baseRefId, pairIndex) {
@@ -387,32 +388,23 @@ export default function RecapPage() {
   };
   
   useEffect(() => {
-    // Load lanes with saved city choices (current status with saved cities)
-    supabase
-      .from('lanes')
-      .select('*')
-      .eq('lane_status', 'current')
-      .not('saved_origin_cities', 'is', null)
-      .not('saved_dest_cities', 'is', null)
-      .order('created_at', { ascending: false })
-      .limit(200)
-      .then(({ data }) => {
-        // Filter to only show lanes that actually have saved cities
-        const lanesWithChoices = (data || []).filter(lane => 
-          lane.saved_origin_cities?.length > 0 && 
-          lane.saved_dest_cities?.length > 0
-        );
-        
-        // Mark lanes as having saved choices
-        lanesWithChoices.forEach(lane => {
-          lane.has_saved_choices = true;
-        });
-        
+    let cancelled = false;
+    setLoading(true);
+
+    fetchLaneRecords({
+      status: 'current',
+      limit: 300,
+      onlyWithSavedCities: true
+    })
+      .then((records) => {
+        if (cancelled) return;
+        const lanesWithChoices = records.filter(hasSavedCities);
         setLanes(lanesWithChoices);
         setLoading(false);
       })
-      .catch(err => {
-        console.error('Error loading lanes:', err);
+      .catch((error) => {
+        if (cancelled) return;
+        console.error('Error loading lanes:', error);
         setLoading(false);
       });
     
@@ -425,6 +417,10 @@ export default function RecapPage() {
         }
       })
       .catch(error => console.error('Error loading crawl cities:', error));
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
   
   const filtered = useMemo(() => {

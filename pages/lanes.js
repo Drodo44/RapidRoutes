@@ -12,6 +12,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { checkIntermodalEligibility } from '../lib/intermodalAdvisor';
 import { generateReferenceId, generateNewReferenceId, getDisplayReferenceId } from '../lib/referenceIdUtils';
 import Head from 'next/head';
+import { fetchLaneRecords } from '../services/laneService.js';
 
 function Section({ title, children, right, className = '' }) {
   return (
@@ -264,22 +265,15 @@ function LanesPage() {
         }
       }
       
-      const [
-        { data: currentLanes = [], error: currentError },
-        { data: archivedLanes = [], error: archivedError }
-      ] = await Promise.all([
-        supabase.from('lanes').select('*').eq('lane_status', 'current').order('created_at', { ascending: false }).limit(200),
-        supabase.from('lanes').select('*').eq('lane_status', 'archive').order('created_at', { ascending: false }).limit(50),
+      const [currentLanes, archivedLanes] = await Promise.all([
+        fetchLaneRecords({ status: 'current', limit: 200 }),
+        fetchLaneRecords({ status: 'archive', limit: 50, includeArchived: true })
       ]);
-
-      if (currentError) throw currentError;
-      if (archivedError) throw archivedError;
 
       console.log('Lists loaded successfully - Current:', currentLanes.length, 'Archive:', archivedLanes.length);
 
-      // Ensure we always have arrays, not objects
-      setCurrent(Array.isArray(currentLanes) ? currentLanes : []);
-      setArchive(Array.isArray(archivedLanes) ? archivedLanes : []);
+      setCurrent(currentLanes);
+      setArchive(archivedLanes);
     } catch (error) {
       console.error('Failed to load lanes:', error);
       setCurrent([]); 

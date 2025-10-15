@@ -1,4 +1,7 @@
 import { adminSupabase as supabase } from '../../../utils/supabaseClient';
+import { mapLaneRowToRecord } from '../../../services/laneService.js';
+
+const LANE_VIEW = 'rapidroutes_lane_view';
 
 export default async function handler(req, res) {
   // Only allow GET requests
@@ -6,17 +9,14 @@ export default async function handler(req, res) {
 
   try {
     const [activeLanesResult, archivedLanesResult] = await Promise.all([
-      // Count active lanes
       supabase
-        .from('lanes')
+        .from(LANE_VIEW)
         .select('id', { count: 'exact', head: true })
-        .eq('status', 'active'),
-      
-      // Count archived lanes
+        .eq('lane_status', 'current'),
       supabase
-        .from('lanes')
+        .from(LANE_VIEW)
         .select('id', { count: 'exact', head: true })
-        .eq('status', 'archived')
+        .eq('lane_status', 'archive')
     ]);
 
     // Optional: recap table may not exist everywhere; tolerate errors
@@ -28,16 +28,16 @@ export default async function handler(req, res) {
 
     // Get 5 most recent lanes with full details
     const recentLanesResult = await supabase
-      .from('lanes')
+      .from(LANE_VIEW)
       .select('*')
-      .order('created_at', { ascending: false })
+      .order('updated_at', { ascending: false })
       .limit(5);
 
     // Calculate totals
     const activeLanes = activeLanesResult.count || 0;
     const archivedLanes = archivedLanesResult.count || 0;
     const totalLanes = activeLanes + archivedLanes;
-    const recentLanes = recentLanesResult.data || [];
+  const recentLanes = (recentLanesResult.data || []).map(mapLaneRowToRecord);
 
     return res.status(200).json({
       ok: true,

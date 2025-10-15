@@ -5,13 +5,15 @@
 // - Splits into ≤499 rows per part; HEAD returns X-Total-Parts for pagination
 // - If part is specified for GET, returns only that part.
 
-const { adminSupabase } = require('../../utils/supabaseAdminClient.js');
-const { EnterpriseCsvGenerator } = require('../../lib/enterpriseCsvGenerator.js');
-const { toCsv, chunkRows, DAT_HEADERS, MIN_PAIRS_REQUIRED, ROWS_PER_PAIR } = require('../../lib/datCsvBuilder.js');
-const { monitor } = require('../../lib/monitor.js');
-const { validateApiAuth } = require('../../middleware/auth.unified.js');
-const fs = require('fs');
-const path = require('path');
+import { adminSupabase } from '../../utils/supabaseAdminClient.js';
+import { EnterpriseCsvGenerator } from '../../lib/enterpriseCsvGenerator.js';
+import { toCsv, chunkRows, DAT_HEADERS, MIN_PAIRS_REQUIRED, ROWS_PER_PAIR } from '../../lib/datCsvBuilder.js';
+import { monitor } from '../../lib/monitor.js';
+import { validateApiAuth } from '../../middleware/auth.unified.js';
+import { assertApiAuth, isInternalBypass } from '@/lib/auth';
+import fs from 'fs';
+import path from 'path';
+import { fetchLaneRecords, sanitizeLaneFilters } from '../../services/laneService.js';
 
 // Helper to get active row count for pagination
 async function getActiveRowCount() {
@@ -31,25 +33,22 @@ function daysAgoUTC(n) {
 
 // Helper to select lanes based on query parameters
 async function selectLanes({ pending, days, all }) {
-  let q = adminSupabase.from('lanes')
-    .select('*')
-    .order('created_at', { ascending: false });
+  const includeArchived = Boolean(all);
+  const limit = 2000;
 
-  if (pending) {
-    q = q.eq('lane_status', 'current');
-  } else if (all) {
-    // no additional filters
-  } else if (days != null) {
+  const baseFilters = sanitizeLaneFilters({
+    status: pending ? 'current' : includeArchived || days != null ? 'all' : 'current',
+    includeArchived: includeArchived || days != null,
+    limit
+  });
+
+  if (days != null) {
     const since = daysAgoUTC(Number(days));
-    q = q.gte('created_at', since);
-  } else {
-    // default: current lanes (lanes with city choices saved)
-    q = q.eq('lane_status', 'current');
+    baseFilters.createdAfter = since;
   }
 
-  const { data, error } = await q.limit(2000); // sane cap for bulk exports
-  if (error) throw error;
-  return data || [];
+  const lanes = await fetchLaneRecords(baseFilters, adminSupabase);
+  return lanes || [];
 }
 
 // Main handler for DAT CSV export
@@ -69,14 +68,29 @@ export default async function handler(req, res) {
     debugLogs.push(message);
   };
 
-  // Validate user has necessary permissions
-  const auth = await validateApiAuth(req, res);
-  if (!auth) {
-    return res.status(401).json({ error: 'Unauthorized: API authentication required.' });
+  let auth;
+  try {
+    assertApiAuth(req);
+  } catch (error) {
+    const status = Number(error?.status) || 401;
+    return res.status(status).json({ error: error?.message || 'Unauthorized' });
+  }
+
+  if (isInternalBypass(req)) {
+    auth = {
+      profile: { role: 'InternalBypass' },
+      user: { email: 'internal-bypass@rapidroutes.test', id: 'internal-bypass' }
+    };
+  } else {
+    const validated = await validateApiAuth(req, res);
+    if (!validated) {
+      return res.status(401).json({ error: 'Unauthorized: API authentication required.' });
+    }
+    auth = validated;
   }
 
   // Check role permissions: Admin, Broker, and Support can export CSVs (Apprentice cannot)
-  const allowedRoles = ['Admin', 'Administrator', 'Broker', 'Support'];
+  const allowedRoles = ['Admin', 'Administrator', 'Broker', 'Support', 'InternalBypass'];
   if (!allowedRoles.includes(auth.profile.role)) {
     monitor.log('warn', `CSV export denied for role: ${auth.profile.role} (${auth.user.email})`);
     return res.status(403).json({ 
@@ -407,8 +421,7 @@ export default async function handler(req, res) {
     }
     
     return res.status(500).json({ 
-      error: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined 
+      error: 'CSV export failed'
     });
   }
 }

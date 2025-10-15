@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
+import { fetchLaneRecords } from '../services/laneService.js';
 
 export default function SmartRecap() {
   const [lanes, setLanes] = useState([]);
@@ -21,13 +22,7 @@ export default function SmartRecap() {
     setLoading(true);
     try {
       // Get all active lanes first
-      const lanesResponse = await fetch('/api/lanes');
-      if (!lanesResponse.ok) throw new Error('Failed to fetch lanes');
-      const lanesData = await lanesResponse.json();
-      
-      const activeLanes = lanesData.filter(lane => 
-        (lane.lane_status || lane.status) === 'current'
-      );
+      const activeLanes = await fetchLaneRecords({ status: 'current', limit: 500 });
       
       setLanes(activeLanes);
       console.log('📋 Active lanes loaded:', activeLanes.length);

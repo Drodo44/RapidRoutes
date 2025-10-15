@@ -1,6 +1,7 @@
 // pages/api/lanes/crawl-cities.js
 // API to get crawl cities for dropdown functionality
 import { adminSupabase } from '../../../utils/supabaseAdminClient';
+import { fetchLaneRecords } from '../../../services/laneService.js';
 import { generateGeographicCrawlPairs } from '../../../lib/geographicCrawl.js';
 
 function cleanReferenceId(refId) {
@@ -16,14 +17,13 @@ export default async function handler(req, res) {
 
   try {
     // Get all current lanes
-    const { data: lanes, error } = await adminSupabase
-      .from('lanes')
-      .select('*')
-      .eq('lane_status', 'current')
-      .order('created_at', { ascending: false })
-      .limit(200);
-
-    if (error) throw error;
+    const lanes = await fetchLaneRecords(
+      {
+        status: 'current',
+        limit: 200
+      },
+      adminSupabase
+    );
 
     const crawlData = [];
 

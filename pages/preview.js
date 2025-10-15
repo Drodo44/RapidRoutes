@@ -1,6 +1,6 @@
 // pages/preview.js
 import { useEffect, useState } from "react";
-import supabase from "../utils/supabaseClient";
+import { fetchLaneRecords } from "../services/laneService.js";
 import { generateDatCsvRows } from "../lib/exportDatCsv";
 
 export default function Preview() {
@@ -10,11 +10,13 @@ export default function Preview() {
 
   useEffect(() => {
     const load = async () => {
-      const { data, error } = await supabase.from("lanes").select("*");
-      if (!error && data) {
-        setLanes(data);
-        const rows = generateDatCsvRows(data);
+      try {
+        const records = await fetchLaneRecords({ status: "all", includeArchived: true, limit: 500 });
+        setLanes(records);
+        const rows = generateDatCsvRows(records);
         setPreviewRows(rows.slice(1)); // skip headers
+      } catch (error) {
+        console.error("Failed to load lanes for preview:", error);
       }
       setLoading(false);
     };

@@ -4,6 +4,12 @@
 
 echo "🧩 Patching RapidRoutes fetch loop and validation recursion..."
 
+if [ ! -f components/post-options/LaneFetcher.js ]; then
+  echo "ℹ️  Legacy LaneFetcher implementation already removed. Current builds should import hooks/useLanes directly."
+  echo "ℹ️  No changes applied."
+  exit 0
+fi
+
 # 1️⃣ Create the new useLanes hook with fetch loop prevention
 mkdir -p hooks
 cat > hooks/useLanes.js << 'EOF'

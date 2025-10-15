@@ -4,6 +4,7 @@
 // Use alias-based imports for enterprise consistency (@ maps to project root)
 import { adminSupabase } from '@/lib/supabaseAdminClient';
 import { resolveCoords } from '@/lib/resolve-coords';
+import { fetchLaneRecords } from '@/services/laneService';
 
 export default async function handler(req, res) {
   const startTime = Date.now();
@@ -34,16 +35,18 @@ export default async function handler(req, res) {
     // 2. Pending lanes fallback
     console.log('[generateAll] Step 2: Fetching current lanes...');
     let lanes = [];
-    const { data: lanesData, error: lanesErr } = await adminSupabase
-      .from('lanes')
-      .select('id, origin_city, origin_state, origin_zip5, origin_zip, origin_latitude, origin_longitude, lane_status, destination_city, destination_state, dest_city, dest_state')
-      .eq('lane_status', 'current');
-    if (lanesErr) {
+    try {
+      lanes = await fetchLaneRecords(
+        {
+          status: 'current',
+          limit: 2000
+        },
+        adminSupabase
+      );
+      console.log('[generateAll] Found', lanes.length, 'current lanes');
+    } catch (lanesErr) {
       console.error('[generateAll] lanes query failed:', lanesErr.message);
       return res.status(500).json({ error: 'Failed to fetch lanes' });
-    } else if (Array.isArray(lanesData)) {
-      lanes = lanesData;
-      console.log('[generateAll] Found', lanes.length, 'current lanes');
     }
 
     // 3. Build combined list (core pickups first). Avoid duplicate origin_zip5.
@@ -159,6 +162,6 @@ export default async function handler(req, res) {
     const elapsed = Date.now() - startTime;
     console.error('[generateAll] === ERROR === after', elapsed + 'ms', err);
     console.error('[generateAll] Error stack:', err.stack);
-    return res.status(500).json({ error: 'Internal server error', details: err.message });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 }

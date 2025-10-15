@@ -1,4 +1,7 @@
 import { adminSupabase } from '../../utils/supabaseAdminClient';
+import { countLaneRecords } from '../../services/laneService.js';
+import { assertApiAuth, isInternalBypass } from '@/lib/auth';
+import { validateApiAuth } from '../../middleware/auth.unified';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -6,60 +9,41 @@ export default async function handler(req, res) {
   }
 
   try {
+    try {
+      assertApiAuth(req);
+    } catch (error) {
+      const status = Number(error?.status) || 401;
+      return res.status(status).json({ error: error?.message || 'Unauthorized' });
+    }
+
+    if (!isInternalBypass(req)) {
+      const authenticated = await validateApiAuth(req, res);
+      if (!authenticated) {
+        return;
+      }
+    }
+
     console.log('🔍 Fetching broker stats...');
 
-    // Get total lanes posted
-    const { data: totalLanesData, error: totalLanesError, count: totalLanesCount } = await adminSupabase
-      .from('lanes')
-      .select('*', { count: 'exact' });
+    // Aggregate lane counts via rapidroutes_lane_view
+    const totalLanesCount = await countLaneRecords({ status: 'all', includeArchived: true }, adminSupabase);
+    const currentLanesCount = await countLaneRecords({ status: 'current', includeArchived: false }, adminSupabase);
+    const archiveLanesCount = await countLaneRecords({ status: 'archive', includeArchived: true }, adminSupabase);
 
-    if (totalLanesError) {
-      console.error('❌ Error fetching total lanes:', totalLanesError);
-      throw totalLanesError;
-    }
+    const startOfToday = new Date();
+    startOfToday.setUTCHours(0, 0, 0, 0);
+    const endOfToday = new Date(startOfToday);
+    endOfToday.setUTCHours(23, 59, 59, 999);
 
-    // Get lanes posted today
-    const today = new Date().toISOString().split('T')[0];
-    const { data: todayLanesData, error: todayLanesError, count: todayLanesCount } = await adminSupabase
-      .from('lanes')
-      .select('*', { count: 'exact' })
-      .gte('created_at', `${today}T00:00:00.000Z`)
-      .lt('created_at', `${today}T23:59:59.999Z`);
-
-    if (todayLanesError) {
-      console.error('❌ Error fetching today lanes:', todayLanesError);
-      throw todayLanesError;
-    }
-
-    // Get lanes by status
-    const { data: currentLanesData, error: currentLanesError, count: currentLanesCount } = await adminSupabase
-      .from('lanes')
-      .select('*', { count: 'exact' })
-  .eq('lane_status', 'current');
-
-    if (currentLanesError) {
-      console.error('❌ Error fetching current lanes:', currentLanesError);
-      throw currentLanesError;
-    }
-
-    const { data: archiveLanesData, error: archiveLanesError, count: archiveLanesCount } = await adminSupabase
-      .from('lanes')
-      .select('*', { count: 'exact' })
-  .eq('lane_status', 'archive');
-
-    if (archiveLanesError) {
-      console.error('❌ Error fetching archive lanes:', archiveLanesError);
-      throw archiveLanesError;
-    }
-
-    const { data: allLanesData, error: allLanesError, count: allLanesCount } = await adminSupabase
-      .from('lanes')
-      .select('*', { count: 'exact' });
-
-    if (coveredLanesError) {
-      console.error('❌ Error fetching covered lanes:', coveredLanesError);
-      throw allLanesError;
-    }
+    const todayLanesCount = await countLaneRecords(
+      {
+        status: 'all',
+        includeArchived: true,
+        createdAfter: startOfToday,
+        createdBefore: endOfToday
+      },
+      adminSupabase
+    );
 
     // Get total recaps (gracefully handle if table doesn't exist)
     let totalRecaps = 0;
@@ -84,7 +68,6 @@ export default async function handler(req, res) {
       todayLanes: todayLanesCount || 0,
       currentLanes: currentLanesCount || 0,
       archiveLanes: archiveLanesCount || 0,
-      totalLanes: allLanesCount || 0,
       totalRecaps: totalRecaps || 0
     };
 
@@ -95,8 +78,7 @@ export default async function handler(req, res) {
   } catch (error) {
     console.error('❌ Error in brokerStats API:', error);
     res.status(500).json({ 
-      error: 'Failed to fetch broker stats',
-      details: error.message 
+      error: 'Failed to fetch broker stats'
     });
   }
 }

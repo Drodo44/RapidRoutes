@@ -106,31 +106,22 @@ function useBrokerStats() {
       if (!session) return;
       
       try {
-        // Use API routes to bypass RLS issues
-        const token = session.access_token;
-        
-        const [currentRes, archivedRes] = await Promise.all([
-          fetch('/api/lanes?lane_status=current', {
-            headers: { 'Authorization': `Bearer ${token}` }
-          }),
-          fetch('/api/lanes?lane_status=archive', {
-            headers: { 'Authorization': `Bearer ${token}` }
-          })
-        ]);
+        const response = await fetch('/api/analytics/summary');
+        if (!response.ok) {
+          throw new Error(`Analytics summary failed with status ${response.status}`);
+        }
 
-        const currentData = currentRes.ok ? await currentRes.json() : [];
-        const archivedData = archivedRes.ok ? await archivedRes.json() : [];
-        
-        const currentCount = Array.isArray(currentData) ? currentData.length : 0;
-        const archivedCount = Array.isArray(archivedData) ? archivedData.length : 0;
-        const recapCount = currentData.filter(l => l.saved_origin_cities?.length > 0).length;
+        const data = await response.json();
+        const activeLanes = data.activeLanes ?? data.currentCount ?? 0;
+        const archivedLanes = data.archivedLanes ?? data.archivedCount ?? 0;
+        const recapCount = data.recapCount ?? 0;
 
-        console.log('Dashboard stats:', { currentCount, archivedCount, recapCount });
+        console.log('Dashboard stats:', { activeLanes, archivedLanes, recapCount });
 
         setStats({
-          pendingLanes: currentCount,
+          pendingLanes: activeLanes,
           postedLanes: recapCount,
-          coveredLanes: archivedCount,
+          coveredLanes: archivedLanes,
           totalRecaps: recapCount
         });
       } catch (error) {

@@ -11,7 +11,7 @@ import { useToast } from "../components/post-options/Toast";
  */
 export default function PostOptions() {
   // Use our custom hook to fetch lanes
-  const { lanes, loading, refresh } = useLanes();
+  const { lanes, loading, error, refresh } = useLanes();
 
   // State for tracking options generation
   const [processing, setProcessing] = useState(false);
@@ -170,6 +170,7 @@ export default function PostOptions() {
         <LaneList 
           lanes={lanes} 
           loading={loading}
+          error={error ? error.message : null}
           processing={processing}
           onGenerateOptions={handleGenerateOptions}
         />

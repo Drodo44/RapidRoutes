@@ -2,6 +2,35 @@
 
 Production-grade Next.js app for freight brokerage load posting, crawl generation, DAT bulk export, and shipper recap.
 
+## Local Setup
+
+1. **Install dependencies**
+
+   ```bash
+   npm install
+   ```
+
+2. **Create a `.env.local` file** by copying `.env.example`, then update the Supabase URL, anon key, and service role key with your project credentials. Keep the service role secret on the server side only.
+
+3. **Verify Supabase connectivity and seed data**
+
+   Use the supplied utilities to confirm access:
+
+   ```bash
+   node check-db.mjs             # confirms connection
+   npm run setup-database        # optional seed/verification script
+   ```
+
+   Ensure the `lanes`, `cities`, and `intelligent_cities` tables are populated; the UI relies on these for lane listings and nearby city lookups.
+
+4. **Start the development server**
+
+   ```bash
+   npm run dev
+   ```
+
+   Visit `http://localhost:3000` and sign in with a Supabase user that has access to RapidRoutes.
+
 ## Key Features
 
 ### ✅ **Phase 9 Complete: Production-Ready Variable Pair Generation**
@@ -24,7 +53,7 @@ Production-grade Next.js app for freight brokerage load posting, crawl generatio
   - **No hardcoded limits** - system adapts to available geographic intelligence
 - **Recap**: Active lanes, search, print-ready export view
 
-## Tech Stack
+## Hosting & Infrastructure
 
 - Next.js 14 (Pages Router)
 - Tailwind CSS 3 (dark-only)
@@ -52,6 +81,13 @@ Apply the SQL from the internal spec (cities, lanes, equipment_codes, rates_snap
 - **Admin**: Equipment codes (seed + upsert), rate matrices upload (CSV→JSON), optional denorm to `rates_flat`
 - **Dashboard**: Weekly DAT market maps (cron fetch), Floor Space calc, Heavy Haul checker
 - **Auth**: /login, /signup, client-side gate; nav across signed-in pages
+
+## Data Flow Overview
+
+1. `useLanes` (in `hooks/useLanes.js`) queries Supabase with retry protection, returning the active brokerage lanes plus loading and error state.
+2. `useNearbyCities` (in `hooks/useNearbyCities.js`) consumes the selected lane, resolves coordinates, and groups nearby origin/destination cities by KMA for UI use.
+3. `components/choose-cities.js` renders the grouped tables, tracks broker selections, and persists the chosen cities plus coordinates into `sessionStorage` (`rr:selectedCities`).
+4. `components/post-options.js` hydrates from `sessionStorage`, zips origin and destination picks into 1↔1 recap pairs, computes miles with `haversineMiles`, and feeds the existing recap/export controls.
 
 ## Cron
 
@@ -153,3 +189,10 @@ Precomputed JSON map: `lib/data/kmaPrefixMap.json` (≈905 prefixes). Fallback t
 ```bash
 node scripts/verify-production-pairing.js --debug
 ```
+
+## Tech Stack
+
+- Next.js 14 (Pages Router)
+- Tailwind CSS 3
+- Supabase (Postgres, Auth, Storage)
+- Retry-aware data fetching (`withRetry`, abort-safe hooks)

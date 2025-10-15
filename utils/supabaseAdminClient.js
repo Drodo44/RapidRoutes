@@ -19,7 +19,13 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
 
 export const adminSupabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
-  global: { headers: { "X-Client-Info": "RapidRoutes-admin" } },
+  db: { schema: 'public' },
+  global: { 
+    headers: { 
+      "X-Client-Info": "RapidRoutes-admin",
+      "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`
+    } 
+  },
 });
 
 export default adminSupabase;

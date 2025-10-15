@@ -1,6 +1,7 @@
 // pages/api/lanes/[id].js
 import { validateApiAuth } from '../../../middleware/auth.unified';
 import { adminSupabase } from '../../../utils/supabaseAdminClient';
+import { fetchLaneById } from '../../../services/laneService.js';
 
 export default async function handler(req, res) {
   // Handle CORS preflight
@@ -22,19 +23,13 @@ export default async function handler(req, res) {
   try {
     // GET - Get specific lane
     if (req.method === 'GET') {
-      const { data, error } = await adminSupabase
-        .from('lanes')
-        .select('*')
-        .eq('id', id)
-        .single();
+      const lane = await fetchLaneById(String(id), adminSupabase);
 
-      if (error) throw error;
-      
-      if (!data) {
+      if (!lane) {
         return res.status(404).json({ error: 'Lane not found' });
       }
 
-      return res.status(200).json(data);
+      return res.status(200).json(lane);
     }
 
     // PUT/PATCH - Update lane

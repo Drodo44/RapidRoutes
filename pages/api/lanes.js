@@ -1,7 +1,9 @@
 // pages/api/lanes.js
 import { validateApiAuth } from '../../middleware/auth.unified';
-import { adminSupabase } from '../../utils/supabaseAdminClient';
-import { createClient } from '@supabase/supabase-js';
+// Removed unused: import { adminSupabase } from '../../utils/supabaseAdminClient';
+import { fetchLaneById } from '../../services/laneService.js';
+import { getLanes } from '@/lib/laneService';
+import { assertApiAuth, isInternalBypass } from '@/lib/auth';
 
 export default async function handler(req, res) {
   // Handle CORS preflight
@@ -10,9 +12,21 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  // Validate authentication for all requests
-  const auth = await validateApiAuth(req, res);
-  if (!auth) return;
+  let auth = null;
+  const bypassAuth = isInternalBypass(req);
+
+  try {
+    assertApiAuth(req);
+  } catch (error) {
+    const status = Number(error?.status) || 401;
+    return res.status(status).json({ error: error?.message || 'Unauthorized' });
+  }
+
+  if (!bypassAuth) {
+    const validated = await validateApiAuth(req, res);
+    if (!validated) return;
+    auth = validated;
+  }
 
   // Debug logging only for non-GET requests
   if (req.method !== 'GET') {
@@ -22,32 +36,24 @@ export default async function handler(req, res) {
   try {
     // GET - Get lanes with filtering
     if (req.method === 'GET') {
-      const { lane_status: laneStatusFilter, days, all, limit = 100 } = req.query;
+      const rawStatus = Array.isArray(req.query.status)
+        ? req.query.status[0]
+        : req.query.status ?? (Array.isArray(req.query.lane_status) ? req.query.lane_status[0] : req.query.lane_status);
+      const rawLimit = Array.isArray(req.query.limit) ? req.query.limit[0] : req.query.limit;
 
-      let query = adminSupabase.from('lanes').select('*');
+      const status = rawStatus ? String(rawStatus) : undefined;
+      const limit = Number(rawLimit) || undefined;
 
-      if (laneStatusFilter) {
-        query = query.eq('lane_status', laneStatusFilter);
-      }
-
-      if (days) {
-        const daysAgo = new Date();
-        daysAgo.setDate(daysAgo.getDate() - parseInt(days, 10));
-        query = query.gte('created_at', daysAgo.toISOString());
-      }
-
-      // Apply limit and order
-      query = query.order('created_at', { ascending: false }).limit(parseInt(limit, 10));
-
-      const { data, error } = await query;
-      
-  if (error) throw error;
-  res.status(200).json(data || []);
-  return;
+      const lanes = await getLanes({ status, limit });
+      return res.status(200).json(lanes);
     }
     
     // POST - Create new lane
     if (req.method === 'POST') {
+      if (!auth) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
       console.log('POST request received for lane creation');
       const payload = req.body;
 
@@ -134,7 +140,7 @@ export default async function handler(req, res) {
       
       if (originError) {
         console.error('Origin city lookup error:', originError);
-        return res.status(500).json({ error: 'Failed to lookup origin city coordinates', details: originError });
+        return res.status(500).json({ error: 'Failed to lookup origin city coordinates' });
       }
       
       if (!originCity) {
@@ -152,7 +158,7 @@ export default async function handler(req, res) {
       
       if (destError) {
         console.error('Destination city lookup error:', destError);
-        return res.status(500).json({ error: 'Failed to lookup destination city coordinates', details: destError });
+        return res.status(500).json({ error: 'Failed to lookup destination city coordinates' });
       }
       
       if (!destCityData) {
@@ -204,40 +210,29 @@ export default async function handler(req, res) {
 
       if (insertError) {
         console.error('Lane creation error:', insertError);
-        return res.status(500).json({ error: insertError.message || 'Database error', details: insertError });
+        return res.status(500).json({ error: 'Failed to create lane' });
       }
       const insertedLane = Array.isArray(insertedLanes) ? insertedLanes[0] : insertedLanes;
       console.log('[API] Inserted lane:', insertedLane);
 
-      // Now fetch with user JWT to satisfy RLS, by ID
-      const userToken = req.headers.authorization?.replace('Bearer ', '');
-      if (!userToken) {
-        return res.status(401).json({ error: 'Missing user token in Authorization header' });
-      }
-      const userSupabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY, {
-        global: { headers: { Authorization: `Bearer ${userToken}` } }
-      });
-
-      const { data: laneData, error: selectError } = await userSupabase
-        .from('lanes')
-        .select('*')
-        .eq('id', insertedLane.id)
-        .single();
-
-      console.log('[API] Fetched lane for user:', auth.user.id, 'lane:', laneData, 'error:', selectError);
-      if (selectError || !laneData) {
-        console.error('Lane created but not visible due to RLS:', { selectError, insertedLane, lane });
-        return res.status(500).json({ error: 'Lane created but not visible due to RLS', selectError, insertedLane, lane });
+      const laneRecord = await fetchLaneById(insertedLane.id, adminSupabase);
+      if (!laneRecord) {
+        console.warn('Lane created but not retrievable from view:', insertedLane.id);
+        return res.status(201).json(insertedLane);
       }
 
-      console.log('Lane created and fetched successfully:', laneData);
-      console.log('🚀 API sending response - Status:', laneData.status, 'ID:', laneData.id);
-      res.status(201).json(laneData);
+      console.log('Lane created and fetched successfully:', laneRecord);
+      console.log('🚀 API sending response - Lane ID:', laneRecord.id);
+      res.status(201).json(laneRecord);
       return;
     }
     
     // PUT/PATCH - Update lane
     if (req.method === 'PUT' || req.method === 'PATCH') {
+      if (!auth) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
       const { 
         id, 
         dest_city, 
@@ -306,12 +301,21 @@ export default async function handler(req, res) {
         .eq('id', id)
         .select('*');
       
-      if (error) throw error;
-      return res.status(200).json(data?.[0] || null);
+      if (error) {
+        console.error('Lane update failed:', error);
+        return res.status(500).json({ error: 'Failed to update lane' });
+      }
+      const updatedLane = Array.isArray(data) ? data[0] : data;
+      const laneRecord = await fetchLaneById(updatedLane?.id ?? id, adminSupabase);
+      return res.status(200).json(laneRecord ?? updatedLane ?? null);
     }
     
     // DELETE - Delete lane
     if (req.method === 'DELETE') {
+      if (!auth) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
       const { id } = req.query;
       
       if (!id) {
@@ -338,7 +342,10 @@ export default async function handler(req, res) {
         .delete()
         .eq('id', id);
       
-      if (error) throw error;
+      if (error) {
+        console.error('Lane delete failed:', error);
+        return res.status(500).json({ error: 'Failed to delete lane' });
+      }
       return res.status(204).end();
     }
     
@@ -347,6 +354,6 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (error) {
     console.error('Lane API error:', error);
-    return res.status(500).json({ error: error.message || 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 }
