@@ -55,14 +55,19 @@ export async function fetchLaneRecords(filters = {}) {
       origin_city: lane["Origin City"] || "",
       origin_state: lane["Origin State"] || "",
       origin_zip: String(lane["Origin Zip Code"] || ""),
+      origin_zip3: lane["origin_zip3"] || null,
       origin_kma_code: lane["origin_kma"] || null,
+      origin_kma_name: lane["origin_kma"] || null, // origin_kma contains the market name like "Seattle Mkt"
       destination_city: lane["Destination City"] || "",
       destination_state: lane["Destination State"] || "",
       destination_zip: String(lane["Destination Zip Code"] || ""),
+      destination_zip3: lane["destination_zip3"] || null,
       destination_kma_code: lane["destination_kma"] || null,
+      destination_kma_name: lane["destination_kma"] || null, // destination_kma contains the market name like "Los Angeles Mkt"
       equipment_code: lane["Equipment"] || null,
       equipment_label: lane["Equipment Details"] || null,
       pickup_earliest: lane["Pickup Date"] || null,
+      pickup_date: lane["Pickup Date"] || null,
       commodity: lane["Commodity"] || null,
       miles: lane["DAT Used Miles"] || lane["Customer Mileage"] || null,
     }));
