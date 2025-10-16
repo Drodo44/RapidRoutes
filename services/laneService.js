@@ -67,14 +67,75 @@ export async function fetchLaneRecords(filters = {}) {
       equipment_code: lane["Equipment"] || null,
       equipment_label: lane["Equipment Details"] || null,
       pickup_earliest: lane["Pickup Date"] || null,
+      pickup_latest: lane["Pickup Latest"] || null,
       pickup_date: lane["Pickup Date"] || null,
       commodity: lane["Commodity"] || null,
+      comment: lane["Comment"] || null,
       miles: lane["DAT Used Miles"] || lane["Customer Mileage"] || null,
+      length_ft: lane["Length (ft)"] || null,
+      weight_lbs: lane["Weight (lbs)"] || null,
+      full_partial: lane["Full/Partial"] || null,
     }));
 
     return mapped;
   } catch (err) {
     console.error("[laneService] Query failed:", err.message);
+    return [];
+  }
+}
+
+// Fetch lanes by specific IDs or query filters (for CSV export)
+export async function getLanesByIdsOrQuery({ ids = [], limit = DEFAULT_LIMIT } = {}) {
+  try {
+    let query = supabase.from("dat_loads_2025").select("*");
+
+    // If IDs provided, filter by them
+    if (ids && ids.length > 0) {
+      query = query.in("Shipment/Load ID", ids);
+    }
+
+    query = query.limit(limit);
+
+    const { data: laneData, error: laneError } = await query;
+
+    if (laneError || !laneData) {
+      console.error("[getLanesByIdsOrQuery] Error:", laneError);
+      return [];
+    }
+
+    // Map the data (same mapping as fetchLaneRecords)
+    const mapped = laneData.map((lane) => ({
+      id: String(lane["Shipment/Load ID"] || ""),
+      lane_id: String(lane["Shipment/Load ID"] || ""),
+      reference_id: String(lane["Shipment/Load ID"] || ""),
+      origin_city: lane["Origin City"] || "",
+      origin_state: lane["Origin State"] || "",
+      origin_zip: String(lane["Origin Zip Code"] || ""),
+      origin_zip3: lane["origin_zip3"] || null,
+      origin_kma_code: lane["origin_kma"] || null,
+      origin_kma_name: lane["origin_kma"] || null,
+      destination_city: lane["Destination City"] || "",
+      destination_state: lane["Destination State"] || "",
+      destination_zip: String(lane["Destination Zip Code"] || ""),
+      destination_zip3: lane["destination_zip3"] || null,
+      destination_kma_code: lane["destination_kma"] || null,
+      destination_kma_name: lane["destination_kma"] || null,
+      equipment_code: lane["Equipment"] || null,
+      equipment_label: lane["Equipment Details"] || null,
+      pickup_earliest: lane["Pickup Date"] || null,
+      pickup_latest: lane["Pickup Latest"] || null,
+      pickup_date: lane["Pickup Date"] || null,
+      commodity: lane["Commodity"] || null,
+      comment: lane["Comment"] || null,
+      miles: lane["DAT Used Miles"] || lane["Customer Mileage"] || null,
+      length_ft: lane["Length (ft)"] || null,
+      weight_lbs: lane["Weight (lbs)"] || null,
+      full_partial: lane["Full/Partial"] || null,
+    }));
+
+    return mapped;
+  } catch (err) {
+    console.error("[getLanesByIdsOrQuery] Query failed:", err.message);
     return [];
   }
 }
