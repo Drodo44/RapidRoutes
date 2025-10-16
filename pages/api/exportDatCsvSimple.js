@@ -1,6 +1,14 @@
 // pages/api/exportDatCsvSimple.js
 import { format } from 'date-fns';
 import { getLanesByIdsOrQuery } from '../../services/laneService.js';
+import { createClient } from '@supabase/supabase-js';
+
+// Create admin Supabase client for city enrichment
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabase = createClient(supabaseUrl, serviceKey, {
+  auth: { persistSession: false, autoRefreshToken: false }
+});
 
 // ✅ DAT Template Headers (exact order from your verified file)
 const HEADERS = [
@@ -45,6 +53,145 @@ function fmtDate(date) {
     return format(new Date(date), 'M/d/yyyy');
   } catch {
     return '';
+  }
+}
+
+// ✅ Enrich lane with KMA data, equipment, and volume from dat_loads_2025
+async function enrichLaneWithDatabaseData(lane) {
+  try {
+    // Only enrich if we have basic city/state info but missing detailed data
+    const needsEnrichment = (
+      lane.origin_city && 
+      lane.origin_state && 
+      lane.destination_city && 
+      lane.destination_state &&
+      (!lane.origin_kma_code || !lane.equipment_code)
+    );
+
+    if (!needsEnrichment) {
+      return lane; // Already has sufficient data
+    }
+
+    console.log(`🔍 Enriching lane: ${lane.origin_city}, ${lane.origin_state} → ${lane.destination_city}, ${lane.destination_state}`);
+
+    // Look up matching lanes in dat_loads_2025 for this origin/destination pair
+    const { data: matchingLanes, error } = await supabase
+      .from('dat_loads_2025')
+      .select('*')
+      .ilike('Origin City', lane.origin_city)
+      .ilike('Origin State', lane.origin_state)
+      .ilike('Destination City', lane.destination_city)
+      .ilike('Destination State', lane.destination_state)
+      .limit(10);
+
+    if (error) {
+      console.error('❌ Enrichment query error:', error);
+      return lane;
+    }
+
+    if (!matchingLanes || matchingLanes.length === 0) {
+      console.log(`⚠️ No matching lanes found in dat_loads_2025 for enrichment`);
+      
+      // Fall back to city lookup for KMA data
+      const { data: originCity } = await supabase
+        .from('cities')
+        .select('kma_code, kma_name, zip')
+        .ilike('city', lane.origin_city)
+        .eq('state_or_province', lane.origin_state)
+        .limit(1)
+        .single();
+
+      const { data: destCity } = await supabase
+        .from('cities')
+        .select('kma_code, kma_name, zip')
+        .ilike('city', lane.destination_city)
+        .eq('state_or_province', lane.destination_state)
+        .limit(1)
+        .single();
+
+      if (originCity) {
+        lane.origin_kma_code = originCity.kma_code;
+        lane.origin_kma_name = originCity.kma_name;
+        if (!lane.origin_zip) lane.origin_zip = originCity.zip;
+      }
+
+      if (destCity) {
+        lane.destination_kma_code = destCity.kma_code;
+        lane.destination_kma_name = destCity.kma_name;
+        if (!lane.destination_zip) lane.destination_zip = destCity.zip;
+      }
+
+      console.log(`✅ Enriched with city KMA data only`);
+      return lane;
+    }
+
+    // Use the first matching lane for enrichment data
+    const enrichmentSource = matchingLanes[0];
+    
+    console.log(`✅ Found ${matchingLanes.length} matching lanes, using data from lane ${enrichmentSource['Shipment/Load ID']}`);
+
+    // Enrich with KMA data
+    if (!lane.origin_kma_code && enrichmentSource.origin_kma) {
+      lane.origin_kma_code = enrichmentSource.origin_kma;
+      lane.origin_kma_name = enrichmentSource.origin_kma;
+    }
+    if (!lane.destination_kma_code && enrichmentSource.destination_kma) {
+      lane.destination_kma_code = enrichmentSource.destination_kma;
+      lane.destination_kma_name = enrichmentSource.destination_kma;
+    }
+
+    // Enrich with ZIP codes
+    if (!lane.origin_zip && enrichmentSource['Origin Zip Code']) {
+      lane.origin_zip = String(enrichmentSource['Origin Zip Code']);
+    }
+    if (!lane.destination_zip && enrichmentSource['Destination Zip Code']) {
+      lane.destination_zip = String(enrichmentSource['Destination Zip Code']);
+    }
+
+    // Enrich with equipment if missing
+    if (!lane.equipment_code && enrichmentSource.Equipment) {
+      lane.equipment_code = enrichmentSource.Equipment;
+      lane.equipment_label = enrichmentSource['Equipment Details'];
+    }
+
+    // Enrich with weight/length if missing
+    if (!lane.weight_lbs && enrichmentSource['Weight (lbs)']) {
+      lane.weight_lbs = enrichmentSource['Weight (lbs)'];
+    }
+    if (!lane.length_ft && enrichmentSource['Length (ft)']) {
+      lane.length_ft = enrichmentSource['Length (ft)'];
+    }
+
+    // Enrich with full/partial if missing
+    if (!lane.full_partial && enrichmentSource['Full/Partial']) {
+      lane.full_partial = enrichmentSource['Full/Partial'];
+    }
+
+    // Calculate average volume statistics from all matching lanes
+    const avgWeight = matchingLanes
+      .filter(l => l['Weight (lbs)'])
+      .reduce((sum, l) => sum + (l['Weight (lbs)'] || 0), 0) / matchingLanes.length;
+    
+    const avgMiles = matchingLanes
+      .filter(l => l['DAT Used Miles'] || l['Customer Mileage'])
+      .reduce((sum, l) => sum + (l['DAT Used Miles'] || l['Customer Mileage'] || 0), 0) / matchingLanes.length;
+
+    // Add metadata for reference
+    lane._enrichment = {
+      source: 'dat_loads_2025',
+      matchingLanes: matchingLanes.length,
+      avgWeight: Math.round(avgWeight),
+      avgMiles: Math.round(avgMiles),
+      mostCommonEquipment: enrichmentSource.Equipment
+    };
+
+    console.log(`✅ Enrichment complete: ${matchingLanes.length} similar lanes, avg ${Math.round(avgWeight)} lbs, ${Math.round(avgMiles)} miles`);
+
+    return lane;
+
+  } catch (err) {
+    console.error('❌ Enrichment error:', err.message);
+    return lane; // Return original lane if enrichment fails
   }
 }
 
@@ -141,6 +288,17 @@ export default async function handler(req, res) {
       }
       lanes = body.lanes;
       console.log(`📥 POST request received with ${lanes.length} lanes from body`);
+      
+      // ✅ Enrich lanes with KMA data, equipment, and volume from dat_loads_2025
+      console.log(`🔍 Enriching ${lanes.length} lanes with database data...`);
+      lanes = await Promise.all(
+        lanes.map(async (lane) => {
+          const normalized = normalizeLane(lane);
+          const enriched = await enrichLaneWithDatabaseData(normalized);
+          return enriched;
+        })
+      );
+      console.log(`✅ Enrichment complete for ${lanes.length} lanes`);
     } 
     // ✅ GET: Fetch from database by IDs or limit (original behavior)
     else if (req.method === 'GET') {
