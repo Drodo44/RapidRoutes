@@ -9,8 +9,6 @@ import { validateApiAuth } from '../../middleware/auth.unified';
 import { assertApiAuth, isInternalBypass } from '@/lib/auth';
 import { fetchLaneRecords } from '@/services/laneService.js';
 
-/**
-
 export default async function handler(req, res) {
   const startTime = Date.now();
   console.log('[generateAll] === REQUEST RECEIVED ===', { method: req.method, timestamp: new Date().toISOString() });

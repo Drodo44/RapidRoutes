@@ -17,21 +17,32 @@ if (!supabaseUrl || !serviceKey) {
   throw new Error("Supabase admin client cannot be initialized without credentials");
 }
 
-console.log("[AdminClient] ✅ Initializing with credentials");
+// Force immediate logging
+(() => {
+  console.log("[AdminClient] ✅ Initializing with credentials");
+  console.log("[AdminClient] URL:", supabaseUrl);
+  console.log("[AdminClient] Service key prefix:", serviceKey.slice(0, 20) + "...");
+  console.log("[AdminClient] Service key length:", serviceKey.length);
+  console.log("[AdminClient] Is anon key?:", serviceKey.includes("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSI"));
+})();
 
-const client = createClient(supabaseUrl, serviceKey, {
+export const supabaseAdminClient = createClient(supabaseUrl, serviceKey, {
   auth: {
     persistSession: false,
     autoRefreshToken: false,
   },
+  db: {
+    schema: 'public',
+  },
+  global: {
+    headers: {
+      'Authorization': `Bearer ${serviceKey}`,
+    },
+  },
 });
 
-console.log("[AdminClient] Client created, type:", typeof client);
-console.log("[AdminClient] Has .from:", typeof client.from);
-
-export const supabaseAdminClient = client;
-
-// Legacy export for backwards compatibility
-export const adminSupabase = supabaseAdminClient;
+console.log("[AdminClient] ✅ Client created successfully");
+console.log("[AdminClient] Type:", typeof supabaseAdminClient);
+console.log("[AdminClient] Has .from:", typeof supabaseAdminClient.from);
 
 export default supabaseAdminClient;
