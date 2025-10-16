@@ -17,6 +17,10 @@
     {
       "src": "/api/test",
       "dest": "/api/test"
+    },
+    {
+      "src": "/api/exportDatCsvSimple",
+      "dest": "/api/exportDatCsvSimple"
     }
   ],
   "env": {
