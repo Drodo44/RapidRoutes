@@ -257,12 +257,17 @@ export default function AnalyticsChart({
                 cx="50%"
                 cy="50%"
                 outerRadius={80}
-                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                label={(entry) => {
+                  if (!entry || entry.name === undefined || entry.percent === undefined) {
+                    return '';
+                  }
+                  return `${entry.name}: ${(entry.percent * 100).toFixed(0)}%`;
+                }}
                 labelLine={{ stroke: '#4B5563', strokeWidth: 1 }}
               >
                 {sanitizedData.map((entry, index) => (
                   <Cell 
-                    key={`cell-${index}`} 
+                    key={`cell-${entry[xKey] || index}`} 
                     fill={COLOR_ARRAY[index % COLOR_ARRAY.length]} 
                   />
                 ))}
