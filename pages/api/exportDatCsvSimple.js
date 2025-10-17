@@ -56,8 +56,12 @@ function fmtDate(date) {
   }
 }
 
-// ✅ Enrich lane with KMA data, equipment, and volume from dat_loads_2025
-async function enrichLaneWithDatabaseData(lane) {
+/**
+ * ✅ Enrich lane with KMA data and ZIP codes from canonical 'cities' table
+ * This function uses ONLY the cities table for location enrichment.
+ * dat_loads_2025 is queried separately for volume analytics only.
+ */
+async function enrichLaneWithCitiesData(lane) {
   try {
     // Only enrich if we have basic city/state info but missing detailed data
     const needsEnrichment = (
@@ -65,109 +69,110 @@ async function enrichLaneWithDatabaseData(lane) {
       lane.origin_state && 
       lane.destination_city && 
       lane.destination_state &&
-      (!lane.origin_kma_code || !lane.equipment_code)
+      (!lane.origin_kma_code || !lane.origin_zip || !lane.destination_kma_code || !lane.destination_zip)
     );
 
     if (!needsEnrichment) {
+      console.log(`✅ Lane already has complete data, skipping enrichment`);
       return lane; // Already has sufficient data
     }
 
-    console.log(`🔍 Enriching lane: ${lane.origin_city}, ${lane.origin_state} → ${lane.destination_city}, ${lane.destination_state}`);
+    console.log(`🔍 Enriching lane from cities table: ${lane.origin_city}, ${lane.origin_state} → ${lane.destination_city}, ${lane.destination_state}`);
 
-    // Look up matching lanes in dat_loads_2025 for this origin/destination pair
+    // ✅ CANONICAL SOURCE: cities table lookup for origin
+    const { data: originCity, error: originError } = await supabase
+      .from('cities')
+      .select('city, state_or_province, zip, kma_code, kma_name, latitude, longitude')
+      .ilike('city', lane.origin_city)
+      .eq('state_or_province', lane.origin_state)
+      .not('kma_code', 'is', null) // Ensure KMA is present
+      .limit(1)
+      .single();
+
+    if (originError && originError.code !== 'PGRST116') { // PGRST116 = no rows found
+      console.error('❌ Origin city lookup error:', originError);
+    }
+
+    // ✅ CANONICAL SOURCE: cities table lookup for destination
+    const { data: destCity, error: destError } = await supabase
+      .from('cities')
+      .select('city, state_or_province, zip, kma_code, kma_name, latitude, longitude')
+      .ilike('city', lane.destination_city)
+      .eq('state_or_province', lane.destination_state)
+      .not('kma_code', 'is', null) // Ensure KMA is present
+      .limit(1)
+      .single();
+
+    if (destError && destError.code !== 'PGRST116') {
+      console.error('❌ Destination city lookup error:', destError);
+    }
+
+    // Enrich origin data from cities table
+    if (originCity) {
+      lane.origin_kma_code = originCity.kma_code;
+      lane.origin_kma_name = originCity.kma_name;
+      lane.origin_latitude = originCity.latitude;
+      lane.origin_longitude = originCity.longitude;
+      if (!lane.origin_zip) lane.origin_zip = originCity.zip;
+      console.log(`✅ Origin enriched: ${originCity.city}, ${originCity.state_or_province} → KMA: ${originCity.kma_code}, ZIP: ${originCity.zip}`);
+    } else {
+      console.warn(`⚠️ No cities table match found for origin: ${lane.origin_city}, ${lane.origin_state}`);
+    }
+
+    // Enrich destination data from cities table
+    if (destCity) {
+      lane.destination_kma_code = destCity.kma_code;
+      lane.destination_kma_name = destCity.kma_name;
+      lane.destination_latitude = destCity.latitude;
+      lane.destination_longitude = destCity.longitude;
+      if (!lane.destination_zip) lane.destination_zip = destCity.zip;
+      console.log(`✅ Destination enriched: ${destCity.city}, ${destCity.state_or_province} → KMA: ${destCity.kma_code}, ZIP: ${destCity.zip}`);
+    } else {
+      console.warn(`⚠️ No cities table match found for destination: ${lane.destination_city}, ${lane.destination_state}`);
+    }
+
+    // Add enrichment metadata
+    lane._enrichment = {
+      source: 'cities_table_canonical',
+      origin_enriched: !!originCity,
+      destination_enriched: !!destCity,
+      timestamp: new Date().toISOString()
+    };
+
+    console.log(`✅ Cities table enrichment complete`);
+
+    return lane;
+
+  } catch (err) {
+    console.error('❌ Cities table enrichment error:', err.message);
+    return lane; // Return original lane if enrichment fails
+  }
+}
+
+/**
+ * ✅ Optional: Query dat_loads_2025 for volume analytics only
+ * This is separate from location enrichment and only used for statistics
+ */
+async function getVolumeAnalytics(lane) {
+  try {
+    if (!lane.origin_city || !lane.destination_city) {
+      return null;
+    }
+
     const { data: matchingLanes, error } = await supabase
       .from('dat_loads_2025')
-      .select('*')
+      .select('Weight (lbs), DAT Used Miles, Customer Mileage, Equipment')
       .ilike('Origin City', lane.origin_city)
       .ilike('Origin State', lane.origin_state)
       .ilike('Destination City', lane.destination_city)
       .ilike('Destination State', lane.destination_state)
-      .limit(10);
+      .limit(50);
 
-    if (error) {
-      console.error('❌ Enrichment query error:', error);
-      return lane;
+    if (error || !matchingLanes || matchingLanes.length === 0) {
+      return null;
     }
 
-    if (!matchingLanes || matchingLanes.length === 0) {
-      console.log(`⚠️ No matching lanes found in dat_loads_2025 for enrichment`);
-      
-      // Fall back to city lookup for KMA data
-      const { data: originCity } = await supabase
-        .from('cities')
-        .select('kma_code, kma_name, zip')
-        .ilike('city', lane.origin_city)
-        .eq('state_or_province', lane.origin_state)
-        .limit(1)
-        .single();
-
-      const { data: destCity } = await supabase
-        .from('cities')
-        .select('kma_code, kma_name, zip')
-        .ilike('city', lane.destination_city)
-        .eq('state_or_province', lane.destination_state)
-        .limit(1)
-        .single();
-
-      if (originCity) {
-        lane.origin_kma_code = originCity.kma_code;
-        lane.origin_kma_name = originCity.kma_name;
-        if (!lane.origin_zip) lane.origin_zip = originCity.zip;
-      }
-
-      if (destCity) {
-        lane.destination_kma_code = destCity.kma_code;
-        lane.destination_kma_name = destCity.kma_name;
-        if (!lane.destination_zip) lane.destination_zip = destCity.zip;
-      }
-
-      console.log(`✅ Enriched with city KMA data only`);
-      return lane;
-    }
-
-    // Use the first matching lane for enrichment data
-    const enrichmentSource = matchingLanes[0];
-    
-    console.log(`✅ Found ${matchingLanes.length} matching lanes, using data from lane ${enrichmentSource['Shipment/Load ID']}`);
-
-    // Enrich with KMA data
-    if (!lane.origin_kma_code && enrichmentSource.origin_kma) {
-      lane.origin_kma_code = enrichmentSource.origin_kma;
-      lane.origin_kma_name = enrichmentSource.origin_kma;
-    }
-    if (!lane.destination_kma_code && enrichmentSource.destination_kma) {
-      lane.destination_kma_code = enrichmentSource.destination_kma;
-      lane.destination_kma_name = enrichmentSource.destination_kma;
-    }
-
-    // Enrich with ZIP codes
-    if (!lane.origin_zip && enrichmentSource['Origin Zip Code']) {
-      lane.origin_zip = String(enrichmentSource['Origin Zip Code']);
-    }
-    if (!lane.destination_zip && enrichmentSource['Destination Zip Code']) {
-      lane.destination_zip = String(enrichmentSource['Destination Zip Code']);
-    }
-
-    // Enrich with equipment if missing
-    if (!lane.equipment_code && enrichmentSource.Equipment) {
-      lane.equipment_code = enrichmentSource.Equipment;
-      lane.equipment_label = enrichmentSource['Equipment Details'];
-    }
-
-    // Enrich with weight/length if missing
-    if (!lane.weight_lbs && enrichmentSource['Weight (lbs)']) {
-      lane.weight_lbs = enrichmentSource['Weight (lbs)'];
-    }
-    if (!lane.length_ft && enrichmentSource['Length (ft)']) {
-      lane.length_ft = enrichmentSource['Length (ft)'];
-    }
-
-    // Enrich with full/partial if missing
-    if (!lane.full_partial && enrichmentSource['Full/Partial']) {
-      lane.full_partial = enrichmentSource['Full/Partial'];
-    }
-
-    // Calculate average volume statistics from all matching lanes
+    // Calculate average volume statistics
     const avgWeight = matchingLanes
       .filter(l => l['Weight (lbs)'])
       .reduce((sum, l) => sum + (l['Weight (lbs)'] || 0), 0) / matchingLanes.length;
@@ -176,22 +181,16 @@ async function enrichLaneWithDatabaseData(lane) {
       .filter(l => l['DAT Used Miles'] || l['Customer Mileage'])
       .reduce((sum, l) => sum + (l['DAT Used Miles'] || l['Customer Mileage'] || 0), 0) / matchingLanes.length;
 
-    // Add metadata for reference
-    lane._enrichment = {
-      source: 'dat_loads_2025',
+    return {
       matchingLanes: matchingLanes.length,
       avgWeight: Math.round(avgWeight),
       avgMiles: Math.round(avgMiles),
-      mostCommonEquipment: enrichmentSource.Equipment
+      source: 'dat_loads_2025_analytics_only'
     };
 
-    console.log(`✅ Enrichment complete: ${matchingLanes.length} similar lanes, avg ${Math.round(avgWeight)} lbs, ${Math.round(avgMiles)} miles`);
-
-    return lane;
-
   } catch (err) {
-    console.error('❌ Enrichment error:', err.message);
-    return lane; // Return original lane if enrichment fails
+    console.error('❌ Volume analytics error:', err.message);
+    return null;
   }
 }
 
@@ -289,16 +288,23 @@ export default async function handler(req, res) {
       lanes = body.lanes;
       console.log(`📥 POST request received with ${lanes.length} lanes from body`);
       
-      // ✅ Enrich lanes with KMA data, equipment, and volume from dat_loads_2025
-      console.log(`🔍 Enriching ${lanes.length} lanes with database data...`);
+      // ✅ Enrich lanes with KMA data and ZIP codes from canonical cities table
+      console.log(`🔍 Enriching ${lanes.length} lanes from cities table (canonical source)...`);
       lanes = await Promise.all(
         lanes.map(async (lane) => {
           const normalized = normalizeLane(lane);
-          const enriched = await enrichLaneWithDatabaseData(normalized);
+          const enriched = await enrichLaneWithCitiesData(normalized);
+          
+          // Optional: Add volume analytics from dat_loads_2025 (analytics only, not for location)
+          const analytics = await getVolumeAnalytics(enriched);
+          if (analytics) {
+            enriched._analytics = analytics;
+          }
+          
           return enriched;
         })
       );
-      console.log(`✅ Enrichment complete for ${lanes.length} lanes`);
+      console.log(`✅ Cities table enrichment complete for ${lanes.length} lanes`);
     } 
     // ✅ GET: Fetch from database by IDs or limit (original behavior)
     else if (req.method === 'GET') {

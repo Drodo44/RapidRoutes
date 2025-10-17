@@ -34,6 +34,11 @@ const supabase = createClient(supabaseUrl, serviceKey, {
   auth: { persistSession: false, autoRefreshToken: false }
 });
 
+/**
+ * NOTE: This function queries dat_loads_2025 ONLY for analytics/volume data.
+ * All KMA enrichment and city lookups now use the canonical 'cities' table.
+ * See: enrichLaneWithCitiesData() for location enrichment logic.
+ */
 export async function fetchLaneRecords(filters = {}) {
   const limit = filters.limit || DEFAULT_LIMIT;
 
@@ -47,7 +52,7 @@ export async function fetchLaneRecords(filters = {}) {
       return [];
     }
 
-    // Map the data
+    // Map the data (NOTE: KMA data here is for display only, not for enrichment)
     const mapped = laneData.map((lane) => ({
       id: String(lane["Shipment/Load ID"] || ""),
       lane_id: String(lane["Shipment/Load ID"] || ""),
@@ -84,7 +89,11 @@ export async function fetchLaneRecords(filters = {}) {
   }
 }
 
-// Fetch lanes by specific IDs or query filters (for CSV export)
+/**
+ * Fetch lanes by specific IDs or query filters (for CSV export)
+ * NOTE: This queries dat_loads_2025 for volume analytics only.
+ * Use enrichLaneWithCitiesData() for KMA/location enrichment.
+ */
 export async function getLanesByIdsOrQuery({ ids = [], limit = DEFAULT_LIMIT } = {}) {
   try {
     let query = supabase.from("dat_loads_2025").select("*");
