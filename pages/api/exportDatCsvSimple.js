@@ -1,14 +1,7 @@
 // pages/api/exportDatCsvSimple.js
 import { format } from 'date-fns';
 import { getLanesByIdsOrQuery } from '../../services/laneService.js';
-import { createClient } from '@supabase/supabase-js';
-
-// Create admin Supabase client for city enrichment
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const supabase = createClient(supabaseUrl, serviceKey, {
-  auth: { persistSession: false, autoRefreshToken: false }
-});
+import { adminSupabase as supabase } from '../../utils/supabaseAdminClient.js';
 
 // ✅ DAT Template Headers (exact order from your verified file)
 const HEADERS = [
