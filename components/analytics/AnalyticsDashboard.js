@@ -34,15 +34,13 @@ export default function AnalyticsDashboard() {
       // Fetch summary metrics
       const { data: summaryData, error: summaryError } = await supabase
         .from('lanes')
-        .select('id, lane_status, distance');
+        .select('id, lane_status');
       
       if (summaryError) throw summaryError;
       
       // Calculate summary metrics
       const totalLanes = summaryData.length;
       const activeLanes = summaryData.filter(lane => lane.lane_status === 'current').length;
-      const avgDistance = summaryData.reduce((sum, lane) => sum + (lane.distance || 0), 0) / 
-                         (summaryData.filter(lane => lane.distance).length || 1);
       
       // Fetch quote accuracy metrics (sample data if table doesn't exist)
       let quoteAccuracy = 0;
@@ -81,11 +79,11 @@ export default function AnalyticsDashboard() {
         successfulPosts = 0.92; // Sample data
       }
       
-      // Update summary metrics
+      // Update summary metrics (avgDistance removed - not in schema)
       setMetrics({
         totalLanes,
         activeLanes,
-        avgDistance: Math.round(avgDistance),
+        avgDistance: 0, // Distance field not available in current schema
         quoteAccuracy: Math.round(quoteAccuracy * 100),
         successfulPosts: Math.round(successfulPosts * 100)
       });
