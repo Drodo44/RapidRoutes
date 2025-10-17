@@ -1,7 +1,7 @@
 // pages/index.js - Analytics Dashboard
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import supabase from '../utils/supabaseClient';
+import { supabase } from '../lib/supabaseClient';
 import Header from '../components/Header';
 import AnalyticsDashboard from '../components/analytics/AnalyticsDashboard';
 import { getDashboardStats } from "../lib/getDashboardStats";

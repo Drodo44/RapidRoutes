@@ -1,7 +1,7 @@
 // pages/recap.js
 // Enterprise UI Rebuild - Oct 3, 2025
 import { useEffect, useMemo, useState } from 'react';
-import supabase from '../utils/supabaseClient';
+import { supabase } from '../lib/supabaseClient';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { getDisplayReferenceId, matchesReferenceId, cleanReferenceId } from '../lib/referenceIdUtils';

@@ -1,6 +1,6 @@
 // pages/profile.js
 import { useEffect, useState } from 'react';
-import supabase from '../utils/supabaseClient';
+import { supabase } from '../lib/supabaseClient';
 import Head from 'next/head';
 import PreferredPickupsManager from '../components/PreferredPickupsManager';
 

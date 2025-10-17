@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Head from 'next/head';
-import supabase from '../utils/supabaseClient';
+import { supabase } from '../lib/supabaseClient';
 import DatMarketMaps from '../components/DatMarketMaps.jsx';
 import AnalyticsDashboard from "../components/analytics/AnalyticsDashboard";
 import LaneOverview from "../components/post-options/LaneList";
