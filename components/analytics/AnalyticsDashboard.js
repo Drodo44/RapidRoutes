@@ -1,6 +1,6 @@
 // components/analytics/AnalyticsDashboard.js
 import React, { useState, useEffect } from 'react';
-import supabase from '../../utils/supabaseClient';
+import { supabase } from '../../lib/supabaseClient';
 import { useToast } from '../post-options/Toast';
 import AnalyticsTable from './AnalyticsTable';
 import AnalyticsChart from './AnalyticsChart';
