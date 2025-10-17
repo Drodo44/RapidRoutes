@@ -9,6 +9,7 @@ import useKeyboardShortcuts from '../hooks/useKeyboardShortcuts';
 import Head from 'next/head';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { ThemeProvider } from 'next-themes';
+import { supabase } from '../lib/supabaseClient';
 
 const PUBLIC_ROUTES = new Set(['/login', '/signup', '/']);
 
@@ -19,6 +20,12 @@ function AppContent({ Component, pageProps }) {
   
   // Enable keyboard shortcuts
   useKeyboardShortcuts();
+  
+  // Verify Supabase initialization on mount
+  useEffect(() => {
+    console.log("✅ Supabase initialized:", !!supabase);
+    console.log("✅ Supabase URL configured:", !!process.env.NEXT_PUBLIC_SUPABASE_URL);
+  }, []);
   
   useEffect(() => {
     console.log('AppContent loading state:', { 
