@@ -7,6 +7,11 @@ const bundleAnalyzer = withBundleAnalyzer({
 
 const nextConfig = {
   reactStrictMode: true,
+  // Explicitly expose Supabase environment variables to client bundle
+  env: {
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  },
   webpack: (config) => {
     config.resolve.extensions = ['.js', '.jsx', '.json', '.ts', '.tsx'];
     config.resolve.extensionAlias = {
