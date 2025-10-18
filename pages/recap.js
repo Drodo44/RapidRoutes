@@ -6,6 +6,7 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { getDisplayReferenceId, matchesReferenceId, cleanReferenceId } from '../lib/referenceIdUtils';
 import { fetchLaneRecords, hasSavedCities } from '../services/laneService.js';
+import RecapDynamic from '../components/RecapDynamic.jsx';
 
 // Generate reference ID for generated pairs (same logic as CSV)
 function generatePairReferenceId(baseRefId, pairIndex) {
@@ -303,6 +304,7 @@ export default function RecapPage() {
   const [postedPairs, setPostedPairs] = useState([]); // Store all generated pairs for dropdown
   const [selectedLaneId, setSelectedLaneId] = useState(''); // For dropdown snap-to functionality
   const [isGeneratingCSV, setIsGeneratingCSV] = useState(false);
+  const [viewMode, setViewMode] = useState('dynamic'); // 'classic' or 'dynamic'
   
   // Generate CSV for all visible lanes (active or posted)
   async function generateCSV() {
@@ -547,6 +549,56 @@ export default function RecapPage() {
     processBatch();
   }
 
+  // Refresh function for dynamic recap
+  const handleRefresh = () => {
+    setLoading(true);
+    fetchLaneRecords({
+      status: 'current',
+      limit: 300,
+      onlyWithSavedCities: true
+    })
+      .then((records) => {
+        setLanes(records || []);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error(err);
+        setLoading(false);
+      });
+  };
+
+  // If Dynamic mode is selected, render the new component
+  if (viewMode === 'dynamic') {
+    return (
+      <>
+        <Head>
+          <title>Recap 2.0 | RapidRoutes</title>
+        </Head>
+        
+        <div style={{ position: 'fixed', top: '80px', right: '20px', zIndex: 1000 }}>
+          <button
+            onClick={() => setViewMode('classic')}
+            style={{
+              padding: '8px 16px',
+              borderRadius: '6px',
+              border: '2px solid var(--border-color)',
+              backgroundColor: 'var(--input-bg)',
+              color: 'var(--text-primary)',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}
+          >
+            Switch to Classic View
+          </button>
+        </div>
+        
+        <RecapDynamic lanes={lanes} onRefresh={handleRefresh} />
+      </>
+    );
+  }
+
   return (
     <>
       <Head>
@@ -555,13 +607,31 @@ export default function RecapPage() {
       
       <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '16px' }}>
         {/* Page Header */}
-        <div style={{ marginBottom: '20px' }}>
-          <h1 style={{ fontSize: '20px', fontWeight: 600, margin: 0, marginBottom: '4px', color: 'var(--text-primary)' }}>
-            Active Lane Postings
-          </h1>
-          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
-            View your selected city combinations and reference IDs for DAT posting
-          </p>
+        <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h1 style={{ fontSize: '20px', fontWeight: 600, margin: 0, marginBottom: '4px', color: 'var(--text-primary)' }}>
+              Active Lane Postings
+            </h1>
+            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
+              View your selected city combinations and reference IDs for DAT posting
+            </p>
+          </div>
+          <button
+            onClick={() => setViewMode('dynamic')}
+            style={{
+              padding: '8px 16px',
+              borderRadius: '6px',
+              border: '2px solid #06b6d4',
+              backgroundColor: '#0891b2',
+              color: 'white',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}
+          >
+            ✨ Try Recap 2.0
+          </button>
         </div>
         
         {/* Search and Filter Bar */}
