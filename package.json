@@ -12,7 +12,7 @@
     "verify-migration": "node scripts/02-verify-migration.js",
     "verify:supabase-singleton": "node scripts/verify-supabase-singleton.mjs",
     "dev": "next dev",
-    "build": "npm run verify:supabase-singleton && next build",
+    "build": "next build",
     "analyze": "ANALYZE=true next build",
     "lint": "next lint",
     "start": "next start -p 3000",

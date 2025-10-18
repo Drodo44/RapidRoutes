@@ -2,7 +2,7 @@
 // Aggregate active core_pickups plus fallback pending lanes, enrich with coordinates/KMA.
 // Returns a unified list consumable by posting / option generation workflows.
 // Use alias-based imports for enterprise consistency (@ maps to project root)
-import { supabaseAdminClient as adminSupabase } from '@/lib/supabaseAdminClient';
+import { adminSupabase } from '../../utils/supabaseAdminClient.js';
 import { resolveCoords } from '@/lib/resolve-coords';
 import { buildCsvBuffer, exportDatCsv } from '../../lib/datCsvBuilder';
 import { validateApiAuth } from '../../middleware/auth.unified';
