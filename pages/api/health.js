@@ -106,7 +106,7 @@ export default async function handler(_req, res) {
 
     const storage = await checkStorage("dat_maps");
     const rpc = await checkRpc();
-    const exportHead = await checkExportHead("?all=1");
+    const exportHead = await checkExportHead();
 
     const ok =
       env.ok &&
