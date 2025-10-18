@@ -46,13 +46,21 @@ export default function SignupPage() {
         <div style={{ textAlign: 'center', marginBottom: 'var(--space-8)' }}>
           <div style={{ marginBottom: 'var(--space-4)' }}>
             <img 
-              src="/logo.png" 
-              alt="RapidRoutes Logo" 
-              style={{ 
-                height: '64px', 
-                margin: '0 auto',
-                filter: 'drop-shadow(0 4px 12px rgba(59, 130, 246, 0.4))'
-              }} 
+              src="/rapidroutes-logo.png" 
+              alt="RapidRoutes logo" 
+              className="mx-auto mb-8 h-40 w-40 rounded-full ring-2 ring-cyan-400 drop-shadow-lg transition-transform duration-300 hover:scale-105"
+              style={{
+                height: '160px',
+                width: '160px',
+                margin: '0 auto 32px auto',
+                borderRadius: '50%',
+                border: '2px solid #06b6d4',
+                boxShadow: '0 10px 25px rgba(6, 182, 212, 0.3)',
+                transition: 'transform 0.3s ease',
+                display: 'block'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
             />
           </div>
           <h1 style={{ 
