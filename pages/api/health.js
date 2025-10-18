@@ -56,20 +56,24 @@ async function checkRpc() {
 
 async function checkExportHead(params = "") {
   try {
-    // Use relative path which works in both dev and production
-    const response = await fetch(`http://localhost:3000/api/exportDatCsv${params}`, { 
-      method: "HEAD",
+    // Use the base URL from environment or default to production
+    const baseUrl = process.env.VERCEL_URL 
+      ? `https://${process.env.VERCEL_URL}` 
+      : process.env.NEXT_PUBLIC_BASE_URL || 'https://rapid-routes.vercel.app';
+    
+    const response = await fetch(`${baseUrl}/api/exportHead`, { 
+      method: "GET",
       headers: {
         'User-Agent': 'Health-Check'
       }
     });
     
     if (!response.ok) {
-      throw new Error(`HEAD ${params} -> ${response.status}`);
+      throw new Error(`GET ${params} -> ${response.status}`);
     }
     
-    const parts = Number(response.headers.get("X-Total-Parts") || "1");
-    return { ok: true, parts: Number.isFinite(parts) ? parts : 1 };
+    const data = await response.json();
+    return { ok: data.ok, count: data.count };
   } catch (e) {
     return { ok: false, error: e.message };
   }
