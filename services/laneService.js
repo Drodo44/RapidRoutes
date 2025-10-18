@@ -1,5 +1,5 @@
 // services/laneService.js - Production-ready JavaScript version
-import { createClient } from "@supabase/supabase-js";
+import { getServerSupabase } from "../lib/supabaseClient.js";
 
 const DEFAULT_LIMIT = 200;
 const MAX_LIMIT = 2000;
@@ -26,13 +26,8 @@ export function sanitizeLaneFilters(filters = {}) {
   };
 }
 
-// Create admin Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-const supabase = createClient(supabaseUrl, serviceKey, {
-  auth: { persistSession: false, autoRefreshToken: false }
-});
+// Create admin Supabase client using singleton
+const supabase = getServerSupabase();
 
 /**
  * NOTE: This function queries dat_loads_2025 ONLY for analytics/volume data.

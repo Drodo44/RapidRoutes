@@ -1,13 +1,10 @@
 // pages/api/debug-intelligent-crawl.js
-import { createClient } from '@supabase/supabase-js';
+import { getServerSupabase } from '../../lib/supabaseClient.js';
 
 export default async function handler(req, res) {
   try {
     // Initialize Supabase client
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    );
+    const supabase = getServerSupabase();
 
     // Test database connection
     console.log('🔍 Testing database connection...');

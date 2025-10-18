@@ -1,7 +1,7 @@
 // server-api-verification.js
 // Create a Next.js API route that tests the intelligence-pairing API directly
 
-import { createClient } from '@supabase/supabase-js';
+import { getServerSupabase } from '../../lib/supabaseClient.js';
 
 // In-memory cache for API response
 let apiResponseCache = null;
@@ -46,16 +46,7 @@ export default async function handler(req, res) {
     console.log('Authenticating with Supabase...');
     
     // Initialize Supabase client
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    );
+    const supabase = getServerSupabase();
     
     // Authenticate with Supabase
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({

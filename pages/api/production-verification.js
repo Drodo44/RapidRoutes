@@ -2,13 +2,8 @@
 // Server-side verification endpoint that runs in the production environment
 // This endpoint uses the production environment variables to run verification tests
 
-import { createClient } from '@supabase/supabase-js';
+import { getServerSupabase, getBrowserSupabase } from '../../lib/supabaseClient.js';
 import { fetchIntelligencePairs } from '../../lib/intelligenceApi';
-
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 // Function to count unique KMA codes in the response
 function countUniqueKmas(pairs) {
@@ -60,10 +55,10 @@ export default async function handler(req, res) {
     // Step 1: Authenticate with Supabase
     let supabase;
     try {
-      supabase = createClient(supabaseUrl, supabaseAnonKey);
+      supabase = getBrowserSupabase();
       
       // Use admin client for verification
-      const adminSupabase = createClient(supabaseUrl, supabaseServiceKey);
+      const adminSupabase = getServerSupabase();
       
       results.supabaseConnected = true;
       results.summary.authenticationSuccessful = true;

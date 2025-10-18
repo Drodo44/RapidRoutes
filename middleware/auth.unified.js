@@ -1,7 +1,6 @@
 // middleware/auth.unified.js
-import { createClient } from '@supabase/supabase-js';
-import supabase from '../utils/supabaseClient';
-import { adminSupabase } from '../utils/supabaseAdminClient';
+import { getBrowserSupabase, getServerSupabase } from '../lib/supabaseClient.js';
+import { adminSupabase } from '../utils/supabaseAdminClient.js';
 
 /**
  * Unified session handler for auth validation and role checking
@@ -12,18 +11,8 @@ async function validateSession(options = {}, authToken = null) {
     
     // Server-side: Use provided auth token (from Authorization header)
     if (authToken) {
-      // Create a temporary client with the provided token for validation
-      const tokenClient = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-        {
-          global: {
-            headers: {
-              Authorization: `Bearer ${authToken}`
-            }
-          }
-        }
-      );
+      // Use server Supabase client for token validation
+      const tokenClient = getServerSupabase();
       
       const { data: { user: tokenUser }, error: tokenError } = await tokenClient.auth.getUser();
       

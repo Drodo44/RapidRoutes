@@ -1,5 +1,5 @@
 // /pages/api/verify-intelligence-api.js
-import { createClient } from '@supabase/supabase-js';
+import { getServerSupabase } from '../../lib/supabaseClient.js';
 
 /**
  * Server-side API endpoint to verify the intelligence-pairing API
@@ -39,16 +39,7 @@ export default async function handler(req, res) {
     console.log('Using credentials:', { email });
     
     // Initialize Supabase client
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    );
+    const supabase = getServerSupabase();
     
     console.log('Authenticating with Supabase...');
     
