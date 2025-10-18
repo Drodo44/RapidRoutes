@@ -11,6 +11,7 @@
     "setup-database": "node scripts/01-setup-database.js",
     "verify-migration": "node scripts/02-verify-migration.js",
     "verify:supabase-singleton": "node scripts/verify-supabase-singleton.mjs",
+    "check:prod": "node scripts/post_deploy_check.cjs",
     "dev": "next dev",
     "build": "npm run verify:supabase-singleton && next build",
     "analyze": "ANALYZE=true next build",
