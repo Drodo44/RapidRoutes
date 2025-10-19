@@ -20,21 +20,31 @@ export default function RecapDynamic({ lanes = [], onRefresh }) {
 
   // Load starred cities
   useEffect(() => {
-    async function loadStarredCities() {
+    useEffect(() => {
+    async function fetchStarredCities() {
       try {
-        const response = await fetch('/api/city-performance?starred=true');
+        const response = await fetch('/api/city-performance');
         const result = await response.json();
-        if (result.success && result.data) {
-          const starred = new Set(
-            result.data.map(city => `${city.city}, ${city.state}`.toUpperCase())
-          );
-          setStarredCities(starred);
+        
+        // Null-safe check before mapping
+        if (result && result.data && Array.isArray(result.data)) {
+          const starMap = {};
+          result.data.forEach(city => {
+            const key = `${city.city_name}, ${city.state_code}`;
+            starMap[key] = true;
+          });
+          setStarredCities(starMap);
+        } else {
+          console.warn('⚠️ [RecapDynamic] No starred cities data available');
+          setStarredCities({});
         }
-      } catch (error) {
-        console.error('Error loading starred cities:', error);
+      } catch (err) {
+        console.error('❌ [RecapDynamic] Failed to fetch starred cities:', err);
+        setStarredCities({});
       }
     }
-    loadStarredCities();
+    fetchStarredCities();
+  }, []);
   }, []);
 
   // ESC key listener to clear highlight
@@ -319,18 +329,22 @@ export default function RecapDynamic({ lanes = [], onRefresh }) {
             }}
           >
             <option value="">🗂️ Select Lane...</option>
-            {groupArray
-              .sort((a, b) => a.key.localeCompare(b.key))
-              .map(group => {
-                const rrRange = group.lanes.length > 0 
-                  ? `${group.lanes[0].rr_number || 'N/A'}-${group.lanes[group.lanes.length - 1].rr_number || 'N/A'}`
-                  : 'N/A';
-                return (
-                  <option key={group.key} value={group.key}>
-                    {group.originCity}, {group.originState} → {group.destCity}, {group.destState} ({rrRange})
-                  </option>
-                );
-              })}
+            {groupArray && groupArray.length > 0 ? (
+              groupArray
+                .sort((a, b) => a.key.localeCompare(b.key))
+                .map(group => {
+                  const rrRange = group.lanes && group.lanes.length > 0 
+                    ? `${group.lanes[0].rr_number || 'N/A'}-${group.lanes[group.lanes.length - 1].rr_number || 'N/A'}`
+                    : 'N/A';
+                  return (
+                    <option key={group.key} value={group.key}>
+                      {group.originCity}, {group.originState} → {group.destCity}, {group.destState} ({rrRange})
+                    </option>
+                  );
+                })
+            ) : (
+              <option disabled>No lanes available</option>
+            )}
           </select>
         </div>
 
@@ -401,13 +415,14 @@ export default function RecapDynamic({ lanes = [], onRefresh }) {
           </div>
         )}
 
-        {filteredGroups.map(group => {
-          const isCollapsed = collapsedLanes.has(group.key);
-          const isHighlighted = activeHighlight === group.key;
-          const originStarred = isCityStarred(group.originCity, group.originState);
-          const destStarred = isCityStarred(group.destCity, group.destState);
+        {filteredGroups && filteredGroups.length > 0 ? (
+          filteredGroups.map(group => {
+            const isCollapsed = collapsedLanes.has(group.key);
+            const isHighlighted = activeHighlight === group.key;
+            const originStarred = isCityStarred(group.originCity, group.originState);
+            const destStarred = isCityStarred(group.destCity, group.destState);
 
-          return (
+            return (
             <div
               key={group.key}
               ref={el => laneRefs.current[group.key] = el}
@@ -472,11 +487,12 @@ export default function RecapDynamic({ lanes = [], onRefresh }) {
                       </tr>
                     </thead>
                     <tbody>
-                      {group.lanes.map((lane, idx) => {
-                        const status = getStatusDisplay(lane.lane_status || lane.status);
-                        const coverageSource = getCoverageSourceDisplay(lane.coverage_source);
-                        
-                        return (
+                      {group.lanes && group.lanes.length > 0 ? (
+                        group.lanes.map((lane, idx) => {
+                          const status = getStatusDisplay(lane.lane_status || lane.status);
+                          const coverageSource = getCoverageSourceDisplay(lane.coverage_source);
+                          
+                          return (
                           <tr
                             key={lane.id || idx}
                             style={{
@@ -532,14 +548,31 @@ export default function RecapDynamic({ lanes = [], onRefresh }) {
                             </td>
                           </tr>
                         );
-                      })}
+                      })
+                      ) : (
+                        <tr>
+                          <td colSpan="9" style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                            No lane details available
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
               )}
             </div>
           );
-        })}
+        })
+        ) : (
+          <div style={{
+            padding: '40px',
+            textAlign: 'center',
+            color: 'var(--text-secondary)',
+            fontSize: '16px'
+          }}>
+            📦 No lanes to display
+          </div>
+        )}
       </div>
 
       {/* Coverage Modal */}

@@ -204,7 +204,7 @@ function Dashboard() {
   }
   const [tab, setTab] = useState('van');
   const maps = useLatestMaps();
-  const rec = maps[tab];
+  const rec = maps && maps[tab] ? maps[tab] : null;
   const mapUrl = rec ? publicUrl(rec.image_path) : null;
   const mapDate = rec ? formatDate(rec.effective_date) : 'Not available';
   const stats = useBrokerStats();
