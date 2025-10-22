@@ -7,8 +7,8 @@ export const supabase = typeof window !== 'undefined'
   ? (() => { try { return getBrowserSupabase(); } catch { return null; } })()
   : null;
 
-// Re-export adminSupabase for backward compatibility
-import { adminSupabase } from './supabaseAdminClient.js';
+// DO NOT import adminSupabase here - this file can be bundled for the browser
+// Use @/lib/supabaseAdmin directly in server-side code (API routes, lib functions)
 
-export { getBrowserSupabase, getServerSupabase, adminSupabase };
+export { getBrowserSupabase, getServerSupabase };
 export default supabase;

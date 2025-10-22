@@ -1,7 +1,10 @@
 import { execSync } from 'node:child_process';
 
 const forbid = /createClient\s*\(/;
-const allowlist = ['lib/supabaseClient.js'];
+const allowlist = [
+  'lib/supabaseClient.js',
+  'lib/supabaseAdmin.js'  // Server-only admin client
+];
 
 // Only check production files - exclude test/script files
 const excludePatterns = [
