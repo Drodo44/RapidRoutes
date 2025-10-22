@@ -13,6 +13,8 @@
     "verify:supabase-singleton": "node scripts/verify-supabase-singleton.mjs",
     "validate:env": "node scripts/validate-env.js",
     "check:prod": "node scripts/post_deploy_check.cjs",
+    "postdeploy": "node verifyPostDeploy.mjs",
+    "verify:production": "node verifyPostDeploy.mjs",
     "dev": "next dev",
     "build": "npm run verify:supabase-singleton && next build",
     "analyze": "ANALYZE=true next build",
