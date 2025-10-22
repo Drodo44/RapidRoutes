@@ -1,7 +1,7 @@
 // pages/api/posted-pairs.js
 // Track generated RR numbers for search functionality
 
-import { adminSupabase } from '../../utils/supabaseAdminClient';
+import supabaseAdmin from "@/lib/supabaseAdmin";
 import { validateApiAuth } from '../../middleware/auth.unified';
 
 export default async function handler(req, res) {

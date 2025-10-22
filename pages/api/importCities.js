@@ -1,6 +1,6 @@
-import { getServerSupabase } from '../../lib/supabaseClient.js';
+import supabaseAdmin from "@/lib/supabaseAdmin";
 
-const supabase = getServerSupabase();
+const supabase = supabaseAdmin;
 
 export default async function handler(req, res) {
   try {

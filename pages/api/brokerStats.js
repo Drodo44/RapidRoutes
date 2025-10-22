@@ -1,4 +1,4 @@
-import { adminSupabase } from '../../utils/supabaseAdminClient';
+import supabaseAdmin from "@/lib/supabaseAdmin";
 import { countLaneRecords } from '../../services/laneService.js';
 import { assertApiAuth, isInternalBypass } from '@/lib/auth';
 import { validateApiAuth } from '../../middleware/auth.unified';

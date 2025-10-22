@@ -1,6 +1,6 @@
 // pages/api/admin/upload-market-map.js
 // Simplified PNG upload without formidable - using built-in Next.js handling
-import { adminSupabase } from '../../../utils/supabaseAdminClient.js';
+import supabaseAdmin from "@/lib/supabaseAdmin";
 import fs from 'fs';
 import path from 'path';
 

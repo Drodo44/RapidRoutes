@@ -1,7 +1,7 @@
 // pages/api/admin/remove-duplicates.js
 // API to remove duplicate lanes from the database
 
-import { adminSupabase } from '../../../utils/supabaseAdminClient';
+import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {

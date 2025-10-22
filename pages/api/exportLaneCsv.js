@@ -3,7 +3,7 @@
 // Returns a single-lane CSV (24 headers, minimum 12 rows per lane, scales with market density).
 // Streams as text/csv with Content-Disposition for browser download.
 
-import { adminSupabase } from '../../utils/supabaseAdminClient';
+import supabaseAdmin from "@/lib/supabaseAdmin";
 import { DAT_HEADERS } from '../../lib/datHeaders.js';
 import { rowsFromBaseAndPairs, toCsv, MIN_PAIRS_REQUIRED, ROWS_PER_PAIR } from '../../lib/datCsvBuilder';
 import { FreightIntelligence } from '../../lib/FreightIntelligence.js';

@@ -1,7 +1,7 @@
 // API endpoint for exporting purged cities as CSV for DAT submission
 // GET: Generate CSV download of purged cities
 
-import { adminSupabase as supabase } from '../../../utils/supabaseAdminClient.js';
+import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {

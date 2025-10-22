@@ -1,7 +1,7 @@
 // 🛠️ SEABOARD → LEOLA LANE DIAGNOSTIC TRACE
 // Comprehensive verbose logging for specific lane failure analysis
 
-import { adminSupabase } from '../../../utils/supabaseAdminClient.js';
+import supabaseAdmin from "@/lib/supabaseAdmin";
 import { validateApiAuth } from '../../../middleware/auth.unified.js';
 import { FreightIntelligence } from '../../../lib/FreightIntelligence.js';
 

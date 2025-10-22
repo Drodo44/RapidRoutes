@@ -1,5 +1,5 @@
 // pages/api/health.js
-import { adminSupabase as supabase } from "../../utils/supabaseAdminClient.js";
+import supabaseAdmin from "@/lib/supabaseAdmin";
 import { monitor } from "../../lib/monitor.js";
 
 async function checkEnv() {
@@ -14,7 +14,7 @@ async function checkEnv() {
 
 async function checkTable(name) {
   try {
-    const { error } = await supabase.from(name).select("*", { count: "exact", head: true });
+    const { error } = await supabaseAdmin.from(name).select("*", { count: "exact", head: true });
     return { ok: !error, error: error?.message || null };
   } catch (e) {
     return { ok: false, error: e.message || "unknown error" };

@@ -1,5 +1,5 @@
 // /pages/api/verify-intelligence-api.js
-import { getServerSupabase } from '../../lib/supabaseClient.js';
+import supabaseAdmin from "@/lib/supabaseAdmin";
 
 /**
  * Server-side API endpoint to verify the intelligence-pairing API
@@ -39,7 +39,7 @@ export default async function handler(req, res) {
     console.log('Using credentials:', { email });
     
     // Initialize Supabase client
-    const supabase = getServerSupabase();
+    const supabase = supabaseAdmin;
     
     console.log('Authenticating with Supabase...');
     

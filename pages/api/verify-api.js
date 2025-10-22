@@ -2,7 +2,7 @@
 // This endpoint will verify the intelligence-pairing API directly in the production environment
 // Version 2.0: Enhanced with full diagnostics
 
-import { getServerSupabase } from '../../lib/supabaseClient.js';
+import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
   // Allow GET for simplified testing with query params, POST for secure body
@@ -62,7 +62,7 @@ export default async function handler(req, res) {
 
   try {
     // Step 1: Initialize Supabase client
-    const supabase = getServerSupabase();
+    const supabase = supabaseAdmin;
 
     // Step 2: Authenticate with Supabase
     const authStartTime = Date.now();

@@ -4,7 +4,7 @@
 // - DAT-style: returns { id, city, state, zip, label } with "City, ST ZIP"
 // - Typing digits searches ZIP; "City, ST" respected; up to 12 results.
 
-import { adminSupabase } from '../../utils/supabaseAdminClient';
+import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {

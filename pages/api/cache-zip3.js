@@ -1,5 +1,5 @@
 // pages/api/cache-zip3.js
-import { adminSupabase } from "../../utils/supabaseAdminClient.js";
+import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });

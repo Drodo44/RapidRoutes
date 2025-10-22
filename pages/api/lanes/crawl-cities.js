@@ -1,6 +1,6 @@
 // pages/api/lanes/crawl-cities.js
 // API to get crawl cities for dropdown functionality
-import { adminSupabase } from '../../../utils/supabaseAdminClient';
+import supabaseAdmin from "@/lib/supabaseAdmin";
 import { fetchLaneRecords } from '../../../services/laneService.js';
 import { generateGeographicCrawlPairs } from '../../../lib/geographicCrawl.js';
 

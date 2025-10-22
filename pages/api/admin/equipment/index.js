@@ -1,5 +1,6 @@
 // pages/api/admin/equipment/index.js
-import { adminSupabase as supabase } from "../../../../utils/supabaseAdminClient.js";
+import supabaseAdmin from "@/lib/supabaseAdmin";
+const supabase = supabaseAdmin;
 
 export default async function handler(req, res) {
   try {

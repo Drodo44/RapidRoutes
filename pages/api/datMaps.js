@@ -1,7 +1,7 @@
 // pages/api/datMaps.js
 // API endpoint for DAT market heat map data
 
-import { adminSupabase } from '../../utils/supabaseAdminClient';
+import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {

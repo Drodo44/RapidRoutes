@@ -2,7 +2,7 @@
 // POST: Verify city and optionally update database
 
 import { verifyCityWithHERE } from '../../../lib/hereVerificationService.js';
-import { adminSupabase as supabase } from '../../../utils/supabaseAdminClient.js';
+import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {

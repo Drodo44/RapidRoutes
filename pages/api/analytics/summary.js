@@ -1,4 +1,5 @@
-import { adminSupabase as supabase } from '../../../utils/supabaseClient';
+import supabaseAdmin from '@/lib/supabaseAdmin';
+const supabase = supabaseAdmin;
 import { mapLaneRowToRecord } from '../../../services/laneService.js';
 
 const LANE_VIEW = 'rapidroutes_lane_view';

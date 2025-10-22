@@ -4,7 +4,7 @@
 // 2) New enterprise batch lane ingestion (input: { lanes: [...] }) with chunked coordinate enrichment + insert
 //    Returns structured { ok, counts: { total, success, failed }, failed: [...] }
 // This preserves backward compatibility for existing UI while enabling scalable batch creation.
-import { adminSupabase as supabase } from "@/utils/supabaseAdminClient";
+import supabaseAdmin from "@/lib/supabaseAdmin";
 import { resolveCoords } from "@/lib/resolve-coords";
 import { z } from 'zod';
 // NOTE: Not using external p-limit dependency to avoid adding new package; implementing lightweight limiter inline.

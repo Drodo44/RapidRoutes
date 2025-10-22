@@ -3,7 +3,7 @@
 // This file should NOT be used in production - it's for debugging only
 
 import { extractAuthToken } from '../../utils/apiAuthUtils.js';
-import { adminSupabase } from '../../utils/supabaseAdminClient.js';
+import supabaseAdmin from "@/lib/supabaseAdmin";
 import { generateGeographicCrawlPairs } from '../../lib/geographicCrawl.js';
 
 export default async function handler(req, res) {

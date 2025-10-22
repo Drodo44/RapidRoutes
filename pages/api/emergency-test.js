@@ -1,6 +1,6 @@
 // Emergency test endpoint to verify intelligence pairing API
 // This endpoint allows testing the intelligence API directly without auth
-import { adminSupabase as supabase } from '../../utils/supabaseAdminClient';
+import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {

@@ -58,7 +58,7 @@ export default async function handler(req, res) {
       supabase = getBrowserSupabase();
       
       // Use admin client for verification
-      const adminSupabase = getServerSupabase();
+      const adminSupabase = supabaseAdmin;
       
       results.supabaseConnected = true;
       results.summary.authenticationSuccessful = true;

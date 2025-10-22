@@ -10,7 +10,8 @@
 // - 499-row maximum per file (auto-chunk if needed)
 // ============================================================================
 
-import { adminSupabase as supabase } from '../../../../utils/supabaseAdminClient';
+import supabaseAdmin from '@/lib/supabaseAdmin';
+const supabase = supabaseAdmin;
 import { DAT_HEADERS } from '../../../../lib/datHeaders';
 import { withAuth } from '../../../../middleware/authMiddleware';
 

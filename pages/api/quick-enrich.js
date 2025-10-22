@@ -1,6 +1,6 @@
 // FAST city lookup from pre-computed database
 // Replaces slow real-time ST_Distance calculations
-import { adminSupabase as supabase } from '../../utils/supabaseAdminClient.js';
+import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {

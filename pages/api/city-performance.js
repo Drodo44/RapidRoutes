@@ -1,10 +1,10 @@
 // pages/api/city-performance.js
 // Smart City Learning API - Track coverage success by city and method
 
-import { getServerSupabase } from '../../lib/supabaseClient.js';
+import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
-  const supabase = getServerSupabase();
+  const supabase = supabaseAdmin;
 
   if (req.method === 'POST') {
     // Record a coverage event

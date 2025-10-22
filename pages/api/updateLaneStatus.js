@@ -1,6 +1,6 @@
 // pages/api/updateLaneStatus.js
 import { validateApiAuth } from '../../middleware/auth.unified';
-import { adminSupabase } from '../../utils/supabaseAdminClient';
+import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
   // Handle CORS preflight

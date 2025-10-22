@@ -1,6 +1,6 @@
 // pages/api/auth/profile.js
 // User profile API endpoint with proper singleton pattern
-import { getServerSupabase } from '../../../lib/supabaseClient.js';
+import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -8,7 +8,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const supabase = getServerSupabase();
+    const supabase = supabaseAdmin;
     
     // Get the user's session from the request
     const authHeader = req.headers.authorization;

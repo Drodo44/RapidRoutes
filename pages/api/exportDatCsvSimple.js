@@ -1,7 +1,7 @@
 // pages/api/exportDatCsvSimple.js
 import { format } from 'date-fns';
 import { getLanesByIdsOrQuery } from '../../services/laneService.js';
-import { adminSupabase as supabase } from '../../utils/supabaseAdminClient.js';
+import supabaseAdmin from "@/lib/supabaseAdmin";
 
 // ✅ DAT Template Headers (exact order from your verified file)
 const HEADERS = [

@@ -1,5 +1,5 @@
 // Quick check if our lane cities exist in database after deduplication
-import { adminSupabase as supabase } from '../../utils/supabaseAdminClient.js';
+import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
   try {

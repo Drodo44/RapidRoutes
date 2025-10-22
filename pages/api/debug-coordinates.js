@@ -1,5 +1,5 @@
 // Debug the core issue
-import { adminSupabase } from '../../utils/supabaseAdminClient.js';
+import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
   try {

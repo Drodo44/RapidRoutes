@@ -3,7 +3,7 @@
 // It bypasses authentication for testing purposes only
 
 import { generateGeographicCrawlPairs } from '../../lib/geographicCrawl.js';
-import { adminSupabase as supabase } from '../../utils/supabaseAdminClient.js';
+import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {

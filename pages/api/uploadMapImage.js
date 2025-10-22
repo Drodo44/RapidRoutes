@@ -1,7 +1,7 @@
 // pages/api/uploadMapImage.js
 // Upload heat map images to Supabase Storage (Vercel-compatible)
 
-import { adminSupabase } from '../../utils/supabaseAdminClient';
+import supabaseAdmin from "@/lib/supabaseAdmin";
 import formidable from 'formidable';
 import fs from 'fs';
 import path from 'path';

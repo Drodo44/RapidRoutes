@@ -1,6 +1,6 @@
 // pages/api/lanes.js
 import { validateApiAuth } from '../../middleware/auth.unified';
-// Removed unused: import { adminSupabase } from '../../utils/supabaseAdminClient';
+import supabaseAdmin from "@/lib/supabaseAdmin";
 import { fetchLaneById } from '../../services/laneService.js';
 import { getLanes } from '@/lib/laneService';
 import { assertApiAuth, isInternalBypass } from '@/lib/auth';

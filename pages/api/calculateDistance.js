@@ -1,7 +1,7 @@
 // pages/api/calculateDistance.js
 // API endpoint for calculating real distances between cities
 
-import { adminSupabase as supabase } from '../../utils/supabaseAdminClient.js';
+import supabaseAdmin from "@/lib/supabaseAdmin";
 import { distanceInMiles } from '../../lib/haversine.js';
 
 export default async function handler(req, res) {

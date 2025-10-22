@@ -1,6 +1,6 @@
 // pages/api/save-override.js
 // Upserts a manual pairing override for origin or destination selection
-import { adminSupabase } from '../../utils/supabaseAdminClient.js';
+import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });

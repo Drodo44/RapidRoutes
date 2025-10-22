@@ -1,7 +1,7 @@
 // pages/api/load-city-choices.js
 // Load saved city choices for lanes
 
-import { adminSupabase as supabase } from '../../utils/supabaseAdminClient.js';
+import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
   if (req.method !== 'GET' && req.method !== 'POST') {

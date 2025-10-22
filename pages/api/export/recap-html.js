@@ -1,7 +1,7 @@
 // pages/api/export/recap-html.js
 // Export interactive HTML recap with embedded JavaScript
 
-import { getServerSupabase } from '../../../lib/supabaseClient.js';
+import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {

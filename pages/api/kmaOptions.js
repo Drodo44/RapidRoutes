@@ -1,7 +1,7 @@
 // pages/api/kmaOptions.js
 // API endpoint to get KMA options for a specific state
 
-import { adminSupabase as supabase } from '../../utils/supabaseAdminClient.js';
+import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {

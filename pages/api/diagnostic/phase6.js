@@ -1,7 +1,7 @@
 // 🚨 PHASE 6: API DIAGNOSTIC ENDPOINT
 // Creates a diagnostic page to test real production behavior
 
-import { adminSupabase } from '../../../utils/supabaseAdminClient.js';
+import supabaseAdmin from "@/lib/supabaseAdmin";
 import { validateApiAuth } from '../../../middleware/auth.unified.js';
 import { FreightIntelligence } from '../../../lib/FreightIntelligence.js';
 

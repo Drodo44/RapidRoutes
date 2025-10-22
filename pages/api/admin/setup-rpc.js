@@ -1,7 +1,7 @@
 // pages/api/admin/setup-rpc.js
 // One-time setup script to create the missing RPC function
 
-import { adminSupabase as supabase } from '../../../utils/supabaseAdminClient.js';
+import supabaseAdmin from "@/lib/supabaseAdmin";
 import fs from 'fs';
 import path from 'path';
 
