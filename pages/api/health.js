@@ -23,7 +23,7 @@ async function checkTable(name) {
 
 async function checkStorage(bucket) {
   try {
-    const { data, error } = await supabase.storage.from(bucket).list("", { limit: 1 });
+    const { data, error } = await supabaseAdmin.storage.from(bucket).list("", { limit: 1 });
     if (error && error.message?.toLowerCase().includes("not found")) {
       return { ok: false, error: "Bucket missing (create 'dat_maps')" };
     }
@@ -39,7 +39,7 @@ async function checkRpc() {
   
   try {
     // Try calling RPC with a harmless radius; if it doesn't exist, Supabase returns error
-    const { data, error } = await supabase.rpc("fetch_nearby_cities", {
+    const { data, error } = await supabaseAdmin.rpc("fetch_nearby_cities", {
       i_lat: 33.0,
       i_lon: -86.9,
       i_radius_miles: 10,
