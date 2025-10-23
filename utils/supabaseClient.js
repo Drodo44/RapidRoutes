@@ -1,6 +1,6 @@
 // utils/supabaseClient.js
 // Re-export from the main singleton module
-import { getBrowserSupabase, getServerSupabase } from '../lib/supabaseClient.js';
+import { getBrowserSupabase } from '../lib/supabaseClient.js';
 
 // Browser client (for client-side code)
 export const supabase = typeof window !== 'undefined'
@@ -8,7 +8,8 @@ export const supabase = typeof window !== 'undefined'
   : null;
 
 // DO NOT import adminSupabase here - this file can be bundled for the browser
-// Use @/lib/supabaseAdmin directly in server-side code (API routes, lib functions)
+// For server-side admin operations, use:
+// import supabaseAdmin from '@/lib/supabaseAdmin';
 
-export { getBrowserSupabase, getServerSupabase };
+export { getBrowserSupabase };
 export default supabase;

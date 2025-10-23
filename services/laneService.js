@@ -1,5 +1,5 @@
 // services/laneService.js - Production-ready JavaScript version
-import { getServerSupabase } from "../lib/supabaseClient.js";
+import supabaseAdmin from "../lib/supabaseAdmin.ts";
 
 const DEFAULT_LIMIT = 200;
 const MAX_LIMIT = 2000;
@@ -26,8 +26,8 @@ export function sanitizeLaneFilters(filters = {}) {
   };
 }
 
-// Create admin Supabase client using singleton
-const supabase = getServerSupabase();
+// Use admin Supabase client
+const supabase = supabaseAdmin;
 
 /**
  * NOTE: This function queries dat_loads_2025 ONLY for analytics/volume data.

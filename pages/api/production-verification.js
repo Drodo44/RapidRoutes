@@ -2,7 +2,8 @@
 // Server-side verification endpoint that runs in the production environment
 // This endpoint uses the production environment variables to run verification tests
 
-import { getServerSupabase, getBrowserSupabase } from '../../lib/supabaseClient.js';
+import { getBrowserSupabase } from '../../lib/supabaseClient.js';
+import supabaseAdmin from '../../lib/supabaseAdmin.ts';
 import { fetchIntelligencePairs } from '../../lib/intelligenceApi';
 
 // Function to count unique KMA codes in the response
@@ -57,7 +58,7 @@ export default async function handler(req, res) {
     try {
       supabase = getBrowserSupabase();
       
-      // Use admin client for verification
+      // Admin client is already imported
       const adminSupabase = supabaseAdmin;
       
       results.supabaseConnected = true;

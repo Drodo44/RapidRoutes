@@ -1,6 +1,6 @@
 // middleware/auth.unified.js
-import { getBrowserSupabase, getServerSupabase } from '../lib/supabaseClient.js';
-import { adminSupabase } from '../utils/supabaseAdminClient.js';
+import { getBrowserSupabase } from '../lib/supabaseClient.js';
+import supabaseAdmin from '../lib/supabaseAdmin.ts';
 
 /**
  * Unified session handler for auth validation and role checking
@@ -12,7 +12,7 @@ async function validateSession(options = {}, authToken = null) {
     // Server-side: Use provided auth token (from Authorization header)
     if (authToken) {
       // Use server Supabase client for token validation
-      const tokenClient = getServerSupabase();
+      const tokenClient = supabaseAdmin;
       
       const { data: { user: tokenUser }, error: tokenError } = await tokenClient.auth.getUser();
       
