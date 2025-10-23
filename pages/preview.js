@@ -1,6 +1,7 @@
 // pages/preview.js
 import { useEffect, useState } from "react";
-import { fetchLaneRecords } from "../services/laneService.js";
+// Use browser-safe service to fetch lane records to avoid client-side admin imports
+import { fetchLaneRecords as fetchLaneRecordsBrowser } from "@/services/browserLaneService";
 import { generateDatCsvRows } from "../lib/exportDatCsv";
 
 export default function Preview() {
@@ -11,7 +12,7 @@ export default function Preview() {
   useEffect(() => {
     const load = async () => {
       try {
-        const records = await fetchLaneRecords({ status: "all", includeArchived: true, limit: 500 });
+        const records = await fetchLaneRecordsBrowser({ status: 'all', includeArchived: true, limit: 500 });
         setLanes(records);
         const rows = generateDatCsvRows(records);
         setPreviewRows(rows.slice(1)); // skip headers

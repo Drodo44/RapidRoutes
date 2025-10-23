@@ -3,7 +3,8 @@
 
 import { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
-import { fetchLaneRecords } from '../services/laneService.js';
+// Use API route to fetch lane records to avoid client-side admin imports
+import { fetchLaneRecords as fetchLaneRecordsBrowser } from '@/services/browserLaneService';
 
 export default function SmartRecap() {
   const [lanes, setLanes] = useState([]);
@@ -21,8 +22,8 @@ export default function SmartRecap() {
     console.log('🔍 Fetching all posted city pairs...');
     setLoading(true);
     try {
-      // Get all active lanes first
-      const activeLanes = await fetchLaneRecords({ status: 'current', limit: 500 });
+      // Get all active lanes first via browser-safe service
+      const activeLanes = await fetchLaneRecordsBrowser({ status: 'current', limit: 500 });
       
       setLanes(activeLanes);
       console.log('📋 Active lanes loaded:', activeLanes.length);

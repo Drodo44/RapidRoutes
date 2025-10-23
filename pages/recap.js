@@ -5,8 +5,9 @@ import { supabase } from '../lib/supabaseClient';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { getDisplayReferenceId, matchesReferenceId, cleanReferenceId } from '../lib/referenceIdUtils';
-import { fetchLaneRecords, hasSavedCities } from '../services/laneService.js';
+// Avoid importing server-only services on the client; use API instead
 import RecapDynamic from '../components/RecapDynamic.jsx';
+import { fetchLaneRecords as fetchLaneRecordsBrowser } from '@/services/browserLaneService';
 
 // Generate reference ID for generated pairs (same logic as CSV)
 function generatePairReferenceId(baseRefId, pairIndex) {
@@ -393,22 +394,22 @@ export default function RecapPage() {
     let cancelled = false;
     setLoading(true);
 
-    fetchLaneRecords({
-      status: 'current',
-      limit: 300,
-      onlyWithSavedCities: true
-    })
-      .then((records) => {
+    (async () => {
+      try {
+        const records = await fetchLaneRecordsBrowser({ status: 'current', limit: 300, onlyWithSavedCities: true });
         if (cancelled) return;
-        const lanesWithChoices = records.filter(hasSavedCities);
+        // Filter to lanes with saved city choices to match previous behavior
+        const lanesWithChoices = (records || []).filter(
+          (l) => l?.has_saved_choices && Array.isArray(l.saved_origin_cities) && l.saved_origin_cities.length > 0 && Array.isArray(l.saved_dest_cities) && l.saved_dest_cities.length > 0
+        );
         setLanes(lanesWithChoices);
-        setLoading(false);
-      })
-      .catch((error) => {
+      } catch (error) {
         if (cancelled) return;
         console.error('Error loading lanes:', error);
-        setLoading(false);
-      });
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
     
     // Load crawl cities for dropdown
     fetch('/api/lanes/crawl-cities')
@@ -552,19 +553,17 @@ export default function RecapPage() {
   // Refresh function for dynamic recap
   const handleRefresh = () => {
     setLoading(true);
-    fetchLaneRecords({
-      status: 'current',
-      limit: 300,
-      onlyWithSavedCities: true
-    })
+    fetchLaneRecordsBrowser({ status: 'current', limit: 300, onlyWithSavedCities: true })
       .then((records) => {
-        setLanes(records || []);
-        setLoading(false);
+        const lanesWithChoices = (records || []).filter(
+          (l) => l?.has_saved_choices && Array.isArray(l.saved_origin_cities) && l.saved_origin_cities.length > 0 && Array.isArray(l.saved_dest_cities) && l.saved_dest_cities.length > 0
+        );
+        setLanes(lanesWithChoices);
       })
       .catch((err) => {
         console.error(err);
-        setLoading(false);
-      });
+      })
+      .finally(() => setLoading(false));
   };
 
   // If Dynamic mode is selected, render the new component
