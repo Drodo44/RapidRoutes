@@ -4,15 +4,15 @@
 import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  const { equipment = 'dry-van' } = req.query;
-
   try {
+    if (req.method !== 'GET') {
+      return res.status(405).json({ ok: false, message: 'Method not allowed' });
+    }
+
+    const { equipment = 'dry-van' } = req.query;
+
     // Try to get cached data from database
-    const { data: cachedData } = await adminSupabase
+    const { data: cachedData, error: fetchError } = await supabaseAdmin
       .from('dat_maps')
       .select('*')
       .eq('equipment_type', equipment)
@@ -20,8 +20,12 @@ export default async function handler(req, res) {
       .order('updated_at', { ascending: false })
       .limit(1);
 
+    if (fetchError) {
+      console.warn('[datMaps API] Database fetch error:', fetchError);
+    }
+
     if (cachedData && cachedData.length > 0) {
-      return res.status(200).json(cachedData[0].map_data);
+      return res.status(200).json({ ok: true, data: cachedData[0].map_data });
     }
 
     // If no cached data, return sample data for now
@@ -51,22 +55,26 @@ export default async function handler(req, res) {
 
     const data = sampleData[equipment] || sampleData['dry-van'];
     
-    // Cache the sample data
-    await adminSupabase
-      .from('dat_maps')
-      .upsert({
-        equipment_type: equipment,
-        map_data: data,
-        updated_at: new Date().toISOString()
-      }, { 
-        onConflict: 'equipment_type',
-        ignoreDuplicates: false 
-      });
+    // Cache the sample data (don't fail if this errors)
+    try {
+      await supabaseAdmin
+        .from('dat_maps')
+        .upsert({
+          equipment_type: equipment,
+          map_data: data,
+          updated_at: new Date().toISOString()
+        }, { 
+          onConflict: 'equipment_type',
+          ignoreDuplicates: false 
+        });
+    } catch (cacheError) {
+      console.warn('[datMaps API] Cache write error:', cacheError);
+    }
 
-    return res.status(200).json(data);
+    return res.status(200).json({ ok: true, data });
 
-  } catch (error) {
-    console.error('Error fetching DAT map data:', error);
-    return res.status(500).json({ error: 'Failed to fetch market data' });
+  } catch (err) {
+    console.error('[datMaps API ERROR]', err);
+    return res.status(500).json({ ok: false, message: err.message || 'Failed to fetch market data' });
   }
 }
