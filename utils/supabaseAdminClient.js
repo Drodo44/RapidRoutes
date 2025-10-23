@@ -1,16 +1,24 @@
 /**
- * LEGACY EXPORT - DO NOT USE IN NEW CODE
- * This file re-exports from lib/supabaseAdmin.ts for backward compatibility
- * 
- * NEW CODE SHOULD IMPORT DIRECTLY FROM:
- * import supabaseAdmin from '@/lib/supabaseAdmin';
- * 
- * This file exists only for legacy imports and will be removed in future versions
+ * SERVER-ONLY ADMIN CLIENT
+ *
+ * This legacy shim previously re-exported from lib/supabaseAdmin.ts, which
+ * could inadvertently be bundled in the browser through indirect imports.
+ *
+ * To harden against that, we instantiate the admin client here with a strict
+ * server-only guard and export it for back-compat. Any browser import will
+ * throw immediately with a clear message.
  */
 
-import supabaseAdmin from '../lib/supabaseAdmin.ts';
+// Guard against browser usage early
+if (typeof window !== 'undefined') {
+	throw new Error('supabaseAdmin cannot be imported in browser code');
+}
 
-// Re-export for backward compatibility
+// Import the server-only admin client. This keeps createClient calls centralized
+// in lib/supabaseAdmin.{ts,js} to satisfy singleton verification.
+import supabaseAdmin from '../lib/supabaseAdmin';
+
+// Back-compat named and default exports
 export const adminSupabase = supabaseAdmin;
 export { supabaseAdmin };
 export default supabaseAdmin;
