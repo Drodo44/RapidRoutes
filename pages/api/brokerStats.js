@@ -1,5 +1,4 @@
 import supabaseAdmin from "@/lib/supabaseAdmin";
-import { countLaneRecords } from '../../services/laneService.js';
 import { assertApiAuth, isInternalBypass } from '@/lib/auth';
 import { validateApiAuth } from '../../middleware/auth.unified';
 
@@ -25,30 +24,40 @@ export default async function handler(req, res) {
 
     console.log('🔍 Fetching broker stats...');
 
-    // Aggregate lane counts via rapidroutes_lane_view
-    const totalLanesCount = await countLaneRecords({ status: 'all', includeArchived: true }, adminSupabase);
-    const currentLanesCount = await countLaneRecords({ status: 'current', includeArchived: false }, adminSupabase);
-    const archiveLanesCount = await countLaneRecords({ status: 'archive', includeArchived: true }, adminSupabase);
+    // Aggregate lane counts from lanes table directly
+    const { count: totalLanesCount, error: totalErr } = await supabaseAdmin
+      .from('lanes')
+      .select('*', { count: 'exact', head: true });
+    if (totalErr) throw totalErr;
+
+    const { count: currentLanesCount, error: currentErr } = await supabaseAdmin
+      .from('lanes')
+      .select('*', { count: 'exact', head: true })
+      .eq('lane_status', 'current');
+    if (currentErr) throw currentErr;
+
+    const { count: archiveLanesCount, error: archiveErr } = await supabaseAdmin
+      .from('lanes')
+      .select('*', { count: 'exact', head: true })
+      .eq('lane_status', 'archive');
+    if (archiveErr) throw archiveErr;
 
     const startOfToday = new Date();
     startOfToday.setUTCHours(0, 0, 0, 0);
     const endOfToday = new Date(startOfToday);
     endOfToday.setUTCHours(23, 59, 59, 999);
 
-    const todayLanesCount = await countLaneRecords(
-      {
-        status: 'all',
-        includeArchived: true,
-        createdAfter: startOfToday,
-        createdBefore: endOfToday
-      },
-      adminSupabase
-    );
+    const { count: todayLanesCount, error: todayErr } = await supabaseAdmin
+      .from('lanes')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', startOfToday.toISOString())
+      .lte('created_at', endOfToday.toISOString());
+    if (todayErr) throw todayErr;
 
     // Get total recaps (gracefully handle if table doesn't exist)
     let totalRecaps = 0;
     try {
-      const { data: recapData, error: recapError, count: recapCount } = await adminSupabase
+      const { data: recapData, error: recapError, count: recapCount } = await supabaseAdmin
         .from('recap_tracking')
         .select('*', { count: 'exact' });
 
