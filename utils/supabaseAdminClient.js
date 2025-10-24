@@ -10,15 +10,17 @@
  */
 
 // Guard against browser usage early
-if (typeof window !== 'undefined') {
-	throw new Error('supabaseAdmin cannot be imported in browser code');
+if ((globalThis)?.window !== undefined) {
+	throw new TypeError('supabaseAdmin cannot be imported in browser code');
 }
 
-// Import the server-only admin client. This keeps createClient calls centralized
-// in lib/supabaseAdmin.{ts,js} to satisfy singleton verification.
-import supabaseAdmin from '../lib/supabaseAdmin';
+// Runtime guard: log a warning if env vars are missing (helps diagnose prod incidents)
+if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+	console.warn('⚠️ Supabase env vars missing at runtime. Check Vercel project settings.');
+}
 
-// Back-compat named and default exports
-export const adminSupabase = supabaseAdmin;
-export { supabaseAdmin };
-export default supabaseAdmin;
+// Re-export the server-only admin client. This keeps createClient calls centralized
+// in lib/supabaseAdmin.{ts,js} to satisfy singleton verification.
+export { default as supabaseAdmin } from '../lib/supabaseAdmin';
+export { default as adminSupabase } from '../lib/supabaseAdmin';
+export { default } from '../lib/supabaseAdmin';
