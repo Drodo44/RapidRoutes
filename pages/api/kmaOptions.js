@@ -16,7 +16,7 @@ export default async function handler(req, res) {
 
   try {
     // Get unique KMA codes and names for the specified state
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('cities')
       .select('kma_code, kma_name')
       .eq('state_or_province', state.toUpperCase())

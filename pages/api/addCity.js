@@ -19,7 +19,7 @@ export default async function handler(req, res) {
 
   try {
     // Get KMA name from existing cities
-    const { data: kmaData, error: kmaError } = await supabase
+    const { data: kmaData, error: kmaError } = await supabaseAdmin
       .from('cities')
       .select('kma_name')
       .eq('kma_code', kmaCode)
@@ -34,7 +34,7 @@ export default async function handler(req, res) {
     const kmaName = kmaData?.kma_name || 'Unknown';
 
     // Check if city already exists
-    const { data: existing, error: checkError } = await supabase
+    const { data: existing, error: checkError } = await supabaseAdmin
       .from('cities')
       .select('id')
       .eq('city', city.trim())
@@ -53,7 +53,7 @@ export default async function handler(req, res) {
     }
 
     // Add the new city
-    const { data: newCity, error: insertError } = await supabase
+    const { data: newCity, error: insertError } = await supabaseAdmin
       .from('cities')
       .insert([
         {

@@ -25,7 +25,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    let query = adminSupabase
+    let query = supabaseAdmin
       .from('cities')
       .select('id, city, state_or_province, zip, latitude, longitude, kma_code')
       .limit(150);
