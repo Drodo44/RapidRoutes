@@ -54,23 +54,32 @@ export default function AnalyticsChart({
   // State for chart type toggle
   const [chartType, setChartType] = useState(type);
   
+  // Sanitize axis keys
+  const safeXKey = typeof xKey === 'string' && xKey.length > 0 ? xKey : 'name';
+  const sourceArray = Array.isArray(data) ? data : [];
+  const firstObj = sourceArray.find(e => e && typeof e === 'object' && !Array.isArray(e)) || {};
+  const derivedYKeys = Object.keys(firstObj).filter(k => k !== safeXKey && typeof firstObj[k] === 'number');
+  const safeYKeys = Array.isArray(yKeys) && yKeys.length > 0
+    ? yKeys.filter(k => typeof k === 'string' && k)
+    : (derivedYKeys.length ? derivedYKeys : ['value']);
+
   // Sanitize data for chart rendering
-  const safeData = Array.isArray(data) ? data : [];
+  const safeData = sourceArray.filter(item => item && typeof item === 'object' && !Array.isArray(item));
   const sanitizedData = safeData.map(item => {
     const result = { ...item };
-    // Ensure all yKeys exist with at least 0 value
-    yKeys.forEach(key => {
-      if (result[key] === undefined || result[key] === null) {
-        result[key] = 0;
-      }
+    // Ensure all y keys exist and are numeric
+    safeYKeys.forEach(key => {
+      const v = result[key];
+      const n = typeof v === 'number' ? v : Number(v);
+      result[key] = Number.isFinite(n) ? n : 0;
     });
     return result;
   });
 
   // Generate display labels for legend
-  const displayLabels = labels.length >= yKeys.length 
+  const displayLabels = Array.isArray(labels) && labels.length >= safeYKeys.length 
     ? labels 
-    : yKeys.map(key => key.charAt(0).toUpperCase() + key.slice(1).split('_').join(' '));
+    : safeYKeys.map(key => String(key).charAt(0).toUpperCase() + String(key).slice(1).split('_').join(' '));
 
   // Default chart height
   const height = options.height || 300;
@@ -99,13 +108,23 @@ export default function AnalyticsChart({
   }
 
   // Empty state
-  if (!data.length) {
+  if (!Array.isArray(data) || data.length === 0) {
     return (
       <div className="bg-gray-900 border border-gray-700 rounded-lg p-6 text-center" style={containerStyle}>
         <svg className="mx-auto h-12 w-12 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
         </svg>
         <p className="mt-2 text-gray-400">No chart data available</p>
+      </div>
+    );
+  }
+
+  // If we still can't determine series, render a safe fallback
+  if (!safeYKeys.length) {
+    return (
+      <div className="bg-gray-900 border border-gray-700 rounded-lg p-6" style={containerStyle}>
+        <h3 className="text-gray-200 font-medium mb-2">{title}</h3>
+        <p className="text-gray-400 text-sm">No numeric series found to chart.</p>
       </div>
     );
   }
@@ -163,11 +182,17 @@ export default function AnalyticsChart({
             {chartType === 'bar' && (
               <BarChart data={sanitizedData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
-                <XAxis dataKey={xKey} tick={{ fill: '#9CA3AF' }} axisLine={{ stroke: '#4B5563' }} tickLine={{ stroke: '#4B5563' }} />
+                <XAxis dataKey={safeXKey} tick={{ fill: '#9CA3AF' }} axisLine={{ stroke: '#4B5563' }} tickLine={{ stroke: '#4B5563' }} />
                 <YAxis tick={{ fill: '#9CA3AF' }} axisLine={{ stroke: '#4B5563' }} tickLine={{ stroke: '#4B5563' }} />
                 <Tooltip />
-                <Legend />
-                {yKeys.map((key, index) => (
+                {/* Provide Legend payload to avoid child introspection */}
+                <Legend payload={safeYKeys.map((key, index) => ({
+                  id: String(key),
+                  type: 'square',
+                  value: displayLabels[index] ?? String(key),
+                  color: COLOR_ARRAY[index % COLOR_ARRAY.length]
+                }))} />
+                {safeYKeys.map((key, index) => (
                   <Bar key={key} dataKey={key} fill={COLOR_ARRAY[index % COLOR_ARRAY.length]} name={displayLabels[index] ?? String(key)} radius={[4, 4, 0, 0]} />
                 ))}
               </BarChart>
@@ -175,11 +200,17 @@ export default function AnalyticsChart({
             {chartType === 'line' && (
               <LineChart data={sanitizedData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis dataKey={xKey} tick={{ fill: '#9CA3AF' }} axisLine={{ stroke: '#4B5563' }} tickLine={{ stroke: '#4B5563' }} />
+                <XAxis dataKey={safeXKey} tick={{ fill: '#9CA3AF' }} axisLine={{ stroke: '#4B5563' }} tickLine={{ stroke: '#4B5563' }} />
                 <YAxis tick={{ fill: '#9CA3AF' }} axisLine={{ stroke: '#4B5563' }} tickLine={{ stroke: '#4B5563' }} />
                 <Tooltip />
-                <Legend />
-                {yKeys.map((key, index) => (
+                {/* Provide Legend payload to avoid child introspection */}
+                <Legend payload={safeYKeys.map((key, index) => ({
+                  id: String(key),
+                  type: 'line',
+                  value: displayLabels[index] ?? String(key),
+                  color: COLOR_ARRAY[index % COLOR_ARRAY.length]
+                }))} />
+                {safeYKeys.map((key, index) => (
                   <Line key={key} type="monotone" dataKey={key} stroke={COLOR_ARRAY[index % COLOR_ARRAY.length]} name={displayLabels[index] ?? String(key)} dot={{ r: 4 }} activeDot={{ r: 6 }} />
                 ))}
               </LineChart>
@@ -190,8 +221,8 @@ export default function AnalyticsChart({
                 <Legend />
                 <Pie
                   data={sanitizedData}
-                  nameKey={xKey}
-                  dataKey={yKeys[0]}
+                  nameKey={safeXKey}
+                  dataKey={safeYKeys[0]}
                   cx="50%"
                   cy="50%"
                   outerRadius={80}
@@ -206,7 +237,7 @@ export default function AnalyticsChart({
                   labelLine={{ stroke: '#4B5563', strokeWidth: 1 }}
                 >
                   {sanitizedData.map((entry, index) => (
-                    <Cell key={`cell-${entry?.[xKey] ?? index}`} fill={COLOR_ARRAY[index % COLOR_ARRAY.length]} />
+                    <Cell key={`cell-${entry?.[safeXKey] ?? index}`} fill={COLOR_ARRAY[index % COLOR_ARRAY.length]} />
                   ))}
                 </Pie>
               </PieChart>
