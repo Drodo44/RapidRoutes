@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Head from 'next/head';
 import { supabase } from '../lib/supabaseClient';
 import DatMarketMaps from '../components/DatMarketMaps.jsx';
+import ErrorBoundary from '../components/ErrorBoundary';
 import AnalyticsDashboard from "../components/analytics/AnalyticsDashboard";
 import LaneOverview from "../components/post-options/LaneList";
 
@@ -251,29 +252,36 @@ function Dashboard() {
 
         {/* Embedded Analytics Dashboard Section */}
         <div className="border border-gray-800 rounded-2xl shadow-lg bg-[#0f172a] p-4" style={{ marginBottom: 'var(--space-6)' }}>
-          <AnalyticsDashboard compact />
+          <ErrorBoundary componentName="AnalyticsDashboard">
+            <AnalyticsDashboard compact />
+          </ErrorBoundary>
         </div>
         
         {/* Core Lane Overview Section */}
         <div style={{ marginBottom: 'var(--space-6)' }}>
           <h2 className="text-2xl font-semibold text-cyan-300 mb-2">Active Lanes</h2>
-          <LaneOverview 
-            lanes={stats.pendingLanes > 0 ? Array(stats.pendingLanes).fill({
-              id: "sample-id",
-              origin_city: "Chicago",
-              origin_state: "IL",
-              dest_city: "Atlanta",
-              dest_state: "GA",
-              equipment_code: "V",
-              weight_lbs: 45000
-            }) : []} 
-            onGenerateOptions={(lane) => router.push(`/post-options?laneId=${lane.id}`)}
-          />
+          <ErrorBoundary componentName="LaneOverview">
+            <LaneOverview 
+              lanes={stats.pendingLanes > 0 ? Array.from({ length: Math.min(10, Number(stats.pendingLanes) || 0) }, (_, i) => ({
+                id: `sample-id-${i}`,
+                origin_city: "Chicago",
+                origin_state: "IL",
+                dest_city: "Atlanta",
+                dest_state: "GA",
+                equipment_code: "V",
+                weight_lbs: 45000,
+                shortId: `sample-${i}`
+              })) : []}
+              onGenerateOptions={(lane) => router.push(`/post-options?laneId=${lane?.id || ''}`)}
+            />
+          </ErrorBoundary>
         </div>
         
         {/* LARGE Heat Map Section */}
         <div style={{ marginBottom: 'var(--space-6)' }}>
-          <DatMarketMaps />
+          <ErrorBoundary componentName="DatMarketMaps">
+            <DatMarketMaps />
+          </ErrorBoundary>
         </div>
 
         {/* Calculators Below - Side by side */}

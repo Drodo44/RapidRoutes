@@ -43,37 +43,38 @@ export default function LaneList({ lanes = [], onGenerateOptions, loading = fals
         Showing {lanes.length} lane{lanes.length !== 1 ? 's' : ''}
       </div>
       
-      {lanes.map((lane) => (
+      {lanes.map((lane, index) => (
         <div 
-          key={lane.id} 
+          key={lane?.id || index}
           className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-gray-800 border border-gray-700 rounded gap-4"
         >
           <div className="flex-grow">
             <div className="font-medium">
-              {lane.origin_city}, {lane.origin_state} → {lane.destinationCity}, {lane.destinationState}
+              {(lane?.origin_city || lane?.originCity || '—')}, {(lane?.origin_state || lane?.originState || '—')} 
+              → {(lane?.dest_city || lane?.destinationCity || '—')}, {(lane?.dest_state || lane?.destinationState || '—')}
             </div>
             <div className="text-sm text-gray-400 mt-1 flex flex-wrap gap-2">
               <span className="bg-gray-700 text-gray-300 px-2 py-0.5 rounded text-xs">
-                {lane.equipment_code}
+                {lane?.equipment_code || lane?.equipment || 'UNK'}
               </span>
-              {lane.weight_lbs && (
+              {lane?.weight_lbs && (
                 <span className="text-xs">
-                  {lane.formattedWeight} lbs
+                  {(lane?.formattedWeight || lane?.weight_lbs)?.toLocaleString?.() || lane?.formattedWeight || lane?.weight_lbs} lbs
                 </span>
               )}
-              {lane.length_ft && (
+              {lane?.length_ft && (
                 <span className="text-xs">
-                  {lane.length_ft} ft
+                  {lane?.length_ft} ft
                 </span>
               )}
               <span className="text-xs text-gray-500">
-                ID: {lane.shortId}...
+                ID: {(lane?.shortId || String(lane?.id || '').slice(0, 6) || 'sample')}...
               </span>
             </div>
           </div>
           <div>
             <button
-              onClick={() => onGenerateOptions(lane)}
+              onClick={() => onGenerateOptions?.(lane)}
               className="w-full md:w-auto px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded"
             >
               Generate Options
