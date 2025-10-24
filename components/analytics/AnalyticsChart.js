@@ -218,7 +218,13 @@ export default function AnalyticsChart({
             {chartType === 'pie' && (
               <PieChart>
                 <Tooltip />
-                <Legend />
+                {/* Provide Legend payload to avoid child introspection */}
+                <Legend payload={sanitizedData.map((entry, index) => ({
+                  id: String(entry?.[safeXKey] ?? index),
+                  type: 'square',
+                  value: String(entry?.[safeXKey] ?? `Item ${index + 1}`),
+                  color: COLOR_ARRAY[index % COLOR_ARRAY.length]
+                }))} />
                 <Pie
                   data={sanitizedData}
                   nameKey={safeXKey}
