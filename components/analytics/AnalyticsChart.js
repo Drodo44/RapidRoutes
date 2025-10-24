@@ -1,9 +1,8 @@
 // components/analytics/AnalyticsChart.js
+/* eslint-disable react/prop-types */
 import React, { useState } from 'react';
-import { 
-  BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, 
-  ResponsiveContainer, PieChart, Pie, Cell
-} from 'recharts';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Tooltip as CTooltip, Legend as CLegend, Title as CTitle } from 'chart.js';
+import { Bar as BarChartJS, Line as LineChartJS, Pie as PieChartJS } from 'react-chartjs-2';
 import ErrorBoundary from '../ErrorBoundary';
 
 // Color palette for dark mode
@@ -27,6 +26,51 @@ const COLOR_ARRAY = [
   CHART_COLORS.error,
   CHART_COLORS.gray,
 ];
+
+// Register Chart.js components once at module scope
+ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, CTooltip, CLegend, CTitle);
+
+// Small presentational components
+function ChartTypeToggle({ chartType, setChartType }) {
+  return (
+    <div className="flex space-x-2 mb-4">
+      <button
+        onClick={() => setChartType('bar')}
+        className={`px-3 py-1 text-xs rounded ${
+          chartType === 'bar'
+            ? 'bg-blue-600 text-white'
+            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+        }`}
+      >
+        Bar
+      </button>
+      <button
+        onClick={() => setChartType('line')}
+        className={`px-3 py-1 text-xs rounded ${
+          chartType === 'line'
+            ? 'bg-blue-600 text-white'
+            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+        }`}
+      >
+        Line
+      </button>
+      <button
+        onClick={() => setChartType('pie')}
+        className={`px-3 py-1 text-xs rounded ${
+          chartType === 'pie'
+            ? 'bg-blue-600 text-white'
+            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+        }`}
+      >
+        Pie
+      </button>
+    </div>
+  );
+}
+
+function ChartTitle({ title }) {
+  return <h3 className="text-gray-200 font-medium mb-4">{title}</h3>;
+}
 
 /**
  * Analytics chart component with multiple visualization options
@@ -54,25 +98,29 @@ export default function AnalyticsChart({
   // State for chart type toggle
   const [chartType, setChartType] = useState(type);
   
+  
   // Sanitize axis keys
   const safeXKey = typeof xKey === 'string' && xKey.length > 0 ? xKey : 'name';
   const sourceArray = Array.isArray(data) ? data : [];
   const firstObj = sourceArray.find(e => e && typeof e === 'object' && !Array.isArray(e)) || {};
   const derivedYKeys = Object.keys(firstObj).filter(k => k !== safeXKey && typeof firstObj[k] === 'number');
-  const safeYKeys = Array.isArray(yKeys) && yKeys.length > 0
-    ? yKeys.filter(k => typeof k === 'string' && k)
-    : (derivedYKeys.length ? derivedYKeys : ['value']);
+  let safeYKeys = [];
+  if (Array.isArray(yKeys) && yKeys.length > 0) {
+    safeYKeys = yKeys.filter(k => typeof k === 'string' && k);
+  } else {
+    safeYKeys = derivedYKeys.length ? derivedYKeys : ['value'];
+  }
 
   // Sanitize data for chart rendering
   const safeData = sourceArray.filter(item => item && typeof item === 'object' && !Array.isArray(item));
   const sanitizedData = safeData.map(item => {
     const result = { ...item };
     // Ensure all y keys exist and are numeric
-    safeYKeys.forEach(key => {
+    for (const key of safeYKeys) {
       const v = result[key];
       const n = typeof v === 'number' ? v : Number(v);
       result[key] = Number.isFinite(n) ? n : 0;
-    });
+    }
     return result;
   });
 
@@ -130,92 +178,64 @@ export default function AnalyticsChart({
   }
 
   // Chart type toggle buttons
-  const ChartTypeToggle = () => (
-    <div className="flex space-x-2 mb-4">
-      <button
-        onClick={() => setChartType('bar')}
-        className={`px-3 py-1 text-xs rounded ${
-          chartType === 'bar'
-            ? 'bg-blue-600 text-white'
-            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-        }`}
-      >
-        Bar
-      </button>
-      <button
-        onClick={() => setChartType('line')}
-        className={`px-3 py-1 text-xs rounded ${
-          chartType === 'line'
-            ? 'bg-blue-600 text-white'
-            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-        }`}
-      >
-        Line
-      </button>
-      <button
-        onClick={() => setChartType('pie')}
-        className={`px-3 py-1 text-xs rounded ${
-          chartType === 'pie'
-            ? 'bg-blue-600 text-white'
-            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-        }`}
-      >
-        Pie
-      </button>
-    </div>
-  );
+  // Chart title and toggle moved to module-level components above
 
-  // Chart title component
-  const ChartTitle = () => (
-    <h3 className="text-gray-200 font-medium mb-4">{title}</h3>
-  );
+  // Prepare Chart.js datasets and options
+  const chartLabels = sanitizedData.map(d => String(d?.[safeXKey] ?? ''));
+  const datasets = safeYKeys.map((key, index) => ({
+    label: displayLabels[index] ?? String(key),
+    data: sanitizedData.map(d => d[key] ?? 0),
+    backgroundColor: COLOR_ARRAY[index % COLOR_ARRAY.length] + 'CC',
+    borderColor: COLOR_ARRAY[index % COLOR_ARRAY.length],
+    borderWidth: 1,
+    tension: 0.3,
+    pointRadius: 2,
+  }));
+
+  const commonOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'bottom', labels: { color: '#E5E7EB' } },
+      title: { display: false },
+      tooltip: { enabled: true },
+    },
+    scales: {
+      x: { ticks: { color: '#9CA3AF' }, grid: { color: '#374151' } },
+      y: { ticks: { color: '#9CA3AF' }, grid: { color: '#374151' } },
+    },
+  };
+
+  const barData = { labels: chartLabels, datasets };
+  const lineData = { labels: chartLabels, datasets };
+  const pieData = {
+    labels: chartLabels,
+    datasets: [{
+      label: displayLabels[0] ?? 'Value',
+      data: sanitizedData.map(d => d[safeYKeys[0]] ?? 0),
+      backgroundColor: sanitizedData.map((_, i) => COLOR_ARRAY[i % COLOR_ARRAY.length] + 'CC'),
+      borderColor: sanitizedData.map((_, i) => COLOR_ARRAY[i % COLOR_ARRAY.length]),
+      borderWidth: 1,
+    }]
+  };
 
   return (
     <div className="bg-gray-900 border border-gray-700 rounded-lg p-4">
       <div className="flex justify-between items-center mb-4">
-        <ChartTitle />
-        <ChartTypeToggle />
+  <ChartTitle title={title} />
+  <ChartTypeToggle chartType={chartType} setChartType={setChartType} />
       </div>
       <div style={{ height: `${height}px` }}>
         <ErrorBoundary componentName="AnalyticsChart">
-          <ResponsiveContainer width="100%" height="100%">
-            {chartType === 'bar' && (
-              <BarChart data={sanitizedData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
-                <XAxis dataKey={safeXKey} tick={{ fill: '#9CA3AF' }} axisLine={{ stroke: '#4B5563' }} tickLine={{ stroke: '#4B5563' }} />
-                <YAxis tick={{ fill: '#9CA3AF' }} axisLine={{ stroke: '#4B5563' }} tickLine={{ stroke: '#4B5563' }} />
-                {safeYKeys.map((key, index) => (
-                  <Bar key={key} dataKey={key} fill={COLOR_ARRAY[index % COLOR_ARRAY.length]} name={displayLabels[index] ?? String(key)} radius={[4, 4, 0, 0]} />
-                ))}
-              </BarChart>
-            )}
-            {chartType === 'line' && (
-              <LineChart data={sanitizedData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis dataKey={safeXKey} tick={{ fill: '#9CA3AF' }} axisLine={{ stroke: '#4B5563' }} tickLine={{ stroke: '#4B5563' }} />
-                <YAxis tick={{ fill: '#9CA3AF' }} axisLine={{ stroke: '#4B5563' }} tickLine={{ stroke: '#4B5563' }} />
-                {safeYKeys.map((key, index) => (
-                  <Line key={key} type="monotone" dataKey={key} stroke={COLOR_ARRAY[index % COLOR_ARRAY.length]} name={displayLabels[index] ?? String(key)} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-                ))}
-              </LineChart>
-            )}
-            {chartType === 'pie' && (
-              <PieChart>
-                <Pie
-                  data={sanitizedData}
-                  nameKey={safeXKey}
-                  dataKey={safeYKeys[0]}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                >
-                  {sanitizedData.map((entry, index) => (
-                    <Cell key={`cell-${entry?.[safeXKey] ?? index}`} fill={COLOR_ARRAY[index % COLOR_ARRAY.length]} />
-                  ))}
-                </Pie>
-              </PieChart>
-            )}
-          </ResponsiveContainer>
+          {chartType === 'bar' && (
+            <BarChartJS data={barData} options={commonOptions} />
+          )}
+          {chartType === 'line' && (
+            <LineChartJS data={lineData} options={commonOptions} />
+          )}
+          {chartType === 'pie' && (
+            <PieChartJS data={pieData} options={{ ...commonOptions, scales: undefined }} />
+          )}
         </ErrorBoundary>
       </div>
     </div>
