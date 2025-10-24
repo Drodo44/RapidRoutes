@@ -14,7 +14,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { count, error: headErr } = await adminSupabase
+    const { count, error: headErr } = await supabaseAdmin
       .from('equipment_codes')
       .select('code', { count: 'exact', head: true });
     if (headErr) throw headErr;
@@ -24,12 +24,12 @@ export default async function handler(req, res) {
     }
 
     // Idempotent upsert
-    const { error } = await adminSupabase
+    const { error } = await supabaseAdmin
       .from('equipment_codes')
       .upsert(EQUIPMENT_SEED, { onConflict: 'code' });
     if (error) throw error;
 
-    const { count: after } = await adminSupabase
+    const { count: after } = await supabaseAdmin
       .from('equipment_codes').select('code', { count: 'exact', head: true });
 
     return res.status(200).json({ seeded: true, count: after || 0 });

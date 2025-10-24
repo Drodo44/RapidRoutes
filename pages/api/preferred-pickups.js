@@ -17,7 +17,7 @@ export default async function handler(req, res) {
 
     if (req.method === 'GET') {
       // Get user's preferred pickups only
-      const { data, error } = await adminSupabase
+      const { data, error } = await supabaseAdmin
         .from('preferred_pickups')
         .select('*')
         .eq('user_id', userId)
@@ -32,7 +32,7 @@ export default async function handler(req, res) {
       const { city, state, zip, frequency_score, equipment_preference, notes } = req.body;
       
       // Look up KMA info from cities table
-      const { data: cityData } = await adminSupabase
+      const { data: cityData } = await supabaseAdmin
         .from('cities')
         .select('kma_code, kma_name')
         .ilike('city', city)
@@ -42,7 +42,7 @@ export default async function handler(req, res) {
       const kma_code = cityData?.[0]?.kma_code || null;
       const kma_name = cityData?.[0]?.kma_name || null;
       
-      const { data, error } = await adminSupabase
+      const { data, error } = await supabaseAdmin
         .from('preferred_pickups')
         .insert([{
           user_id: userId,
@@ -67,7 +67,7 @@ export default async function handler(req, res) {
       const { id, ...updates } = req.body;
       
       // Ensure user can only update their own pickups
-      const { data, error } = await adminSupabase
+      const { data, error } = await supabaseAdmin
         .from('preferred_pickups')
         .update({ ...updates, updated_at: new Date().toISOString() })
         .eq('id', id)
@@ -84,7 +84,7 @@ export default async function handler(req, res) {
       const { id } = req.query;
       
       // Ensure user can only delete their own pickups
-      const { error } = await adminSupabase
+      const { error } = await supabaseAdmin
         .from('preferred_pickups')
         .delete()
         .eq('id', id)
