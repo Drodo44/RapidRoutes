@@ -12,39 +12,39 @@ export default function RecapDynamic({ lanes = [], onRefresh }) {
   const [collapsedLanes, setCollapsedLanes] = useState(new Set());
   const [coverageModalOpen, setCoverageModalOpen] = useState(false);
   const [selectedRRForCoverage, setSelectedRRForCoverage] = useState(null);
+  // Keep a consistent shape: Set of "City, ST" keys
   const [starredCities, setStarredCities] = useState(new Set());
   const [isDarkMode, setIsDarkMode] = useState(true);
   
   const supabase = getBrowserSupabase();
   const laneRefs = useRef({});
 
-  // Load starred cities
+  // Load starred cities once on mount – build a Set for O(1) membership checks
   useEffect(() => {
-    useEffect(() => {
-    async function fetchStarredCities() {
+    let cancelled = false;
+    (async () => {
       try {
         const response = await fetch('/api/city-performance');
         const result = await response.json();
-        
-        // Null-safe check before mapping
-        if (result && result.data && Array.isArray(result.data)) {
-          const starMap = {};
-          result.data.forEach(city => {
-            const key = `${city.city_name}, ${city.state_code}`;
-            starMap[key] = true;
-          });
-          setStarredCities(starMap);
+        if (cancelled) return;
+
+        if (result && Array.isArray(result.data)) {
+          const set = new Set(
+            result.data
+              .filter(Boolean)
+              .map((city) => `${city.city_name}, ${city.state_code}`.toUpperCase())
+          );
+          setStarredCities(set);
         } else {
           console.warn('⚠️ [RecapDynamic] No starred cities data available');
-          setStarredCities({});
+          setStarredCities(new Set());
         }
       } catch (err) {
         console.error('❌ [RecapDynamic] Failed to fetch starred cities:', err);
-        setStarredCities({});
+        setStarredCities(new Set());
       }
-    }
-    fetchStarredCities();
-  }, []);
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   // ESC key listener to clear highlight
@@ -246,9 +246,12 @@ export default function RecapDynamic({ lanes = [], onRefresh }) {
   };
 
   // Check if city is starred
-  const isCityStarred = (city, state) => {
-    return starredCities.has(`${city}, ${state}`.toUpperCase());
-  };
+  const isCityStarred = (city, state) => starredCities.has(`${city}, ${state}`.toUpperCase());
+
+  // Defensive render guard for lanes prop
+  if (!lanes || !Array.isArray(lanes)) {
+    return <div>Loading Recap Data…</div>;
+  }
 
   // Export HTML
   const handleExportHTML = async () => {
