@@ -265,9 +265,14 @@ function LanesPage() {
         }
       }
       
+      // Pull from real lanes API so actions (archive/delete/edit) operate on valid IDs
       const [currentRes, archivedRes] = await Promise.all([
-        fetch('/api/laneRecords?status=current&limit=200'),
-        fetch('/api/laneRecords?status=archive&limit=50&includeArchived=1')
+        fetch('/api/lanes?status=current&limit=200', {
+          headers: { 'Authorization': `Bearer ${session?.access_token || ''}` }
+        }),
+        fetch('/api/lanes?status=archive&limit=50', {
+          headers: { 'Authorization': `Bearer ${session?.access_token || ''}` }
+        })
       ]);
 
       const [currentJson, archivedJson] = await Promise.all([
@@ -275,8 +280,9 @@ function LanesPage() {
         archivedRes.json().catch(() => ({ ok: false, data: [] })),
       ]);
 
-      const currentLanes = currentRes.ok && currentJson.ok && Array.isArray(currentJson.data) ? currentJson.data : [];
-      const archivedLanes = archivedRes.ok && archivedJson.ok && Array.isArray(archivedJson.data) ? archivedJson.data : [];
+  // /api/lanes returns a raw array of lane rows
+  const currentLanes = currentRes.ok && Array.isArray(currentJson) ? currentJson : [];
+  const archivedLanes = archivedRes.ok && Array.isArray(archivedJson) ? archivedJson : [];
 
       console.log('Lists loaded successfully - Current:', currentLanes.length, 'Archive:', archivedLanes.length);
 
