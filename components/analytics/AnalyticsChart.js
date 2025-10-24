@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { 
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, 
-  Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell
+  ResponsiveContainer, PieChart, Pie, Cell
 } from 'recharts';
 import ErrorBoundary from '../ErrorBoundary';
 
@@ -184,14 +184,6 @@ export default function AnalyticsChart({
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
                 <XAxis dataKey={safeXKey} tick={{ fill: '#9CA3AF' }} axisLine={{ stroke: '#4B5563' }} tickLine={{ stroke: '#4B5563' }} />
                 <YAxis tick={{ fill: '#9CA3AF' }} axisLine={{ stroke: '#4B5563' }} tickLine={{ stroke: '#4B5563' }} />
-                <Tooltip />
-                {/* Provide Legend payload to avoid child introspection */}
-                <Legend payload={safeYKeys.map((key, index) => ({
-                  id: String(key),
-                  type: 'square',
-                  value: displayLabels[index] ?? String(key),
-                  color: COLOR_ARRAY[index % COLOR_ARRAY.length]
-                }))} />
                 {safeYKeys.map((key, index) => (
                   <Bar key={key} dataKey={key} fill={COLOR_ARRAY[index % COLOR_ARRAY.length]} name={displayLabels[index] ?? String(key)} radius={[4, 4, 0, 0]} />
                 ))}
@@ -202,14 +194,6 @@ export default function AnalyticsChart({
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                 <XAxis dataKey={safeXKey} tick={{ fill: '#9CA3AF' }} axisLine={{ stroke: '#4B5563' }} tickLine={{ stroke: '#4B5563' }} />
                 <YAxis tick={{ fill: '#9CA3AF' }} axisLine={{ stroke: '#4B5563' }} tickLine={{ stroke: '#4B5563' }} />
-                <Tooltip />
-                {/* Provide Legend payload to avoid child introspection */}
-                <Legend payload={safeYKeys.map((key, index) => ({
-                  id: String(key),
-                  type: 'line',
-                  value: displayLabels[index] ?? String(key),
-                  color: COLOR_ARRAY[index % COLOR_ARRAY.length]
-                }))} />
                 {safeYKeys.map((key, index) => (
                   <Line key={key} type="monotone" dataKey={key} stroke={COLOR_ARRAY[index % COLOR_ARRAY.length]} name={displayLabels[index] ?? String(key)} dot={{ r: 4 }} activeDot={{ r: 6 }} />
                 ))}
@@ -217,14 +201,6 @@ export default function AnalyticsChart({
             )}
             {chartType === 'pie' && (
               <PieChart>
-                <Tooltip />
-                {/* Provide Legend payload to avoid child introspection */}
-                <Legend payload={sanitizedData.map((entry, index) => ({
-                  id: String(entry?.[safeXKey] ?? index),
-                  type: 'square',
-                  value: String(entry?.[safeXKey] ?? `Item ${index + 1}`),
-                  color: COLOR_ARRAY[index % COLOR_ARRAY.length]
-                }))} />
                 <Pie
                   data={sanitizedData}
                   nameKey={safeXKey}
@@ -232,15 +208,6 @@ export default function AnalyticsChart({
                   cx="50%"
                   cy="50%"
                   outerRadius={80}
-                  label={(entry) => {
-                    try {
-                      if (!entry || entry.name === undefined || entry.percent === undefined) return '';
-                      return `${entry.name}: ${(entry.percent * 100).toFixed(0)}%`;
-                    } catch {
-                      return '';
-                    }
-                  }}
-                  labelLine={{ stroke: '#4B5563', strokeWidth: 1 }}
                 >
                   {sanitizedData.map((entry, index) => (
                     <Cell key={`cell-${entry?.[safeXKey] ?? index}`} fill={COLOR_ARRAY[index % COLOR_ARRAY.length]} />
