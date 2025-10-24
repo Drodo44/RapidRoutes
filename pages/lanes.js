@@ -12,7 +12,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { checkIntermodalEligibility } from '../lib/intermodalAdvisor';
 import { generateReferenceId, generateNewReferenceId, getDisplayReferenceId } from '../lib/referenceIdUtils';
 import Head from 'next/head';
-import { fetchLaneRecords } from '../services/laneService.js';
+// Use API route to fetch lane records to avoid client-side admin imports
 
 function Section({ title, children, right, className = '' }) {
   return (
@@ -265,15 +265,23 @@ function LanesPage() {
         }
       }
       
-      const [currentLanes, archivedLanes] = await Promise.all([
-        fetchLaneRecords({ status: 'current', limit: 200 }),
-        fetchLaneRecords({ status: 'archive', limit: 50, includeArchived: true })
+      const [currentRes, archivedRes] = await Promise.all([
+        fetch('/api/laneRecords?status=current&limit=200'),
+        fetch('/api/laneRecords?status=archive&limit=50&includeArchived=1')
       ]);
+
+      const [currentJson, archivedJson] = await Promise.all([
+        currentRes.json().catch(() => ({ ok: false, data: [] })),
+        archivedRes.json().catch(() => ({ ok: false, data: [] })),
+      ]);
+
+      const currentLanes = currentRes.ok && currentJson.ok && Array.isArray(currentJson.data) ? currentJson.data : [];
+      const archivedLanes = archivedRes.ok && archivedJson.ok && Array.isArray(archivedJson.data) ? archivedJson.data : [];
 
       console.log('Lists loaded successfully - Current:', currentLanes.length, 'Archive:', archivedLanes.length);
 
-      setCurrent(currentLanes);
-      setArchive(archivedLanes);
+  setCurrent(currentLanes);
+  setArchive(archivedLanes);
     } catch (error) {
       console.error('Failed to load lanes:', error);
       setCurrent([]); 
