@@ -2,8 +2,7 @@
 // Server-side verification endpoint that runs in the production environment
 // This endpoint uses the production environment variables to run verification tests
 
-import { getBrowserSupabase } from '../../lib/supabaseClient.js';
-import supabaseAdmin from '../../lib/supabaseAdmin.ts';
+import supabaseAdmin from '@/lib/supabaseAdmin';
 import { fetchIntelligencePairs } from '../../lib/intelligenceApi';
 
 // Function to count unique KMA codes in the response
@@ -53,21 +52,21 @@ export default async function handler(req, res) {
       }
     };
     
-    // Step 1: Authenticate with Supabase
-    let supabase;
+    // Step 1: Verify admin Supabase connectivity (server-only)
     try {
-      supabase = getBrowserSupabase();
-      
-      // Admin client is already imported
-      const adminSupabase = supabaseAdmin;
-      
+      // Ping a lightweight table or perform a no-op select head query
+      const { error: adminError } = await supabaseAdmin
+        .from('cities')
+        .select('*', { head: true, count: 'exact' })
+        .limit(1);
+
+      if (adminError) throw adminError;
       results.supabaseConnected = true;
       results.summary.authenticationSuccessful = true;
-      
     } catch (authError) {
       return res.status(500).json({
         success: false,
-        error: 'Supabase authentication failed',
+        error: 'Supabase admin authentication failed',
         details: authError.message
       });
     }
