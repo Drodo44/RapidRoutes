@@ -721,11 +721,15 @@ function LanesPage() {
         throw new Error('Authentication required');
       }
       
+      // In development, allow a safe auth bypass header to simplify local testing
+      const devBypass = process.env.NODE_ENV !== 'production';
+
       const response = await fetch('/api/updateLaneStatus', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
+          'Authorization': `Bearer ${session.access_token}`,
+          ...(devBypass ? { 'x-test-auth-bypass': 'true' } : {})
         },
   // API now expects { id, lane_status }
   body: JSON.stringify({ id: lane.id, lane_status: status }),
@@ -733,6 +737,13 @@ function LanesPage() {
       
       if (!response.ok) {
         const errorData = await response.json();
+        // Provide a clearer message if blocked by authorization checks
+        if (response.status === 401) {
+          throw new Error('Authentication required. Please log in again.');
+        }
+        if (response.status === 403) {
+          throw new Error(errorData.error || 'Not authorized to update lane status. Contact an admin.');
+        }
         throw new Error(errorData.error || 'Failed to update status');
       }
       

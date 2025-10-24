@@ -23,7 +23,7 @@ export default async function handler(req, res) {
   try {
     // GET - Get specific lane
     if (req.method === 'GET') {
-      const lane = await fetchLaneById(String(id), adminSupabase);
+      const lane = await fetchLaneById(String(id), supabaseAdmin);
 
       if (!lane) {
         return res.status(404).json({ error: 'Lane not found' });
@@ -41,7 +41,7 @@ export default async function handler(req, res) {
       }
 
       // Verify ownership or admin status
-      const { data: existingLane } = await adminSupabase
+      const { data: existingLane } = await supabaseAdmin
         .from('lanes')
         .select('created_by')
         .eq('id', id)
@@ -92,7 +92,7 @@ export default async function handler(req, res) {
         mapped_destination_state: filteredUpdates.destination_state
       });
 
-      const { data, error } = await adminSupabase
+      const { data, error } = await supabaseAdmin
         .from('lanes')
         .update(filteredUpdates)
         .eq('id', id)
@@ -111,7 +111,7 @@ export default async function handler(req, res) {
     // DELETE - Delete lane
     if (req.method === 'DELETE') {
       // Verify ownership or admin status before delete
-      const { data: laneToDelete } = await adminSupabase
+      const { data: laneToDelete } = await supabaseAdmin
         .from('lanes')
         .select('created_by')
         .eq('id', id)
@@ -125,7 +125,7 @@ export default async function handler(req, res) {
         return res.status(403).json({ error: 'Not authorized to delete this lane' });
       }
       
-      const { error } = await adminSupabase
+      const { error } = await supabaseAdmin
         .from('lanes')
         .delete()
         .eq('id', id);

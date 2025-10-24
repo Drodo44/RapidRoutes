@@ -131,7 +131,7 @@ export default async function handler(req, res) {
       const destinationState = payloadDestinationState ?? dest_state ?? destState ?? null;
       
       // Look up coordinates from cities table
-      const { data: originCity, error: originError } = await adminSupabase
+      const { data: originCity, error: originError } = await supabaseAdmin
         .from('cities')
         .select('latitude, longitude')
         .eq('city', payload.origin_city)
@@ -149,7 +149,7 @@ export default async function handler(req, res) {
         });
       }
       
-      const { data: destCityData, error: destError } = await adminSupabase
+      const { data: destCityData, error: destError } = await supabaseAdmin
         .from('cities')
         .select('latitude, longitude')
         .eq('city', destinationCity)
@@ -203,7 +203,7 @@ export default async function handler(req, res) {
       console.log('[API] Auth user id:', auth.user.id, 'Inserting lane:', lane);
 
       // Insert with admin client and get inserted row
-      const { data: insertedLanes, error: insertError } = await adminSupabase
+      const { data: insertedLanes, error: insertError } = await supabaseAdmin
         .from('lanes')
         .insert([lane])
         .select();
@@ -215,7 +215,7 @@ export default async function handler(req, res) {
       const insertedLane = Array.isArray(insertedLanes) ? insertedLanes[0] : insertedLanes;
       console.log('[API] Inserted lane:', insertedLane);
 
-      const laneRecord = await fetchLaneById(insertedLane.id, adminSupabase);
+  const laneRecord = await fetchLaneById(insertedLane.id, supabaseAdmin);
       if (!laneRecord) {
         console.warn('Lane created but not retrievable from view:', insertedLane.id);
         return res.status(201).json(insertedLane);
@@ -280,7 +280,7 @@ export default async function handler(req, res) {
       });
 
       // Verify ownership or admin status
-      const { data: existingLane } = await adminSupabase
+      const { data: existingLane } = await supabaseAdmin
         .from('lanes')
         .select('created_by')
         .eq('id', id)
@@ -295,7 +295,7 @@ export default async function handler(req, res) {
         return res.status(403).json({ error: 'Not authorized to modify this lane' });
       }
       
-      const { data, error } = await adminSupabase
+      const { data, error } = await supabaseAdmin
         .from('lanes')
         .update(updates)
         .eq('id', id)
@@ -306,7 +306,7 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: 'Failed to update lane' });
       }
       const updatedLane = Array.isArray(data) ? data[0] : data;
-      const laneRecord = await fetchLaneById(updatedLane?.id ?? id, adminSupabase);
+  const laneRecord = await fetchLaneById(updatedLane?.id ?? id, supabaseAdmin);
       return res.status(200).json(laneRecord ?? updatedLane ?? null);
     }
     
@@ -323,7 +323,7 @@ export default async function handler(req, res) {
       }
 
       // Verify ownership or admin status before delete
-      const { data: laneToDelete } = await adminSupabase
+      const { data: laneToDelete } = await supabaseAdmin
         .from('lanes')
         .select('created_by')
         .eq('id', id)
@@ -337,7 +337,7 @@ export default async function handler(req, res) {
         return res.status(403).json({ error: 'Not authorized to delete this lane' });
       }
       
-      const { error } = await adminSupabase
+      const { error } = await supabaseAdmin
         .from('lanes')
         .delete()
         .eq('id', id);

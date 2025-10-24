@@ -11,10 +11,8 @@ async function validateSession(options = {}, authToken = null) {
     
     // Server-side: Use provided auth token (from Authorization header)
     if (authToken) {
-      // Use server Supabase client for token validation
-      const tokenClient = supabaseAdmin;
-      
-      const { data: { user: tokenUser }, error: tokenError } = await tokenClient.auth.getUser();
+      // Use server Supabase client for token validation with Bearer token
+      const { data: { user: tokenUser }, error: tokenError } = await supabaseAdmin.auth.getUser(authToken);
       
       if (tokenError || !tokenUser) {
         return { error: 'Invalid authentication token' };
@@ -25,6 +23,7 @@ async function validateSession(options = {}, authToken = null) {
     } 
     // Client-side: Use session from browser
     else {
+      const supabase = getBrowserSupabase();
       const { data: { session: clientSession }, error: authError } = await supabase.auth.getSession();
 
       if (authError || !clientSession?.user) {
@@ -35,8 +34,8 @@ async function validateSession(options = {}, authToken = null) {
       user = clientSession.user;
     }
 
-    // Get user profile with role information using adminSupabase for server-side reliability
-    const { data: profile, error: profileError } = await adminSupabase
+    // Get user profile with role information using supabaseAdmin for server-side reliability
+    const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('*')
       .eq('id', user.id)

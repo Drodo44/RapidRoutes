@@ -30,7 +30,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Invalid lane_status value. Must be "current" or "archive"' });
     }
 
-    const { error } = await adminSupabase
+    const { error } = await supabaseAdmin
       .from('lanes')
       .update({ lane_status })
       .eq('id', id);

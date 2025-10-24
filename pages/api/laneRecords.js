@@ -6,9 +6,6 @@ import { withErrorHandler } from '@/lib/apiErrorHandler';
 import { sanitizeLaneFilters, fetchLaneRecords } from '../../services/laneService.js';
 
 async function handler(req, res) {
-  // Enforce GET only
-  if (req.method !== 'GET') return res.status(405).end();
-
   const {
     status,
     limit,
