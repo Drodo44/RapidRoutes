@@ -1,45 +1,33 @@
 // pages/api/laneRecords.js
-// Server-only endpoint to fetch lane records using admin Supabase client
-// Prevents client bundles from importing server-only services
+// Updated: Return real user lanes from the 'lanes' table (not analytics)
+// This ensures any existing clients that still call /api/laneRecords get correct, editable rows.
 
 import { withErrorHandler } from '@/lib/apiErrorHandler';
-import { sanitizeLaneFilters, fetchLaneRecords } from '../../services/laneService.js';
+import supabaseAdmin from '@/lib/supabaseAdmin';
 
 async function handler(req, res) {
-  const {
-    status,
-    limit,
-    onlyWithSavedCities,
-    includeArchived,
-    originKmaCodes,
-    destinationKmaCodes,
-    originZip3,
-    destinationZip3,
-    createdAfter,
-    createdBefore,
-    searchTerm,
-  } = req.query || {};
+  const { status, limit } = req.query || {};
 
-  // Normalize booleans and arrays from query string
-  const toBool = (v) => v === '1' || v === 'true' || v === true;
-  const toArr = (v) => (typeof v === 'string' ? v.split(',').map((s) => s.trim()).filter(Boolean) : Array.isArray(v) ? v : []);
+  const finalStatus = typeof status === 'string' ? status : 'current';
+  const finalLimit = Math.max(1, Math.min(Number(limit) || 200, 1000));
 
-  const filters = sanitizeLaneFilters({
-    status,
-    limit: limit ? Number(limit) : undefined,
-    onlyWithSavedCities: toBool(onlyWithSavedCities),
-    includeArchived: toBool(includeArchived),
-    originKmaCodes: toArr(originKmaCodes),
-    destinationKmaCodes: toArr(destinationKmaCodes),
-    originZip3,
-    destinationZip3,
-    createdAfter,
-    createdBefore,
-    searchTerm,
-  });
+  let query = supabaseAdmin
+    .from('lanes')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(finalLimit);
 
-  const data = await fetchLaneRecords(filters);
-  return res.status(200).json({ ok: true, data });
+  if (finalStatus) {
+    query = query.eq('lane_status', finalStatus);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    console.error('[laneRecords] lanes query failed:', error);
+    return res.status(500).json({ ok: false, error: 'Failed to load lanes' });
+  }
+
+  return res.status(200).json({ ok: true, data: Array.isArray(data) ? data : [] });
 }
 
 export default withErrorHandler(handler);
