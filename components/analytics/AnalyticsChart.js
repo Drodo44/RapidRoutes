@@ -70,7 +70,7 @@ export default function AnalyticsChart({
   // Generate display labels for legend
   const displayLabels = labels.length >= yKeys.length 
     ? labels 
-    : yKeys.map(key => key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' '));
+    : yKeys.map(key => key.charAt(0).toUpperCase() + key.slice(1).split('_').join(' '));
 
   // Default chart height
   const height = options.height || 300;
@@ -168,7 +168,7 @@ export default function AnalyticsChart({
                 <Tooltip />
                 <Legend />
                 {yKeys.map((key, index) => (
-                  <Bar key={key} dataKey={key} fill={COLOR_ARRAY[index % COLOR_ARRAY.length]} name={displayLabels[index]} radius={[4, 4, 0, 0]} />
+                  <Bar key={key} dataKey={key} fill={COLOR_ARRAY[index % COLOR_ARRAY.length]} name={displayLabels[index] ?? String(key)} radius={[4, 4, 0, 0]} />
                 ))}
               </BarChart>
             )}
@@ -180,7 +180,7 @@ export default function AnalyticsChart({
                 <Tooltip />
                 <Legend />
                 {yKeys.map((key, index) => (
-                  <Line key={key} type="monotone" dataKey={key} stroke={COLOR_ARRAY[index % COLOR_ARRAY.length]} name={displayLabels[index]} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                  <Line key={key} type="monotone" dataKey={key} stroke={COLOR_ARRAY[index % COLOR_ARRAY.length]} name={displayLabels[index] ?? String(key)} dot={{ r: 4 }} activeDot={{ r: 6 }} />
                 ))}
               </LineChart>
             )}
