@@ -15,7 +15,7 @@ export default async function handler(req, res) {
     const { data: cachedData, error: fetchError } = await supabaseAdmin
       .from('dat_maps')
       .select('*')
-      .eq('equipment_type', equipment)
+      .eq('equipment', equipment)
       .gte('updated_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()) // Within last 7 days
       .order('updated_at', { ascending: false })
       .limit(1);
@@ -60,11 +60,11 @@ export default async function handler(req, res) {
       await supabaseAdmin
         .from('dat_maps')
         .upsert({
-          equipment_type: equipment,
+          equipment: equipment,
           map_data: data,
           updated_at: new Date().toISOString()
         }, { 
-          onConflict: 'equipment_type',
+          onConflict: 'equipment',
           ignoreDuplicates: false 
         });
     } catch (cacheError) {
