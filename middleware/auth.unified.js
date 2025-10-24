@@ -1,6 +1,6 @@
 // middleware/auth.unified.js
 import { getBrowserSupabase } from '../lib/supabaseClient.js';
-import supabaseAdmin from '../lib/supabaseAdmin.ts';
+import supabaseAdmin from '@/lib/supabaseAdmin';
 
 /**
  * Unified session handler for auth validation and role checking

@@ -1,5 +1,5 @@
 // services/laneService.js - Production-ready JavaScript version
-import supabaseAdmin from "../lib/supabaseAdmin.ts";
+import supabaseAdmin from "@/lib/supabaseAdmin";
 
 const DEFAULT_LIMIT = 200;
 const MAX_LIMIT = 2000;
