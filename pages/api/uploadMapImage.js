@@ -56,7 +56,7 @@ export default async function handler(req, res) {
     const fileBuffer = fs.readFileSync(tempFile);
     
     // Upload to Supabase Storage
-    const { data: uploadData, error: uploadError } = await adminSupabase.storage
+    const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
       .from('dat_maps')
       .upload(filename, fileBuffer, {
         contentType: file.mimetype,
@@ -69,7 +69,7 @@ export default async function handler(req, res) {
     }
 
     // Get public URL
-    const { data: urlData } = adminSupabase.storage
+    const { data: urlData } = supabaseAdmin.storage
       .from('dat_maps')
       .getPublicUrl(filename);
     
@@ -82,8 +82,8 @@ export default async function handler(req, res) {
       filename: filename
     });
     
-    const { data: dbData, error: dbError } = await adminSupabase
-      .from('dat_market_images')
+    const { data: dbData, error: dbError } = await supabaseAdmin
+      .from('dat_map_images')
       .upsert({
         equipment_type: equipment,
         image_url: publicUrl,

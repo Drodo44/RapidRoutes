@@ -24,7 +24,7 @@ export default async function handler(req, res) {
     const result = await fetchResponse.json();
 
     // Get the most recent maps after the update
-    const { data: maps, error } = await adminSupabase
+    const { data: maps, error } = await supabaseAdmin
       .from('dat_maps')
       .select('effective_date, equipment, image_path')
       .order('effective_date', { ascending: false })

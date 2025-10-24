@@ -10,10 +10,10 @@ import supabaseAdmin from "@/lib/supabaseAdmin";
 async function ensureBucket() {
   try {
     // Make sure bucket exists (public)
-    const { data: list } = await adminSupabase.storage.listBuckets();
+    const { data: list } = await supabaseAdmin.storage.listBuckets();
     const exists = (list || []).some((b) => b.name === 'dat_maps');
     if (!exists) {
-      await adminSupabase.storage.createBucket('dat_maps', { public: true });
+      await supabaseAdmin.storage.createBucket('dat_maps', { public: true });
     }
   } catch (e) {
     // ignore if already exists
@@ -37,7 +37,7 @@ function pickEffectiveDate(html) {
 }
 
 async function alreadyIndexed(effectiveDateISO, equipment) {
-  const { data, error } = await adminSupabase
+  const { data, error } = await supabaseAdmin
     .from('dat_maps')
     .select('id')
     .eq('effective_date', effectiveDateISO)
@@ -106,13 +106,13 @@ export default async function handler(req, res) {
       const path = `${folder}/${eq}.png`;
 
       // Upload to Storage (overwrite if exists)
-      await adminSupabase.storage.from('dat_maps').upload(path, buf, {
+      await supabaseAdmin.storage.from('dat_maps').upload(path, buf, {
         contentType: 'image/png',
         upsert: true,
       });
 
       // Insert row
-      await adminSupabase
+      await supabaseAdmin
         .from('dat_maps')
         .insert([{ effective_date: effISO, equipment: eq, image_path: path, summary: img.alt || null }]);
 

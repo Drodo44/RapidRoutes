@@ -18,8 +18,8 @@ export default async function handler(req, res) {
 
   try {
     // First try to get from database
-    const { data: imageData, error } = await adminSupabase
-      .from('dat_market_images')
+    const { data: imageData, error } = await supabaseAdmin
+      .from('dat_map_images')
       .select('image_url, uploaded_at')
       .eq('equipment_type', equipment)
       .order('uploaded_at', { ascending: false })
@@ -34,7 +34,7 @@ export default async function handler(req, res) {
     }
 
     // If database query fails (table might not exist), try filesystem fallback
-    console.warn('Database query failed, trying filesystem fallback:', error);
+  console.warn('Database query failed, trying filesystem fallback:', error);
     
     const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
     if (fs.existsSync(uploadsDir)) {
