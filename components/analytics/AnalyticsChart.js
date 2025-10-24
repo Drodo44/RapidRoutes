@@ -4,6 +4,7 @@ import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, 
   Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell
 } from 'recharts';
+import ErrorBoundary from '../ErrorBoundary';
 
 // Color palette for dark mode
 const CHART_COLORS = {
@@ -54,7 +55,8 @@ export default function AnalyticsChart({
   const [chartType, setChartType] = useState(type);
   
   // Sanitize data for chart rendering
-  const sanitizedData = data.map(item => {
+  const safeData = Array.isArray(data) ? data : [];
+  const sanitizedData = safeData.map(item => {
     const result = { ...item };
     // Ensure all yKeys exist with at least 0 value
     yKeys.forEach(key => {
@@ -84,29 +86,7 @@ export default function AnalyticsChart({
   };
 
   // Tooltip styling for dark mode
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (!active || !payload || !payload.length) return null;
-    
-    return (
-      <div className="bg-gray-800 border border-gray-700 rounded-md p-2 shadow-lg">
-        <p className="text-gray-300 font-medium mb-1">{label}</p>
-        {payload.map((entry, index) => (
-          <div key={`tooltip-${index}`} className="flex items-center">
-            <div 
-              className="w-3 h-3 mr-2 rounded-sm" 
-              style={{ backgroundColor: entry.color }}
-            />
-            <span className="text-gray-400">{entry.name}: </span>
-            <span className="text-gray-200 ml-1 font-medium">
-              {typeof entry.value === 'number' 
-                ? entry.value.toLocaleString()
-                : entry.value}
-            </span>
-          </div>
-        ))}
-      </div>
-    );
-  };
+  // Use default Tooltip/Legend to avoid third-party child.props assumptions
 
   // Loading state
   if (loading) {
@@ -177,104 +157,62 @@ export default function AnalyticsChart({
         <ChartTitle />
         <ChartTypeToggle />
       </div>
-      
       <div style={{ height: `${height}px` }}>
-        <ResponsiveContainer width="100%" height="100%">
-          {chartType === 'bar' && (
-            <BarChart data={sanitizedData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
-              <XAxis 
-                dataKey={xKey} 
-                tick={{ fill: '#9CA3AF' }} 
-                axisLine={{ stroke: '#4B5563' }} 
-                tickLine={{ stroke: '#4B5563' }} 
-              />
-              <YAxis 
-                tick={{ fill: '#9CA3AF' }} 
-                axisLine={{ stroke: '#4B5563' }} 
-                tickLine={{ stroke: '#4B5563' }} 
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend 
-                wrapperStyle={{ paddingTop: '10px' }}
-                formatter={(value) => <span className="text-gray-300">{value}</span>} 
-              />
-              {yKeys.map((key, index) => (
-                <Bar
-                  key={key}
-                  dataKey={key}
-                  fill={COLOR_ARRAY[index % COLOR_ARRAY.length]}
-                  name={displayLabels[index]}
-                  radius={[4, 4, 0, 0]}
-                />
-              ))}
-            </BarChart>
-          )}
-
-          {chartType === 'line' && (
-            <LineChart data={sanitizedData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-              <XAxis 
-                dataKey={xKey} 
-                tick={{ fill: '#9CA3AF' }} 
-                axisLine={{ stroke: '#4B5563' }} 
-                tickLine={{ stroke: '#4B5563' }} 
-              />
-              <YAxis 
-                tick={{ fill: '#9CA3AF' }} 
-                axisLine={{ stroke: '#4B5563' }} 
-                tickLine={{ stroke: '#4B5563' }} 
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend 
-                wrapperStyle={{ paddingTop: '10px' }}
-                formatter={(value) => <span className="text-gray-300">{value}</span>} 
-              />
-              {yKeys.map((key, index) => (
-                <Line
-                  key={key}
-                  type="monotone"
-                  dataKey={key}
-                  stroke={COLOR_ARRAY[index % COLOR_ARRAY.length]}
-                  name={displayLabels[index]}
-                  dot={{ r: 4 }}
-                  activeDot={{ r: 6 }}
-                />
-              ))}
-            </LineChart>
-          )}
-
-          {chartType === 'pie' && (
-            <PieChart>
-              <Tooltip content={<CustomTooltip />} />
-              <Legend 
-                formatter={(value) => <span className="text-gray-300">{value}</span>}
-              />
-              <Pie
-                data={sanitizedData}
-                nameKey={xKey}
-                dataKey={yKeys[0]}
-                cx="50%"
-                cy="50%"
-                outerRadius={80}
-                label={(entry) => {
-                  if (!entry || entry.name === undefined || entry.percent === undefined) {
-                    return '';
-                  }
-                  return `${entry.name}: ${(entry.percent * 100).toFixed(0)}%`;
-                }}
-                labelLine={{ stroke: '#4B5563', strokeWidth: 1 }}
-              >
-                {sanitizedData.map((entry, index) => (
-                  <Cell 
-                    key={`cell-${entry[xKey] || index}`} 
-                    fill={COLOR_ARRAY[index % COLOR_ARRAY.length]} 
-                  />
+        <ErrorBoundary componentName="AnalyticsChart">
+          <ResponsiveContainer width="100%" height="100%">
+            {chartType === 'bar' && (
+              <BarChart data={sanitizedData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
+                <XAxis dataKey={xKey} tick={{ fill: '#9CA3AF' }} axisLine={{ stroke: '#4B5563' }} tickLine={{ stroke: '#4B5563' }} />
+                <YAxis tick={{ fill: '#9CA3AF' }} axisLine={{ stroke: '#4B5563' }} tickLine={{ stroke: '#4B5563' }} />
+                <Tooltip />
+                <Legend />
+                {yKeys.map((key, index) => (
+                  <Bar key={key} dataKey={key} fill={COLOR_ARRAY[index % COLOR_ARRAY.length]} name={displayLabels[index]} radius={[4, 4, 0, 0]} />
                 ))}
-              </Pie>
-            </PieChart>
-          )}
-        </ResponsiveContainer>
+              </BarChart>
+            )}
+            {chartType === 'line' && (
+              <LineChart data={sanitizedData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                <XAxis dataKey={xKey} tick={{ fill: '#9CA3AF' }} axisLine={{ stroke: '#4B5563' }} tickLine={{ stroke: '#4B5563' }} />
+                <YAxis tick={{ fill: '#9CA3AF' }} axisLine={{ stroke: '#4B5563' }} tickLine={{ stroke: '#4B5563' }} />
+                <Tooltip />
+                <Legend />
+                {yKeys.map((key, index) => (
+                  <Line key={key} type="monotone" dataKey={key} stroke={COLOR_ARRAY[index % COLOR_ARRAY.length]} name={displayLabels[index]} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                ))}
+              </LineChart>
+            )}
+            {chartType === 'pie' && (
+              <PieChart>
+                <Tooltip />
+                <Legend />
+                <Pie
+                  data={sanitizedData}
+                  nameKey={xKey}
+                  dataKey={yKeys[0]}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
+                  label={(entry) => {
+                    try {
+                      if (!entry || entry.name === undefined || entry.percent === undefined) return '';
+                      return `${entry.name}: ${(entry.percent * 100).toFixed(0)}%`;
+                    } catch {
+                      return '';
+                    }
+                  }}
+                  labelLine={{ stroke: '#4B5563', strokeWidth: 1 }}
+                >
+                  {sanitizedData.map((entry, index) => (
+                    <Cell key={`cell-${entry?.[xKey] ?? index}`} fill={COLOR_ARRAY[index % COLOR_ARRAY.length]} />
+                  ))}
+                </Pie>
+              </PieChart>
+            )}
+          </ResponsiveContainer>
+        </ErrorBoundary>
       </div>
     </div>
   );
