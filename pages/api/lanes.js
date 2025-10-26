@@ -1,6 +1,5 @@
 // pages/api/lanes.js
 import { validateApiAuth } from '../../middleware/auth.unified';
-import supabaseAdmin from "@/lib/supabaseAdmin";
 import { fetchLaneById } from '../../services/laneService.js';
 import { getLanes } from '@/lib/laneService';
 import { assertApiAuth, isInternalBypass } from '@/lib/auth';
@@ -50,6 +49,14 @@ export default async function handler(req, res) {
     
     // POST - Create new lane
     if (req.method === 'POST') {
+      // Initialize admin client lazily so we can catch env errors
+      let supabaseAdmin;
+      try {
+        supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
+      } catch (e) {
+        console.error('[API/lanes] Admin client init failed:', e?.message || e);
+        return res.status(500).json({ error: 'Server configuration error: admin client unavailable' });
+      }
       if (!auth) {
         return res.status(401).json({ error: 'Unauthorized' });
       }
@@ -229,6 +236,14 @@ export default async function handler(req, res) {
     
     // PUT/PATCH - Update lane
     if (req.method === 'PUT' || req.method === 'PATCH') {
+      // Initialize admin client lazily so we can catch env errors
+      let supabaseAdmin;
+      try {
+        supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
+      } catch (e) {
+        console.error('[API/lanes] Admin client init failed:', e?.message || e);
+        return res.status(500).json({ error: 'Server configuration error: admin client unavailable' });
+      }
       if (!auth) {
         return res.status(401).json({ error: 'Unauthorized' });
       }
@@ -312,6 +327,14 @@ export default async function handler(req, res) {
     
     // DELETE - Delete lane
     if (req.method === 'DELETE') {
+      // Initialize admin client lazily so we can catch env errors
+      let supabaseAdmin;
+      try {
+        supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
+      } catch (e) {
+        console.error('[API/lanes] Admin client init failed:', e?.message || e);
+        return res.status(500).json({ error: 'Server configuration error: admin client unavailable' });
+      }
       if (!auth) {
         return res.status(401).json({ error: 'Unauthorized' });
       }

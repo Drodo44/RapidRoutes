@@ -14,7 +14,6 @@ export default function RecapDynamic({ lanes = [], onRefresh }) {
   const [selectedRRForCoverage, setSelectedRRForCoverage] = useState(null);
   // Keep a consistent shape: Set of "City, ST" keys
   const [starredCities, setStarredCities] = useState(new Set());
-  const [isDarkMode, setIsDarkMode] = useState(true);
   
   const supabase = getBrowserSupabase();
   const laneRefs = useRef({});
@@ -55,8 +54,8 @@ export default function RecapDynamic({ lanes = [], onRefresh }) {
         setSelectedLane(null);
       }
     }
-    window.addEventListener('keydown', handleEscape);
-    return () => window.removeEventListener('keydown', handleEscape);
+    globalThis.addEventListener('keydown', handleEscape);
+    return () => globalThis.removeEventListener('keydown', handleEscape);
   }, []);
 
   // Realtime subscription for lane updates
@@ -181,7 +180,7 @@ export default function RecapDynamic({ lanes = [], onRefresh }) {
     if (!selectedRRForCoverage) return;
     
     try {
-      const { rr_number, origin_city, origin_state, dest_city, dest_state, group, lane_group_id } = selectedRRForCoverage;
+      const { rr_number, origin_city, origin_state, dest_city, dest_state, lane_group_id } = selectedRRForCoverage;
       
       // Update origin city performance
       await fetch('/api/city-performance', {
@@ -262,22 +261,22 @@ export default function RecapDynamic({ lanes = [], onRefresh }) {
         body: JSON.stringify({ lanes })
       });
       
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+  const blob = await response.blob();
+  const url = globalThis.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `recap-${new Date().toISOString().split('T')[0]}.html`;
       document.body.appendChild(a);
       a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+  globalThis.URL.revokeObjectURL(url);
+  a.remove();
     } catch (error) {
       console.error('Error exporting HTML:', error);
     }
   };
 
   return (
-    <div className={isDarkMode ? 'dark-mode' : 'light-mode'}>
+  <div className={'dark-mode'}>
       {/* Sticky Header */}
       <div style={{
         position: 'sticky',
@@ -351,23 +350,7 @@ export default function RecapDynamic({ lanes = [], onRefresh }) {
           </select>
         </div>
 
-        {/* Dark/Light Toggle */}
-        <button
-          onClick={() => setIsDarkMode(!isDarkMode)}
-          style={{
-            padding: '10px 16px',
-            borderRadius: '8px',
-            border: '2px solid var(--border-color)',
-            backgroundColor: 'var(--input-bg)',
-            color: 'var(--text-primary)',
-            fontSize: '20px',
-            cursor: 'pointer',
-            transition: 'all 0.2s'
-          }}
-          title="Toggle Dark/Light Mode"
-        >
-          {isDarkMode ? '🌗' : '☀️'}
-        </button>
+        {/* Dark/Light toggle removed: dark-only app */}
 
         {/* Export HTML Button */}
         <button
@@ -376,7 +359,7 @@ export default function RecapDynamic({ lanes = [], onRefresh }) {
             padding: '10px 20px',
             borderRadius: '8px',
             border: '2px solid #06b6d4',
-            backgroundColor: isDarkMode ? '#0891b2' : '#06b6d4',
+            backgroundColor: '#0891b2',
             color: 'white',
             fontSize: '14px',
             fontWeight: 600,
@@ -391,7 +374,7 @@ export default function RecapDynamic({ lanes = [], onRefresh }) {
             e.currentTarget.style.transform = 'translateY(-1px)';
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = isDarkMode ? '#0891b2' : '#06b6d4';
+            e.currentTarget.style.backgroundColor = '#0891b2';
             e.currentTarget.style.transform = 'translateY(0)';
           }}
         >
@@ -443,7 +426,8 @@ export default function RecapDynamic({ lanes = [], onRefresh }) {
               }}
             >
               {/* Lane Header */}
-              <div
+              <button
+                type="button"
                 onClick={() => toggleLaneCollapse(group.key)}
                 style={{
                   padding: '16px 20px',
@@ -452,6 +436,9 @@ export default function RecapDynamic({ lanes = [], onRefresh }) {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
+                  width: '100%',
+                  textAlign: 'left',
+                  border: 'none',
                   transition: 'background-color 0.2s'
                 }}
               >
@@ -468,9 +455,9 @@ export default function RecapDynamic({ lanes = [], onRefresh }) {
                   </span>
                 </div>
                 <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
-                  {group.lanes.length} posting{group.lanes.length !== 1 ? 's' : ''}
+                  {group.lanes.length} posting{group.lanes.length === 1 ? '' : 's'}
                 </div>
-              </div>
+              </button>
 
               {/* Lane Details Table */}
               {!isCollapsed && (
@@ -525,22 +512,34 @@ export default function RecapDynamic({ lanes = [], onRefresh }) {
                               +{lane.dest_miles_offset || 0}
                             </td>
                             <td style={{ padding: '12px 8px' }}>
-                              {status.emoji} 
-                              <span 
-                                style={{ 
-                                  marginLeft: '4px',
-                                  color: status.color,
-                                  fontWeight: 600,
-                                  cursor: (lane.lane_status || lane.status)?.toLowerCase() === 'posted' ? 'pointer' : 'default'
-                                }}
-                                onClick={() => {
-                                  if ((lane.lane_status || lane.status)?.toLowerCase() === 'posted') {
-                                    handleCoverageClick(lane, group);
-                                  }
-                                }}
-                              >
-                                {status.text}
-                              </span>
+                              {status.emoji}{' '}
+                              {((lane.lane_status || lane.status)?.toLowerCase() === 'posted') ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleCoverageClick(lane, group)}
+                                  style={{
+                                    marginLeft: '4px',
+                                    color: status.color,
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    background: 'transparent',
+                                    border: 'none',
+                                    padding: 0
+                                  }}
+                                >
+                                  {status.text}
+                                </button>
+                              ) : (
+                                <span
+                                  style={{
+                                    marginLeft: '4px',
+                                    color: status.color,
+                                    fontWeight: 600
+                                  }}
+                                >
+                                  {status.text}
+                                </span>
+                              )}
                             </td>
                             <td style={{ padding: '12px 8px' }}>
                               {coverageSource.emoji && (

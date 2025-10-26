@@ -24,7 +24,7 @@ export default async function handler(req, res) {
     // 1. Pull all active core pickups (best-effort; continue if table missing)
     console.log('[generateAll] Step 1: Fetching core_pickups...');
     let pickups = [];
-    const { data: pickupsData, error: pickupsErr } = await adminSupabase
+    const { data: pickupsData, error: pickupsErr } = await supabaseAdmin
       .from('core_pickups')
       .select('city, state, zip5, zip3, active')
       .eq('active', true);
@@ -44,7 +44,7 @@ export default async function handler(req, res) {
           status: 'current',
           limit: 2000
         },
-        adminSupabase
+        supabaseAdmin
       );
       console.log('[generateAll] Found', lanes.length, 'current lanes');
     } catch (lanesErr) {

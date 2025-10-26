@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LaneFilters, LaneRecord } from "../types/database";
-import { fetchLaneRecords, sanitizeLaneFilters } from "../services/laneService.js";
+// Use the browser-safe service to avoid importing server-only admin client in the client bundle
+import { fetchLaneRecords, sanitizeLaneFilters } from "../services/browserLaneService.js";
 
 export interface UseLanesOptions extends LaneFilters {
   autoFetch?: boolean;

@@ -2,7 +2,6 @@
 // Self-seeding endpoint. Safe to call repeatedly.
 // If fewer than MIN rows exist, upsert EQUIPMENT_SEED using service role.
 
-import supabaseAdmin from "@/lib/supabaseAdmin";
 import { EQUIPMENT_SEED } from '../../lib/equipmentSeed';
 
 const MIN = 60; // guard: if table has fewer than this, we seed
@@ -14,6 +13,14 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Initialize admin client lazily so we can catch env errors
+    let supabaseAdmin;
+    try {
+      supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
+    } catch (e) {
+      console.error('[API/bootstrapEquipment] Admin client init failed:', e?.message || e);
+      return res.status(500).json({ error: 'Server configuration error: admin client unavailable' });
+    }
     const { count, error: headErr } = await supabaseAdmin
       .from('equipment_codes')
       .select('code', { count: 'exact', head: true });

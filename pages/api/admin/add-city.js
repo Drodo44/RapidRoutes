@@ -17,14 +17,14 @@ export default async function handler(req, res) {
     }
 
     // Insert city into database
-    const { data, error } = await adminSupabase
+    const { data, error } = await supabaseAdmin
       .from('cities')
       .insert({
         city: city.trim(),
         state_or_province: state.trim().toUpperCase(),
         zip: zip.trim(),
-        latitude: parseFloat(latitude),
-        longitude: parseFloat(longitude),
+  latitude: Number.parseFloat(latitude),
+  longitude: Number.parseFloat(longitude),
         kma_code: kmaCode?.trim() || 'UNK',
         kma_name: kmaName?.trim() || 'Unknown Market'
       })

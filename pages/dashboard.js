@@ -7,8 +7,7 @@ import Head from 'next/head';
 import { supabase } from '../lib/supabaseClient';
 import DatMarketMaps from '../components/DatMarketMaps.jsx';
 import ErrorBoundary from '../components/ErrorBoundary';
-import AnalyticsDashboard from "../components/analytics/AnalyticsDashboard";
-import LaneOverview from "../components/post-options/LaneList";
+// Removed non-core dashboard widgets to keep focus on maps, calculators, and core logistics
 
 function Section({ title, right, children, className = '' }) {
   return (
@@ -171,7 +170,35 @@ function formatDate(dateString) {
 // Wrap with auth HOC - required for all pages
 function Dashboard() {
   const router = useRouter();
-  const { loading, isAuthenticated, user, profile } = useAuth();
+  const { loading, isAuthenticated } = useAuth();
+
+  // Floor-space calculator
+  const [pLen, setPLen] = useState(48);  // in
+  const [pWid, setPWid] = useState(40);
+  const [pHei, setPHei] = useState(60);
+  const [count, setCount] = useState(26);
+  const [stackable, setStackable] = useState(false);
+  const truck = { w: 100, len26: 312, len53: 636, height: 102 }; // usable dimensions
+  const across = Math.max(1, Math.floor(truck.w / Math.max(1, Number(pWid))));
+  const rows26 = Math.floor(truck.len26 / Math.max(1, Number(pLen)));
+  const rows53 = Math.floor(truck.len53 / Math.max(1, Number(pLen)));
+  const stackLevels = stackable ? Math.floor(truck.height / Math.max(1, Number(pHei))) : 1;
+  const cap26 = across * rows26 * stackLevels;
+  const cap53 = across * rows53 * stackLevels;
+  const fits26 = Number(count) <= cap26;
+  const fits53 = Number(count) <= cap53;
+
+  // Heavy haul quick check
+  const [l, setL] = useState(480), [w, setW] = useState(102), [h, setH] = useState(102), [wt, setWt] = useState(46000);
+  const legal = { len: 636, wid: 102, hei: 162, wt: 80000 };
+  const oversize = l > legal.len || w > legal.wid || h > legal.hei || wt > legal.wt;
+  
+  // What dimensions are over legal?
+  const oversizeDetails = [];
+  if (l > legal.len) oversizeDetails.push('Length');
+  if (w > legal.wid) oversizeDetails.push('Width');
+  if (h > legal.hei) oversizeDetails.push('Height');
+  if (wt > legal.wt) oversizeDetails.push('Weight');
   
   // Redirect if not authenticated
   useEffect(() => {
@@ -203,40 +230,7 @@ function Dashboard() {
       </div>
     );
   }
-  const [tab, setTab] = useState('van');
-  const maps = useLatestMaps();
-  const rec = maps && maps[tab] ? maps[tab] : null;
-  const mapUrl = rec ? publicUrl(rec.image_path) : null;
-  const mapDate = rec ? formatDate(rec.effective_date) : 'Not available';
-  const stats = useBrokerStats();
-
-  // Floor-space calculator
-  const [pLen, setPLen] = useState(48);  // in
-  const [pWid, setPWid] = useState(40);
-  const [pHei, setPHei] = useState(60);
-  const [count, setCount] = useState(26);
-  const [stackable, setStackable] = useState(false);
-  const truck = { w: 100, len26: 312, len53: 636, height: 102 }; // usable dimensions
-  const across = Math.max(1, Math.floor(truck.w / Math.max(1, Number(pWid))));
-  const rows26 = Math.floor(truck.len26 / Math.max(1, Number(pLen)));
-  const rows53 = Math.floor(truck.len53 / Math.max(1, Number(pLen)));
-  const stackLevels = stackable ? Math.floor(truck.height / Math.max(1, Number(pHei))) : 1;
-  const cap26 = across * rows26 * stackLevels;
-  const cap53 = across * rows53 * stackLevels;
-  const fits26 = Number(count) <= cap26;
-  const fits53 = Number(count) <= cap53;
-
-  // Heavy haul quick check
-  const [l, setL] = useState(480), [w, setW] = useState(102), [h, setH] = useState(102), [wt, setWt] = useState(46000);
-  const legal = { len: 636, wid: 102, hei: 162, wt: 80000 };
-  const oversize = l > legal.len || w > legal.wid || h > legal.hei || wt > legal.wt;
   
-  // What dimensions are over legal?
-  const oversizeDetails = [];
-  if (l > legal.len) oversizeDetails.push('Length');
-  if (w > legal.wid) oversizeDetails.push('Width');
-  if (h > legal.hei) oversizeDetails.push('Height');
-  if (wt > legal.wt) oversizeDetails.push('Weight');
 
   return (
     <>
@@ -250,32 +244,7 @@ function Dashboard() {
           <p className="page-subtitle">Freight management tools and market insights</p>
         </div>
 
-        {/* Embedded Analytics Dashboard Section */}
-        <div className="border border-gray-800 rounded-2xl shadow-lg bg-[#0f172a] p-4" style={{ marginBottom: 'var(--space-6)' }}>
-          <ErrorBoundary componentName="AnalyticsDashboard">
-            <AnalyticsDashboard compact />
-          </ErrorBoundary>
-        </div>
-        
-        {/* Core Lane Overview Section */}
-        <div style={{ marginBottom: 'var(--space-6)' }}>
-          <h2 className="text-2xl font-semibold text-cyan-300 mb-2">Active Lanes</h2>
-          <ErrorBoundary componentName="LaneOverview">
-            <LaneOverview 
-              lanes={stats.pendingLanes > 0 ? Array.from({ length: Math.min(10, Number(stats.pendingLanes) || 0) }, (_, i) => ({
-                id: `sample-id-${i}`,
-                origin_city: "Chicago",
-                origin_state: "IL",
-                dest_city: "Atlanta",
-                dest_state: "GA",
-                equipment_code: "V",
-                weight_lbs: 45000,
-                shortId: `sample-${i}`
-              })) : []}
-              onGenerateOptions={(lane) => router.push(`/post-options?laneId=${lane?.id || ''}`)}
-            />
-          </ErrorBoundary>
-        </div>
+        {/* Removed: Embedded Analytics and LaneOverview sections */}
         
         {/* LARGE Heat Map Section */}
         <div style={{ marginBottom: 'var(--space-6)' }}>
@@ -291,8 +260,9 @@ function Dashboard() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--space-3)' }}>
                   <div>
-                    <label className="form-label">Length (in)</label>
+                    <label className="form-label" htmlFor="pallet-length">Length (in)</label>
                     <input 
+                      id="pallet-length"
                       className="form-input form-input-sm" 
                       type="number" 
                       value={pLen} 
@@ -300,8 +270,9 @@ function Dashboard() {
                     />
                   </div>
                   <div>
-                    <label className="form-label">Width (in)</label>
+                    <label className="form-label" htmlFor="pallet-width">Width (in)</label>
                     <input 
+                      id="pallet-width"
                       className="form-input form-input-sm" 
                       type="number" 
                       value={pWid} 
@@ -309,8 +280,9 @@ function Dashboard() {
                     />
                   </div>
                   <div>
-                    <label className="form-label">Height (in)</label>
+                    <label className="form-label" htmlFor="pallet-height">Height (in)</label>
                     <input 
+                      id="pallet-height"
                       className="form-input form-input-sm" 
                       type="number" 
                       value={pHei} 
@@ -318,8 +290,9 @@ function Dashboard() {
                     />
                   </div>
                   <div>
-                    <label className="form-label">Count</label>
+                    <label className="form-label" htmlFor="pallet-count">Count</label>
                     <input 
+                      id="pallet-count"
                       className="form-input form-input-sm" 
                       type="number" 
                       value={count} 
@@ -365,8 +338,9 @@ function Dashboard() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
                   <div>
-                    <label className="form-label">Length (in)</label>
+                    <label className="form-label" htmlFor="hh-length">Length (in)</label>
                     <input 
+                      id="hh-length"
                       className="form-input form-input-sm" 
                       type="number" 
                       value={l} 
@@ -374,8 +348,9 @@ function Dashboard() {
                     />
                   </div>
                   <div>
-                    <label className="form-label">Width (in)</label>
+                    <label className="form-label" htmlFor="hh-width">Width (in)</label>
                     <input 
+                      id="hh-width"
                       className="form-input form-input-sm" 
                       type="number" 
                       value={w} 
@@ -383,8 +358,9 @@ function Dashboard() {
                     />
                   </div>
                   <div>
-                    <label className="form-label">Height (in)</label>
+                    <label className="form-label" htmlFor="hh-height">Height (in)</label>
                     <input 
+                      id="hh-height"
                       className="form-input form-input-sm" 
                       type="number" 
                       value={h} 
@@ -392,8 +368,9 @@ function Dashboard() {
                     />
                   </div>
                   <div>
-                    <label className="form-label">Weight (lbs)</label>
+                    <label className="form-label" htmlFor="hh-weight">Weight (lbs)</label>
                     <input 
+                      id="hh-weight"
                       className="form-input form-input-sm" 
                       type="number" 
                       value={wt} 

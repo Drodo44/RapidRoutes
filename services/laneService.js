@@ -1,5 +1,11 @@
 // services/laneService.js - Production-ready JavaScript version
-import supabaseAdmin from "@/lib/supabaseAdmin";
+// SERVER-ONLY: Do not import the admin client at module load to avoid bundling it in the client.
+// Lazily import inside functions so accidental client imports don't execute server code.
+
+async function getSupabaseAdmin() {
+  const mod = await import("@/lib/supabaseAdmin");
+  return mod.default;
+}
 
 const DEFAULT_LIMIT = 200;
 const MAX_LIMIT = 2000;
@@ -26,8 +32,7 @@ export function sanitizeLaneFilters(filters = {}) {
   };
 }
 
-// Use admin Supabase client
-const supabase = supabaseAdmin;
+// Note: We obtain the admin client within each async function via getSupabaseAdmin()
 
 /**
  * NOTE: This function queries dat_loads_2025 ONLY for analytics/volume data.
@@ -38,6 +43,7 @@ export async function fetchLaneRecords(filters = {}) {
   const limit = filters.limit || DEFAULT_LIMIT;
 
   try {
+    const supabase = await getSupabaseAdmin();
     const { data: laneData, error: laneError } = await supabase
       .from("dat_loads_2025")
       .select("*")
@@ -91,6 +97,7 @@ export async function fetchLaneRecords(filters = {}) {
  */
 export async function getLanesByIdsOrQuery({ ids = [], limit = DEFAULT_LIMIT } = {}) {
   try {
+    const supabase = await getSupabaseAdmin();
     let query = supabase.from("dat_loads_2025").select("*");
 
     // If IDs provided, filter by them

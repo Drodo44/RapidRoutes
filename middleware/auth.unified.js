@@ -1,6 +1,7 @@
 // middleware/auth.unified.js
 import { getBrowserSupabase } from '../lib/supabaseClient.js';
-import supabaseAdmin from '@/lib/supabaseAdmin';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
 
 /**
  * Unified session handler for auth validation and role checking
@@ -8,10 +9,18 @@ import supabaseAdmin from '@/lib/supabaseAdmin';
 async function validateSession(options = {}, authToken = null) {
   try {
     let session, user;
+    let profile;
     
     // Server-side: Use provided auth token (from Authorization header)
     if (authToken) {
       // Use server Supabase client for token validation with Bearer token
+      let supabaseAdmin;
+      try {
+        supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
+      } catch (e) {
+        console.error('Admin client import failed in validateSession:', e?.message || e);
+        return { error: 'Server configuration error' };
+      }
       const { data: { user: tokenUser }, error: tokenError } = await supabaseAdmin.auth.getUser(authToken);
       
       if (tokenError || !tokenUser) {
@@ -20,6 +29,16 @@ async function validateSession(options = {}, authToken = null) {
       
       user = tokenUser;
       session = { user: tokenUser };
+      // Server-side profile lookup with admin client for reliability
+      const { data: serverProfile, error: profileError } = await supabaseAdmin
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+      if (profileError || !serverProfile?.active || serverProfile.status !== 'approved') {
+        return { error: 'User profile not found or inactive' };
+      }
+      profile = serverProfile;
     } 
     // Client-side: Use session from browser
     else {
@@ -32,17 +51,23 @@ async function validateSession(options = {}, authToken = null) {
       
       session = clientSession;
       user = clientSession.user;
-    }
-
-    // Get user profile with role information using supabaseAdmin for server-side reliability
-    const { data: profile, error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single();
-
-    if (profileError || !profile?.active || profile.status !== 'approved') {
-      return { error: 'User profile not found or inactive' };
+      // Client-side: attempt RLS-safe profile read using anon key
+      try {
+        const { data: clientProfile, error: clientProfileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        if (clientProfileError) {
+          console.warn('Client profile lookup failed (continuing with auth only):', clientProfileError?.message || clientProfileError);
+          profile = { role: 'User', active: true, status: 'approved' };
+        } else {
+          profile = clientProfile;
+        }
+      } catch (e) {
+        console.warn('Client profile fetch exception (continuing with auth only):', e?.message || e);
+        profile = { role: 'User', active: true, status: 'approved' };
+      }
     }
 
     // Check role if required

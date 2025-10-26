@@ -17,14 +17,15 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'City and state are required' });
     }
 
-    console.log(`🔍 Manual verification request: ${city}, ${state}${zip ? ` ${zip}` : ''}`);
+  const zipPart = zip ? ` ${zip}` : '';
+  console.log(`🔍 Manual verification request: ${city}, ${state}${zipPart}`);
 
     // Perform HERE.com verification
     const verification = await verifyCityWithHERE(city, state, zip, 'manual', verifiedBy);
 
     // If updateDatabase is true, update the city's verification status
     if (updateDatabase && verification.verified) {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseAdmin
         .from('cities')
         .update({ here_verified: true })
         .eq('city', city)

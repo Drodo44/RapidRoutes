@@ -4,7 +4,7 @@
 // 2) New enterprise batch lane ingestion (input: { lanes: [...] }) with chunked coordinate enrichment + insert
 //    Returns structured { ok, counts: { total, success, failed }, failed: [...] }
 // This preserves backward compatibility for existing UI while enabling scalable batch creation.
-import supabaseAdmin from "@/lib/supabaseAdmin";
+// Lazy-load admin client inside handler to allow catching init errors
 import { resolveCoords } from "@/lib/resolve-coords";
 import { z } from 'zod';
 // NOTE: Not using external p-limit dependency to avoid adding new package; implementing lightweight limiter inline.
@@ -66,9 +66,9 @@ function balanceByKMA(cities, max = 50) {
 }
 
 // Simple haversine utilities retained for legacy option generation
-async function generateOptionsForLane(laneId) {
+async function generateOptionsForLane(laneId, supabaseAdmin) {
   // Fetch lane
-  const { data: lane, error: laneErr } = await supabase
+  const { data: lane, error: laneErr } = await supabaseAdmin
     .from("lanes")
     .select("*")
     .eq("id", laneId)
@@ -87,7 +87,7 @@ async function generateOptionsForLane(laneId) {
   const latMax = Math.max(originLat, destLat) + 2;
   const lonMin = Math.min(originLon, destLon) - 2;
   const lonMax = Math.max(originLon, destLon) + 2;
-  const { data: cities, error: cityErr } = await supabase
+  const { data: cities, error: cityErr } = await supabaseAdmin
     .from("us_cities")
     .select("id, city, state, latitude, longitude, zip3, kma_code")
     .gte("latitude", latMin)
@@ -100,7 +100,7 @@ async function generateOptionsForLane(laneId) {
   for (const c of cities) {
     let kma = c.kma_code;
     if (!kma && c.zip3) {
-      const { data: zipRow } = await supabase
+      const { data: zipRow } = await supabaseAdmin
         .from("zip3s")
         .select("kma_code")
         .eq("zip3", c.zip3)
@@ -155,6 +155,14 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Initialize admin client lazily so we can catch env errors
+    let supabaseAdmin;
+    try {
+      supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
+    } catch (e) {
+      console.error('[API/post-options] Admin client init failed:', e?.message || e);
+      return res.status(500).json({ ok: false, error: 'Server configuration error: admin client unavailable' });
+    }
     // Branch detection
     const { lanes: batchLanes } = req.body || {};
     const laneId = parsed.data.laneId;
@@ -263,7 +271,7 @@ export default async function handler(req, res) {
               dest_latitude: c.dest_latitude,
               dest_longitude: c.dest_longitude,
             };
-            const { error } = await supabase.from('lanes').upsert([payload], { onConflict: 'id' });
+            const { error } = await supabaseAdmin.from('lanes').upsert([payload], { onConflict: 'id' });
             if (error) throw new Error(error.message);
             return { lane: c, status: 'success' };
           })
@@ -287,7 +295,7 @@ export default async function handler(req, res) {
 
     // --- Legacy Single-Lane Options Mode ------------------------------------
     try {
-      const details = await generateOptionsForLane(laneId);
+      const details = await generateOptionsForLane(laneId, supabaseAdmin);
       return res.status(200).json({ ok: true, ...details });
     } catch (laneErr) {
       return res.status(400).json({ ok: false, error: laneErr.message });
