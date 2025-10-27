@@ -216,8 +216,18 @@ export default async function handler(req, res) {
         .select();
 
       if (insertError) {
-        console.error('Lane creation error:', insertError);
-        return res.status(500).json({ error: 'Failed to create lane' });
+        console.error('❌ Lane creation error:', insertError);
+        console.error('❌ Error details:', {
+          message: insertError.message,
+          details: insertError.details,
+          hint: insertError.hint,
+          code: insertError.code
+        });
+        return res.status(500).json({ 
+          error: 'Failed to create lane',
+          details: insertError.message,
+          hint: insertError.hint
+        });
       }
       const insertedLane = Array.isArray(insertedLanes) ? insertedLanes[0] : insertedLanes;
       console.log('[API] Inserted lane:', insertedLane);
