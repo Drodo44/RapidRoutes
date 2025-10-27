@@ -45,6 +45,8 @@ const CityNotFoundModal = ({ isOpen, onClose, city, state, onCityAdded }) => {
     e.preventDefault();
     setSubmitting(true);
     
+    console.log('🏙️ [CityModal] Submitting city:', formData);
+    
     try {
       const response = await fetch('/api/addCity', {
         method: 'POST',
@@ -54,17 +56,22 @@ const CityNotFoundModal = ({ isOpen, onClose, city, state, onCityAdded }) => {
         body: JSON.stringify(formData)
       });
 
+      console.log('🏙️ [CityModal] Response status:', response.status, response.statusText);
+
       if (response.ok) {
         const result = await response.json();
+        console.log('🏙️ [CityModal] City added successfully:', result);
         onCityAdded(result.city);
         onClose();
         setFormData({ city: '', state: '', zip: '', kmaCode: '' });
+        alert('✅ City added successfully! You can now use it in your lane.');
       } else {
         const error = await response.json();
-        alert(`Error: ${error.message}`);
+        console.error('🏙️ [CityModal] API error:', error);
+        alert(`Error adding city: ${error.error || error.message || 'Unknown error'}`);
       }
     } catch (error) {
-      console.error('Error adding city:', error);
+      console.error('🏙️ [CityModal] Exception:', error);
       alert('Failed to add city. Please try again.');
     } finally {
       setSubmitting(false);
