@@ -1,6 +1,46 @@
 // pages/api/addCity.js
 // API endpoint to add a new city to the database
 
+const HERE_API_KEY = process.env.HERE_API_KEY;
+
+async function geocodeCity(city, state, zip) {
+  if (!HERE_API_KEY) {
+    console.warn('[addCity] HERE_API_KEY not configured, skipping geocoding');
+    return { latitude: null, longitude: null };
+  }
+
+  try {
+    const query = zip 
+      ? `${city}, ${state} ${zip}` 
+      : `${city}, ${state}`;
+    
+    const url = `https://geocode.search.hereapi.com/v1/geocode?q=${encodeURIComponent(query)}&apiKey=${HERE_API_KEY}`;
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      console.warn('[addCity] HERE API error:', response.status);
+      return { latitude: null, longitude: null };
+    }
+    
+    const data = await response.json();
+    const position = data.items?.[0]?.position;
+    
+    if (position?.lat && position?.lng) {
+      console.log(`✅ Geocoded ${city}, ${state}: ${position.lat}, ${position.lng}`);
+      return { 
+        latitude: position.lat, 
+        longitude: position.lng 
+      };
+    }
+    
+    console.warn('[addCity] No coordinates found for:', query);
+    return { latitude: null, longitude: null };
+  } catch (error) {
+    console.error('[addCity] Geocoding error:', error);
+    return { latitude: null, longitude: null };
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -59,6 +99,9 @@ export default async function handler(req, res) {
       });
     }
 
+    // Geocode the city to get coordinates
+    const { latitude, longitude } = await geocodeCity(city.trim(), state.toUpperCase(), zip);
+
     // Add the new city
     const { data: newCity, error: insertError } = await supabaseAdmin
       .from('cities')
@@ -69,8 +112,8 @@ export default async function handler(req, res) {
           zip: zip ? zip.trim() : null,
           kma_code: kmaCode,
           kma_name: kmaName,
-          latitude: null, // Will be populated later if needed
-          longitude: null // Will be populated later if needed
+          latitude: latitude,
+          longitude: longitude
         }
       ])
       .select()
@@ -81,7 +124,7 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Failed to add city to database' });
     }
 
-    console.log(`✅ Successfully added city: ${city}, ${state} (${kmaCode})`);
+    console.log(`✅ Successfully added city: ${city}, ${state} (${kmaCode}) with coords: ${latitude}, ${longitude}`);
 
     res.status(201).json({
       message: 'City added successfully',
