@@ -3,7 +3,6 @@
 
 import fs from "node:fs/promises";
 import path from "node:path";
-import supabaseAdmin from "@/lib/supabaseAdmin";
 
 function ok(name, note = "") { return { name, ok: true, note }; }
 function bad(name, note) { return { name, ok: false, note }; }
@@ -14,7 +13,9 @@ export default async function handler(_req, res) {
   // ---- Files & module exports ------------------------------------------------
   async function checkModule(rel, requiredExports = []) {
     const abs = path.join(process.cwd(), rel);
+  let supabaseAdmin;
     try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
       await fs.access(abs);
     } catch {
       checks.push(bad(`File exists: ${rel}`, "Missing file"));

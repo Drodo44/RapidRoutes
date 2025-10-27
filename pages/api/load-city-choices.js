@@ -1,14 +1,15 @@
 // pages/api/load-city-choices.js
 // Load saved city choices for lanes
 
-import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
   if (req.method !== 'GET' && req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     const laneIds = req.method === 'POST' ? req.body.lane_ids : req.query.lane_ids?.split(',');
 
     if (!laneIds || laneIds.length === 0) {

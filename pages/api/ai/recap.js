@@ -6,7 +6,6 @@
 // Input: { laneIds: string[] }
 // Output: { results: Array<{ laneId, bullets, risks, price_hint }> }
 
-import supabaseAdmin from "@/lib/supabaseAdmin";
 
 // Get lane details with latest DAT map summary
 async function getLaneContexts(laneIds) {
@@ -299,6 +298,13 @@ async function generateAIRecap(laneContext) {
 }
 
 export default async function handler(req, res) {
+  let supabaseAdmin;
+  try {
+    supabaseAdmin = (await import(\'@/lib/supabaseAdmin\')).default;
+  } catch (importErr) {
+    return res.status(500).json({ error: \'Admin client initialization failed\' });
+  }
+
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'Method not allowed' });

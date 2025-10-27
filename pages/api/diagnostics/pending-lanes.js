@@ -4,7 +4,6 @@
 // - Intelligence pairing attempted and pair count
 // - Whether lane was dropped before or after CSV building
 
-import supabaseAdmin from "@/lib/supabaseAdmin";
 import { validateLane } from '../../../lib/enterpriseValidation.js';
 import { intelligentCache } from '../../../lib/intelligentCache.js';
 import { generateDatCsvRows } from '../../../lib/datCsvBuilder.js';
@@ -83,6 +82,13 @@ async function diagnoseLane(lane) {
 }
 
 export default async function handler(req, res) {
+  let supabaseAdmin;
+  try {
+    supabaseAdmin = (await import(\'@/lib/supabaseAdmin\')).default;
+  } catch (importErr) {
+    return res.status(500).json({ error: \'Admin client initialization failed\' });
+  }
+
   // Always set JSON content-type
   try {
     res.setHeader('Content-Type', 'application/json');

@@ -5,10 +5,16 @@
 // Auto-generates: RR number (e.g., RR00012)
 // ============================================================================
 
-import supabaseAdmin from '@/lib/supabaseAdmin';
 const supabase = supabaseAdmin;
 
 export default async function handler(req, res) {
+  let supabaseAdmin;
+  try {
+    supabaseAdmin = (await import(\'@/lib/supabaseAdmin\')).default;
+  } catch (importErr) {
+    return res.status(500).json({ error: \'Admin client initialization failed\' });
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }

@@ -1,10 +1,11 @@
 // pages/api/datMaps.js
 // API endpoint for DAT market heat map data
 
-import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     if (req.method !== 'GET') {
       return res.status(405).json({ ok: false, message: 'Method not allowed' });
     }

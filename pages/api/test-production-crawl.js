@@ -1,9 +1,10 @@
 // Quick production environment test
-import supabaseAdmin from "@/lib/supabaseAdmin";
 import { generateGeographicCrawlPairs } from '../../lib/geographicCrawl.js';
 
 export default async function handler(req, res) {
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     console.log('🧪 PRODUCTION TEST: Testing environment and database connection');
     
     // Test 1: Database connection

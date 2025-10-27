@@ -1,5 +1,4 @@
 // pages/api/updateDatMaps.js
-import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -7,7 +6,9 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     // Call the fetchDatBlog API endpoint to update maps
     const fetchResponse = await fetch(new URL('/api/fetchDatBlog', req.url).toString(), {
       method: 'POST',

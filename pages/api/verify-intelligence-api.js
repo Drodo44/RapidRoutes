@@ -1,5 +1,4 @@
 // /pages/api/verify-intelligence-api.js
-import supabaseAdmin from "@/lib/supabaseAdmin";
 
 /**
  * Server-side API endpoint to verify the intelligence-pairing API
@@ -13,7 +12,9 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed', method: req.method });
   }
   
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     // Verify environment variables are available
     const envCheck = {
       NEXT_PUBLIC_SUPABASE_URL: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),

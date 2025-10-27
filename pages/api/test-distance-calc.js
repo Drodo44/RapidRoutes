@@ -1,5 +1,4 @@
 // Test distance calculation for actual production lanes
-import supabaseAdmin from "@/lib/supabaseAdmin";
 
 // Haversine distance calculation (copied from definitiveIntelligent.js)
 function calculateDistance(lat1, lon1, lat2, lon2) {
@@ -15,7 +14,9 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 }
 
 export default async function handler(req, res) {
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     // Get a specific lane we know exists - Opelika, AL
     const { data: lanes } = await supabase
       .from('lanes')

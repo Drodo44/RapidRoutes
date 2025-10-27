@@ -1,11 +1,12 @@
 // pages/api/preferred-pickups.js
 // API for managing user's personal preferred pickup locations
 
-import supabaseAdmin from "@/lib/supabaseAdmin";
 import supabase from '../../utils/supabaseClient';
 
 export default async function handler(req, res) {
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     // Get current user
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {

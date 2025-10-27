@@ -1,14 +1,15 @@
 // pages/api/cleanupTestData.js
 // Remove test lanes and data for production cleanup
 
-import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     // Delete lanes that contain test indicators
     const { data: deletedLanes, error: lanesError } = await adminSupabase
       .from('lanes')

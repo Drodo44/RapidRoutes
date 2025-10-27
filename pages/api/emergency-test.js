@@ -1,6 +1,5 @@
 // Emergency test endpoint to verify intelligence pairing API
 // This endpoint allows testing the intelligence API directly without auth
-import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -10,7 +9,9 @@ export default async function handler(req, res) {
     });
   }
 
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     // Import the handler directly to test it in-process
     const intelligencePairingHandler = require('./intelligence-pairing').default;
 

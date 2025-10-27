@@ -1,7 +1,6 @@
 // pages/api/kmaOptions.js
 // API endpoint to get KMA options for a specific state
 
-import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -14,7 +13,9 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'State parameter is required' });
   }
 
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     // Get unique KMA codes and names for the specified state
     const { data, error } = await supabaseAdmin
       .from('cities')

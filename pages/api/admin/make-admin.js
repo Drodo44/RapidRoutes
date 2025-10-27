@@ -1,5 +1,4 @@
 // pages/api/admin/make-admin.js
-import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -11,7 +10,9 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Email is required' });
   }
 
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     const { error } = await adminSupabase.rpc('make_admin', { email });
     
     if (error) throw error;

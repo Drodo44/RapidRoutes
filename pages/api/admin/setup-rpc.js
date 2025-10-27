@@ -1,7 +1,6 @@
 // pages/api/admin/setup-rpc.js
 // One-time setup script to create the missing RPC function
 
-import supabaseAdmin from "@/lib/supabaseAdmin";
 import fs from 'fs';
 import path from 'path';
 
@@ -10,7 +9,9 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     // Read the SQL file
     const sqlPath = path.join(process.cwd(), 'supabase', 'fetch_nearby_cities.sql');
     const sql = fs.readFileSync(sqlPath, 'utf8');

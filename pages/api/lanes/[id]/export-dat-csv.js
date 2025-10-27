@@ -10,8 +10,6 @@
 // - 499-row maximum per file (auto-chunk if needed)
 // ============================================================================
 
-import supabaseAdmin from '@/lib/supabaseAdmin';
-const supabase = supabaseAdmin;
 import { DAT_HEADERS } from '../../../../lib/datHeaders';
 import { withAuth } from '../../../../middleware/authMiddleware';
 
@@ -130,14 +128,17 @@ async function handler(req, res) {
 
   const { id } = req.query;
 
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
+    
     // Extract user from request (added by withAuth middleware)
     const user = req.user;
     console.log(`👤 User ${user.email} exporting DAT CSV for lane ${id}...`);
     
     // 1. Get lane data
     console.log(`📥 Fetching lane ${id} for DAT CSV export...`);
-    const { data: lane, error: laneError } = await supabase
+    const { data: lane, error: laneError } = await supabaseAdmin
       .from('lanes')
       .select('*')
       .eq('id', id)

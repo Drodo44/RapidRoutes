@@ -1,5 +1,4 @@
 // pages/api/generateRecap.js
-import supabaseAdmin from "@/lib/supabaseAdmin";
 import { generateRecapHTML } from '../../lib/recapUtils';
 
 export default async function handler(req, res) {
@@ -8,7 +7,9 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     const { laneIds } = req.body;
     
     if (!laneIds || !Array.isArray(laneIds) || !laneIds.length) {

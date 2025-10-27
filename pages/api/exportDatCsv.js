@@ -5,7 +5,6 @@
 // - Splits into ≤499 rows per part; HEAD returns X-Total-Parts for pagination
 // - If part is specified for GET, returns only that part.
 
-import supabaseAdmin from "@/lib/supabaseAdmin";
 import { EnterpriseCsvGenerator } from '../../lib/enterpriseCsvGenerator.js';
 import { toCsv, chunkRows, DAT_HEADERS, MIN_PAIRS_REQUIRED, ROWS_PER_PAIR } from '../../lib/datCsvBuilder.js';
 import { monitor } from '../../lib/monitor.js';
@@ -69,7 +68,9 @@ export default async function handler(req, res) {
   };
 
   let auth;
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     assertApiAuth(req);
   } catch (error) {
     const status = Number(error?.status) || 401;

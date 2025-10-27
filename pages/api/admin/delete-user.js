@@ -1,4 +1,3 @@
-import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
   if (req.method !== 'DELETE') {
@@ -11,7 +10,9 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'User ID is required' });
   }
 
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     // First delete from profiles table
     const { error: profileError } = await adminSupabase
       .from('profiles')

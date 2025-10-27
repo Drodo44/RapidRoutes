@@ -1,14 +1,15 @@
 // pages/api/searchByReference.js
 // API endpoint to search for lanes by reference ID
 
-import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     const { referenceId } = req.query;
 
     if (!referenceId) {

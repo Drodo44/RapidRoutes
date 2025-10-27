@@ -1,9 +1,10 @@
 // pages/api/test-crawl.js
 import { generateGeographicCrawlPairs } from '../../lib/geographicCrawl.js';
-import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     console.log('=== CRAWL TEST START ===');
     
     // First, check if the cities exist in the database

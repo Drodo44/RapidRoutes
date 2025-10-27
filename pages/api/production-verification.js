@@ -2,7 +2,6 @@
 // Server-side verification endpoint that runs in the production environment
 // This endpoint uses the production environment variables to run verification tests
 
-import supabaseAdmin from '@/lib/supabaseAdmin';
 import { fetchIntelligencePairs } from '../../lib/intelligenceApi';
 
 // Function to count unique KMA codes in the response
@@ -36,7 +35,9 @@ export default async function handler(req, res) {
     });
   }
 
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     const results = {
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV,

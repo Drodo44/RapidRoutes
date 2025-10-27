@@ -1,9 +1,15 @@
 // pages/api/lanes/[id].js
 import { validateApiAuth } from '../../../middleware/auth.unified';
-import supabaseAdmin from "@/lib/supabaseAdmin";
 import { fetchLaneById } from '../../../services/laneService.js';
 
 export default async function handler(req, res) {
+  let supabaseAdmin;
+  try {
+    supabaseAdmin = (await import(\'@/lib/supabaseAdmin\')).default;
+  } catch (importErr) {
+    return res.status(500).json({ error: \'Admin client initialization failed\' });
+  }
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     res.setHeader('Allow', 'GET, PUT, PATCH, DELETE');

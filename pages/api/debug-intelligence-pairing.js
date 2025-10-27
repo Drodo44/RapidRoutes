@@ -3,7 +3,6 @@
 // This file should NOT be used in production - it's for debugging only
 
 import { extractAuthToken } from '../../utils/apiAuthUtils.js';
-import supabaseAdmin from "@/lib/supabaseAdmin";
 import { generateGeographicCrawlPairs } from '../../lib/geographicCrawl.js';
 
 export default async function handler(req, res) {
@@ -11,7 +10,9 @@ export default async function handler(req, res) {
   const startTime = Date.now();
   const requestId = `debug-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
 
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     // Enhanced request logging with timestamp and request ID
     console.log(`🔄 DEBUG API Request [${new Date().toISOString()}] ID:${requestId}: /api/debug-intelligence-pairing`, {
       method: req.method,

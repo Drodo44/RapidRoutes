@@ -1,7 +1,6 @@
 // API endpoint for exporting purged cities as CSV for DAT submission
 // GET: Generate CSV download of purged cities
 
-import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -9,7 +8,9 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     const { status = 'pending', format = 'csv' } = req.query;
 
     // Fetch purged cities based on status

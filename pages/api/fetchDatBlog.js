@@ -5,7 +5,6 @@
 // This scraper is defensive: it tries to locate images with "hot" + "map" hints and
 // associates likely equipment by filename/alt. If nothing found, responds gracefully.
 
-import supabaseAdmin from "@/lib/supabaseAdmin";
 
 async function ensureBucket() {
   try {
@@ -53,7 +52,9 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     await ensureBucket();
 
     // Fetch a likely DAT market update page

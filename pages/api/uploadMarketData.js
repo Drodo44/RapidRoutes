@@ -2,7 +2,6 @@
 // Accepts JSON { equipment, level, source, denormalize, matrixRows: [{origin,destination,rate}...] }
 // Writes to rates_snapshots.matrix (JSONB) and optionally denormalizes into rates_flat.
 
-import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export const config = {
   api: { bodyParser: { sizeLimit: '10mb' } },
@@ -14,7 +13,9 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     const { equipment, level, source, denormalize, matrixRows } = req.body || {};
     const eq = String(equipment || '').toLowerCase();
     const lvl = String(level || '').toLowerCase();

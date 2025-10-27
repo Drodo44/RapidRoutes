@@ -2,7 +2,6 @@
 // This endpoint will verify the intelligence-pairing API directly in the production environment
 // Version 2.0: Enhanced with full diagnostics
 
-import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
   // Allow GET for simplified testing with query params, POST for secure body
@@ -60,7 +59,9 @@ export default async function handler(req, res) {
     equipmentCode: 'FD'
   };
 
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     // Step 1: Initialize Supabase client
     const supabase = supabaseAdmin;
 

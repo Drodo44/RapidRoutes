@@ -1,14 +1,15 @@
 // pages/api/admin/remove-duplicates.js
 // API to remove duplicate lanes from the database
 
-import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     console.log('🔍 DUPLICATE CHECKER: Scanning for duplicate lanes...');
     
         // Get all lanes to check for duplicates

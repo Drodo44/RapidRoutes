@@ -3,7 +3,6 @@
 // Returns a single-lane CSV (24 headers, minimum 12 rows per lane, scales with market density).
 // Streams as text/csv with Content-Disposition for browser download.
 
-import supabaseAdmin from "@/lib/supabaseAdmin";
 import { DAT_HEADERS } from '../../lib/datHeaders.js';
 import { rowsFromBaseAndPairs, toCsv, MIN_PAIRS_REQUIRED, ROWS_PER_PAIR } from '../../lib/datCsvBuilder';
 import { FreightIntelligence } from '../../lib/FreightIntelligence.js';
@@ -31,7 +30,9 @@ export default async function handler(req, res) {
   const preferFillTo10 = String(req.query.fill || '0') === '1';
   if (!id) return res.status(400).json({ error: 'lane id required' });
 
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     const { data: lane, error } = await adminSupabase
       .from('lanes')
       .select('*')

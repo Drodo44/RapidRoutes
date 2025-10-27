@@ -3,7 +3,6 @@
 // This ensures any existing clients that still call /api/laneRecords get correct, editable rows.
 
 import { withErrorHandler } from '@/lib/apiErrorHandler';
-import supabaseAdmin from '@/lib/supabaseAdmin';
 
 async function handler(req, res) {
   const { status, limit } = req.query || {};

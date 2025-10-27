@@ -1,14 +1,15 @@
 // pages/api/resolve-coords.js
 // Resolve missing origin/destination coordinates by zip from zip3_kma_geo table.
 // Dark-mode app: no UI here, just JSON.
-import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET');
     return res.status(405).json({ error: 'Method not allowed' });
   }
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     const { origin_zip, dest_zip } = req.query;
     if (!origin_zip || !dest_zip) {
       return res.status(400).json({ error: 'Missing origin_zip or dest_zip' });

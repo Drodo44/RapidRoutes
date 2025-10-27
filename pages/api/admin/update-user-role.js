@@ -1,4 +1,3 @@
-import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -17,7 +16,9 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Invalid role' });
   }
 
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     // Update the user's role in the profiles table
     const { data, error } = await adminSupabase
       .from('profiles')

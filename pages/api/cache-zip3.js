@@ -1,10 +1,11 @@
 // pages/api/cache-zip3.js
-import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     const { city, state, zip3 } = req.body || {};
     const c = (city || "").trim();
     const s = (state || "").trim().toUpperCase();

@@ -4,7 +4,6 @@
 // - DAT-style: returns { id, city, state, zip, label } with "City, ST ZIP"
 // - Typing digits searches ZIP; "City, ST" respected; up to 12 results.
 
-import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -24,7 +23,9 @@ export default async function handler(req, res) {
     stateQ = parts[1];
   }
 
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     let query = supabaseAdmin
       .from('cities')
       .select('id, city, state_or_province, zip, latitude, longitude, kma_code')

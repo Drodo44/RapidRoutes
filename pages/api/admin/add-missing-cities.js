@@ -1,5 +1,4 @@
 // pages/api/admin/add-missing-cities.js
-import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -65,7 +64,9 @@ export default async function handler(req, res) {
   let skipped = 0;
   const results = [];
   
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     for (const city of missingCities) {
       try {
         // Check if city already exists

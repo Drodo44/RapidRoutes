@@ -1,6 +1,5 @@
 // pages/api/admin/upload-market-map.js
 // Simplified PNG upload without formidable - using built-in Next.js handling
-import supabaseAdmin from "@/lib/supabaseAdmin";
 import fs from 'fs';
 import path from 'path';
 
@@ -17,7 +16,9 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     // For now, return success to test other functionality
     // We'll implement a simpler upload method
     

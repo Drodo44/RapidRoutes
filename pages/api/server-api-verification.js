@@ -1,7 +1,6 @@
 // server-api-verification.js
 // Create a Next.js API route that tests the intelligence-pairing API directly
 
-import supabaseAdmin from "@/lib/supabaseAdmin";
 
 // In-memory cache for API response
 let apiResponseCache = null;
@@ -20,7 +19,9 @@ export default async function handler(req, res) {
   // Start verification process
   console.log('Starting intelligence API verification...');
   
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     // Verify environment variables are available
     const envCheck = {
       NEXT_PUBLIC_SUPABASE_URL: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),

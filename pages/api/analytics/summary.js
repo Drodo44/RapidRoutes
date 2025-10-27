@@ -1,10 +1,16 @@
-import supabaseAdmin from '@/lib/supabaseAdmin';
 const supabase = supabaseAdmin;
 import { mapLaneRowToRecord } from '../../../services/laneService.js';
 
 const LANE_VIEW = 'rapidroutes_lane_view';
 
 export default async function handler(req, res) {
+  let supabaseAdmin;
+  try {
+    supabaseAdmin = (await import(\'@/lib/supabaseAdmin\')).default;
+  } catch (importErr) {
+    return res.status(500).json({ error: \'Admin client initialization failed\' });
+  }
+
   // Only allow GET requests
   if (req.method !== "GET") return res.status(405).end();
 

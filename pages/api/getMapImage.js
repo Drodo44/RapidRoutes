@@ -1,7 +1,6 @@
 // pages/api/getMapImage.js
 // API endpoint to retrieve uploaded DAT market heat map images
 
-import supabaseAdmin from "@/lib/supabaseAdmin";
 import fs from 'fs';
 import path from 'path';
 
@@ -16,7 +15,9 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Equipment type is required' });
   }
 
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     // First try to get from database
     const { data: imageData, error } = await supabaseAdmin
       .from('dat_map_images')

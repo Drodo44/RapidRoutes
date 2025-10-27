@@ -1,7 +1,6 @@
 // pages/api/uploadMapImage.js
 // Upload heat map images to Supabase Storage (Vercel-compatible)
 
-import supabaseAdmin from "@/lib/supabaseAdmin";
 import formidable from 'formidable';
 import fs from 'fs';
 import path from 'path';
@@ -19,7 +18,9 @@ export default async function handler(req, res) {
 
   let tempFile = null;
 
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     // Parse form (formidable uses OS temp dir which IS writable)
     const form = formidable({
       maxFileSize: 10 * 1024 * 1024, // 10MB

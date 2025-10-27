@@ -1,10 +1,11 @@
 // pages/api/save-override.js
 // Upserts a manual pairing override for origin or destination selection
-import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     const userId = req.headers['x-rr-user-id'];
     if (!userId) return res.status(401).json({ error: 'Missing user context' });
 

@@ -1,11 +1,12 @@
 // pages/api/debug-crawl-detailed.js
-import supabaseAdmin from "@/lib/supabaseAdmin";
 import { generateGeographicCrawlPairs } from '../../lib/geographicCrawl.js';
 
 export default async function handler(req, res) {
   console.log('🔍 DETAILED CRAWL DEBUG - Starting analysis...');
   
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     // Test sample lane data (same as real lanes)
     const testOrigin = { city: 'New York', state: 'NY' };
     const testDestination = { city: 'Los Angeles', state: 'CA' };

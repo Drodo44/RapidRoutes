@@ -3,7 +3,6 @@
 // It bypasses authentication for testing purposes only
 
 import { generateGeographicCrawlPairs } from '../../lib/geographicCrawl.js';
-import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -13,7 +12,9 @@ export default async function handler(req, res) {
     });
   }
 
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     const { originCity, originState, destCity, destState } = req.body;
 
     if (!originCity || !originState || !destCity || !destState) {
