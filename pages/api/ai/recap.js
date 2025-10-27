@@ -8,11 +8,11 @@
 
 
 // Get lane details with latest DAT map summary
-async function getLaneContexts(laneIds) {
+async function getLaneContexts(laneIds, supabaseAdmin) {
   if (!laneIds?.length) return [];
 
   // Get lane details
-  const { data: lanes } = await adminSupabase
+  const { data: lanes } = await supabaseAdmin
     .from('lanes')
     .select('*')
     .in('id', laneIds);
@@ -32,7 +32,7 @@ async function getLaneContexts(laneIds) {
   const categories = [...new Set(equipCodes.map(c => equipCategories.get(c) || 'van'))];
   
   // Get latest maps
-  const { data: maps } = await adminSupabase
+  const { data: maps } = await supabaseAdmin
     .from('dat_maps')
     .select('equipment,summary,effective_date')
     .in('equipment', categories)
@@ -48,7 +48,7 @@ async function getLaneContexts(laneIds) {
   // Get latest rates
   let rateSnapshot = null;
   try {
-    const { data: latest } = await adminSupabase
+    const { data: latest } = await supabaseAdmin
       .from('rates_snapshots')
       .select('id')
       .order('created_at', { ascending: false })
@@ -318,7 +318,7 @@ export default async function handler(req, res) {
     }
     
     // Get contexts for each lane
-    const contexts = await getLaneContexts(laneIds);
+    const contexts = await getLaneContexts(laneIds, supabaseAdmin);
     
     if (!contexts.length) {
       return res.status(404).json({ error: 'No valid lanes found' });
@@ -326,7 +326,7 @@ export default async function handler(req, res) {
     
     // Generate recaps (parallel processing)
     const results = await Promise.all(
-      contexts.map(context => generateAIRecap(context))
+      contexts.map(context => generateAIRecap(context, supabaseAdmin))
     );
     
     return res.status(200).json({ results });

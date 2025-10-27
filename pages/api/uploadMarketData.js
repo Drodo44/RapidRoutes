@@ -26,7 +26,7 @@ export default async function handler(req, res) {
     }
 
     // Snapshot insert
-    const { data: snap, error: snapErr } = await adminSupabase
+    const { data: snap, error: snapErr } = await supabaseAdmin
       .from('rates_snapshots')
       .insert([{ equipment: eq, level: lvl, source: src, matrix: matrixRows }])
       .select('id')
@@ -50,7 +50,7 @@ export default async function handler(req, res) {
       const chunk = 1000;
       for (let i = 0; i < rows.length; i += chunk) {
         const slice = rows.slice(i, i + chunk);
-        const { error } = await adminSupabase.from('rates_flat').insert(slice);
+        const { error } = await supabaseAdmin.from('rates_flat').insert(slice);
         if (error) throw error;
         flatInserted += slice.length;
       }

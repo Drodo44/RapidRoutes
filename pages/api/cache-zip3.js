@@ -15,7 +15,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Missing/invalid: city, state, zip3" });
     }
 
-    const { error } = await adminSupabase
+    const { error } = await supabaseAdmin
       .from("zip3s")
       .upsert({ city: c, state: s, zip3: z }, { onConflict: "city,state" });
 

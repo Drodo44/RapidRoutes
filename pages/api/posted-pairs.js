@@ -44,7 +44,7 @@ async function handleCreatePostedPairs(req, res, auth, supabaseAdmin) {
       created_by: auth.user.id
     }));
 
-    const { data, error } = await adminSupabase
+    const { data, error } = await supabaseAdmin
       .from('posted_pairs')
       .insert(postedPairs)
       .select();
@@ -71,7 +71,7 @@ async function handleSearchPostedPairs(req, res, auth, supabaseAdmin) {
     }
 
     // Search for posted pairs by reference ID
-    const { data: pairs, error } = await adminSupabase
+    const { data: pairs, error } = await supabaseAdmin
       .from('posted_pairs')
       .select(`
         *,

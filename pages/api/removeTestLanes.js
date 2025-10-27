@@ -10,7 +10,7 @@ export default async function handler(req, res) {
   try {
     supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     // Find and delete test lanes
-    const { data: testLanes, error: findError } = await adminSupabase
+    const { data: testLanes, error: findError } = await supabaseAdmin
       .from('lanes')
       .select('id, origin_city, dest_city, comment')
       .or('comment.ilike.%test lane%,comment.ilike.%Test lane%');
@@ -25,7 +25,7 @@ export default async function handler(req, res) {
     }
 
     // Delete the test lanes
-    const { error: deleteError } = await adminSupabase
+    const { error: deleteError } = await supabaseAdmin
       .from('lanes')
       .delete()
       .in('id', testLanes.map(l => l.id));

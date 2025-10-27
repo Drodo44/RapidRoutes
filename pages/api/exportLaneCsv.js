@@ -33,7 +33,7 @@ export default async function handler(req, res) {
   let supabaseAdmin;
   try {
     supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
-    const { data: lane, error } = await adminSupabase
+    const { data: lane, error } = await supabaseAdmin
       .from('lanes')
       .select('*')
       .eq('id', id)

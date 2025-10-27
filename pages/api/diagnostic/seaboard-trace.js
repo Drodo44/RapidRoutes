@@ -34,7 +34,7 @@ export default async function handler(req, res) {
         // STEP 1: Find the specific lane in database
         trace.steps.push({ step: 1, name: 'Lane Identification', status: 'running' });
         
-        const { data: lanes, error: lanesError } = await adminSupabase
+        const { data: lanes, error: lanesError } = await supabaseAdmin
             .from('lanes')
             .select('*')
             .ilike('origin_city', '%Seaboard%')
@@ -62,7 +62,7 @@ export default async function handler(req, res) {
         trace.steps.push({ step: 2, name: 'Database City Discovery', status: 'running' });
         
         // Origin cities
-        const { data: originCities, error: originError } = await adminSupabase
+        const { data: originCities, error: originError } = await supabaseAdmin
             .from('cities')
             .select('city, state_or_province, zip, kma_code, kma_name, latitude, longitude')
             .ilike('city', `%${targetLane.origin_city}%`)
@@ -70,7 +70,7 @@ export default async function handler(req, res) {
             .limit(20);
             
         // Destination cities  
-        const { data: destCities, error: destError } = await adminSupabase
+        const { data: destCities, error: destError } = await supabaseAdmin
             .from('cities')
             .select('city, state_or_province, zip, kma_code, kma_name, latitude, longitude')
             .ilike('city', `%${targetLane.dest_city}%`)

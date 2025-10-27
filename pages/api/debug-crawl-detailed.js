@@ -16,7 +16,7 @@ export default async function handler(req, res) {
     
     // Step 1: Check if we can get preferred pickups
     console.log('🔍 Step 1: Checking preferred pickups...');
-    const { data: preferredPickups, error: prefError } = await adminSupabase
+    const { data: preferredPickups, error: prefError } = await supabaseAdmin
       .from('preferred_pickups')
       .select('*')
       .eq('user_id', 'default_user')
@@ -52,7 +52,7 @@ export default async function handler(req, res) {
     
     // Step 4: Test direct database queries for nearby cities
     console.log('🔍 Step 4: Testing direct database spatial queries...');
-    const { data: originCities, error: originError } = await adminSupabase
+    const { data: originCities, error: originError } = await supabaseAdmin
       .from('cities')
       .select('city, state_or_province, latitude, longitude, kma_code')
       .ilike('city', testOrigin.city)
@@ -60,7 +60,7 @@ export default async function handler(req, res) {
       .not('latitude', 'is', null)
       .limit(10);
       
-    const { data: destCities, error: destError } = await adminSupabase
+    const { data: destCities, error: destError } = await supabaseAdmin
       .from('cities')
       .select('city, state_or_province, latitude, longitude, kma_code')
       .ilike('city', testDestination.city)
@@ -77,7 +77,7 @@ export default async function handler(req, res) {
       const baseOrigin = originCities[0];
       console.log('🔍 Step 5: Testing nearby city search...');
       
-      const { data: nearbyCities, error: nearbyError } = await adminSupabase
+      const { data: nearbyCities, error: nearbyError } = await supabaseAdmin
         .from('cities')
         .select('city, state_or_province, latitude, longitude, kma_code')
         .not('latitude', 'is', null)

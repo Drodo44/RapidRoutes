@@ -47,9 +47,23 @@ export async function fetchLaneRecords(filters = {}) {
   try {
     const f = sanitizeLaneFilters(filters);
     const qs = toQuery(f);
-    const res = await fetch(`/api/laneRecords?${qs}`, { method: 'GET' });
+    const res = await fetch(`/api/laneRecords?${qs}`, { 
+      method: 'GET',
+      // Add timeout and error handling to prevent infinite retries
+      signal: AbortSignal.timeout(10000) // 10 second timeout
+    });
+    
+    if (!res.ok) {
+      console.error(`[browserLaneService.fetchLaneRecords] HTTP ${res.status}: ${res.statusText}`);
+      return [];
+    }
+    
     const payload = await res.json().catch(() => ({ ok: false, data: [] }));
-    if (!res.ok || !payload?.ok || !Array.isArray(payload.data)) return [];
+    if (!payload?.ok || !Array.isArray(payload.data)) {
+      console.error('[browserLaneService.fetchLaneRecords] Invalid response payload');
+      return [];
+    }
+    
     return payload.data;
   } catch (err) {
     console.error('[browserLaneService.fetchLaneRecords] Failed:', err);

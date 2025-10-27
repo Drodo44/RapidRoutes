@@ -47,6 +47,7 @@ export function useLanes(options: UseLanesOptions = {}) {
   const requestIdRef = useRef(0);
   const filtersRef = useRef(initialFilters);
   const autoFetchRef = useRef(options.autoFetch !== false);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     autoFetchRef.current = options.autoFetch !== false;
@@ -55,6 +56,10 @@ export function useLanes(options: UseLanesOptions = {}) {
   useEffect(() => {
     return () => {
       mountedRef.current = false;
+      // Clean up any pending debounce timers
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
     };
   }, []);
 
@@ -122,11 +127,38 @@ export function useLanes(options: UseLanesOptions = {}) {
     setFiltersState(initialFilters);
   }, [initialFilters]);
 
+  // Only fetch when filters actually change, not on every render
+  const prevFiltersRef = useRef<string>('');
+  
   useEffect(() => {
-    filtersRef.current = filters;
-    if (autoFetchRef.current) {
-      fetchData(filters);
+    const currentFiltersStr = JSON.stringify(filters);
+    
+    // Prevent infinite loop by checking if filters actually changed
+    if (prevFiltersRef.current === currentFiltersStr) {
+      return;
     }
+    
+    prevFiltersRef.current = currentFiltersStr;
+    filtersRef.current = filters;
+    
+    if (autoFetchRef.current) {
+      // Clear any pending fetch
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+      
+      // Debounce fetch by 100ms to prevent rapid successive calls
+      debounceTimerRef.current = setTimeout(() => {
+        fetchData(filters);
+      }, 100);
+    }
+    
+    // Cleanup function
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
   }, [fetchData, filters]);
 
   return {

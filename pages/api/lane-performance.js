@@ -61,7 +61,7 @@ async function trackLanePerformance(req, res, supabaseAdmin) {
     } catch (rpcErr) {
       // If RPC isn't available or fails due to missing migration, fall back to direct inserts.
       console.warn('RPC insert failed or unavailable, falling back to manual inserts:', rpcErr?.message || rpcErr);
-      const { data: lpData, error: lanePerfError } = await adminSupabase
+      const { data: lpData, error: lanePerfError } = await supabaseAdmin
         .from('lane_performance')
         .insert({
           lane_id,
@@ -109,7 +109,7 @@ async function trackLanePerformance(req, res, supabaseAdmin) {
       });
 
       if (crawlRecords.length > 0) {
-        const { error: crawlError } = await adminSupabase
+        const { error: crawlError } = await supabaseAdmin
           .from('crawl_city_performance')
           .insert(crawlRecords);
 
@@ -156,7 +156,7 @@ async function getLaneIntelligence(req, res, supabaseAdmin) {
     }
 
     // Get top performing cities for this equipment type
-    const { data: topCities, error: topCitiesError } = await adminSupabase
+    const { data: topCities, error: topCitiesError } = await supabaseAdmin
       .rpc('get_top_cities_for_equipment', {
         p_equipment: equipment.toUpperCase(),
         p_position_type: type,
@@ -166,7 +166,7 @@ async function getLaneIntelligence(req, res, supabaseAdmin) {
     if (topCitiesError) throw topCitiesError;
 
     // Get recent performance trends
-    const { data: recentPerformance, error: recentError } = await adminSupabase
+    const { data: recentPerformance, error: recentError } = await supabaseAdmin
       .from('lane_performance')
       .select(`
         equipment_code,

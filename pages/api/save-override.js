@@ -28,7 +28,7 @@ export default async function handler(req, res) {
       distance_miles: Number.isFinite(distanceMiles) ? Math.round(distanceMiles) : null,
     };
 
-    const { data, error } = await adminSupabase
+    const { data, error } = await supabaseAdmin
       .from('pairing_overrides')
       .upsert(payload, { onConflict: 'lane_id,type,user_id' })
       .select('*')

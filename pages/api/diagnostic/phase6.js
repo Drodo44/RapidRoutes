@@ -36,7 +36,7 @@ export default async function handler(req, res) {
         diagnostics.steps.push({ step: 1, name: 'Database Connection', status: 'testing' });
         
         try {
-            const { data: testQuery, error: testError } = await adminSupabase
+            const { data: testQuery, error: testError } = await supabaseAdmin
                 .from('lanes')
                 .select('count')
                 .limit(1);
@@ -54,7 +54,7 @@ export default async function handler(req, res) {
         diagnostics.steps.push({ step: 2, name: 'Lane Retrieval', status: 'testing' });
         
         try {
-            const { data: lanes, error: lanesError } = await adminSupabase
+            const { data: lanes, error: lanesError } = await supabaseAdmin
                 .from('lanes')
                 .select('*')
                 .eq('lane_status', 'pending')
@@ -78,7 +78,7 @@ export default async function handler(req, res) {
                 diagnostics.steps.push({ step: 3, name: 'City Database Lookup', status: 'testing' });
                 
                 try {
-                    const { data: cities, error: cityError } = await adminSupabase
+                    const { data: cities, error: cityError } = await supabaseAdmin
                         .from('cities')
                         .select('city, state_or_province, kma_code')
                         .ilike('city', `%${testLane.origin_city}%`)

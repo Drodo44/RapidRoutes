@@ -17,7 +17,7 @@ export default async function handler(req, res) {
     }
 
     // Fetch lanes data
-    const { data: lanes, error } = await adminSupabase
+    const { data: lanes, error } = await supabaseAdmin
       .from('lanes')
       .select('*')
       .in('id', laneIds);

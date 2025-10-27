@@ -5,6 +5,14 @@
 import { withErrorHandler } from '@/lib/apiErrorHandler';
 
 async function handler(req, res) {
+  let supabaseAdmin;
+  try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
+  } catch (importErr) {
+    console.error('[laneRecords] Failed to import admin client:', importErr);
+    return res.status(500).json({ ok: false, error: 'Server initialization failed' });
+  }
+
   const { status, limit } = req.query || {};
 
   const finalStatus = typeof status === 'string' ? status : 'current';
