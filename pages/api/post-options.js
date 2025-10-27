@@ -88,8 +88,8 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
   const lonMin = Math.min(originLon, destLon) - 2;
   const lonMax = Math.max(originLon, destLon) + 2;
   const { data: cities, error: cityErr } = await supabaseAdmin
-    .from("us_cities")
-    .select("id, city, state, latitude, longitude, zip3, kma_code")
+    .from("cities")
+    .select("id, city, state_or_province, latitude, longitude, zip, kma_code")
     .gte("latitude", latMin)
     .lte("latitude", latMax)
     .gte("longitude", lonMin)
@@ -99,15 +99,21 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
   const enriched = [];
   for (const c of cities) {
     let kma = c.kma_code;
-    if (!kma && c.zip3) {
+    // If no KMA code, try to look it up from zip (first 3 digits)
+    if (!kma && c.zip) {
+      const zip3 = c.zip.toString().substring(0, 3);
       const { data: zipRow } = await supabaseAdmin
         .from("zip3s")
         .select("kma_code")
-        .eq("zip3", c.zip3)
+        .eq("zip3", zip3)
         .maybeSingle();
       if (zipRow) kma = zipRow.kma_code;
     }
-    enriched.push({ ...c, kma_code: kma || 'UNK' });
+    enriched.push({ 
+      ...c, 
+      kma_code: kma || 'UNK',
+      state: c.state_or_province // Normalize state field name
+    });
   }
   const originOptions = enriched
     .map(c => ({ ...c, distance: haversine(originLat, originLon, c.latitude, c.longitude) }))
@@ -120,7 +126,7 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
   return {
     laneId,
     origin: { city: lane.origin_city, state: lane.origin_state, options: balancedOrigin },
-    destination: { city: lane.dest_city, state: lane.dest_state, options: balancedDest },
+    destination: { city: lane.destination_city, state: lane.destination_state, options: balancedDest },
     originOptions: balancedOrigin,
     destOptions: balancedDest
   };
