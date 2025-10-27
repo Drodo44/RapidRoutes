@@ -31,9 +31,12 @@ function isFunctionUpdater(
 }
 
 export function useLanes(options: UseLanesOptions = {}) {
+  // Stringify options to prevent infinite loops from object reference changes
+  const optionsStr = JSON.stringify(options);
   const initialFilters = useMemo(
     () => sanitizeLaneFilters({ ...DEFAULT_FILTERS, ...options }),
-    [options]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [optionsStr]
   );
 
   const [filters, setFiltersState] = useState(initialFilters);
