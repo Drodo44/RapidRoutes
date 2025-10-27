@@ -128,6 +128,7 @@ export function useLanes(options: UseLanesOptions = {}) {
   }, [initialFilters]);
 
   // Only fetch when filters actually change, not on every render
+  // Deploy trigger: 2025-10-27 18:18
   const prevFiltersRef = useRef<string>('');
   
   useEffect(() => {
