@@ -4,7 +4,7 @@ import '../styles/globals.css';   // Load AFTER so Tailwind respects variables
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
-import NavBar from '../components/Navbar.jsx';
+import NavBar from '../components/NavBar.jsx';
 import useKeyboardShortcuts from '../hooks/useKeyboardShortcuts';
 import Head from 'next/head';
 import ErrorBoundary from '../components/ErrorBoundary';
@@ -70,7 +70,7 @@ function AppContent({ Component, pageProps }) {
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
       </Head>
       
-      <div className="min-h-screen flex flex-col dark">
+      <div className="min-h-screen flex flex-col">
         {!loading && <NavBar />}
         
         {/* Loading indicator */}
