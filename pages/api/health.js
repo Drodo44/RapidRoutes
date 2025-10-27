@@ -64,11 +64,12 @@ async function checkExportHead(params = "") {
   }
 }
 
-export default async function handler(_req, res) {
-  const healthCheckId = `health_${Date.now()}`;
-  monitor.startOperation(healthCheckId, { type: 'system_health_check' });
+// pages/api/health.js
 
+export default async function handler(req, res) {
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     // Core system checks
     const [env, monitorStatus] = await Promise.all([
       checkEnv(),

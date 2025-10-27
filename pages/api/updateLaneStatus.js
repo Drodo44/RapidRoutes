@@ -1,6 +1,5 @@
 // pages/api/updateLaneStatus.js
 import { validateApiAuth } from '../../middleware/auth.unified';
-import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
   // Handle CORS preflight
@@ -12,6 +11,13 @@ export default async function handler(req, res) {
   // Validate authentication for all requests
   const auth = await validateApiAuth(req, res);
   if (!auth) return;
+
+  let supabaseAdmin;
+  try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
+  } catch (importErr) {
+    return res.status(500).json({ error: 'Admin client initialization failed' });
+  }
 
   try {
     if (req.method !== 'PUT') {

@@ -1,10 +1,9 @@
-import supabaseAdmin from "@/lib/supabaseAdmin";
-
-const supabase = supabaseAdmin;
-
 export default async function handler(req, res) {
+  let supabaseAdmin;
   try {
-    const { data: file, error: fileError } = await supabase
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
+
+    const { data: file, error: fileError } = await supabaseAdmin
       .storage
       .from('cities')
       .download('allCitiesCleaned.js');
@@ -17,7 +16,7 @@ export default async function handler(req, res) {
     const cleaned = text.replace('export default', '').trim();
     const cities = JSON.parse(cleaned);
 
-    const { error: insertError } = await supabase.from('cities').insert(cities);
+    const { error: insertError } = await supabaseAdmin.from('cities').insert(cities);
 
     if (insertError) {
       return res.status(500).json({ error: insertError.message });

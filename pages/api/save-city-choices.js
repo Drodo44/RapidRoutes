@@ -1,14 +1,14 @@
 // pages/api/save-city-choices.js
 // Save broker's city selections to database
 
-import supabaseAdmin from "@/lib/supabaseAdmin";
-
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     const {
       lane_id,
       origin_city,

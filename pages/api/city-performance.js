@@ -1,10 +1,13 @@
 // pages/api/city-performance.js
 // Smart City Learning API - Track coverage success by city and method
 
-import supabaseAdmin from "@/lib/supabaseAdmin";
-
 export default async function handler(req, res) {
-  const supabase = supabaseAdmin;
+  let supabaseAdmin;
+  try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
+  } catch (importErr) {
+    return res.status(500).json({ error: 'Admin client initialization failed' });
+  }
 
   if (req.method === 'POST') {
     // Record a coverage event
@@ -22,7 +25,7 @@ export default async function handler(req, res) {
       }
 
       // Upsert city performance record
-      const { data: existing, error: fetchError } = await supabase
+      const { data: existing, error: fetchError } = await supabaseAdmin
         .from('city_performance')
         .select('*')
         .eq('city', city)
@@ -41,7 +44,7 @@ export default async function handler(req, res) {
         // Auto-star if >= 5 IBCs or >= 10 total
         const isStarred = newIBC >= 5 || newTotal >= 10;
 
-        const { data, error } = await supabase
+        const { data, error } = await supabaseAdmin
           .from('city_performance')
           .update({
             kma: kma || existing.kma,
@@ -64,7 +67,7 @@ export default async function handler(req, res) {
         // Insert new record
         const isStarred = coverageSource === 'IBC' ? false : false; // Will be starred after 5 IBCs
 
-        const { data, error } = await supabase
+        const { data, error } = await supabaseAdmin
           .from('city_performance')
           .insert({
             city,
@@ -86,7 +89,7 @@ export default async function handler(req, res) {
 
       // Update the lane record with coverage info
       if (rrNumber) {
-        const { error: laneError } = await supabase
+        const { error: laneError } = await supabaseAdmin
           .from('lanes')
           .update({
             lane_status: 'covered',
@@ -102,7 +105,7 @@ export default async function handler(req, res) {
 
       // If laneGroupId provided, mark all lanes in group as covered
       if (laneGroupId) {
-        const { error: groupError } = await supabase
+        const { error: groupError } = await supabaseAdmin
           .from('lanes')
           .update({
             lane_status: 'covered',
@@ -129,12 +132,10 @@ export default async function handler(req, res) {
 
   if (req.method === 'GET') {
     // Get starred cities or all city performance data
-    try {
+      try {
       const { starred, city, state } = req.query;
 
-      let query = supabase.from('city_performance').select('*');
-
-      if (starred === 'true') {
+      let query = supabaseAdmin.from('city_performance').select('*');      if (starred === 'true') {
         query = query.eq('is_starred', true);
       }
 

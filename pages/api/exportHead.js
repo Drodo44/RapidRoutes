@@ -1,11 +1,11 @@
 // pages/api/exportHead.js
-import supabaseAdmin from "@/lib/supabaseAdmin";
-
-const supabase = supabaseAdmin;
 
 export default async function handler(req, res) {
+  let supabaseAdmin;
   try {
-    const { data, error } = await supabase
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
+
+    const { data, error } = await supabaseAdmin
       .from('lanes')
       .select('id, origin_city, dest_city, origin_kma, dest_kma, date')
       .order('created_at', { ascending: false })

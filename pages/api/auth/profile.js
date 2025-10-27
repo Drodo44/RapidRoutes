@@ -1,13 +1,14 @@
 // pages/api/auth/profile.js
 // User profile API endpoint with proper singleton pattern
-import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     const supabase = supabaseAdmin;
     
     // Get the user's session from the request

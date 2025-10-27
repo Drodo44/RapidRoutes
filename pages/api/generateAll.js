@@ -3,9 +3,6 @@
 // Returns a unified list consumable by posting / option generation workflows.
 // Use alias-based imports for enterprise consistency (@ maps to project root)
 import { resolveCoords } from '@/lib/resolve-coords';
-import { buildCsvBuffer, exportDatCsv } from '../../lib/datCsvBuilder';
-import { validateApiAuth } from '../../middleware/auth.unified';
-import { assertApiAuth, isInternalBypass } from '@/lib/auth';
 import { fetchLaneRecords } from '@/services/laneService.js';
 
 export default async function handler(req, res) {

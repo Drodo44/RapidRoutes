@@ -1,10 +1,12 @@
 // Quick check if our lane cities exist in database after deduplication
-import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
+
     // Get actual lane cities from our database
-    const { data: lanes } = await supabase
+    const { data: lanes } = await supabaseAdmin
       .from('lanes')
       .select('origin_city, origin_state, dest_city, dest_state')
       .limit(5);

@@ -1,11 +1,12 @@
 // pages/api/calculateDistance.js
 // API endpoint for calculating real distances between cities
 
-import supabaseAdmin from "@/lib/supabaseAdmin";
 import { distanceInMiles } from '../../lib/haversine.js';
 
 export default async function handler(req, res) {
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     const { city1, state1, city2, state2 } = req.query;
     
     if (!city1 || !state1 || !city2 || !state2) {
@@ -14,13 +15,13 @@ export default async function handler(req, res) {
 
     // Get coordinates for both cities
     const [coord1Response, coord2Response] = await Promise.all([
-      supabase
+      supabaseAdmin
         .from('cities')
         .select('latitude, longitude')
         .eq('city', city1)
         .eq('state_or_province', state1)
         .single(),
-      supabase
+      supabaseAdmin
         .from('cities')
         .select('latitude, longitude')
         .eq('city', city2)

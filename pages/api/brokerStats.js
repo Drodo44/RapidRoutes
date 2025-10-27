@@ -1,4 +1,3 @@
-import supabaseAdmin from "@/lib/supabaseAdmin";
 import { assertApiAuth, isInternalBypass } from '@/lib/auth';
 import { validateApiAuth } from '../../middleware/auth.unified';
 
@@ -7,7 +6,9 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     try {
       assertApiAuth(req);
     } catch (error) {

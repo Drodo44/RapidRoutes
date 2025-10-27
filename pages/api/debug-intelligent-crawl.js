@@ -1,8 +1,9 @@
 // pages/api/debug-intelligent-crawl.js
-import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     // Initialize Supabase client
     const supabase = supabaseAdmin;
 

@@ -1,11 +1,11 @@
 // Check lanes in database
-import supabaseAdmin from "@/lib/supabaseAdmin";
-
-const supabase = supabaseAdmin;
 
 export default async function handler(req, res) {
+  let supabaseAdmin;
   try {
-    const { data: lanes, error } = await supabase
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
+
+    const { data: lanes, error } = await supabaseAdmin
       .from('lanes')
       .select('*')
       .eq('lane_status', 'current')

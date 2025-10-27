@@ -1,21 +1,26 @@
 // pages/api/lane-performance.js
-// pages/api/lane-performance.js
-// Track intelligent lane posting performance for continuous learning
+// Track performance metrics for active lanes (IBC coverage and successful postings)
 
-import supabaseAdmin from "@/lib/supabaseAdmin";
+import { createHash } from 'crypto';
 
 export default async function handler(req, res) {
+  let supabaseAdmin;
+  try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
+  } catch (importErr) {
+    return res.status(500).json({ error: 'Admin client initialization failed' });
+  }
+
   if (req.method === 'POST') {
-    return trackLanePerformance(req, res);
+    return trackLanePerformance(req, res, supabaseAdmin);
   } else if (req.method === 'GET') {
-    return getLaneIntelligence(req, res);
+    return getLaneRecommendations(req, res, supabaseAdmin);
   } else {
-    res.setHeader('Allow', ['POST', 'GET']);
     return res.status(405).json({ error: 'Method not allowed' });
   }
 }
 
-async function trackLanePerformance(req, res) {
+async function trackLanePerformance(req, res, supabaseAdmin) {
   try {
     const {
       lane_id,
@@ -48,7 +53,7 @@ async function trackLanePerformance(req, res) {
         intelligence_metadata: intelligence_metadata || {}
       };
 
-      const { data: rpcData, error: rpcError } = await adminSupabase.rpc('create_lane_performance_with_crawls', { p_lane: payload });
+      const { data: rpcData, error: rpcError } = await supabaseAdmin.rpc('create_lane_performance_with_crawls', { p_lane: payload });
       if (rpcError) throw rpcError;
       if (rpcData && rpcData.length > 0) {
         lanePerf = { id: rpcData[0].performance_id };
@@ -128,7 +133,7 @@ async function trackLanePerformance(req, res) {
     if (/relation .* does not exist|permission denied|table .* does not exist/i.test(errMsg)) {
       try {
         const queuePayload = { ...req.body, error: errMsg };
-        await adminSupabase.from('performance_queue').insert([{ payload: queuePayload }]);
+        await supabaseAdmin.from('performance_queue').insert([{ payload: queuePayload }]);
         return res.status(202).json({ accepted: true, queued: true });
       } catch (qErr) {
         console.error('Failed to enqueue performance payload:', qErr);
@@ -142,7 +147,7 @@ async function trackLanePerformance(req, res) {
   }
 }
 
-async function getLaneIntelligence(req, res) {
+async function getLaneIntelligence(req, res, supabaseAdmin) {
   try {
     const { equipment, city, state, type = 'pickup' } = req.query;
 

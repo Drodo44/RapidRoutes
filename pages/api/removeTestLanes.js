@@ -1,14 +1,14 @@
 // pages/api/removeTestLanes.js
 // Remove test lanes that contain "Test lane" in the comment field
 
-import supabaseAdmin from "@/lib/supabaseAdmin";
-
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     // Find and delete test lanes
     const { data: testLanes, error: findError } = await adminSupabase
       .from('lanes')

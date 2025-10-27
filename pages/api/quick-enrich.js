@@ -1,13 +1,14 @@
 // FAST city lookup from pre-computed database
 // Replaces slow real-time ST_Distance calculations
-import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     const { lanes } = req.body;
     
     if (!Array.isArray(lanes) || lanes.length === 0) {

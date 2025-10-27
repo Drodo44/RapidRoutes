@@ -1,7 +1,6 @@
 // pages/api/posted-pairs.js
 // Track generated RR numbers for search functionality
 
-import supabaseAdmin from "@/lib/supabaseAdmin";
 import { validateApiAuth } from '../../middleware/auth.unified';
 
 export default async function handler(req, res) {
@@ -9,16 +8,23 @@ export default async function handler(req, res) {
   const auth = await validateApiAuth(req, res);
   if (!auth) return;
 
+  let supabaseAdmin;
+  try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
+  } catch (importErr) {
+    return res.status(500).json({ error: 'Admin client initialization failed' });
+  }
+
   if (req.method === 'POST') {
-    return handleCreatePostedPairs(req, res, auth);
+    return handleCreatePostedPairs(req, res, auth, supabaseAdmin);
   } else if (req.method === 'GET') {
-    return handleSearchPostedPairs(req, res, auth);
+    return handleSearchPostedPairs(req, res, auth, supabaseAdmin);
   } else {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 }
 
-async function handleCreatePostedPairs(req, res, auth) {
+async function handleCreatePostedPairs(req, res, auth, supabaseAdmin) {
   try {
 
     const { lane_id, pairs } = req.body;
@@ -55,7 +61,7 @@ async function handleCreatePostedPairs(req, res, auth) {
   }
 }
 
-async function handleSearchPostedPairs(req, res, auth) {
+async function handleSearchPostedPairs(req, res, auth, supabaseAdmin) {
   try {
 
     const { reference_id } = req.query;

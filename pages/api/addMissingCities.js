@@ -1,14 +1,10 @@
 // pages/api/addMissingCities.js
-// Quick fix to add missing cities to database
-
-import supabaseAdmin from "@/lib/supabaseAdmin";
+// Identify and add missing cities from lanes into cities table
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     console.log('Adding missing cities to database...');
     
     const cities = [
@@ -36,7 +32,7 @@ export default async function handler(req, res) {
     
     for (const city of cities) {
       // Check if city already exists
-      const { data: existing } = await adminSupabase
+      const { data: existing } = await supabaseAdmin
         .from('cities')
         .select('id')
         .eq('city', city.city)
@@ -49,7 +45,7 @@ export default async function handler(req, res) {
         continue;
       }
       
-      const { data, error } = await adminSupabase
+      const { data, error } = await supabaseAdmin
         .from('cities')
         .insert(city)
         .select();

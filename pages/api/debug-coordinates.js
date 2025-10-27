@@ -1,10 +1,12 @@
 // Debug the core issue
-import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
+  let supabaseAdmin;
   try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
+
     // Check if Belvidere, IL exists and has coordinates
-    const { data: belvidere } = await adminSupabase
+    const { data: belvidere } = await supabaseAdmin
       .from('cities')
       .select('*')
       .ilike('city', 'Belvidere')
