@@ -43,6 +43,7 @@ const CityNotFoundModal = ({ isOpen, onClose, city, state, onCityAdded }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    e.stopPropagation(); // CRITICAL: Prevent bubbling to parent form
     setSubmitting(true);
     
     console.log('🏙️ [CityModal] Submitting city:', formData);
@@ -81,8 +82,19 @@ const CityNotFoundModal = ({ isOpen, onClose, city, state, onCityAdded }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4 border border-gray-700">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      onClick={(e) => {
+        // Close modal if clicking backdrop
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <div 
+        className="bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4 border border-gray-700"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-gray-100">City Not Found</h2>
           <button
