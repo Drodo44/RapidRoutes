@@ -185,11 +185,11 @@ export default async function handler(req, res) {
         // Always use destination_* fields for database consistency
         destination_city: destinationCity,
         destination_state: destinationState,
-        // Add coordinates from cities table
-        origin_latitude: originCity.latitude,
-        origin_longitude: originCity.longitude,
-        dest_latitude: destCityData.latitude,
-        dest_longitude: destCityData.longitude
+        // Add coordinates from cities table (may be null if city was manually added)
+        origin_latitude: originCity?.latitude || null,
+        origin_longitude: originCity?.longitude || null,
+        dest_latitude: destCityData?.latitude || null,
+        dest_longitude: destCityData?.longitude || null
       };
       
       // Detailed logging of the mapping process
