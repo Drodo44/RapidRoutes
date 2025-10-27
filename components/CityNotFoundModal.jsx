@@ -2,6 +2,7 @@
 // Modal for adding missing cities to the database
 
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 const CityNotFoundModal = ({ isOpen, onClose, city, state, onCityAdded }) => {
   const [formData, setFormData] = useState({
@@ -81,7 +82,7 @@ const CityNotFoundModal = ({ isOpen, onClose, city, state, onCityAdded }) => {
 
   if (!isOpen) return null;
 
-  return (
+  const modalContent = (
     <div 
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
       onClick={(e) => {
@@ -203,6 +204,11 @@ const CityNotFoundModal = ({ isOpen, onClose, city, state, onCityAdded }) => {
       </div>
     </div>
   );
+
+  // Use portal to render outside the parent form
+  return typeof document !== 'undefined' 
+    ? createPortal(modalContent, document.body)
+    : null;
 };
 
 export default CityNotFoundModal;
