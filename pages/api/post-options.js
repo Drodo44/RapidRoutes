@@ -74,13 +74,26 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
     .eq("id", laneId)
     .single();
   if (laneErr || !lane) {
+    console.error('[generateOptionsForLane] Lane fetch failed:', laneId, laneErr?.message);
     throw new Error('Lane not found');
   }
+  console.log('[generateOptionsForLane] Lane data:', { 
+    id: lane.id,
+    origin: `${lane.origin_city}, ${lane.origin_state}`,
+    dest: `${lane.destination_city || lane.dest_city}, ${lane.destination_state || lane.dest_state}`,
+    coords: { 
+      originLat: lane.origin_latitude, 
+      originLon: lane.origin_longitude, 
+      destLat: lane.dest_latitude, 
+      destLon: lane.dest_longitude 
+    }
+  });
   const originLat = lane.origin_latitude;
   const originLon = lane.origin_longitude;
   const destLat = lane.dest_latitude;
   const destLon = lane.dest_longitude;
   if (originLat == null || originLon == null || destLat == null || destLon == null) {
+    console.error('[generateOptionsForLane] Missing coordinates for lane:', laneId, { originLat, originLon, destLat, destLon });
     throw new Error('Lane missing coordinates');
   }
   const latMin = Math.min(originLat, destLat) - 2;
@@ -302,8 +315,10 @@ export default async function handler(req, res) {
     // --- Legacy Single-Lane Options Mode ------------------------------------
     try {
       const details = await generateOptionsForLane(laneId, supabaseAdmin);
+      console.log('[post-options] Generated options for lane:', laneId, 'Details:', JSON.stringify(details).substring(0, 200));
       return res.status(200).json({ ok: true, ...details });
     } catch (laneErr) {
+      console.error('[post-options] Error generating options for lane:', laneId, 'Error:', laneErr.message);
       return res.status(400).json({ ok: false, error: laneErr.message });
     }
   } catch (err) {
