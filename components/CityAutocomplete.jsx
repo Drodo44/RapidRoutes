@@ -21,17 +21,21 @@ export default function CityAutocomplete({ label, value, onChange, onPick }) {
     const t = setTimeout(async () => {
       try {
         setLoading(true);
+        console.log('🔍 [CityAutocomplete] Searching for:', v);
         const r = await fetch(`/api/cities?q=${encodeURIComponent(v)}`);
         const j = await r.json();
         if (!active) return;
         
         const results = Array.isArray(j) ? j : [];
+        console.log('🔍 [CityAutocomplete] Results:', results.length);
         setItems(results);
         
         // If no results found and input looks like "City, ST" format, show modal
         if (results.length === 0 && v.includes(',')) {
           const parts = v.split(',').map(p => p.trim());
+          console.log('🔍 [CityAutocomplete] No results, checking format:', parts);
           if (parts.length === 2 && parts[0] && parts[1].length === 2) {
+            console.log('🔍 [CityAutocomplete] Opening modal for:', parts[0], parts[1]);
             setModalCity(parts[0]);
             setModalState(parts[1].toUpperCase());
             setShowModal(true);
