@@ -1,4 +1,5 @@
 // services/laneIntelligence.js
+// Cache bust: 2025-10-27T19:40 - Force new bundle generation
 import { z } from 'zod';
 import supabase from '../utils/supabaseClient';
 import { safeGetCurrentToken } from '../lib/auth/safeAuth';
