@@ -6,9 +6,9 @@ const LANE_VIEW = 'rapidroutes_lane_view';
 export default async function handler(req, res) {
   let supabaseAdmin;
   try {
-    supabaseAdmin = (await import(\'@/lib/supabaseAdmin\')).default;
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
   } catch (importErr) {
-    return res.status(500).json({ error: \'Admin client initialization failed\' });
+    return res.status(500).json({ error: 'Admin client initialization failed' });
   }
 
   // Only allow GET requests

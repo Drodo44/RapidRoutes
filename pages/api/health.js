@@ -67,9 +67,7 @@ async function checkExportHead(params = "") {
 
 export default async function handler(req, res) {
   let supabaseAdmin;
-  let supabaseAdmin;
   try {
-    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     // Core system checks
     const [env, monitorStatus] = await Promise.all([

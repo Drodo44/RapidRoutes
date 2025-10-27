@@ -4,7 +4,7 @@
 export default async function handler(req, res) {
   let supabaseAdmin;
   try {
-    supabaseAdmin = (await import(\'@/lib/supabaseAdmin\')).default;
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     const { equipment } = req.query;
 
     const { data, error } = await supabaseAdmin
