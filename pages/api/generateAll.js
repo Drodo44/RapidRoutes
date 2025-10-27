@@ -2,7 +2,6 @@
 // Aggregate active core_pickups plus fallback pending lanes, enrich with coordinates/KMA.
 // Returns a unified list consumable by posting / option generation workflows.
 // Use alias-based imports for enterprise consistency (@ maps to project root)
-import supabaseAdmin from "@/lib/supabaseAdmin";
 import { resolveCoords } from '@/lib/resolve-coords';
 import { buildCsvBuffer, exportDatCsv } from '../../lib/datCsvBuilder';
 import { validateApiAuth } from '../../middleware/auth.unified';
@@ -17,6 +16,15 @@ export default async function handler(req, res) {
     console.log('[generateAll] Method not allowed:', req.method);
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // Lazy import admin client to avoid bundling in client
+  let supabaseAdmin;
+  try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
+  } catch (e) {
+    console.error('[generateAll] Admin client import failed:', e?.message || e);
+    return res.status(500).json({ error: 'Server configuration error: admin client unavailable' });
   }
 
   try {

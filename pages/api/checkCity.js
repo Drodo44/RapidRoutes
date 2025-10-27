@@ -1,7 +1,14 @@
 // Quick city checker
-import supabaseAdmin from "@/lib/supabaseAdmin";
-
 export default async function handler(req, res) {
+  // Lazy import admin client to avoid bundling in client
+  let supabaseAdmin;
+  try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
+  } catch (e) {
+    console.error('[checkCity] Admin client import failed:', e?.message || e);
+    return res.status(500).json({ error: 'Server configuration error: admin client unavailable' });
+  }
+
   const { city, state } = req.query;
   
   try {

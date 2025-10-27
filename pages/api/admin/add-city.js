@@ -1,11 +1,18 @@
 // pages/api/admin/add-city.js
 // API endpoint for admin city additions
 
-import supabaseAdmin from "@/lib/supabaseAdmin";
-
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // Lazy import admin client to avoid bundling in client
+  let supabaseAdmin;
+  try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
+  } catch (e) {
+    console.error('[add-city] Admin client import failed:', e?.message || e);
+    return res.status(500).json({ error: 'Server configuration error: admin client unavailable' });
   }
 
   try {

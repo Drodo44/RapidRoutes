@@ -2,12 +2,20 @@
 // POST: Verify city and optionally update database
 
 import { verifyCityWithHERE } from '../../../lib/hereVerificationService.js';
-import supabaseAdmin from "@/lib/supabaseAdmin";
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // Lazy import admin client to avoid bundling in client
+  let supabaseAdmin;
+  try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
+  } catch (e) {
+    console.error('[verify-city] Admin client import failed:', e?.message || e);
+    return res.status(500).json({ error: 'Server configuration error: admin client unavailable' });
   }
 
   try {
