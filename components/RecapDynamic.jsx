@@ -12,6 +12,7 @@ export default function RecapDynamic({ lanes = [], onRefresh }) {
   const [collapsedLanes, setCollapsedLanes] = useState(new Set());
   const [coverageModalOpen, setCoverageModalOpen] = useState(false);
   const [selectedRRForCoverage, setSelectedRRForCoverage] = useState(null);
+  const [isDarkMode, setIsDarkMode] = useState(true);
   // Keep a consistent shape: Set of "City, ST" keys
   const [starredCities, setStarredCities] = useState(new Set());
   
@@ -276,7 +277,7 @@ export default function RecapDynamic({ lanes = [], onRefresh }) {
   };
 
   return (
-  <div className={'dark-mode'}>
+  <div className={isDarkMode ? 'dark-mode' : 'light-mode'}>
       {/* Sticky Header */}
       <div style={{
         position: 'sticky',
@@ -350,7 +351,28 @@ export default function RecapDynamic({ lanes = [], onRefresh }) {
           </select>
         </div>
 
-        {/* Dark/Light toggle removed: dark-only app */}
+        {/* Dark/Light Mode Toggle */}
+        <button
+          onClick={() => setIsDarkMode(!isDarkMode)}
+          style={{
+            padding: '10px 16px',
+            borderRadius: '8px',
+            border: '2px solid var(--border-color)',
+            backgroundColor: 'var(--input-bg)',
+            color: 'var(--text-primary)',
+            fontSize: '20px',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+          onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+          title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+        >
+          {isDarkMode ? '🌙' : '☀️'}
+        </button>
 
         {/* Export HTML Button */}
         <button

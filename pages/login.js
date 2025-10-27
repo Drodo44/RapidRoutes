@@ -45,7 +45,7 @@ export default function LoginPage() {
         <div style={{ textAlign: 'center', marginBottom: 'var(--space-8)' }}>
           <div style={{ marginBottom: 'var(--space-4)' }}>
             <img 
-              src="/rapidroutes-logo.png" 
+              src="/logo.png" 
               alt="RapidRoutes logo" 
               className="mx-auto mb-8 h-40 w-40 rounded-full ring-2 ring-cyan-400 drop-shadow-lg transition-transform duration-300 hover:scale-105"
               style={{

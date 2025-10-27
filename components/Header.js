@@ -20,19 +20,19 @@ export default function Header() {
           
           <nav className="ml-8 hidden md:flex space-x-6">
             <Link href="/dashboard">
-              <span className={`${isActive('/dashboard')} cursor-pointer text-sm font-medium`}>Dashboard</span>
+              <span className={`${isActive('/dashboard')} cursor-pointer text-sm font-medium`}>📊 Dashboard</span>
             </Link>
             <Link href="/lanes">
-              <span className={`${isActive('/lanes')} cursor-pointer text-sm font-medium`}>Lanes</span>
+              <span className={`${isActive('/lanes')} cursor-pointer text-sm font-medium`}>🛣️ Lanes</span>
             </Link>
             <Link href="/post-options">
-              <span className={`${isActive('/post-options')} cursor-pointer text-sm font-medium`}>Post Options</span>
+              <span className={`${isActive('/post-options')} cursor-pointer text-sm font-medium`}>📮 Post Options</span>
             </Link>
             <Link href="/">
-              <span className={`${isActive('/')} cursor-pointer text-sm font-medium`}>Analytics</span>
+              <span className={`${isActive('/')} cursor-pointer text-sm font-medium`}>📈 Analytics</span>
             </Link>
             <Link href="/tools">
-              <span className={`${isActive('/tools')} cursor-pointer text-sm font-medium`}>Tools</span>
+              <span className={`${isActive('/tools')} cursor-pointer text-sm font-medium`}>🔧 Tools</span>
             </Link>
           </nav>
         </div>
