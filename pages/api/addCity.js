@@ -1,11 +1,29 @@
 // pages/api/addCity.js
 // API endpoint to add a new city to the database
+import { resolveCoords } from '@/lib/resolve-coords';
 
 const HERE_API_KEY = process.env.HERE_API_KEY;
 
 async function geocodeCity(city, state, zip) {
+  // First try to resolve coords from ZIP using internal database
+  if (zip) {
+    console.log(`[addCity] Attempting to resolve coordinates from ZIP: ${zip}`);
+    const zipCoords = await resolveCoords(zip);
+    if (zipCoords && zipCoords.latitude && zipCoords.longitude) {
+      console.log(`✅ Resolved ${city}, ${state} from ZIP ${zip}: ${zipCoords.latitude}, ${zipCoords.longitude}`);
+      return { 
+        latitude: zipCoords.latitude, 
+        longitude: zipCoords.longitude,
+        kma_code: zipCoords.kma_code,
+        kma_name: zipCoords.kma_name
+      };
+    }
+    console.warn(`[addCity] No coordinates found in zip3_kma_geo for ZIP: ${zip}`);
+  }
+
+  // Fallback to HERE API if available
   if (!HERE_API_KEY) {
-    console.warn('[addCity] HERE_API_KEY not configured, skipping geocoding');
+    console.warn('[addCity] HERE_API_KEY not configured, cannot geocode further');
     return { latitude: null, longitude: null };
   }
 
@@ -26,14 +44,14 @@ async function geocodeCity(city, state, zip) {
     const position = data.items?.[0]?.position;
     
     if (position?.lat && position?.lng) {
-      console.log(`✅ Geocoded ${city}, ${state}: ${position.lat}, ${position.lng}`);
+      console.log(`✅ Geocoded ${city}, ${state} via HERE API: ${position.lat}, ${position.lng}`);
       return { 
         latitude: position.lat, 
         longitude: position.lng 
       };
     }
     
-    console.warn('[addCity] No coordinates found for:', query);
+    console.warn('[addCity] No coordinates found via HERE API for:', query);
     return { latitude: null, longitude: null };
   } catch (error) {
     console.error('[addCity] Geocoding error:', error);
@@ -100,7 +118,12 @@ export default async function handler(req, res) {
     }
 
     // Geocode the city to get coordinates
-    const { latitude, longitude } = await geocodeCity(city.trim(), state.toUpperCase(), zip);
+    const coordsResult = await geocodeCity(city.trim(), state.toUpperCase(), zip);
+    const { latitude, longitude, kma_code: zipKmaCode, kma_name: zipKmaName } = coordsResult;
+
+    // Use KMA from ZIP lookup if available, otherwise use the provided kmaCode
+    const finalKmaCode = zipKmaCode || kmaCode;
+    const finalKmaName = zipKmaName || kmaName;
 
     // Add the new city
     const { data: newCity, error: insertError } = await supabaseAdmin
@@ -110,8 +133,8 @@ export default async function handler(req, res) {
           city: city.trim(),
           state_or_province: state.toUpperCase(),
           zip: zip ? zip.trim() : null,
-          kma_code: kmaCode,
-          kma_name: kmaName,
+          kma_code: finalKmaCode,
+          kma_name: finalKmaName,
           latitude: latitude,
           longitude: longitude
         }
@@ -124,7 +147,7 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Failed to add city to database' });
     }
 
-    console.log(`✅ Successfully added city: ${city}, ${state} (${kmaCode}) with coords: ${latitude}, ${longitude}`);
+    console.log(`✅ Successfully added city: ${city}, ${state} (${finalKmaCode}) with coords: ${latitude}, ${longitude}`);
 
     res.status(201).json({
       message: 'City added successfully',

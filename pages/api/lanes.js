@@ -140,7 +140,7 @@ export default async function handler(req, res) {
       // Look up coordinates from cities table
       const { data: originCity, error: originError } = await supabaseAdmin
         .from('cities')
-        .select('latitude, longitude')
+        .select('latitude, longitude, zip')
         .eq('city', payload.origin_city)
         .eq('state_or_province', payload.origin_state)
         .maybeSingle();
@@ -155,10 +155,32 @@ export default async function handler(req, res) {
           error: `Origin city not found: ${payload.origin_city}, ${payload.origin_state}. Please use a city from the database.`
         });
       }
+
+      // If origin city has no coordinates, try to resolve from ZIP
+      let originLat = originCity.latitude;
+      let originLon = originCity.longitude;
+      if ((!originLat || !originLon) && (payload.origin_zip5 || payload.origin_zip || originCity.zip)) {
+        console.log(`[lanes] Origin city missing coords, attempting ZIP lookup for ${payload.origin_city}`);
+        const { resolveCoords } = await import('@/lib/resolve-coords');
+        const zip = payload.origin_zip5 || payload.origin_zip || originCity.zip;
+        const coordsResult = await resolveCoords(zip);
+        if (coordsResult && coordsResult.latitude && coordsResult.longitude) {
+          originLat = coordsResult.latitude;
+          originLon = coordsResult.longitude;
+          console.log(`✅ Resolved origin coords from ZIP ${zip}: ${originLat}, ${originLon}`);
+          
+          // Update the city record with the resolved coordinates
+          await supabaseAdmin
+            .from('cities')
+            .update({ latitude: originLat, longitude: originLon })
+            .eq('city', payload.origin_city)
+            .eq('state_or_province', payload.origin_state);
+        }
+      }
       
       const { data: destCityData, error: destError } = await supabaseAdmin
         .from('cities')
-        .select('latitude, longitude')
+        .select('latitude, longitude, zip')
         .eq('city', destinationCity)
         .eq('state_or_province', destinationState)
         .maybeSingle();
@@ -173,6 +195,41 @@ export default async function handler(req, res) {
           error: `Destination city not found: ${destinationCity}, ${destinationState}. Please use a city from the database.`
         });
       }
+
+      // If destination city has no coordinates, try to resolve from ZIP
+      let destLat = destCityData.latitude;
+      let destLon = destCityData.longitude;
+      if ((!destLat || !destLon) && (payload.dest_zip5 || payload.dest_zip || destCityData.zip)) {
+        console.log(`[lanes] Destination city missing coords, attempting ZIP lookup for ${destinationCity}`);
+        const { resolveCoords } = await import('@/lib/resolve-coords');
+        const zip = payload.dest_zip5 || payload.dest_zip || destCityData.zip;
+        const coordsResult = await resolveCoords(zip);
+        if (coordsResult && coordsResult.latitude && coordsResult.longitude) {
+          destLat = coordsResult.latitude;
+          destLon = coordsResult.longitude;
+          console.log(`✅ Resolved destination coords from ZIP ${zip}: ${destLat}, ${destLon}`);
+          
+          // Update the city record with the resolved coordinates
+          await supabaseAdmin
+            .from('cities')
+            .update({ latitude: destLat, longitude: destLon })
+            .eq('city', destinationCity)
+            .eq('state_or_province', destinationState);
+        }
+      }
+
+      // Validate that we have coordinates
+      if (!originLat || !originLon) {
+        return res.status(400).json({
+          error: `Unable to determine coordinates for origin city: ${payload.origin_city}, ${payload.origin_state}. Please provide a valid ZIP code.`
+        });
+      }
+      
+      if (!destLat || !destLon) {
+        return res.status(400).json({
+          error: `Unable to determine coordinates for destination city: ${destinationCity}, ${destinationState}. Please provide a valid ZIP code.`
+        });
+      }
       
       // Create the final lane object with standardized fields only
       const lane = {
@@ -185,11 +242,11 @@ export default async function handler(req, res) {
         // Always use destination_* fields for database consistency
         destination_city: destinationCity,
         destination_state: destinationState,
-        // Add coordinates from cities table (may be null if city was manually added)
-        origin_latitude: originCity?.latitude || null,
-        origin_longitude: originCity?.longitude || null,
-        dest_latitude: destCityData?.latitude || null,
-        dest_longitude: destCityData?.longitude || null
+        // Add coordinates (resolved from cities table or ZIP lookup)
+        origin_latitude: originLat,
+        origin_longitude: originLon,
+        dest_latitude: destLat,
+        dest_longitude: destLon
       };
       
       // Detailed logging of the mapping process
