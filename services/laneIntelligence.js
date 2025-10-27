@@ -216,13 +216,14 @@ export function prepareOptionsPayload(lane) {
     }
     
     // Extract the required fields from the lane and ensure consistent naming
+    // Priority: destination_city over dest_city (dest_city might be null in database)
     const payload = {
       laneId: lane.id,
       originCity: lane.origin_city || '',
       originState: lane.origin_state || '',
-      destinationCity: lane.destination_city || lane.dest_city || '',
-      destinationState: lane.destination_state || lane.dest_state || '',
-      equipmentCode: lane.equipment_code || '',
+      destinationCity: lane.destination_city || lane.destinationCity || lane.dest_city || '',
+      destinationState: lane.destination_state || lane.destinationState || lane.dest_state || '',
+      equipmentCode: lane.equipment_code || lane.equipment || '',
     };
     
     // Additional validation to ensure no empty strings
