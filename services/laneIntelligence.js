@@ -316,9 +316,10 @@ export async function submitOptions(lane, accessToken = null) {
     logMessage(`Submitting options with payload:`, formattedPayload, LOG_LEVELS.DEBUG);
     
     // Make API call to generate options with deduplication protection
-    let fetchResult;
+    let response;
     try {
-      fetchResult = await dedupeFetch(
+      // dedupeFetch returns the Response object directly
+      response = await dedupeFetch(
         '/api/post-options', 
         {
           method: 'POST',
@@ -327,30 +328,14 @@ export async function submitOptions(lane, accessToken = null) {
             'Authorization': `Bearer ${token}`,
           },
           body: JSON.stringify(formattedPayload),
-        },
-        fetchId, // Unique identifier for this fetch
-        30000,   // 30 second timeout
-        `lane-${lane.id}` // Cache key for deduplication
+        }
       );
     } catch (fetchError) {
       logMessage(`Network error calling /api/post-options: ${fetchError.message}`, null, LOG_LEVELS.ERROR);
       return { success: false, error: `Network error: ${fetchError.message}` };
     }
     
-    // Check if we got a cached response or an error from dedupeFetch
-    if (fetchResult?.cached) {
-      logMessage(`Using cached options result for lane ${lane.id}`, null, LOG_LEVELS.INFO);
-      return fetchResult.data;
-    }
-    
-    if (fetchResult?.error) {
-      logMessage(`Fetch error: ${fetchResult.error}`, null, LOG_LEVELS.ERROR);
-      return { success: false, error: fetchResult.error };
-    }
-    
-    // Process the real response - add null check
-    const response = fetchResult?.response;
-    
+    // Check if we got a valid response
     if (!response) {
       logMessage(`[LANE-INTELLIGENCE] Bad response: Undefined response from API`, null, LOG_LEVELS.ERROR);
       return { success: false, error: 'Undefined response from API' };
