@@ -25,6 +25,8 @@ function generatePairReferenceId(baseRefId, pairIndex) {
 function matches(q, l) {
   if (!q) return true;
   
+  const searchTerm = q.toUpperCase().trim();
+  
   // Check base reference ID using unified logic
   if (matchesReferenceId(q, l)) {
     return true;
@@ -36,17 +38,23 @@ function matches(q, l) {
     const numPairs = Math.min(l.saved_origin_cities.length, l.saved_dest_cities.length);
     
     // Check if search matches any of the pair RR#s
-    const searchTerm = q.toUpperCase().trim();
     for (let i = 0; i < numPairs; i++) {
       const pairRR = generatePairReferenceId(baseRefId, i);
-      if (pairRR.toUpperCase().includes(searchTerm)) {
+      if (pairRR && pairRR.toUpperCase().includes(searchTerm)) {
         return true;
       }
+    }
+    
+    // Also check saved city names
+    const savedOrigins = l.saved_origin_cities.map(c => `${c.city}, ${c.state || c.state_or_province}`.toLowerCase()).join(' ');
+    const savedDests = l.saved_dest_cities.map(c => `${c.city}, ${c.state || c.state_or_province}`.toLowerCase()).join(' ');
+    if (savedOrigins.includes(searchTerm.toLowerCase()) || savedDests.includes(searchTerm.toLowerCase())) {
+      return true;
     }
   }
   
   // Check origin/destination cities and states
-  const s = q.toLowerCase().trim();
+  const s = searchTerm.toLowerCase();
   const origin = `${l.origin_city || ''}, ${l.origin_state || ''}`.toLowerCase();
   const dest = `${l.dest_city || ''}, ${l.dest_state || ''}`.toLowerCase();
   const equipment = String(l.equipment_code || '').toLowerCase();
@@ -308,7 +316,7 @@ export default function RecapPage() {
   const [postedPairs, setPostedPairs] = useState([]); // Store all generated pairs for dropdown
   const [selectedLaneId, setSelectedLaneId] = useState(''); // For dropdown snap-to functionality
   const [isGeneratingCSV, setIsGeneratingCSV] = useState(false);
-  const [viewMode, setViewMode] = useState('dynamic'); // 'classic' or 'dynamic'
+  const [viewMode, setViewMode] = useState('classic'); // 'classic' or 'dynamic' - default to classic for saved city selections
   
   // Generate CSV for all visible lanes (active or posted)
   async function generateCSV() {
@@ -663,11 +671,37 @@ export default function RecapPage() {
                 style={{ width: 'auto', minWidth: '200px', fontSize: '12px', padding: '6px 8px' }}
               >
                 <option value="">Jump to Lane...</option>
-                {filtered.map(lane => (
-                  <option key={lane.id} value={lane.id}>
-                    {getDisplayReferenceId(lane)} • {lane.origin_city || '?'}, {lane.origin_state || '?'} → {lane.dest_city || lane.destination_city || '?'}, {lane.dest_state || lane.destination_state || '?'}
-                  </option>
-                ))}
+                {filtered.flatMap(lane => {
+                  const baseRefId = getDisplayReferenceId(lane);
+                  const hasSavedChoices = lane.saved_origin_cities?.length > 0 && lane.saved_dest_cities?.length > 0;
+                  
+                  if (!hasSavedChoices) {
+                    // No saved choices, show original lane only
+                    return [(
+                      <option key={lane.id} value={lane.id}>
+                        {baseRefId} • {lane.origin_city || '?'}, {lane.origin_state || '?'} → {lane.dest_city || lane.destination_city || '?'}, {lane.dest_state || lane.destination_state || '?'}
+                      </option>
+                    )];
+                  }
+                  
+                  // Generate all pair options
+                  const numPairs = Math.min(lane.saved_origin_cities.length, lane.saved_dest_cities.length);
+                  const options = [];
+                  
+                  for (let i = 0; i < numPairs; i++) {
+                    const pairRR = generatePairReferenceId(baseRefId, i);
+                    const originCity = lane.saved_origin_cities[i];
+                    const destCity = lane.saved_dest_cities[i];
+                    
+                    options.push(
+                      <option key={`${lane.id}-pair-${i}`} value={lane.id}>
+                        {pairRR} • {originCity.city}, {originCity.state || originCity.state_or_province} → {destCity.city}, {destCity.state || destCity.state_or_province}
+                      </option>
+                    );
+                  }
+                  
+                  return options;
+                })}
               </select>
               
               {/* Search Input */}
