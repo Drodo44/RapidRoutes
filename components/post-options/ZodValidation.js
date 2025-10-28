@@ -176,7 +176,7 @@ export const OptionsResponseSchema = z.union([
       city: z.string(),
       state: z.string(),
       options: z.array(z.object({
-        id: z.string(),
+        id: z.union([z.string(), z.number()]).transform(val => String(val)),
         city: z.string(),
         state: z.string(),
         distance: z.number().or(z.string().transform(s => parseFloat(s))),
@@ -187,7 +187,7 @@ export const OptionsResponseSchema = z.union([
       city: z.string(),
       state: z.string(),
       options: z.array(z.object({
-        id: z.string(),
+        id: z.union([z.string(), z.number()]).transform(val => String(val)),
         city: z.string(),
         state: z.string(),
         distance: z.number().or(z.string().transform(s => parseFloat(s))),
