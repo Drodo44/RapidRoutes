@@ -182,6 +182,39 @@ export default function OptionsDisplay({ laneId, lane, originOptions = [], destO
     }
   };
 
+  const handleSmartSelect = () => {
+    // Select the best (closest) city from each KMA for both origins and destinations
+    const bestOriginIds = [];
+    const bestDestIds = [];
+    
+    // Get best origin from each KMA
+    Object.entries(originsByKMA).forEach(([kmaCode, cities]) => {
+      const bestCity = findBestCity(cities);
+      if (bestCity) {
+        bestOriginIds.push(`${bestCity.id}-${bestCity.city}-${bestCity.state}`);
+      }
+    });
+    
+    // Get best destination from each KMA
+    Object.entries(destsByKMA).forEach(([kmaCode, cities]) => {
+      const bestCity = findBestCity(cities);
+      if (bestCity) {
+        bestDestIds.push(`${bestCity.id}-${bestCity.city}-${bestCity.state}`);
+      }
+    });
+    
+    setSelectedOrigins(new Set(bestOriginIds));
+    setSelectedDestinations(new Set(bestDestIds));
+    
+    if (onSelectionChange) {
+      onSelectionChange({
+        laneId,
+        origins: bestOriginIds,
+        destinations: bestDestIds
+      });
+    }
+  };
+
   if (!originOptions.length && !destOptions.length) {
     return (
       <div className="text-center text-gray-400 py-8">
@@ -251,6 +284,27 @@ export default function OptionsDisplay({ laneId, lane, originOptions = [], destO
 
   return (
     <div>
+      {/* Smart Select Banner */}
+      <div className="mb-4 p-4 bg-gradient-to-r from-purple-900/30 to-blue-900/30 border border-purple-600/50 rounded-lg">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex-grow">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-lg">⚡</span>
+              <h4 className="font-semibold text-purple-300">Smart Pairing</h4>
+            </div>
+            <p className="text-sm text-gray-300">
+              Auto-select the <strong>best city from each KMA</strong> (closest to lane endpoints) for maximum market coverage
+            </p>
+          </div>
+          <button
+            onClick={handleSmartSelect}
+            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded font-medium transition-colors whitespace-nowrap"
+          >
+            ⚡ Smart Select Best Cities
+          </button>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
         {/* Origin Cities Panel */}
         <div className="bg-gray-900 border border-gray-700 rounded-lg p-4">
@@ -321,7 +375,7 @@ export default function OptionsDisplay({ laneId, lane, originOptions = [], destO
 
       {/* Action Buttons */}
       <div className="mt-6 p-4 bg-gray-800 border border-gray-700 rounded-lg">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <div className="text-sm text-gray-300">
             {hasSelections ? (
               <>
@@ -329,6 +383,9 @@ export default function OptionsDisplay({ laneId, lane, originOptions = [], destO
                 <span className="text-gray-500 ml-2">
                   ({selectedOrigins.size} pickup × {selectedDestinations.size} delivery)
                 </span>
+                <div className="text-xs text-gray-400 mt-1">
+                  {Object.keys(originsByKMA).length} pickup KMAs · {Object.keys(destsByKMA).length} delivery KMAs available
+                </div>
               </>
             ) : (
               <span className="text-gray-400">Select at least one pickup and one delivery city</span>
