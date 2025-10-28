@@ -51,7 +51,7 @@ export default function LaneList({ lanes = [], onGenerateOptions, loading = fals
           <div className="flex-grow">
             <div className="font-medium">
               {(lane?.origin_city || lane?.originCity || '—')}, {(lane?.origin_state || lane?.originState || '—')} 
-              → {(lane?.dest_city || lane?.destinationCity || '—')}, {(lane?.dest_state || lane?.destinationState || '—')}
+              → {(lane?.dest_city || lane?.destination_city || lane?.destinationCity || '—')}, {(lane?.dest_state || lane?.destination_state || lane?.destinationState || '—')}
             </div>
             <div className="text-sm text-gray-400 mt-1 flex flex-wrap gap-2">
               <span className="bg-gray-700 text-gray-300 px-2 py-0.5 rounded text-xs">
