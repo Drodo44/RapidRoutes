@@ -381,90 +381,163 @@ export default function RecapExport() {
               <h1 style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--text-primary)' }}>
                 RapidRoutes Posting Recap
               </h1>
-              <p className="text-sm text-gray-500">Generated on {formatDate()}</p>
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                Generated on {formatDate()}
+              </p>
             </div>
-            <div className="text-right">
-              <div className="font-bold">RapidRoutes Logistics</div>
-              <div className="text-sm text-gray-500">Enterprise Freight Solutions</div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>
+                RapidRoutes Logistics
+              </div>
+              <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                Enterprise Freight Solutions
+              </div>
             </div>
           </div>
         </div>
 
         {!loading && groups.map(([equip, arr]) => (
-          <section key={equip} className="mb-8">
-            <h2 className="text-lg font-semibold border-b border-gray-200 pb-1 mb-3">
+          <section key={equip} style={{ marginBottom: '32px' }}>
+            <h2 style={{
+              fontSize: '18px',
+              fontWeight: '600',
+              borderBottom: '1px solid var(--border-default)',
+              paddingBottom: '8px',
+              marginBottom: '12px',
+              color: 'var(--text-primary)'
+            }}>
               {equip === 'V' ? 'Dry Van' : 
                equip === 'R' ? 'Reefer' : 
                equip === 'F' || equip === 'FD' ? 'Flatbed' : 
                equip} Lanes
             </h2>
-            <div className="grid md:grid-cols-2 gap-4">
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))',
+              gap: '16px'
+            }}>
               {arr.map((lane) => {
                 const recap = recaps[lane.id];
-                const refId = `RR${String(lane.id).slice(-5)}`;
+                const baseRefId = getDisplayReferenceId(lane);
+                
+                // Generate pairs from saved cities
+                const hasSavedCities = lane.saved_origin_cities?.length > 0 && lane.saved_dest_cities?.length > 0;
+                const pairs = [];
+                
+                if (hasSavedCities) {
+                  const numPairs = Math.min(lane.saved_origin_cities.length, lane.saved_dest_cities.length);
+                  for (let i = 0; i < numPairs; i++) {
+                    const pairRefId = generatePairReferenceId(baseRefId, i);
+                    const originCity = lane.saved_origin_cities[i];
+                    const destCity = lane.saved_dest_cities[i];
+                    pairs.push({
+                      refId: pairRefId,
+                      pickup: originCity,
+                      delivery: destCity
+                    });
+                  }
+                }
+                
                 return (
                   <article 
                     key={lane.id} 
                     id={`lane-${lane.id}`}
-                    className="rounded-lg border border-gray-300 overflow-hidden print-break-inside-avoid"
+                    style={{
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-default)',
+                      overflow: 'hidden',
+                      breakInside: 'avoid',
+                      background: 'var(--surface)'
+                    }}
                   >
-                    <div className="bg-gray-100 p-3">
-                      <div className="flex items-center justify-between">
-                        <div className="font-medium text-lg">
+                    <div style={{ 
+                      background: 'var(--bg-secondary)', 
+                      padding: '12px' 
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ fontWeight: '500', fontSize: '16px', color: 'var(--text-primary)' }}>
                           {lane.origin_city || '?'}, {lane.origin_state || '?'} 
-                          <span className="text-gray-500 mx-2">→</span> 
-                          {lane.dest_city || '?'}, {lane.dest_state || '?'}
+                          <span style={{ color: 'var(--text-secondary)', margin: '0 8px' }}>→</span> 
+                          {lane.dest_city || lane.destination_city || '?'}, {lane.dest_state || lane.destination_state || '?'}
                         </div>
-                        <div className="text-sm font-mono text-gray-600 bg-white px-2 py-1 rounded">
-                          {refId}
+                        <div style={{ 
+                          fontSize: '12px', 
+                          fontFamily: 'monospace', 
+                          color: 'var(--text-secondary)',
+                          background: 'var(--surface)',
+                          padding: '4px 8px',
+                          borderRadius: '4px'
+                        }}>
+                          {baseRefId}
                         </div>
                       </div>
-                      <div className="text-xs text-gray-600 mt-1">
-                        <span className="font-medium">
+                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                        <span style={{ fontWeight: '500' }}>
                           {(lane.equipment_code || '?') === 'V' ? 'Dry Van' : 
                            (lane.equipment_code || '?') === 'R' ? 'Reefer' : 
                            (lane.equipment_code || '?') === 'F' || (lane.equipment_code || '?') === 'FD' ? 'Flatbed' : 
                            (lane.equipment_code || '?')} • {lane.length_ft || '?'}ft
                         </span>
-                        <span className="ml-2">
+                        <span style={{ marginLeft: '8px' }}>
                           {lane.randomize_weight 
                             ? `${lane.weight_min?.toLocaleString() || '?'}-${lane.weight_max?.toLocaleString() || '?'} lbs` 
                             : `${lane.weight_lbs?.toLocaleString() || '—'} lbs`}
                         </span>
-                        <span className="ml-2">Pickup: {lane.pickup_earliest || '?'} → {lane.pickup_latest || '?'}</span>
+                        <span style={{ marginLeft: '8px' }}>Pickup: {lane.pickup_earliest || '?'} → {lane.pickup_latest || '?'}</span>
                       </div>
                     </div>
                     
-                    <div className="p-3">
-                      {/* Show generated pairs for current lanes */}
-                      {(lane.lane_status || lane.status) === 'current' && postedPairs.filter(pair => pair.laneId === lane.id).length > 0 && (
-                        <div className="mb-3">
-                          <h4 className="text-sm font-medium text-gray-700 mb-1">Current Lanes ({postedPairs.filter(pair => pair.laneId === lane.id).length} total)</h4>
-                          <div className="space-y-1 max-h-32 overflow-y-auto">
-                            {postedPairs.filter(pair => pair.laneId === lane.id).slice(0, 12).map((pair, index) => (
-                              <div key={pair.id} className="text-xs text-gray-600 flex items-center justify-between">
-                                <div className="flex items-center flex-1">
-                                  <span className="text-blue-600 mr-2 min-w-[12px]">
-                                    {pair.isBase ? '🎯' : '📊'}
+                    <div style={{ padding: '12px' }}>
+                      {/* Show saved city pairs */}
+                      {pairs.length > 0 && (
+                        <div style={{ marginBottom: '12px' }}>
+                          <h4 style={{ 
+                            fontSize: '13px', 
+                            fontWeight: '500', 
+                            color: 'var(--text-primary)', 
+                            marginBottom: '8px' 
+                          }}>
+                            Current Lanes ({pairs.length} total)
+                          </h4>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '180px', overflowY: 'auto' }}>
+                            {pairs.slice(0, 15).map((pair, index) => (
+                              <div 
+                                key={pair.refId} 
+                                style={{ 
+                                  fontSize: '12px', 
+                                  color: 'var(--text-secondary)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between'
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+                                  <span style={{ color: 'var(--primary)', marginRight: '8px', minWidth: '16px' }}>
+                                    📍
                                   </span>
                                   <span>
-                                    <span className="font-medium">
-                                      {pair.isBase ? 'BASE' : `P${index}`}:
-                                    </span>
-                                    <span className="ml-1">
-                                      {pair.pickup.city}, {pair.pickup.state} → {pair.delivery.city}, {pair.delivery.state}
+                                    <span style={{ fontWeight: '500' }}>P{index + 1}:</span>
+                                    <span style={{ marginLeft: '6px' }}>
+                                      {pair.pickup.city}, {pair.pickup.state || pair.pickup.state_or_province} → {pair.delivery.city}, {pair.delivery.state || pair.delivery.state_or_province}
                                     </span>
                                   </span>
                                 </div>
-                                {/* Show reference ID for each pair */}
-                                <span className="text-xs font-mono bg-gray-200 px-1 rounded ml-2">
-                                  {pair.isBase ? cleanReferenceId(pair.referenceId) : pair.referenceId}
+                                <span style={{ 
+                                  fontSize: '11px', 
+                                  fontFamily: 'monospace',
+                                  background: 'var(--bg-tertiary)',
+                                  color: 'var(--text-secondary)',
+                                  padding: '2px 6px',
+                                  borderRadius: '3px',
+                                  marginLeft: '8px'
+                                }}>
+                                  {pair.refId}
                                 </span>
                               </div>
                             ))}
-                            {postedPairs.filter(pair => pair.laneId === lane.id).length > 12 && (
-                              <div className="text-xs text-gray-500 italic">
-                                ... and {postedPairs.filter(pair => pair.laneId === lane.id).length - 12} more pairs
+                            {pairs.length > 15 && (
+                              <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+                                ... and {pairs.length - 15} more pairs
                               </div>
                             )}
                           </div>
@@ -474,12 +547,19 @@ export default function RecapExport() {
                       {/* AI talking points (if available) */}
                       {recap && (
                         <>
-                          <div className="mb-3">
-                            <h4 className="text-sm font-medium text-gray-700 mb-1">AI Talking Points</h4>
-                            <ul className="space-y-1">
+                          <div style={{ marginBottom: '12px' }}>
+                            <h4 style={{ 
+                              fontSize: '13px', 
+                              fontWeight: '500', 
+                              color: 'var(--text-primary)', 
+                              marginBottom: '8px' 
+                            }}>
+                              AI Talking Points
+                            </h4>
+                            <ul style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                               {recap.bullets.map((bullet, i) => (
-                                <li key={i} className="text-sm text-gray-600 flex">
-                                  <span className="text-blue-600 mr-2">•</span>
+                                <li key={i} style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'flex' }}>
+                                  <span style={{ color: 'var(--primary)', marginRight: '8px' }}>•</span>
                                   <span>{bullet}</span>
                                 </li>
                               ))}
@@ -487,12 +567,19 @@ export default function RecapExport() {
                           </div>
 
                           {recap.risks && recap.risks.length > 0 && (
-                            <div className="mb-3">
-                              <h4 className="text-sm font-medium text-gray-700 mb-1">Risk Factors</h4>
-                              <ul className="space-y-1">
+                            <div style={{ marginBottom: '12px' }}>
+                              <h4 style={{ 
+                                fontSize: '13px', 
+                                fontWeight: '500', 
+                                color: 'var(--text-primary)', 
+                                marginBottom: '8px' 
+                              }}>
+                                Risk Factors
+                              </h4>
+                              <ul style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                 {recap.risks.map((risk, i) => (
-                                  <li key={i} className="text-sm text-gray-600 flex">
-                                    <span className="text-amber-600 mr-2">•</span>
+                                  <li key={i} style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'flex' }}>
+                                    <span style={{ color: 'var(--warning)', marginRight: '8px' }}>•</span>
                                     <span>{risk}</span>
                                   </li>
                                 ))}
@@ -501,12 +588,24 @@ export default function RecapExport() {
                           )}
 
                           {recap.price_hint && (
-                            <div className="mt-3 pt-2 border-t border-gray-200">
-                              <div className="text-xs text-gray-500">Estimated Rate Range</div>
-                              <div className="flex items-center justify-between mt-1">
-                                <span className="text-xs text-red-600">Low: ${recap.price_hint.low}/mi</span>
-                                <span className="text-xs text-green-600">Target: ${recap.price_hint.mid}/mi</span>
-                                <span className="text-xs text-blue-600">High: ${recap.price_hint.high}/mi</span>
+                            <div style={{ 
+                              marginTop: '12px', 
+                              paddingTop: '12px', 
+                              borderTop: '1px solid var(--border-default)' 
+                            }}>
+                              <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
+                                Estimated Rate Range
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '6px' }}>
+                                <span style={{ fontSize: '12px', color: 'var(--danger)' }}>
+                                  Low: ${recap.price_hint.low}/mi
+                                </span>
+                                <span style={{ fontSize: '12px', color: 'var(--success)' }}>
+                                  Target: ${recap.price_hint.mid}/mi
+                                </span>
+                                <span style={{ fontSize: '12px', color: 'var(--primary)' }}>
+                                  High: ${recap.price_hint.high}/mi
+                                </span>
                               </div>
                             </div>
                           )}
@@ -515,15 +614,21 @@ export default function RecapExport() {
                       
                       {/* Fallbacks when no data available */}
                       {!recap && (lane.lane_status || lane.status) !== 'current' && lane.comment && (
-                        <div className="text-sm text-gray-600">{lane.comment}</div>
+                        <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                          {lane.comment}
+                        </div>
                       )}
                       
                       {!recap && (lane.lane_status || lane.status) !== 'current' && !lane.comment && (
-                        <div className="text-sm text-gray-500 italic">Generate AI insights or use Post Options to see more details</div>
+                        <div style={{ fontSize: '13px', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+                          Generate AI insights or use Post Options to see more details
+                        </div>
                       )}
                       
                       {(lane.lane_status || lane.status) === 'current' && postedPairs.filter(pair => pair.laneId === lane.id).length === 0 && (
-                        <div className="text-sm text-gray-500 italic">Loading posted pairs...</div>
+                        <div style={{ fontSize: '13px', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+                          Loading posted pairs...
+                        </div>
                       )}
                     </div>
                   </article>
