@@ -49,8 +49,9 @@ export default function PostOptions() {
       setProcessing(false);
     };
     
-    // Call the options generator with our schema
-    await generateOptions(lane, onSuccess, onError, OptionsPayloadSchema);
+    // Call the options generator with our schema and RETURN the result
+    const result = await generateOptions(lane, onSuccess, onError, OptionsPayloadSchema);
+    return result;
   };
   
   // Create progress message ahead of time
