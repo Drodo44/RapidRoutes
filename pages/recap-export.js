@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 import supabase from '../utils/supabaseClient';
 import Head from 'next/head';
 import { getDisplayReferenceId, matchesReferenceId, cleanReferenceId } from '../lib/referenceIdUtils';
+import ThemeToggle from '../components/ThemeToggle';
 
 // Generate reference ID for generated pairs (same logic as CSV)
 function generatePairReferenceId(baseRefId, pairIndex) {
@@ -215,14 +216,26 @@ export default function RecapExport() {
         <title>Recap Export | RapidRoutes</title>
       </Head>
       
-      <div className="p-6 bg-white text-gray-800 min-h-screen">
+      <div style={{ 
+        padding: '24px', 
+        background: 'var(--bg-primary)', 
+        color: 'var(--text-primary)', 
+        minHeight: '100vh' 
+      }}>
         <div className="no-print mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold">RapidRoutes – Posting Recap</h1>
-            <p className="text-sm text-gray-500">Generated on {formatDate()}</p>
+            <h1 style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--text-primary)' }}>
+              RapidRoutes – Posting Recap
+            </h1>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+              Generated on {formatDate()}
+            </p>
           </div>
           
           <div className="flex gap-3 items-center">
+            {/* Theme Toggle */}
+            <ThemeToggle />
+            
             {/* Search Bar */}
             <div className="flex gap-2">
               <input
@@ -230,12 +243,24 @@ export default function RecapExport() {
                 placeholder="Search reference ID, city, equipment..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm w-64"
+                style={{
+                  padding: '8px 12px',
+                  border: '1px solid var(--border-default)',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  width: '256px',
+                  background: 'var(--surface)',
+                  color: 'var(--text-primary)'
+                }}
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="px-3 py-2 text-gray-500 hover:text-gray-700"
+                  style={{
+                    padding: '8px 12px',
+                    color: 'var(--text-secondary)',
+                    background: 'transparent'
+                  }}
                 >
                   Clear
                 </button>
@@ -263,7 +288,15 @@ export default function RecapExport() {
                   e.target.value = '';
                 }
               }}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm max-w-80"
+              style={{
+                padding: '8px 12px',
+                border: '1px solid var(--border-default)',
+                borderRadius: '8px',
+                fontSize: '13px',
+                maxWidth: '320px',
+                background: 'var(--surface)',
+                color: 'var(--text-primary)'
+              }}
             >
               <option value="">Jump to lane...</option>
               {/* Current lanes with their pairs */}
@@ -298,31 +331,56 @@ export default function RecapExport() {
               )}
             </select>
 
-            {aiLoading && <div className="text-sm text-gray-500">Loading AI insights...</div>}
+            {aiLoading && <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Loading AI insights...</div>}
             <button 
               onClick={printNow} 
-              className="rounded-lg bg-blue-600 text-white font-medium px-4 py-2 hover:bg-blue-700"
+              style={{
+                borderRadius: '8px',
+                background: 'var(--primary)',
+                color: 'white',
+                fontWeight: '500',
+                padding: '8px 16px',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'background 0.2s'
+              }}
+              onMouseEnter={(e) => e.target.style.background = 'var(--primary-hover)'}
+              onMouseLeave={(e) => e.target.style.background = 'var(--primary)'}
             >
               Print Document
             </button>
           </div>
         </div>
 
-        {loading && <div className="text-sm text-gray-400">Loading lanes...</div>}
+        {loading && <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Loading lanes...</div>}
 
         {/* Search Results Info */}
         {!loading && searchQuery && (
-          <div className="no-print mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="text-sm text-blue-700">
+          <div className="no-print mb-4" style={{
+            padding: '12px',
+            background: 'var(--primary-alpha)',
+            border: '1px solid var(--primary)',
+            borderRadius: '8px'
+          }}>
+            <div style={{ fontSize: '13px', color: 'var(--primary-text)' }}>
               Found {filteredLanes.length} lane{filteredLanes.length !== 1 ? 's' : ''} matching "{searchQuery}"
             </div>
           </div>
         )}
 
         <div className="print-header no-screen">
-          <div className="flex items-center justify-between border-b border-gray-300 pb-4 mb-6">
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'space-between',
+            borderBottom: '1px solid var(--border-default)',
+            paddingBottom: '16px',
+            marginBottom: '24px'
+          }}>
             <div>
-              <h1 className="text-xl font-bold">RapidRoutes Posting Recap</h1>
+              <h1 style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--text-primary)' }}>
+                RapidRoutes Posting Recap
+              </h1>
               <p className="text-sm text-gray-500">Generated on {formatDate()}</p>
             </div>
             <div className="text-right">

@@ -114,7 +114,7 @@ export default function App({ Component, pageProps }) {
 
   return (
     <ErrorBoundary>
-      <ThemeProvider attribute="class" defaultTheme="dark" forcedTheme="dark" enableSystem={false}>
+      <ThemeProvider attribute="data-theme" defaultTheme="dark" enableSystem={false}>
         <AuthProvider>
           {mounted ? (
             <AppContent Component={Component} pageProps={pageProps} />

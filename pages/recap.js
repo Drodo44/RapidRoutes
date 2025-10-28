@@ -677,11 +677,15 @@ export default function RecapPage() {
                   
                   if (!hasSavedChoices) {
                     // No saved choices, show original lane only
-                    return [(
-                      <option key={lane.id} value={lane.id}>
-                        {baseRefId} • {lane.origin_city || '?'}, {lane.origin_state || '?'} → {lane.dest_city || lane.destination_city || '?'}, {lane.dest_state || lane.destination_state || '?'}
-                      </option>
-                    )];
+                    return [{
+                      id: lane.id,
+                      laneId: lane.id,
+                      key: lane.id,
+                      refId: baseRefId,
+                      origin: `${lane.origin_city || '?'}, ${lane.origin_state || '?'}`,
+                      dest: `${lane.dest_city || lane.destination_city || '?'}, ${lane.dest_state || lane.destination_state || '?'}`,
+                      sortKey: `${lane.origin_city || '?'}, ${lane.origin_state || '?'} → ${lane.dest_city || lane.destination_city || '?'}, ${lane.dest_state || lane.destination_state || '?'}`
+                    }];
                   }
                   
                   // Generate all pair options
@@ -692,16 +696,26 @@ export default function RecapPage() {
                     const pairRR = generatePairReferenceId(baseRefId, i);
                     const originCity = lane.saved_origin_cities[i];
                     const destCity = lane.saved_dest_cities[i];
+                    const origin = `${originCity.city}, ${originCity.state || originCity.state_or_province}`;
+                    const dest = `${destCity.city}, ${destCity.state || destCity.state_or_province}`;
                     
-                    options.push(
-                      <option key={`${lane.id}-pair-${i}`} value={lane.id}>
-                        {pairRR} • {originCity.city}, {originCity.state || originCity.state_or_province} → {destCity.city}, {destCity.state || destCity.state_or_province}
-                      </option>
-                    );
+                    options.push({
+                      id: `${lane.id}-pair-${i}`,
+                      laneId: lane.id,
+                      key: `${lane.id}-pair-${i}`,
+                      refId: pairRR,
+                      origin,
+                      dest,
+                      sortKey: `${origin} → ${dest}`
+                    });
                   }
                   
                   return options;
-                })}
+                }).sort((a, b) => a.sortKey.localeCompare(b.sortKey)).map(opt => (
+                  <option key={opt.key} value={opt.laneId}>
+                    {opt.refId} • {opt.origin} → {opt.dest}
+                  </option>
+                ))}
               </select>
               
               {/* Search Input */}

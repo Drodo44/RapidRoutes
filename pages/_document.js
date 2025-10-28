@@ -3,21 +3,21 @@ import { Html, Head, Main, NextScript } from "next/document";
 
 export default function Document() {
   return (
-    <Html lang="en" className="dark">
+    <Html lang="en">
       <Head>
-        {/* Enforce dark mode */}
+        {/* Theme initialization - allow user preference */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
               try {
-                document.documentElement.classList.add('dark');
-                localStorage.setItem('theme', 'dark');
+                const theme = localStorage.getItem('theme') || 'dark';
+                document.documentElement.setAttribute('data-theme', theme);
               } catch (e) {}
             `,
           }}
         />
       </Head>
-      <body className="antialiased dark">
+      <body className="antialiased">
         <Main />
         <NextScript />
       </body>
