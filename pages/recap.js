@@ -25,9 +25,24 @@ function generatePairReferenceId(baseRefId, pairIndex) {
 function matches(q, l) {
   if (!q) return true;
   
-  // Check reference ID using unified logic
+  // Check base reference ID using unified logic
   if (matchesReferenceId(q, l)) {
     return true;
+  }
+  
+  // If lane has saved city selections, also check generated pair RR#s
+  if (l.saved_origin_cities?.length > 0 && l.saved_dest_cities?.length > 0) {
+    const baseRefId = getDisplayReferenceId(l);
+    const numPairs = Math.min(l.saved_origin_cities.length, l.saved_dest_cities.length);
+    
+    // Check if search matches any of the pair RR#s
+    const searchTerm = q.toUpperCase().trim();
+    for (let i = 0; i < numPairs; i++) {
+      const pairRR = generatePairReferenceId(baseRefId, i);
+      if (pairRR.toUpperCase().includes(searchTerm)) {
+        return true;
+      }
+    }
   }
   
   // Check origin/destination cities and states
@@ -605,6 +620,7 @@ export default function RecapPage() {
               View your selected city combinations and reference IDs for DAT posting
             </p>
           </div>
+          {/* Recap 2.0 button hidden - doesn't support saved city selections
           <button
             onClick={() => setViewMode('dynamic')}
             style={{
@@ -621,6 +637,7 @@ export default function RecapPage() {
           >
             ✨ Try Recap 2.0
           </button>
+          */}
         </div>
         
         {/* Search and Filter Bar */}
