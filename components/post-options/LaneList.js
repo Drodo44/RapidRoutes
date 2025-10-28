@@ -139,6 +139,7 @@ export default function LaneList({ lanes = [], onGenerateOptions, loading = fals
               <div className="border-t border-gray-700 p-4">
                 <OptionsDisplay
                   laneId={laneId}
+                  lane={lane}
                   originOptions={options.originOptions || []}
                   destOptions={options.destOptions || []}
                   onSelectionChange={(selections) => handleSelectionChange(laneId, selections)}

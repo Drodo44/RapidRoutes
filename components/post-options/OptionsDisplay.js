@@ -1,12 +1,13 @@
 // components/post-options/OptionsDisplay.js
 // Displays generated pickup/delivery options with selection checkboxes
 import React, { useState, useMemo } from 'react';
+import { generateDatCsvFromSelections, generateRecapFromSelections } from '../../lib/optionsExport';
 
 /**
  * Display component for lane options with selection capabilities
  * Shows origin and destination cities with KMAs, distances, and checkboxes
  */
-export default function OptionsDisplay({ laneId, originOptions = [], destOptions = [], onSelectionChange }) {
+export default function OptionsDisplay({ laneId, lane, originOptions = [], destOptions = [], onSelectionChange }) {
   const [selectedOrigins, setSelectedOrigins] = useState(new Set());
   const [selectedDestinations, setSelectedDestinations] = useState(new Set());
 
@@ -135,6 +136,52 @@ export default function OptionsDisplay({ laneId, originOptions = [], destOptions
     );
   };
 
+  const handleSelectAllOrigins = () => {
+    const allOriginIds = originOptions.map(city => `${city.id}-${city.city}-${city.state}`);
+    setSelectedOrigins(new Set(allOriginIds));
+    if (onSelectionChange) {
+      onSelectionChange({
+        laneId,
+        origins: allOriginIds,
+        destinations: Array.from(selectedDestinations)
+      });
+    }
+  };
+
+  const handleClearAllOrigins = () => {
+    setSelectedOrigins(new Set());
+    if (onSelectionChange) {
+      onSelectionChange({
+        laneId,
+        origins: [],
+        destinations: Array.from(selectedDestinations)
+      });
+    }
+  };
+
+  const handleSelectAllDestinations = () => {
+    const allDestIds = destOptions.map(city => `${city.id}-${city.city}-${city.state}`);
+    setSelectedDestinations(new Set(allDestIds));
+    if (onSelectionChange) {
+      onSelectionChange({
+        laneId,
+        origins: Array.from(selectedOrigins),
+        destinations: allDestIds
+      });
+    }
+  };
+
+  const handleClearAllDestinations = () => {
+    setSelectedDestinations(new Set());
+    if (onSelectionChange) {
+      onSelectionChange({
+        laneId,
+        origins: Array.from(selectedOrigins),
+        destinations: []
+      });
+    }
+  };
+
   if (!originOptions.length && !destOptions.length) {
     return (
       <div className="text-center text-gray-400 py-8">
@@ -143,43 +190,176 @@ export default function OptionsDisplay({ laneId, originOptions = [], destOptions
     );
   }
 
+  const totalCombinations = selectedOrigins.size * selectedDestinations.size;
+  const hasSelections = selectedOrigins.size > 0 && selectedDestinations.size > 0;
+
+  const handleGenerateCsv = () => {
+    if (!hasSelections || !lane) return;
+    
+    try {
+      const result = generateDatCsvFromSelections(
+        lane,
+        Array.from(selectedOrigins),
+        Array.from(selectedDestinations),
+        originOptions,
+        destOptions
+      );
+      
+      // Create and download CSV file
+      const blob = new Blob([result.csvText], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `DAT_${lane.origin_city}_to_${lane.destination_city || lane.dest_city}_${new Date().toISOString().split('T')[0]}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+      
+      alert(`✅ CSV generated!\n\n${result.combinations} lane combinations\n${result.totalRows} total rows (${result.rowsPerCombination} per combination)`);
+    } catch (error) {
+      console.error('Error generating CSV:', error);
+      alert(`❌ Error generating CSV: ${error.message}`);
+    }
+  };
+
+  const handleGenerateRecap = () => {
+    if (!hasSelections || !lane) return;
+    
+    try {
+      const html = generateRecapFromSelections(
+        lane,
+        Array.from(selectedOrigins),
+        Array.from(selectedDestinations),
+        originOptions,
+        destOptions
+      );
+      
+      // Create and download HTML file
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Recap_${lane.origin_city}_to_${lane.destination_city || lane.dest_city}_${new Date().toISOString().split('T')[0]}.html`;
+      link.click();
+      URL.revokeObjectURL(url);
+      
+      alert(`✅ Recap generated!\n\nOpen the downloaded HTML file to view your posting recap.`);
+    } catch (error) {
+      console.error('Error generating recap:', error);
+      alert(`❌ Error generating recap: ${error.message}`);
+    }
+  };
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
-      {/* Origin Cities Panel */}
-      <div className="bg-gray-900 border border-gray-700 rounded-lg p-4">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-100">
-            Pickup Cities ({originOptions.length})
-          </h3>
-          <div className="text-sm text-gray-400">
-            {selectedOrigins.size} selected
+    <div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
+        {/* Origin Cities Panel */}
+        <div className="bg-gray-900 border border-gray-700 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-100">
+              Pickup Cities ({originOptions.length})
+            </h3>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleSelectAllOrigins}
+                className="text-xs px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded"
+              >
+                Select All
+              </button>
+              <button
+                onClick={handleClearAllOrigins}
+                className="text-xs px-2 py-1 bg-gray-600 hover:bg-gray-500 text-white rounded"
+              >
+                Clear
+              </button>
+              <div className="text-sm text-gray-400 ml-2">
+                {selectedOrigins.size} selected
+              </div>
+            </div>
+          </div>
+          
+          <div className="max-h-[600px] overflow-y-auto space-y-2">
+            {Object.entries(originsByKMA)
+              .sort(([kmaA], [kmaB]) => kmaA.localeCompare(kmaB))
+              .map(([kmaCode, cities]) => renderKMAGroup(kmaCode, cities, true))
+            }
           </div>
         </div>
-        
-        <div className="max-h-[600px] overflow-y-auto space-y-2">
-          {Object.entries(originsByKMA)
-            .sort(([kmaA], [kmaB]) => kmaA.localeCompare(kmaB))
-            .map(([kmaCode, cities]) => renderKMAGroup(kmaCode, cities, true))
-          }
+
+        {/* Destination Cities Panel */}
+        <div className="bg-gray-900 border border-gray-700 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-100">
+              Delivery Cities ({destOptions.length})
+            </h3>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleSelectAllDestinations}
+                className="text-xs px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded"
+              >
+                Select All
+              </button>
+              <button
+                onClick={handleClearAllDestinations}
+                className="text-xs px-2 py-1 bg-gray-600 hover:bg-gray-500 text-white rounded"
+              >
+                Clear
+              </button>
+              <div className="text-sm text-gray-400 ml-2">
+                {selectedDestinations.size} selected
+              </div>
+            </div>
+          </div>
+          
+          <div className="max-h-[600px] overflow-y-auto space-y-2">
+            {Object.entries(destsByKMA)
+              .sort(([kmaA], [kmaB]) => kmaA.localeCompare(kmaB))
+              .map(([kmaCode, cities]) => renderKMAGroup(kmaCode, cities, false))
+            }
+          </div>
         </div>
       </div>
 
-      {/* Destination Cities Panel */}
-      <div className="bg-gray-900 border border-gray-700 rounded-lg p-4">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-100">
-            Delivery Cities ({destOptions.length})
-          </h3>
-          <div className="text-sm text-gray-400">
-            {selectedDestinations.size} selected
+      {/* Action Buttons */}
+      <div className="mt-6 p-4 bg-gray-800 border border-gray-700 rounded-lg">
+        <div className="flex items-center justify-between mb-3">
+          <div className="text-sm text-gray-300">
+            {hasSelections ? (
+              <>
+                <span className="font-semibold text-green-400">{totalCombinations} lane combinations</span> will be created
+                <span className="text-gray-500 ml-2">
+                  ({selectedOrigins.size} pickup × {selectedDestinations.size} delivery)
+                </span>
+              </>
+            ) : (
+              <span className="text-gray-400">Select at least one pickup and one delivery city</span>
+            )}
           </div>
         </div>
         
-        <div className="max-h-[600px] overflow-y-auto space-y-2">
-          {Object.entries(destsByKMA)
-            .sort(([kmaA], [kmaB]) => kmaA.localeCompare(kmaB))
-            .map(([kmaCode, cities]) => renderKMAGroup(kmaCode, cities, false))
-          }
+        <div className="flex gap-3">
+          <button
+            disabled={!hasSelections}
+            onClick={handleGenerateCsv}
+            className={`flex-1 px-4 py-2 rounded font-medium transition-colors ${
+              hasSelections
+                ? 'bg-green-600 hover:bg-green-700 text-white'
+                : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+            }`}
+          >
+            📄 Generate DAT CSV
+          </button>
+          
+          <button
+            disabled={!hasSelections}
+            onClick={handleGenerateRecap}
+            className={`flex-1 px-4 py-2 rounded font-medium transition-colors ${
+              hasSelections
+                ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+            }`}
+          >
+            📋 Generate Recap
+          </button>
         </div>
       </div>
     </div>
