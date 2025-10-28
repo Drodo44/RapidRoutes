@@ -39,9 +39,11 @@ export async function generateOptions(lane, onSuccess, onError, schema = null) {
       console.log('[OptionsGenerator] Options generated successfully:', result.data);
       if (result.data) {
         onSuccess?.(result.data);
+        return result; // Return the full result with data
       } else {
         console.warn('[OptionsGenerator] Success reported but no data returned');
         onSuccess?.({});
+        return result;
       }
       return result;
     } catch (apiError) {
