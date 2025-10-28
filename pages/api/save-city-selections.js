@@ -42,8 +42,7 @@ export default async function handler(req, res) {
       .from('lanes')
       .update({
         saved_origin_cities: originCities,
-        saved_dest_cities: destCities,
-        has_saved_choices: true
+        saved_dest_cities: destCities
       })
       .eq('id', laneId)
       .select()

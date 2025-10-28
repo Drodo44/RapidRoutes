@@ -52,9 +52,8 @@ function matches(q, l) {
 function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs = [] }) {
   const router = useRouter();
   
-  // Check if lane has saved city choices
-  const hasSavedChoices = lane.has_saved_choices && 
-                          lane.saved_origin_cities?.length > 0 && 
+  // Check if lane has saved city choices (check if arrays exist and have data)
+  const hasSavedChoices = lane.saved_origin_cities?.length > 0 && 
                           lane.saved_dest_cities?.length > 0;
   
   const totalPairs = hasSavedChoices 
@@ -308,9 +307,8 @@ export default function RecapPage() {
         return;
       }
 
-      // Get filtered lanes that have saved choices
+      // Get filtered lanes that have saved choices (check arrays directly)
       const lanesWithChoices = filtered.filter(l => 
-        l.has_saved_choices && 
         l.saved_origin_cities?.length > 0 && 
         l.saved_dest_cities?.length > 0
       );
