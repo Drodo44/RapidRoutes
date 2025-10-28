@@ -38,11 +38,13 @@ function haversine(lat1, lon1, lat2, lon2) {
 }
 
 // Group results by KMA and spread them evenly
+// For each KMA, take the closest cities up to a per-KMA limit
 function balanceByKMA(cities, max = 50) {
   const grouped = {};
   for (const c of cities) {
-    if (!grouped[c.kma_code]) grouped[c.kma_code] = [];
-    grouped[c.kma_code].push(c);
+    const kma = c.kma_code || 'UNK';
+    if (!grouped[kma]) grouped[kma] = [];
+    grouped[kma].push(c);
   }
 
   // Sort each group by distance
@@ -50,18 +52,31 @@ function balanceByKMA(cities, max = 50) {
     grouped[kma].sort((a, b) => a.distance - b.distance);
   }
 
-  // Round-robin pull from each KMA until cap
+  const kmaKeys = Object.keys(grouped);
+  const perKMALimit = Math.max(3, Math.floor(max / kmaKeys.length)); // At least 3 per KMA
+  
+  // Take up to perKMALimit cities from each KMA
   const results = [];
-  let added = true;
-  while (results.length < max && added) {
-    added = false;
-    for (const kma in grouped) {
-      if (grouped[kma].length > 0 && results.length < max) {
-        results.push(grouped[kma].shift());
-        added = true;
+  for (const kma of kmaKeys) {
+    const citiesFromKMA = grouped[kma].slice(0, perKMALimit);
+    results.push(...citiesFromKMA);
+    if (results.length >= max) break;
+  }
+  
+  // If we haven't hit max yet, do round-robin for remaining slots
+  if (results.length < max) {
+    let added = true;
+    while (results.length < max && added) {
+      added = false;
+      for (const kma of kmaKeys) {
+        if (grouped[kma].length > 0 && results.length < max) {
+          results.push(grouped[kma].shift());
+          added = true;
+        }
       }
     }
   }
+  
   return results;
 }
 
