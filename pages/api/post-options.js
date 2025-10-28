@@ -139,7 +139,11 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
   return {
     laneId,
     origin: { city: lane.origin_city, state: lane.origin_state, options: balancedOrigin },
-    destination: { city: lane.destination_city, state: lane.destination_state, options: balancedDest },
+    destination: { 
+      city: lane.destination_city || lane.dest_city, 
+      state: lane.destination_state || lane.dest_state, 
+      options: balancedDest 
+    },
     originOptions: balancedOrigin,
     destOptions: balancedDest
   };
