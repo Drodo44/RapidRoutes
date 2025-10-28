@@ -327,8 +327,8 @@ export default function RecapPage() {
         return;
       }
 
-      // Call the CSV export API
-      const response = await fetch('/api/exportDatCsv', {
+      // Call the new CSV export API for saved city selections
+      const response = await fetch('/api/exportSavedCitiesCsv', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${session.access_token}`
