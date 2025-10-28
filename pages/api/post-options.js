@@ -96,10 +96,10 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
     console.error('[generateOptionsForLane] Missing coordinates for lane:', laneId, { originLat, originLon, destLat, destLon });
     throw new Error('Lane missing coordinates');
   }
-  const latMin = Math.min(originLat, destLat) - 2;
-  const latMax = Math.max(originLat, destLat) + 2;
-  const lonMin = Math.min(originLon, destLon) - 2;
-  const lonMax = Math.max(originLon, destLon) + 2;
+  const latMin = Math.min(originLat, destLat) - 3; // Increased from 2 to 3 degrees
+  const latMax = Math.max(originLat, destLat) + 3;
+  const lonMin = Math.min(originLon, destLon) - 3;
+  const lonMax = Math.max(originLon, destLon) + 3;
   const { data: cities, error: cityErr } = await supabaseAdmin
     .from("cities")
     .select("id, city, state_or_province, latitude, longitude, zip, kma_code")
@@ -130,12 +130,12 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
   }
   const originOptions = enriched
     .map(c => ({ ...c, distance: haversine(originLat, originLon, c.latitude, c.longitude) }))
-    .filter(c => c.distance <= 100);
+    .filter(c => c.distance <= 150); // Increased from 100 to 150 miles
   const destOptions = enriched
     .map(c => ({ ...c, distance: haversine(destLat, destLon, c.latitude, c.longitude) }))
-    .filter(c => c.distance <= 100);
-  const balancedOrigin = balanceByKMA(originOptions, 50);
-  const balancedDest = balanceByKMA(destOptions, 50);
+    .filter(c => c.distance <= 150); // Increased from 100 to 150 miles
+  const balancedOrigin = balanceByKMA(originOptions, 100); // Increased from 50 to 100
+  const balancedDest = balanceByKMA(destOptions, 100); // Increased from 50 to 100
   return {
     laneId,
     origin: { city: lane.origin_city, state: lane.origin_state, options: balancedOrigin },
