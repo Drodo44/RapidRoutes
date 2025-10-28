@@ -16,6 +16,35 @@ function generatePairReferenceId(baseRefId, pairIndex) {
   return `RR${String(10000 + Math.floor(Math.random() * 90000))}`;
 }
 
+// Normalize state to 2-letter code (DAT requires exact 2-letter state codes)
+function normalizeStateCode(state) {
+  if (!state) return '';
+  
+  const stateStr = String(state).trim().toUpperCase();
+  
+  // If already 2 letters, return as-is
+  if (stateStr.length === 2) return stateStr;
+  
+  // Map full state names to codes
+  const stateMap = {
+    'ALABAMA': 'AL', 'ALASKA': 'AK', 'ARIZONA': 'AZ', 'ARKANSAS': 'AR',
+    'CALIFORNIA': 'CA', 'COLORADO': 'CO', 'CONNECTICUT': 'CT', 'DELAWARE': 'DE',
+    'FLORIDA': 'FL', 'GEORGIA': 'GA', 'HAWAII': 'HI', 'IDAHO': 'ID',
+    'ILLINOIS': 'IL', 'INDIANA': 'IN', 'IOWA': 'IA', 'KANSAS': 'KS',
+    'KENTUCKY': 'KY', 'LOUISIANA': 'LA', 'MAINE': 'ME', 'MARYLAND': 'MD',
+    'MASSACHUSETTS': 'MA', 'MICHIGAN': 'MI', 'MINNESOTA': 'MN', 'MISSISSIPPI': 'MS',
+    'MISSOURI': 'MO', 'MONTANA': 'MT', 'NEBRASKA': 'NE', 'NEVADA': 'NV',
+    'NEW HAMPSHIRE': 'NH', 'NEW JERSEY': 'NJ', 'NEW MEXICO': 'NM', 'NEW YORK': 'NY',
+    'NORTH CAROLINA': 'NC', 'NORTH DAKOTA': 'ND', 'OHIO': 'OH', 'OKLAHOMA': 'OK',
+    'OREGON': 'OR', 'PENNSYLVANIA': 'PA', 'RHODE ISLAND': 'RI', 'SOUTH CAROLINA': 'SC',
+    'SOUTH DAKOTA': 'SD', 'TENNESSEE': 'TN', 'TEXAS': 'TX', 'UTAH': 'UT',
+    'VERMONT': 'VT', 'VIRGINIA': 'VA', 'WASHINGTON': 'WA', 'WEST VIRGINIA': 'WV',
+    'WISCONSIN': 'WI', 'WYOMING': 'WY', 'DISTRICT OF COLUMBIA': 'DC'
+  };
+  
+  return stateMap[stateStr] || stateStr;
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -92,10 +121,10 @@ export default async function handler(req, res) {
             'Use Extended Network': '',
             'Contact Method*': contactMethod,
             'Origin City*': originCity.city || '',
-            'Origin State*': originCity.state || originCity.state_or_province || '',
+            'Origin State*': normalizeStateCode(originCity.state || originCity.state_or_province || ''),
             'Origin Postal Code': originCity.zip || '',
             'Destination City*': destCity.city || '',
-            'Destination State*': destCity.state || destCity.state_or_province || '',
+            'Destination State*': normalizeStateCode(destCity.state || destCity.state_or_province || ''),
             'Destination Postal Code': destCity.zip || '',
             'Comment': lane.comment || '',
             'Commodity': lane.commodity || '',

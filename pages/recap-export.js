@@ -63,46 +63,40 @@ export default function RecapExport() {
       if (lanesData.length > 0) {
         await fetchAIRecaps(lanesData.map(l => l.id));
         
-        // Load posted pairs for current lanes (same logic as main recap page)
-  const currentLanes = lanesData.filter(lane => (lane.lane_status || lane.status) === 'current');
+        // Load saved city pairs for lanes with selections
         const allPairs = [];
         
-        for (const lane of currentLanes) {
-          try {
-            const response = await fetch(`/api/getPostedPairs?laneId=${lane.id}`);
-            if (response.ok) {
-              const pairData = await response.json();
-              if (pairData.postedPairs?.length) {
-                // Add base lane as first option
-                allPairs.push({
-                  id: `base-${lane.id}`,
-                  laneId: lane.id,
-                  isBase: true,
-                  display: `${lane.origin_city || '?'}, ${lane.origin_state || '?'} → ${lane.dest_city || '?'}, ${lane.dest_state || '?'}`,
-                  referenceId: getDisplayReferenceId(lane),
-                  pickup: { city: lane.origin_city || '?', state: lane.origin_state || '?' },
-                  delivery: { city: lane.dest_city || '?', state: lane.dest_state || '?' }
-                });
-                
-                // Add generated pairs with their own reference IDs
-                pairData.postedPairs.forEach((pair, index) => {
-                  const baseRef = getDisplayReferenceId(lane);
-                  const pairRefId = generatePairReferenceId(baseRef, index);
-                  allPairs.push({
-                    id: `pair-${lane.id}-${index}`,
-                    laneId: lane.id,
-                    isBase: false,
-                    display: `${pair.pickup.city}, ${pair.pickup.state} → ${pair.delivery.city}, ${pair.delivery.state}`,
-                    referenceId: pairRefId, // Generate unique reference ID for each pair
-                    baseReferenceId: baseRef, // Keep original for grouping
-                    pickup: pair.pickup,
-                    delivery: pair.delivery
-                  });
-                });
-              }
+        for (const lane of lanesData) {
+          // Check if lane has saved city selections
+          if (lane.saved_origin_cities?.length > 0 && lane.saved_dest_cities?.length > 0) {
+            const baseRefId = getDisplayReferenceId(lane);
+            const numPairs = Math.min(lane.saved_origin_cities.length, lane.saved_dest_cities.length);
+            
+            // Generate pair entries (one-to-one pairing)
+            for (let i = 0; i < numPairs; i++) {
+              const originCity = lane.saved_origin_cities[i];
+              const destCity = lane.saved_dest_cities[i];
+              const pairRefId = generatePairReferenceId(baseRefId, i);
+              
+              allPairs.push({
+                id: `pair-${lane.id}-${i}`,
+                laneId: lane.id,
+                isBase: false,
+                display: `${originCity.city}, ${originCity.state || originCity.state_or_province} → ${destCity.city}, ${destCity.state || destCity.state_or_province}`,
+                referenceId: pairRefId,
+                baseReferenceId: baseRefId,
+                pickup: {
+                  city: originCity.city,
+                  state: originCity.state || originCity.state_or_province,
+                  zip: originCity.zip
+                },
+                delivery: {
+                  city: destCity.city,
+                  state: destCity.state || destCity.state_or_province,
+                  zip: destCity.zip
+                }
+              });
             }
-          } catch (error) {
-            console.error(`Error loading pairs for lane ${lane.id}:`, error);
           }
         }
         
@@ -224,7 +218,7 @@ export default function RecapExport() {
       <div className="p-6 bg-white text-gray-800 min-h-screen">
         <div className="no-print mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold">RapidRoutes – Shipper Recap</h1>
+            <h1 className="text-xl font-bold">RapidRoutes – Posting Recap</h1>
             <p className="text-sm text-gray-500">Generated on {formatDate()}</p>
           </div>
           
@@ -328,7 +322,7 @@ export default function RecapExport() {
         <div className="print-header no-screen">
           <div className="flex items-center justify-between border-b border-gray-300 pb-4 mb-6">
             <div>
-              <h1 className="text-xl font-bold">RapidRoutes Shipper Recap</h1>
+              <h1 className="text-xl font-bold">RapidRoutes Posting Recap</h1>
               <p className="text-sm text-gray-500">Generated on {formatDate()}</p>
             </div>
             <div className="text-right">
