@@ -282,6 +282,66 @@ export default function OptionsDisplay({ laneId, lane, originOptions = [], destO
     }
   };
 
+  const handleSaveSelections = async () => {
+    if (!hasSelections || !lane) return;
+    
+    try {
+      // Get selected city objects with all their data
+      const selectedOriginCities = Array.from(selectedOrigins).map(id => {
+        const city = originOptions.find(city => `${city.id}-${city.city}-${city.state}` === id);
+        return city ? {
+          id: city.id,
+          city: city.city,
+          state: city.state || city.state_or_province,
+          zip: city.zip,
+          kma_code: city.kma_code,
+          latitude: city.latitude,
+          longitude: city.longitude,
+          distance: city.distance
+        } : null;
+      }).filter(Boolean);
+      
+      const selectedDestCities = Array.from(selectedDestinations).map(id => {
+        const city = destOptions.find(city => `${city.id}-${city.city}-${city.state}` === id);
+        return city ? {
+          id: city.id,
+          city: city.city,
+          state: city.state || city.state_or_province,
+          zip: city.zip,
+          kma_code: city.kma_code,
+          latitude: city.latitude,
+          longitude: city.longitude,
+          distance: city.distance
+        } : null;
+      }).filter(Boolean);
+
+      // Save to database
+      const response = await fetch('/api/save-city-selections', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          laneId,
+          originCities: selectedOriginCities,
+          destCities: selectedDestCities
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to save selections');
+      }
+
+      const result = await response.json();
+      
+      alert(`✅ Selections saved!\n\n${result.totalCombinations} lane combinations saved.\n\nView them in the Recap page.`);
+    } catch (error) {
+      console.error('Error saving selections:', error);
+      alert(`❌ Error saving selections: ${error.message}`);
+    }
+  };
+
   return (
     <div>
       {/* Smart Select Banner */}
@@ -393,11 +453,23 @@ export default function OptionsDisplay({ laneId, lane, originOptions = [], destO
           </div>
         </div>
         
-        <div className="flex gap-3">
+        <div className="flex gap-3 flex-wrap">
+          <button
+            disabled={!hasSelections}
+            onClick={handleSaveSelections}
+            className={`flex-1 min-w-[200px] px-4 py-2 rounded font-medium transition-colors ${
+              hasSelections
+                ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+            }`}
+          >
+            💾 Save Selections & Add to Recap
+          </button>
+          
           <button
             disabled={!hasSelections}
             onClick={handleGenerateCsv}
-            className={`flex-1 px-4 py-2 rounded font-medium transition-colors ${
+            className={`flex-1 min-w-[180px] px-4 py-2 rounded font-medium transition-colors ${
               hasSelections
                 ? 'bg-green-600 hover:bg-green-700 text-white'
                 : 'bg-gray-700 text-gray-500 cursor-not-allowed'
@@ -409,13 +481,13 @@ export default function OptionsDisplay({ laneId, lane, originOptions = [], destO
           <button
             disabled={!hasSelections}
             onClick={handleGenerateRecap}
-            className={`flex-1 px-4 py-2 rounded font-medium transition-colors ${
+            className={`flex-1 min-w-[180px] px-4 py-2 rounded font-medium transition-colors ${
               hasSelections
                 ? 'bg-blue-600 hover:bg-blue-700 text-white'
                 : 'bg-gray-700 text-gray-500 cursor-not-allowed'
             }`}
           >
-            📋 Generate Recap
+            📋 Export HTML Recap
           </button>
         </div>
       </div>
