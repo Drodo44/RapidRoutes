@@ -95,135 +95,125 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
   
   return (
     <div className="card" id={`lane-${lane.id}`} style={{ overflow: 'hidden' }}>
-      {/* Compact Header with RR# and Lane Info */}
-      <div className="card-header" style={{ padding: '12px 16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '8px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span style={{ 
-              fontFamily: 'Monaco, Consolas, monospace', 
-              fontSize: '14px', 
-              fontWeight: 700, 
-              color: 'var(--primary)',
-              background: 'var(--primary-light)',
-              padding: '4px 10px',
-              borderRadius: '4px'
-            }}>
-              {getDisplayReferenceId(lane)}
-            </span>
-            <span className={`badge badge-${isCurrent ? 'current' : 'archive'}`} style={{ fontSize: '11px' }}>
-              {isCurrent ? 'Current' : 'Archive'}
-            </span>
-          </div>
-          <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-            {lane.equipment_code || '?'} • {lane.length_ft || '?'}ft • {lane.pickup_earliest || '?'}
-          </div>
-        </div>
-        {lane.comment && (
-          <div style={{ fontSize: '11px', fontStyle: 'italic', color: 'var(--text-tertiary)' }}>
-            "{lane.comment}"
-          </div>
-        )}
-      </div>
-
-      {/* City Pairs Table - ONLY Display */}
-      {hasSavedChoices && (
-        <div style={{ borderTop: '1px solid var(--border)' }}>
-          <div className="card-body">
-            <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <h4 style={{ fontSize: '12px', fontWeight: 600, margin: 0, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ color: 'var(--success)' }}>✓</span>
-                <span>Selected Cities</span>
-                <span style={{ fontSize: '11px', opacity: 0.5, fontWeight: 400 }}>
-                  ({lane.saved_origin_cities.length} × {lane.saved_dest_cities.length} = {totalPairs} pairs)
-                </span>
-              </h4>
-              {isPosted && (
-                <span className="badge badge-posted" style={{ fontSize: '11px' }}>
-                  Posted to DAT
-                </span>
-              )}
+      {/* Compact Header: Main Lane Information */}
+      <div className="card-header" style={{ padding: '16px', background: 'var(--bg-secondary)' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
+          <div style={{ flex: 1 }}>
+            {/* RR# Badge */}
+            <div style={{ marginBottom: '8px' }}>
+              <span style={{ 
+                fontFamily: 'Monaco, Consolas, monospace', 
+                fontSize: '16px', 
+                fontWeight: 700, 
+                color: 'var(--primary)',
+                background: 'var(--primary-light)',
+                padding: '6px 12px',
+                borderRadius: '6px',
+                display: 'inline-block'
+              }}>
+                {getDisplayReferenceId(lane)}
+              </span>
+              <span className={`badge badge-${isCurrent ? 'current' : 'archive'}`} style={{ fontSize: '11px', marginLeft: '8px' }}>
+                {isCurrent ? 'Current' : 'Archive'}
+              </span>
             </div>
             
-            {/* All Pairs Table with RR# Column */}
-            <div style={{ marginTop: '12px', overflowX: 'auto', border: '1px solid var(--border)', borderRadius: 'var(--radius)' }}>
-              <table style={{ 
-                width: '100%', 
-                fontSize: '12px',
-                borderCollapse: 'collapse'
-              }}>
-                <thead>
-                  <tr style={{ background: 'var(--bg-tertiary)' }}>
-                    <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text-secondary)', borderBottom: '2px solid var(--border)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                      RR#
-                    </th>
-                    <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text-secondary)', borderBottom: '2px solid var(--border)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                      Pickup Location
-                    </th>
-                    <th style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 600, color: 'var(--text-secondary)', borderBottom: '2px solid var(--border)', fontSize: '11px', width: '40px' }}>
-                      →
-                    </th>
-                    <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text-secondary)', borderBottom: '2px solid var(--border)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                      Delivery Location
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {lane.saved_origin_cities.flatMap((originCity, originIdx) => 
-                    lane.saved_dest_cities.map((destCity, destIdx) => {
-                      const pairIndex = originIdx * lane.saved_dest_cities.length + destIdx;
-                      const pairRefId = generatePairReferenceId(lane.reference_id, pairIndex);
-                      
-                      return (
-                        <tr 
-                          key={`${originIdx}-${destIdx}`}
-                          style={{ 
-                            borderBottom: '1px solid var(--border)',
-                            background: pairIndex % 2 === 0 ? 'transparent' : 'var(--bg-secondary)'
-                          }}
-                        >
-                          <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
-                            <span style={{ 
-                              fontFamily: 'var(--font-mono)', 
-                              fontSize: '11px', 
-                              fontWeight: 600,
-                              color: 'var(--primary)',
-                              background: 'var(--primary-light)',
-                              padding: '4px 8px',
-                              borderRadius: '4px',
-                              display: 'inline-block'
-                            }}>
-                              {pairRefId}
-                            </span>
-                          </td>
-                          <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
-                            <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
-                              {originCity.city || '?'}, {originCity.state || '?'}
-                            </div>
-                            {(originCity.kma_code || originCity.kma_name) && (
-                              <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
-                                {originCity.kma_code || originCity.kma_name}{originCity.miles && ` • ${Math.round(originCity.miles)} mi`}
-                              </div>
-                            )}
-                          </td>
-                          <td style={{ padding: '10px 12px', textAlign: 'center', verticalAlign: 'middle', color: 'var(--text-tertiary)', opacity: 0.5 }}>
-                            →
-                          </td>
-                          <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
-                            <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
-                              {destCity.city || '?'}, {destCity.state || '?'}
-                            </div>
-                            {(destCity.kma_code || destCity.kma_name) && (
-                              <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
-                                {destCity.kma_code || destCity.kma_name}{destCity.miles && ` • ${Math.round(destCity.miles)} mi`}
-                              </div>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
+            {/* Main Lane Route */}
+            <div style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>
+              {lane.origin_city}, {lane.origin_state} → {lane.destination_city || lane.dest_city}, {lane.destination_state || lane.dest_state}
+            </div>
+            
+            {/* Lane Details */}
+            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+              <span><strong>Equipment:</strong> {lane.equipment_code || '?'}</span>
+              <span><strong>Length:</strong> {lane.length_ft || '?'}ft</span>
+              <span><strong>Pickup:</strong> {lane.pickup_earliest || '?'}</span>
+              {lane.weight_lbs && <span><strong>Weight:</strong> {lane.weight_lbs.toLocaleString()} lbs</span>}
+            </div>
+            
+            {lane.comment && (
+              <div style={{ fontSize: '12px', fontStyle: 'italic', color: 'var(--text-tertiary)', marginTop: '8px', paddingLeft: '12px', borderLeft: '3px solid var(--border)' }}>
+                "{lane.comment}"
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Selected Crawl Cities - Compact List */}
+      {hasSavedChoices && (
+        <div className="card-body" style={{ padding: '16px', borderTop: '1px solid var(--border)' }}>
+          <h4 style={{ 
+            fontSize: '14px', 
+            fontWeight: 600, 
+            margin: '0 0 12px 0', 
+            color: 'var(--text-primary)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <span style={{ color: 'var(--success)' }}>✓</span>
+            <span>Selected Posting Cities</span>
+            <span style={{ fontSize: '12px', opacity: 0.6, fontWeight: 400 }}>
+              ({lane.saved_origin_cities.length} pickup × {lane.saved_dest_cities.length} delivery = {totalPairs} combinations)
+            </span>
+          </h4>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            {/* Pickup Cities */}
+            <div>
+              <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Pickup Cities ({lane.saved_origin_cities.length})
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {lane.saved_origin_cities.map((city, idx) => (
+                  <div 
+                    key={idx}
+                    style={{ 
+                      fontSize: '13px', 
+                      padding: '6px 10px',
+                      background: 'var(--bg-tertiary)',
+                      borderRadius: '4px',
+                      border: '1px solid var(--border)'
+                    }}
+                  >
+                    <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
+                      {city.city}, {city.state}
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
+                      {city.kma_code} • {city.distance ? `${Math.round(city.distance)} mi from origin` : 'Unknown distance'}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            {/* Delivery Cities */}
+            <div>
+              <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Delivery Cities ({lane.saved_dest_cities.length})
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {lane.saved_dest_cities.map((city, idx) => (
+                  <div 
+                    key={idx}
+                    style={{ 
+                      fontSize: '13px', 
+                      padding: '6px 10px',
+                      background: 'var(--bg-tertiary)',
+                      borderRadius: '4px',
+                      border: '1px solid var(--border)'
+                    }}
+                  >
+                    <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
+                      {city.city}, {city.state}
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
+                      {city.kma_code} • {city.distance ? `${Math.round(city.distance)} mi from destination` : 'Unknown distance'}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
