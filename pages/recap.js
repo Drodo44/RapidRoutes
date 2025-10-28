@@ -386,9 +386,10 @@ export default function RecapPage() {
       try {
         const records = await fetchLaneRecordsBrowser({ status: 'current', limit: 300, onlyWithSavedCities: true });
         if (cancelled) return;
-        // Filter to lanes with saved city choices to match previous behavior
+        // Filter to lanes with saved city choices (check arrays directly)
         const lanesWithChoices = (records || []).filter(
-          (l) => l?.has_saved_choices && Array.isArray(l.saved_origin_cities) && l.saved_origin_cities.length > 0 && Array.isArray(l.saved_dest_cities) && l.saved_dest_cities.length > 0
+          (l) => Array.isArray(l.saved_origin_cities) && l.saved_origin_cities.length > 0 && 
+                 Array.isArray(l.saved_dest_cities) && l.saved_dest_cities.length > 0
         );
         setLanes(lanesWithChoices);
       } catch (error) {

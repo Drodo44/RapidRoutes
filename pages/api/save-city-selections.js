@@ -56,12 +56,17 @@ export default async function handler(req, res) {
       });
     }
 
-    console.log(`✅ Saved city selections for lane ${laneId}: ${originCities.length} origins × ${destCities.length} destinations`);
+    // Calculate total postings: original lane + alternative pairs, × 2 contact methods (email + phone)
+    const numAlternativePairs = Math.min(originCities.length, destCities.length);
+    const totalPairs = 1 + numAlternativePairs; // 1 original lane + alternatives
+    const totalPostings = totalPairs * 2;
+
+    console.log(`✅ Saved city selections for lane ${laneId}: ${totalPairs} pairs (1 original + ${numAlternativePairs} alternatives) × 2 contact methods = ${totalPostings} postings`);
 
     return res.status(200).json({ 
       success: true,
       message: 'City selections saved successfully',
-      totalCombinations: originCities.length * destCities.length,
+      totalCombinations: totalPostings,
       lane: data
     });
   } catch (error) {
