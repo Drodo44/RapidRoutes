@@ -163,7 +163,9 @@ export default async function handler(req, res) {
         console.log(`[lanes] Origin city missing coords, attempting ZIP lookup for ${payload.origin_city}`);
         const { resolveCoords } = await import('@/lib/resolve-coords');
         const zip = payload.origin_zip5 || payload.origin_zip || originCity.zip;
+        console.log(`[lanes] Trying to resolve coords for ZIP: ${zip}`);
         const coordsResult = await resolveCoords(zip);
+        console.log(`[lanes] Coordinate resolution result:`, coordsResult);
         if (coordsResult && coordsResult.latitude && coordsResult.longitude) {
           originLat = coordsResult.latitude;
           originLon = coordsResult.longitude;
@@ -175,6 +177,8 @@ export default async function handler(req, res) {
             .update({ latitude: originLat, longitude: originLon })
             .eq('city', payload.origin_city)
             .eq('state_or_province', payload.origin_state);
+        } else {
+          console.warn(`⚠️ Failed to resolve coords from ZIP ${zip} (ZIP3: ${zip.toString().slice(0, 3)})`);
         }
       }
       
@@ -203,7 +207,9 @@ export default async function handler(req, res) {
         console.log(`[lanes] Destination city missing coords, attempting ZIP lookup for ${destinationCity}`);
         const { resolveCoords } = await import('@/lib/resolve-coords');
         const zip = payload.dest_zip5 || payload.dest_zip || destCityData.zip;
+        console.log(`[lanes] Trying to resolve coords for ZIP: ${zip}`);
         const coordsResult = await resolveCoords(zip);
+        console.log(`[lanes] Coordinate resolution result:`, coordsResult);
         if (coordsResult && coordsResult.latitude && coordsResult.longitude) {
           destLat = coordsResult.latitude;
           destLon = coordsResult.longitude;
@@ -215,19 +221,25 @@ export default async function handler(req, res) {
             .update({ latitude: destLat, longitude: destLon })
             .eq('city', destinationCity)
             .eq('state_or_province', destinationState);
+        } else {
+          console.warn(`⚠️ Failed to resolve coords from ZIP ${zip} (ZIP3: ${zip.toString().slice(0, 3)})`);
         }
       }
 
       // Validate that we have coordinates
       if (!originLat || !originLon) {
+        const zip = payload.origin_zip5 || payload.origin_zip || originCity.zip;
         return res.status(400).json({
-          error: `Unable to determine coordinates for origin city: ${payload.origin_city}, ${payload.origin_state}. Please provide a valid ZIP code.`
+          error: `Unable to determine coordinates for origin city: ${payload.origin_city}, ${payload.origin_state}. ` +
+                 (zip ? `ZIP code ${zip} (ZIP3: ${zip.toString().slice(0, 3)}) not found in database.` : 'Please provide a valid ZIP code.')
         });
       }
       
       if (!destLat || !destLon) {
+        const zip = payload.dest_zip5 || payload.dest_zip || destCityData.zip;
         return res.status(400).json({
-          error: `Unable to determine coordinates for destination city: ${destinationCity}, ${destinationState}. Please provide a valid ZIP code.`
+          error: `Unable to determine coordinates for destination city: ${destinationCity}, ${destinationState}. ` +
+                 (zip ? `ZIP code ${zip} (ZIP3: ${zip.toString().slice(0, 3)}) not found in database.` : 'Please provide a valid ZIP code.')
         });
       }
       
