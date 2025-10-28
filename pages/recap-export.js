@@ -456,20 +456,9 @@ export default function RecapExport() {
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <div style={{ fontWeight: '500', fontSize: '16px', color: 'var(--text-primary)' }}>
-                          {/* Show first saved city pair if available, otherwise original lane */}
-                          {hasSavedCities && pairs.length > 0 ? (
-                            <>
-                              {pairs[0].pickup.city}, {pairs[0].pickup.state || pairs[0].pickup.state_or_province}
-                              <span style={{ color: 'var(--text-secondary)', margin: '0 8px' }}>→</span>
-                              {pairs[0].delivery.city}, {pairs[0].delivery.state || pairs[0].delivery.state_or_province}
-                            </>
-                          ) : (
-                            <>
-                              {lane.origin_city || '?'}, {lane.origin_state || '?'} 
-                              <span style={{ color: 'var(--text-secondary)', margin: '0 8px' }}>→</span> 
-                              {lane.dest_city || lane.destination_city || '?'}, {lane.dest_state || lane.destination_state || '?'}
-                            </>
-                          )}
+                          {lane.origin_city || '?'}, {lane.origin_state || '?'} 
+                          <span style={{ color: 'var(--text-secondary)', margin: '0 8px' }}>→</span> 
+                          {lane.dest_city || lane.destination_city || '?'}, {lane.dest_state || lane.destination_state || '?'}
                         </div>
                         <div style={{ 
                           fontSize: '12px', 
