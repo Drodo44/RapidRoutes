@@ -56,35 +56,34 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
   const hasSavedChoices = lane.saved_origin_cities?.length > 0 && 
                           lane.saved_dest_cities?.length > 0;
   
+  // One-to-one pairing: number of pairs is the minimum of the two arrays
   const totalPairs = hasSavedChoices 
-    ? lane.saved_origin_cities.length * lane.saved_dest_cities.length 
+    ? Math.min(lane.saved_origin_cities.length, lane.saved_dest_cities.length)
     : 0;
   
   const isCurrent = (lane.lane_status || lane.status) === 'current';
   
-  // Generate individual RR# for each city pair
+  // Generate individual RR# for each city pair (one-to-one pairing)
   const generatePairRRs = () => {
     if (!hasSavedChoices) return [];
     
     const baseRefId = getDisplayReferenceId(lane);
     const pairs = [];
-    let pairIndex = 0;
     
-    for (let originIdx = 0; originIdx < lane.saved_origin_cities.length; originIdx++) {
-      for (let destIdx = 0; destIdx < lane.saved_dest_cities.length; destIdx++) {
-        const originCity = lane.saved_origin_cities[originIdx];
-        const destCity = lane.saved_dest_cities[destIdx];
-        const pairRR = generatePairReferenceId(baseRefId, pairIndex);
-        
-        pairs.push({
-          originCity,
-          destCity,
-          referenceId: pairRR,
-          pairNumber: pairIndex + 1
-        });
-        
-        pairIndex++;
-      }
+    // One-to-one pairing: pickup[0] with delivery[0], pickup[1] with delivery[1], etc.
+    const numPairs = Math.min(lane.saved_origin_cities.length, lane.saved_dest_cities.length);
+    
+    for (let i = 0; i < numPairs; i++) {
+      const originCity = lane.saved_origin_cities[i];
+      const destCity = lane.saved_dest_cities[i];
+      const pairRR = generatePairReferenceId(baseRefId, i);
+      
+      pairs.push({
+        originCity,
+        destCity,
+        referenceId: pairRR,
+        pairNumber: i + 1
+      });
     }
     
     return pairs;
@@ -154,7 +153,7 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
             <span style={{ color: 'var(--success)' }}>✓</span>
             <span>Selected Posting Cities</span>
             <span style={{ fontSize: '12px', opacity: 0.6, fontWeight: 400 }}>
-              ({lane.saved_origin_cities.length} pickup × {lane.saved_dest_cities.length} delivery = {totalPairs} combinations)
+              ({totalPairs} pairs • {totalPairs * 2} postings with email + phone)
             </span>
           </h4>
           
@@ -319,10 +318,12 @@ export default function RecapPage() {
       }
 
       const totalPairs = lanesWithChoices.reduce((sum, lane) => 
-        sum + (lane.saved_origin_cities.length * lane.saved_dest_cities.length), 0
+        sum + Math.min(lane.saved_origin_cities.length, lane.saved_dest_cities.length), 0
       );
 
-      if (!confirm(`Generate DAT CSV for ${lanesWithChoices.length} lane(s) with ${totalPairs} total city pairs?`)) {
+      const totalPostings = totalPairs * 2; // Each pair × 2 contact methods
+
+      if (!confirm(`Generate DAT CSV for ${lanesWithChoices.length} lane(s) with ${totalPairs} pairs (${totalPostings} total postings with email + phone)?`)) {
         return;
       }
 
