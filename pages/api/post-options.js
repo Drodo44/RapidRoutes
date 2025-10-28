@@ -53,7 +53,7 @@ function balanceByKMA(cities, max = 50) {
   }
 
   const kmaKeys = Object.keys(grouped);
-  const perKMALimit = Math.max(3, Math.floor(max / kmaKeys.length)); // At least 3 per KMA
+  const perKMALimit = Math.max(20, Math.floor(max / Math.max(kmaKeys.length, 2))); // At least 20 per KMA
   
   // Take up to perKMALimit cities from each KMA
   const results = [];
