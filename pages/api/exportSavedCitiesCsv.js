@@ -3,17 +3,41 @@
 
 import { DAT_HEADERS } from '../../lib/datCsvBuilder.js';
 
-// Generate unique RR# for each pair (same logic as recap.js)
-function generatePairReferenceId(baseRefId, pairIndex) {
+// Track used RR#s globally to ensure uniqueness across entire export
+const usedRRNumbers = new Set();
+
+// Generate unique RR# that's never been used in this export session
+function generateUniqueReferenceId(baseRefId, attemptOffset = 0) {
   // Extract base number from RR##### format
   const match = baseRefId?.match(/RR(\d{5})/);
+  let candidateNum;
+  
   if (match) {
     const baseNum = parseInt(match[1], 10);
-    const pairNum = (baseNum + pairIndex + 1) % 100000;
-    return `RR${String(pairNum).padStart(5, '0')}`;
+    candidateNum = baseNum + attemptOffset;
+    
+    // Ensure we stay in valid range (10000-99999)
+    if (candidateNum > 99999) {
+      candidateNum = 10000 + (candidateNum - 10000) % 90000;
+    }
+    if (candidateNum < 10000) {
+      candidateNum = 10000;
+    }
+  } else {
+    // Fallback: random in valid range
+    candidateNum = 10000 + Math.floor(Math.random() * 90000);
   }
-  // Fallback: generate random
-  return `RR${String(10000 + Math.floor(Math.random() * 90000))}`;
+  
+  const candidateRR = `RR${String(candidateNum).padStart(5, '0')}`;
+  
+  // If already used, try next number
+  if (usedRRNumbers.has(candidateRR)) {
+    return generateUniqueReferenceId(baseRefId, attemptOffset + 1);
+  }
+  
+  // Mark as used and return
+  usedRRNumbers.add(candidateRR);
+  return candidateRR;
 }
 
 // Normalize state to 2-letter code (DAT requires exact 2-letter state codes)
@@ -59,6 +83,9 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Clear used RR# tracking at start of each export
+    usedRRNumbers.clear();
+    
     // Fetch all current lanes with saved city selections
     const { data: lanes, error } = await supabaseAdmin
       .from('lanes')
@@ -101,9 +128,9 @@ export default async function handler(req, res) {
         const contactMethods = ['Email', 'Primary Phone'];
         
         for (let contactIdx = 0; contactIdx < contactMethods.length; contactIdx++) {
-          // Generate unique RR# for each row (pair index * 2 + contact method index)
-          const uniquePairIndex = (i * 2) + contactIdx;
-          const pairRefId = generatePairReferenceId(baseRefId, uniquePairIndex);
+          // Generate globally unique RR# for each row
+          const attemptOffset = (i * 2) + contactIdx + 1;
+          const pairRefId = generateUniqueReferenceId(baseRefId, attemptOffset);
           const contactMethod = contactMethods[contactIdx];
           
           const row = {
