@@ -9,6 +9,38 @@ import { resolveCoords } from "@/lib/resolve-coords";
 import { z } from 'zod';
 // NOTE: Not using external p-limit dependency to avoid adding new package; implementing lightweight limiter inline.
 
+// Cities rejected by DAT - blacklist these from generation
+const BLACKLISTED_CITIES = new Set([
+  'SHANNONDALE, WV',
+  'BROWNSDALE, FL',
+  'MOSKOEITE CORNER, CA',
+  'NEW HOPE, OR',
+  'EPHESUS, GA',
+  'SOUTH ROSEMARY, NC',
+  'RAINBOW LAKES ESTATES, FL'
+]);
+
+// City name corrections for DAT compatibility
+const CITY_CORRECTIONS = {
+  'REDWOOD, OR': 'Redmond, OR',
+  'BELLWOOD, VA': 'Elkwood, VA',
+  'DASHER, GA': 'Jasper, GA'
+};
+
+function correctCityName(city, state) {
+  const key = `${city}, ${state}`.toUpperCase();
+  if (CITY_CORRECTIONS[key]) {
+    const corrected = CITY_CORRECTIONS[key].split(', ');
+    return { city: corrected[0], state: corrected[1] };
+  }
+  return { city, state };
+}
+
+function isBlacklisted(city, state) {
+  const key = `${city}, ${state}`.toUpperCase();
+  return BLACKLISTED_CITIES.has(key);
+}
+
 const ApiSchema = z.object({
   laneId: z.string().min(1, "Lane ID is required"),
   originCity: z.string().min(1, "Origin city is required"),
@@ -40,8 +72,21 @@ function haversine(lat1, lon1, lat2, lon2) {
 // Group results by KMA and spread them evenly
 // For each KMA, take the closest cities up to a per-KMA limit
 function balanceByKMA(cities, max = 50) {
+  // Filter out blacklisted cities and apply corrections
+  const filtered = cities
+    .filter(c => !isBlacklisted(c.city, c.state_or_province || c.state))
+    .map(c => {
+      const corrected = correctCityName(c.city, c.state_or_province || c.state);
+      return {
+        ...c,
+        city: corrected.city,
+        state: corrected.state,
+        state_or_province: corrected.state
+      };
+    });
+  
   const grouped = {};
-  for (const c of cities) {
+  for (const c of filtered) {
     const kma = c.kma_code || 'UNK';
     if (!grouped[kma]) grouped[kma] = [];
     grouped[kma].push(c);

@@ -96,12 +96,16 @@ export default async function handler(req, res) {
       for (let i = 0; i < numPairs; i++) {
         const originCity = originCities[i];
         const destCity = destCities[i];
-        const pairRefId = generatePairReferenceId(baseRefId, i);
         
-        // Create rows for both contact methods
+        // Create rows for both contact methods with UNIQUE RR# for each
         const contactMethods = ['Email', 'Primary Phone'];
         
-        for (const contactMethod of contactMethods) {
+        for (let contactIdx = 0; contactIdx < contactMethods.length; contactIdx++) {
+          // Generate unique RR# for each row (pair index * 2 + contact method index)
+          const uniquePairIndex = (i * 2) + contactIdx;
+          const pairRefId = generatePairReferenceId(baseRefId, uniquePairIndex);
+          const contactMethod = contactMethods[contactIdx];
+          
           const row = {
             'Pickup Earliest*': lane.pickup_earliest || '',
             'Pickup Latest': lane.pickup_latest || '',

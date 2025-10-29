@@ -332,6 +332,36 @@ export default function RecapExport() {
             </select>
 
             {aiLoading && <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Loading AI insights...</div>}
+            
+            <button 
+              onClick={() => {
+                const htmlContent = document.documentElement.outerHTML;
+                const blob = new Blob([htmlContent], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `RapidRoutes-Recap-${new Date().toISOString().split('T')[0]}.html`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+              }}
+              style={{
+                borderRadius: '8px',
+                background: 'var(--success)',
+                color: 'white',
+                fontWeight: '500',
+                padding: '8px 16px',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'background 0.2s'
+              }}
+              onMouseEnter={(e) => e.target.style.background = 'var(--success-hover)'}
+              onMouseLeave={(e) => e.target.style.background = 'var(--success)'}
+            >
+              💾 Download HTML
+            </button>
+            
             <button 
               onClick={printNow} 
               style={{
@@ -347,7 +377,7 @@ export default function RecapExport() {
               onMouseEnter={(e) => e.target.style.background = 'var(--primary-hover)'}
               onMouseLeave={(e) => e.target.style.background = 'var(--primary)'}
             >
-              Print Document
+              🖨️ Print Document
             </button>
           </div>
         </div>
