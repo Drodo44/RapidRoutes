@@ -335,7 +335,63 @@ export default function RecapExport() {
             
             <button 
               onClick={() => {
-                const htmlContent = document.documentElement.outerHTML;
+                // Clone the document and force light theme for download
+                const clone = document.documentElement.cloneNode(true);
+                
+                // Force light theme styling in the clone
+                clone.setAttribute('data-theme', 'light');
+                clone.style.setProperty('--bg-primary', '#f8fafc');
+                clone.style.setProperty('--bg-secondary', '#f1f5f9');
+                clone.style.setProperty('--surface', '#ffffff');
+                clone.style.setProperty('--text-primary', '#0f172a');
+                clone.style.setProperty('--text-secondary', '#475569');
+                clone.style.setProperty('--text-tertiary', '#64748b');
+                clone.style.setProperty('--border-default', '#cbd5e1');
+                
+                // Remove the no-print controls
+                const controls = clone.querySelectorAll('.no-print');
+                controls.forEach(el => el.remove());
+                
+                // Create full HTML document
+                const htmlContent = `<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RapidRoutes Posting Recap</title>
+  <style>
+    :root {
+      --bg-primary: #f8fafc;
+      --bg-secondary: #f1f5f9;
+      --bg-tertiary: #e2e8f0;
+      --surface: #ffffff;
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-tertiary: #64748b;
+      --border-default: #cbd5e1;
+      --primary: #3b82f6;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+    }
+    body {
+      background: #ffffff;
+      color: #0f172a;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+      margin: 0;
+      padding: 20px;
+    }
+    .no-print { display: none !important; }
+    @media print {
+      body { background: white; }
+    }
+  </style>
+</head>
+<body>
+${clone.body.innerHTML}
+</body>
+</html>`;
+                
                 const blob = new Blob([htmlContent], { type: 'text/html' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
