@@ -17,7 +17,11 @@ const BLACKLISTED_CITIES = new Set([
   'NEW HOPE, OR',
   'EPHESUS, GA',
   'SOUTH ROSEMARY, NC',
-  'RAINBOW LAKES ESTATES, FL'
+  'RAINBOW LAKES ESTATES, FL',
+  'BRIAR CHAPEL, NC',
+  'COATS BEND, AL',
+  'VILLAGE SHIRES, PA',
+  'CHUMUCKLA, FL'
 ]);
 
 // City name corrections for DAT compatibility

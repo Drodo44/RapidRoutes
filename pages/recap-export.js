@@ -366,17 +366,32 @@ export default function RecapExport() {
             
             <button 
               onClick={() => {
-                // Get all lane data for the dropdown
-                const laneOptions = filteredLanes.map(lane => {
-                  const lanePostedPairs = postedPairs.filter(pair => pair.laneId === lane.id);
-                  return {
-                    id: lane.id,
-                    refId: getDisplayReferenceId(lane),
-                    origin: `${lane.origin_city}, ${lane.origin_state}`,
-                    dest: `${lane.dest_city}, ${lane.dest_state}`,
-                    pairs: lanePostedPairs
-                  };
+                // Get all generated pairs for the dropdown (alphabetically sorted)
+                const allPairs = [];
+                
+                filteredLanes.forEach(lane => {
+                  if (lane.saved_origin_cities?.length > 0 && lane.saved_dest_cities?.length > 0) {
+                    const baseRefId = getDisplayReferenceId(lane);
+                    const numPairs = Math.min(lane.saved_origin_cities.length, lane.saved_dest_cities.length);
+                    
+                    for (let i = 0; i < numPairs; i++) {
+                      const originCity = lane.saved_origin_cities[i];
+                      const destCity = lane.saved_dest_cities[i];
+                      const pairRefId = generatePairReferenceId(baseRefId, i);
+                      
+                      allPairs.push({
+                        laneId: lane.id,
+                        refId: pairRefId,
+                        origin: `${originCity.city}, ${originCity.state || originCity.state_or_province}`,
+                        dest: `${destCity.city}, ${destCity.state || destCity.state_or_province}`,
+                        sortKey: `${originCity.city}, ${originCity.state || originCity.state_or_province} → ${destCity.city}, ${destCity.state || destCity.state_or_province}`
+                      });
+                    }
+                  }
                 });
+                
+                // Sort alphabetically by origin → destination
+                allPairs.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
                 
                 // Create full standalone HTML document with all features
                 const htmlContent = `<!DOCTYPE html>
@@ -443,7 +458,7 @@ export default function RecapExport() {
       color: var(--text-primary);
     }
     .search-input { width: 256px; }
-    .lane-select { max-width: 320px; }
+    .lane-select { max-width: 400px; }
     .btn {
       padding: 8px 16px;
       border-radius: 8px;
@@ -535,7 +550,7 @@ export default function RecapExport() {
       />
       <select id="laneSelect" class="lane-select" onchange="handleLaneJump(this.value)">
         <option value="">Jump to lane...</option>
-        ${laneOptions.map(lane => `<option value="${lane.id}">${lane.refId} • ${lane.origin} → ${lane.dest}</option>`).join('')}
+        ${allPairs.map(pair => `<option value="${pair.laneId}">${pair.refId} • ${pair.origin} → ${pair.dest}</option>`).join('')}
       </select>
       <button class="btn btn-primary" onclick="window.print()">🖨️ Print</button>
     </div>
