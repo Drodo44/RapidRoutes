@@ -210,6 +210,37 @@ export default function RecapExport() {
     return now.toLocaleDateString('en-US', options);
   };
 
+  const generateCSV = async (contactMethod) => {
+    try {
+      const response = await fetch(`/api/exportSavedCitiesCsv?contactMethod=${contactMethod}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate CSV');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `DAT_Export_${contactMethod}_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      alert(`CSV generated successfully for ${contactMethod}!`);
+    } catch (error) {
+      console.error('CSV Generation Error:', error);
+      alert(`Failed to generate CSV: ${error.message}`);
+    }
+  };
+
   return (
     <>
       <Head>
@@ -723,6 +754,66 @@ ${clone.body.innerHTML}
             </div>
           </section>
         ))}
+
+        <div className="flex gap-3 no-print" style={{ marginTop: '24px' }}>
+          <button
+            onClick={() => generateCSV('both')}
+            className="btn btn-success"
+            style={{
+              borderRadius: '8px',
+              background: 'var(--success)',
+              color: 'white',
+              fontWeight: '500',
+              padding: '8px 16px',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'background 0.2s',
+              flex: 1
+            }}
+            onMouseEnter={(e) => e.target.style.background = 'var(--success-hover)'}
+            onMouseLeave={(e) => e.target.style.background = 'var(--success)'}
+          >
+            Generate CSV (Phone + Email)
+          </button>
+          <button
+            onClick={() => generateCSV('email')}
+            className="btn btn-primary"
+            style={{
+              borderRadius: '8px',
+              background: 'var(--primary)',
+              color: 'white',
+              fontWeight: '500',
+              padding: '8px 16px',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'background 0.2s',
+              flex: 1
+            }}
+            onMouseEnter={(e) => e.target.style.background = 'var(--primary-hover)'}
+            onMouseLeave={(e) => e.target.style.background = 'var(--primary)'}
+          >
+            Generate CSV (Email Only)
+          </button>
+          <button
+            onClick={() => generateCSV('phone')}
+            className="btn btn-secondary"
+            style={{
+              borderRadius: '8px',
+              background: 'var(--primary)',
+              color: 'white',
+              fontWeight: '500',
+              padding: '8px 16px',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'background 0.2s',
+              flex: 1
+            }}
+            onMouseEnter={(e) => e.target.style.background = 'var(--primary-hover)'}
+            onMouseLeave={(e) => e.target.style.background = 'var(--primary)'}
+          >
+            Generate CSV (Phone Only)
+          </button>
+        </div>
 
         <style jsx global>{`
           .no-print { display: block; }
