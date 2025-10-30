@@ -45,15 +45,23 @@ function lookupRate(matrix, o, d) {
 }
 
 async function fetchCityRecord(city, state) {
+  console.log(`Fetching city record for: ${city}, ${state}`);
   const { data, error } = await supabase
     .from("cities")
     .select("id, city, state_or_province, zip, latitude, longitude, kma_code, population")
     .ilike("city", city)
     .eq("state_or_province", state)
     .limit(1);
-  if (error) throw error;
+  if (error) {
+    console.error("Error fetching city record:", error);
+    throw error;
+  }
   const c = data?.[0];
-  if (!c) return null;
+  if (!c) {
+    console.warn(`No city record found for: ${city}, ${state}`);
+    return null;
+  }
+  console.log(`City record found:`, c);
   return {
     id: c.id,
     city: c.city,
@@ -205,8 +213,8 @@ export async function generateSmartCrawlCities({
 
   console.log(`🔍 Searching for ALL cities within 75 miles of ${baseOrigin.city}, ${baseOrigin.state} and ${baseDest.city}, ${baseDest.state}`);
 
-  const pCands = (await queryNearby(baseOrigin, PASS2_RADIUS)).filter((c) => c.state === oState);
-  const dCands = (await queryNearby(baseDest, PASS2_RADIUS)).filter((c) => c.state === dState);
+  const pCands = (await queryNearby(baseOrigin, PASS2_RADIUS)).filter((c) => c.state === oState && c.kma === baseOrigin.kma);
+  const dCands = (await queryNearby(baseDest, PASS2_RADIUS)).filter((c) => c.state === dState && c.kma === baseDest.kma);
 
   console.log(`📊 Found ${pCands.length} pickup candidates and ${dCands.length} delivery candidates`);
 
