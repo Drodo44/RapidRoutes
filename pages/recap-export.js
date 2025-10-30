@@ -366,35 +366,27 @@ export default function RecapExport() {
             
             <button 
               onClick={() => {
-                // Clone the document and force light theme for download
-                const clone = document.documentElement.cloneNode(true);
+                // Get all lane data for the dropdown
+                const laneOptions = filteredLanes.map(lane => {
+                  const lanePostedPairs = postedPairs.filter(pair => pair.laneId === lane.id);
+                  return {
+                    id: lane.id,
+                    refId: getDisplayReferenceId(lane),
+                    origin: `${lane.origin_city}, ${lane.origin_state}`,
+                    dest: `${lane.dest_city}, ${lane.dest_state}`,
+                    pairs: lanePostedPairs
+                  };
+                });
                 
-                // Force light theme styling in the clone
-                clone.setAttribute('data-theme', 'light');
-                clone.style.setProperty('--bg-primary', '#f8fafc');
-                clone.style.setProperty('--bg-secondary', '#f1f5f9');
-                clone.style.setProperty('--surface', '#ffffff');
-                clone.style.setProperty('--text-primary', '#0f172a');
-                clone.style.setProperty('--text-secondary', '#475569');
-                clone.style.setProperty('--text-tertiary', '#64748b');
-                clone.style.setProperty('--border-default', '#cbd5e1');
-                
-                // Remove the no-print controls
-                const controls = clone.querySelectorAll('.no-print');
-                controls.forEach(el => el.remove());
-                
-                // Get the body content
-                const bodyContent = clone.querySelector('body')?.innerHTML || clone.innerHTML;
-                
-                // Create full HTML document
+                // Create full standalone HTML document with all features
                 const htmlContent = `<!DOCTYPE html>
 <html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RapidRoutes Posting Recap</title>
+  <title>RapidRoutes Posting Recap - ${formatDate()}</title>
   <style>
-    :root {
+    :root[data-theme="light"] {
       --bg-primary: #f8fafc;
       --bg-secondary: #f1f5f9;
       --bg-tertiary: #e2e8f0;
@@ -408,21 +400,211 @@ export default function RecapExport() {
       --warning: #f59e0b;
       --danger: #ef4444;
     }
+    :root[data-theme="dark"] {
+      --bg-primary: #0f172a;
+      --bg-secondary: #1e293b;
+      --bg-tertiary: #334155;
+      --surface: #1e293b;
+      --text-primary: #f8fafc;
+      --text-secondary: #cbd5e1;
+      --text-tertiary: #94a3b8;
+      --border-default: #475569;
+      --primary: #60a5fa;
+      --success: #34d399;
+      --warning: #fbbf24;
+      --danger: #f87171;
+    }
     body {
-      background: #ffffff;
-      color: #0f172a;
+      background: var(--bg-primary);
+      color: var(--text-primary);
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
       margin: 0;
       padding: 20px;
+      transition: background 0.2s, color 0.2s;
     }
-    .no-print { display: none !important; }
+    .header { 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: flex-start;
+      margin-bottom: 24px; 
+    }
+    .controls { 
+      display: flex; 
+      gap: 12px; 
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .search-input, .lane-select {
+      padding: 8px 12px;
+      border: 1px solid var(--border-default);
+      border-radius: 8px;
+      font-size: 13px;
+      background: var(--surface);
+      color: var(--text-primary);
+    }
+    .search-input { width: 256px; }
+    .lane-select { max-width: 320px; }
+    .btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: none;
+      font-weight: 500;
+      cursor: pointer;
+      font-size: 13px;
+      transition: background 0.2s;
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+    .btn-primary:hover {
+      opacity: 0.9;
+    }
+    .section {
+      margin-bottom: 24px;
+    }
+    .section h2 {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 16px;
+      color: var(--text-primary);
+    }
+    .lane-card {
+      background: var(--surface);
+      border: 1px solid var(--border-default);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 12px;
+      transition: box-shadow 0.3s;
+    }
+    .lane-card.highlight {
+      box-shadow: 0 0 0 4px var(--primary);
+    }
+    .lane-header {
+      font-size: 16px;
+      font-weight: bold;
+      margin-bottom: 8px;
+      color: var(--text-primary);
+    }
+    .lane-details {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+    }
+    .pair-list {
+      margin-top: 12px;
+    }
+    .pair-item {
+      font-size: 12px;
+      padding: 4px 0;
+      display: flex;
+      justify-content: space-between;
+      color: var(--text-secondary);
+    }
+    .ref-badge {
+      background: var(--bg-tertiary);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      color: var(--text-primary);
+    }
+    .hidden { display: none; }
     @media print {
-      body { background: white; }
+      .controls, .no-print { display: none !important; }
+      body { background: white; color: black; }
+      .lane-card { break-inside: avoid; }
     }
   </style>
 </head>
 <body>
-${bodyContent}
+  <div class="header">
+    <div>
+      <h1 style="font-size: 20px; font-weight: bold; margin: 0;">RapidRoutes – Posting Recap</h1>
+      <p style="font-size: 13px; color: var(--text-secondary); margin: 4px 0 0 0;">Generated on ${formatDate()}</p>
+    </div>
+    <div class="controls no-print">
+      <button id="themeToggle" class="btn btn-primary" onclick="toggleTheme()">
+        <span id="themeIcon">🌙</span> <span id="themeText">Dark</span>
+      </button>
+      <input 
+        type="text" 
+        id="searchInput" 
+        class="search-input" 
+        placeholder="Search RR#, city, equipment..."
+        onkeyup="handleSearch()"
+      />
+      <select id="laneSelect" class="lane-select" onchange="handleLaneJump(this.value)">
+        <option value="">Jump to lane...</option>
+        ${laneOptions.map(lane => `<option value="${lane.id}">${lane.refId} • ${lane.origin} → ${lane.dest}</option>`).join('')}
+      </select>
+      <button class="btn btn-primary" onclick="window.print()">🖨️ Print</button>
+    </div>
+  </div>
+
+  <div id="content">
+${document.querySelector('#content')?.innerHTML || ''}
+  </div>
+
+  <script>
+    // Theme toggle
+    function toggleTheme() {
+      const html = document.documentElement;
+      const currentTheme = html.getAttribute('data-theme');
+      const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+      html.setAttribute('data-theme', newTheme);
+      
+      const icon = document.getElementById('themeIcon');
+      const text = document.getElementById('themeText');
+      if (newTheme === 'dark') {
+        icon.textContent = '☀️';
+        text.textContent = 'Light';
+      } else {
+        icon.textContent = '🌙';
+        text.textContent = 'Dark';
+      }
+      
+      localStorage.setItem('theme', newTheme);
+    }
+    
+    // Load saved theme
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    if (savedTheme === 'dark') {
+      document.getElementById('themeIcon').textContent = '☀️';
+      document.getElementById('themeText').textContent = 'Light';
+    }
+    
+    // Search functionality
+    function handleSearch() {
+      const query = document.getElementById('searchInput').value.toLowerCase();
+      const cards = document.querySelectorAll('.lane-card');
+      
+      cards.forEach(card => {
+        const text = card.textContent.toLowerCase();
+        if (text.includes(query)) {
+          card.classList.remove('hidden');
+        } else {
+          card.classList.add('hidden');
+        }
+      });
+    }
+    
+    // Lane navigation
+    function handleLaneJump(laneId) {
+      if (!laneId) return;
+      
+      const element = document.getElementById('lane-' + laneId);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        element.classList.add('highlight');
+        setTimeout(() => {
+          element.classList.remove('highlight');
+        }, 2000);
+      }
+      
+      document.getElementById('laneSelect').value = '';
+    }
+  </script>
 </body>
 </html>`;
                 
@@ -516,7 +698,8 @@ ${bodyContent}
           </div>
         </div>
 
-        {!loading && groups.map(([equip, arr]) => (
+        <div id="content">
+          {!loading && groups.map(([equip, arr]) => (
           <section key={equip} style={{ marginBottom: '32px' }}>
             <h2 style={{
               fontSize: '18px',
@@ -562,6 +745,7 @@ ${bodyContent}
                   <article 
                     key={lane.id} 
                     id={`lane-${lane.id}`}
+                    className="lane-card"
                     style={{
                       borderRadius: '8px',
                       border: '1px solid var(--border-default)',
@@ -817,6 +1001,7 @@ ${bodyContent}
             Generate CSV (Phone Only)
           </button>
         </div>
+        </div>{/* End content wrapper */}
 
         <style jsx global>{`
           .no-print { display: block; }
