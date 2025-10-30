@@ -199,21 +199,17 @@ export async function generateSmartCrawlCities({
   const baseDest   = await fetchCityRecord(dCity, dState);
   if (!baseOrigin || !baseDest) {
     return { pairs: [], baseOrigin, baseDest, allowedDuplicates: false, shortfallReason: "missing_base_cities" };
-    // Why: can't build postings without canonical base cities.
   }
 
   const rates = await latestSnapshots(equipment, "state");
 
-  // Find ALL cities within 75 miles for maximum KMA diversity like manual process
   console.log(`🔍 Searching for ALL cities within 75 miles of ${baseOrigin.city}, ${baseOrigin.state} and ${baseDest.city}, ${baseDest.state}`);
-  
-  // Always search full 75-mile radius to get maximum unique KMAs
-  const pCands = await queryNearby(baseOrigin, PASS2_RADIUS);  // 75 miles
-  const dCands = await queryNearby(baseDest, PASS2_RADIUS);    // 75 miles
-  
+
+  const pCands = (await queryNearby(baseOrigin, PASS2_RADIUS)).filter((c) => c.state === oState);
+  const dCands = (await queryNearby(baseDest, PASS2_RADIUS)).filter((c) => c.state === dState);
+
   console.log(`📊 Found ${pCands.length} pickup candidates and ${dCands.length} delivery candidates`);
 
-  // Score + sort
   const scoreSide = (arr, side) =>
     arr
       .filter((c) => c.id !== (side === "pickup" ? baseOrigin.id : baseDest.id))
@@ -223,19 +219,12 @@ export async function generateSmartCrawlCities({
   let P = scoreSide(pCands, "pickup");
   let D = scoreSide(dCands, "delivery");
 
-  // Enforce ≤1 per KMA (strict)
   let Pstrict = enforceKmaCap(P, KMA_CAP_STRICT);
   let Dstrict = enforceKmaCap(D, KMA_CAP_STRICT);
 
-  // BUSINESS RULE: Never exceed 75 miles - removed 125-mile "no-brainer" logic
-  // If we don't have enough pairs within 75 miles, that's acceptable
-  // Quality over quantity - stay within freight-intelligent radius
-
-  // Attempt A: strict (no KMA dupes)
   let { pairs } = pairUp({ pickups: Pstrict, deliveries: Dstrict, allowKmaDup: false });
   let allowedDuplicates = false;
 
-  // Attempt B: broker may allow fill-to-10 (≤2 per KMA, justified)
   if (pairs.length < maxPairs && preferFillTo10) {
     const bestP = P[0]?.score ?? 0;
     const bestD = D[0]?.score ?? 0;
