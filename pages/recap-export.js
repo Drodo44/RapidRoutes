@@ -383,6 +383,9 @@ export default function RecapExport() {
                 const controls = clone.querySelectorAll('.no-print');
                 controls.forEach(el => el.remove());
                 
+                // Get the body content
+                const bodyContent = clone.querySelector('body')?.innerHTML || clone.innerHTML;
+                
                 // Create full HTML document
                 const htmlContent = `<!DOCTYPE html>
 <html lang="en" data-theme="light">
@@ -419,7 +422,7 @@ export default function RecapExport() {
   </style>
 </head>
 <body>
-${clone.body.innerHTML}
+${bodyContent}
 </body>
 </html>`;
                 

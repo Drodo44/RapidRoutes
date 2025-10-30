@@ -74,6 +74,9 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // Get contact method parameter (both, email, or phone)
+  const contactMethod = req.query.contactMethod || 'both';
+  
   let supabaseAdmin;
   try {
     supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
@@ -85,6 +88,8 @@ export default async function handler(req, res) {
   try {
     // Clear used RR# tracking at start of each export
     usedRRNumbers.clear();
+    
+    console.log(`[exportSavedCitiesCsv] Contact method: ${contactMethod}`);
     
     // Fetch all current lanes with saved city selections
     const { data: lanes, error } = await supabaseAdmin
@@ -124,14 +129,21 @@ export default async function handler(req, res) {
         const originCity = originCities[i];
         const destCity = destCities[i];
         
-        // Create rows for both contact methods with UNIQUE RR# for each
-        const contactMethods = ['Email', 'Primary Phone'];
+        // Determine which contact methods to use based on parameter
+        let contactMethods;
+        if (contactMethod === 'email') {
+          contactMethods = ['Email'];
+        } else if (contactMethod === 'phone') {
+          contactMethods = ['Primary Phone'];
+        } else {
+          contactMethods = ['Email', 'Primary Phone'];
+        }
         
         for (let contactIdx = 0; contactIdx < contactMethods.length; contactIdx++) {
           // Generate globally unique RR# for each row
           const attemptOffset = (i * 2) + contactIdx + 1;
           const pairRefId = generateUniqueReferenceId(baseRefId, attemptOffset);
-          const contactMethod = contactMethods[contactIdx];
+          const currentContactMethod = contactMethods[contactIdx];
           
           const row = {
             'Pickup Earliest*': lane.pickup_earliest || '',
@@ -150,7 +162,7 @@ export default async function handler(req, res) {
             'DAT Loadboard Rate': '',
             'Allow DAT Loadboard Booking': 'Yes',
             'Use Extended Network': '',
-            'Contact Method*': contactMethod,
+            'Contact Method*': currentContactMethod,
             'Origin City*': originCity.city || '',
             'Origin State*': normalizeStateCode(originCity.state || originCity.state_or_province || ''),
             'Origin Postal Code': originCity.zip || '',

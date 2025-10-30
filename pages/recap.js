@@ -319,7 +319,7 @@ export default function RecapPage() {
   const [viewMode, setViewMode] = useState('classic'); // 'classic' or 'dynamic' - default to classic for saved city selections
   
   // Generate CSV for all visible lanes (active or posted)
-  async function generateCSV() {
+  async function generateCSV(contactMethod = 'both') {
     try {
       setIsGeneratingCSV(true);
       
@@ -344,14 +344,17 @@ export default function RecapPage() {
         sum + Math.min(lane.saved_origin_cities.length, lane.saved_dest_cities.length), 0
       );
 
-      const totalPostings = totalPairs * 2; // Each pair × 2 contact methods
+      const multiplier = contactMethod === 'both' ? 2 : 1;
+      const totalPostings = totalPairs * multiplier;
+      
+      const contactDesc = contactMethod === 'both' ? 'email + phone' : contactMethod === 'email' ? 'email only' : 'phone only';
 
-      if (!confirm(`Generate DAT CSV for ${lanesWithChoices.length} lane(s) with ${totalPairs} pairs (${totalPostings} total postings with email + phone)?`)) {
+      if (!confirm(`Generate DAT CSV for ${lanesWithChoices.length} lane(s) with ${totalPairs} pairs (${totalPostings} total postings with ${contactDesc})?`)) {
         return;
       }
 
       // Call the new CSV export API for saved city selections
-      const response = await fetch('/api/exportSavedCitiesCsv', {
+      const response = await fetch(`/api/exportSavedCitiesCsv?contactMethod=${contactMethod}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${session.access_token}`
@@ -750,14 +753,30 @@ export default function RecapPage() {
             </div>
             
             {/* Action Buttons */}
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <button 
-                onClick={generateCSV}
+                onClick={() => generateCSV('both')}
                 className="btn btn-success"
                 style={{ fontSize: '12px', padding: '6px 12px' }}
                 disabled={filtered.length === 0 || isGeneratingCSV}
               >
-                {isGeneratingCSV ? '⏳ Generating...' : '📊 Export CSV'}
+                {isGeneratingCSV ? '⏳ Generating...' : '📊 CSV (Phone + Email)'}
+              </button>
+              <button 
+                onClick={() => generateCSV('email')}
+                className="btn btn-primary"
+                style={{ fontSize: '12px', padding: '6px 12px' }}
+                disabled={filtered.length === 0 || isGeneratingCSV}
+              >
+                📧 CSV (Email Only)
+              </button>
+              <button 
+                onClick={() => generateCSV('phone')}
+                className="btn btn-primary"
+                style={{ fontSize: '12px', padding: '6px 12px' }}
+                disabled={filtered.length === 0 || isGeneratingCSV}
+              >
+                📞 CSV (Phone Only)
               </button>
               <button 
                 onClick={openExportView}
