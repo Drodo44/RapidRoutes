@@ -29,7 +29,9 @@ const BLACKLISTED_CITIES = new Set([
   'ENSLEY, FL',
   'FOREST HEIGHTS, TX',
   'SOUTHWEST CITY, MO',
-  'TENKILLER, OK'
+  'TENKILLER, OK',
+  'CEDAR VALLEY, OK',
+  'CANYON LAKE, TX'
 ]);
 
 // City name corrections for DAT compatibility
