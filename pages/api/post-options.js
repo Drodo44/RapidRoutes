@@ -21,14 +21,20 @@ const BLACKLISTED_CITIES = new Set([
   'BRIAR CHAPEL, NC',
   'COATS BEND, AL',
   'VILLAGE SHIRES, PA',
-  'CHUMUCKLA, FL'
+  'CHUMUCKLA, FL',
+  'WHITFIELD, PA',
+  'LINCOLN PARK, GA',
+  'TUCKAHOE, VA',
+  'AUCILLA, FL',
+  'ENSLEY, FL'
 ]);
 
 // City name corrections for DAT compatibility
 const CITY_CORRECTIONS = {
   'REDWOOD, OR': 'Redmond, OR',
   'BELLWOOD, VA': 'Elkwood, VA',
-  'DASHER, GA': 'Jasper, GA'
+  'DASHER, GA': 'Jasper, GA',
+  'ENSLEY, FL': 'Ensley, AL'
 };
 
 function correctCityName(city, state) {
