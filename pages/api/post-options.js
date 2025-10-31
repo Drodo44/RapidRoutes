@@ -26,7 +26,10 @@ const BLACKLISTED_CITIES = new Set([
   'LINCOLN PARK, GA',
   'TUCKAHOE, VA',
   'AUCILLA, FL',
-  'ENSLEY, FL'
+  'ENSLEY, FL',
+  'FOREST HEIGHTS, TX',
+  'SOUTHWEST CITY, MO',
+  'TENKILLER, OK'
 ]);
 
 // City name corrections for DAT compatibility
