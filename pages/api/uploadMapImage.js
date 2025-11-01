@@ -98,10 +98,12 @@ export default async function handler(req, res) {
 
     if (dbError) {
       console.error('❌ Database save failed:', dbError);
-      // Return error instead of continuing silently
+      console.error('❌ Full error object:', JSON.stringify(dbError, null, 2));
+      // Return error with full details
       return res.status(500).json({ 
-        error: 'File uploaded to storage but database save failed: ' + dbError.message,
-        imageUrl: publicUrl // Still return URL for debugging
+        error: 'File uploaded to storage but database save failed: ' + (dbError.message || dbError.hint || JSON.stringify(dbError)),
+        imageUrl: publicUrl, // Still return URL for debugging
+        details: dbError
       });
     }
     
