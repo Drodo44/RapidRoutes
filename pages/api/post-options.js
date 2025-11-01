@@ -31,7 +31,11 @@ const BLACKLISTED_CITIES = new Set([
   'SOUTHWEST CITY, MO',
   'TENKILLER, OK',
   'CEDAR VALLEY, OK',
-  'CANYON LAKE, TX'
+  'CANYON LAKE, TX',
+  'ROCKY MOUNTAIN, OK',
+  'LORANE, PA',
+  'SCENIC OAKS, TX',
+  'GRANTLEY, PA'
 ]);
 
 // City name corrections for DAT compatibility
