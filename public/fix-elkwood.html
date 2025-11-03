@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Fix Elkwood VA Coordinates</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #0f172a;
+      color: #e2e8f0;
+    }
+    .container {
+      background: #1e293b;
+      border-radius: 12px;
+      padding: 30px;
+      border: 1px solid #334155;
+    }
+    h1 {
+      color: #3b82f6;
+      margin-top: 0;
+    }
+    button {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    button:hover {
+      background: #2563eb;
+    }
+    button:disabled {
+      background: #475569;
+      cursor: not-allowed;
+    }
+    #result {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 6px;
+      display: none;
+    }
+    #result.success {
+      background: #14532d;
+      border: 1px solid #16a34a;
+      color: #86efac;
+      display: block;
+    }
+    #result.error {
+      background: #7f1d1d;
+      border: 1px solid #dc2626;
+      color: #fca5a5;
+      display: block;
+    }
+    .info {
+      background: #1e3a8a;
+      border: 1px solid #3b82f6;
+      color: #93c5fd;
+      padding: 15px;
+      border-radius: 6px;
+      margin: 20px 0;
+    }
+    pre {
+      background: #0f172a;
+      padding: 15px;
+      border-radius: 6px;
+      overflow-x: auto;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔧 Fix Elkwood, VA Lane Coordinates</h1>
+    
+    <div class="info">
+      <strong>What this does:</strong>
+      <ul>
+        <li>Finds all lanes with Bellwood/Elkwood, VA as destination</li>
+        <li>Checks if coordinates are wrong (outside Virginia)</li>
+        <li>Updates to correct Elkwood, VA coordinates (38.5124° N, 77.8549° W)</li>
+      </ul>
+    </div>
+
+    <button id="fixBtn" onclick="fixLanes()">Fix Elkwood Lanes</button>
+    
+    <div id="result"></div>
+  </div>
+
+  <script>
+    async function fixLanes() {
+      const btn = document.getElementById('fixBtn');
+      const result = document.getElementById('result');
+      
+      btn.disabled = true;
+      btn.textContent = 'Fixing...';
+      result.style.display = 'none';
+      
+      try {
+        const response = await fetch('/api/fix-elkwood', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          result.className = 'success';
+          result.innerHTML = `
+            <strong>✅ Success!</strong><br><br>
+            ${data.message}<br><br>
+            <strong>Details:</strong>
+            <pre>${JSON.stringify(data, null, 2)}</pre>
+            <br>
+            <strong>Next step:</strong> Go back to the lane and click "Generate Options" again. 
+            You should now see Virginia cities instead of Texas cities!
+          `;
+        } else {
+          throw new Error(data.error || 'Unknown error');
+        }
+      } catch (error) {
+        result.className = 'error';
+        result.innerHTML = `
+          <strong>❌ Error:</strong><br>
+          ${error.message}
+        `;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Fix Elkwood Lanes';
+      }
+    }
+  </script>
+</body>
+</html>
