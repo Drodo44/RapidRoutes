@@ -1,35 +1,50 @@
 // pages/api/searchByReference.js
 // API endpoint to search for lanes by reference ID
-
+import { adminSupabase } from '@/utils/supabaseClient';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  let supabaseAdmin;
   try {
-    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     const { referenceId } = req.query;
 
     if (!referenceId) {
       return res.status(400).json({ error: 'Reference ID is required' });
     }
 
-    // Search for lane by reference ID
-    const { data: lane, error } = await adminSupabase
+    // Normalize reference ID: remove RR# prefix if present, trim whitespace
+    let normalizedRef = referenceId.trim().toUpperCase();
+    if (normalizedRef.startsWith('RR')) {
+      normalizedRef = normalizedRef.substring(2);
+    }
+    normalizedRef = normalizedRef.replace(/[^0-9]/g, ''); // Keep only digits
+
+    if (!normalizedRef) {
+      return res.status(400).json({ error: 'Invalid reference ID format' });
+    }
+
+    // Search for lane by reference ID - use LIKE for partial matching
+    const { data: lanes, error } = await adminSupabase
       .from('lanes')
       .select('*')
-      .eq('reference_id', referenceId.toUpperCase())
-      .maybeSingle();
+      .or(`reference_id.eq.${normalizedRef},reference_id.eq.RR${normalizedRef},reference_id.ilike.%${normalizedRef}%`)
+      .limit(10);
 
     if (error) {
       throw error;
     }
 
-    if (!lane) {
+    if (!lanes || lanes.length === 0) {
       return res.status(404).json({ error: 'Lane not found with that reference ID' });
     }
+
+    // If multiple matches, return the best match or most recent
+    const lane = lanes.find(l => 
+      l.reference_id === normalizedRef || 
+      l.reference_id === `RR${normalizedRef}`
+    ) || lanes[0];
 
     // Get posted pairs for this lane from our posted_pairs table
     const { data: postedPairs = [], error: pairsError } = await adminSupabase
@@ -45,7 +60,8 @@ export default async function handler(req, res) {
     return res.status(200).json({
       lane,
       postedPairs,
-      totalPostings: postedPairs.length
+      totalPostings: postedPairs.length,
+      allMatches: lanes.length > 1 ? lanes : undefined
     });
 
   } catch (error) {

@@ -26,6 +26,7 @@ export default function ChooseCities({ lane, onBack, onComplete }) {
   const [originSel, setOriginSel] = useState({});
   const [destSel, setDestSel] = useState({});
   const [isHydrated, setIsHydrated] = useState(false);
+  const [performanceData, setPerformanceData] = useState({});
   const prefillApplied = useRef(false);
 
   const keyOf = useCallback((city) => {
@@ -37,6 +38,48 @@ export default function ChooseCities({ lane, onBack, onComplete }) {
   }, []);
 
   const laneKey = useMemo(() => laneIdentity(lane), [lane]);
+
+  // Fetch city performance data
+  useEffect(() => {
+    const fetchPerformanceData = async () => {
+      try {
+        const response = await fetch('/api/city-performance');
+        if (!response.ok) return;
+        
+        const data = await response.json();
+        if (data.stats) {
+          // Create lookup map: "city|state|type" => stats
+          const perfMap = {};
+          data.stats.forEach(stat => {
+            const key = `${stat.city}|${stat.state}|${stat.city_type}`;
+            perfMap[key] = stat;
+          });
+          setPerformanceData(perfMap);
+        }
+      } catch (error) {
+        console.error('Failed to fetch performance data:', error);
+      }
+    };
+    
+    fetchPerformanceData();
+  }, []);
+
+  // Helper to get performance badge for a city
+  const getPerformanceBadge = useCallback((city, cityType) => {
+    const key = `${city.city}|${city.state}|${cityType}`;
+    const stats = performanceData[key];
+    
+    if (!stats || stats.total_contacts === 0) {
+      return { emoji: '🆕', label: 'New', color: '#6b7280' };
+    }
+    if (stats.total_contacts >= 10) {
+      return { emoji: '🔥', label: 'Hot', color: '#ef4444' };
+    }
+    if (stats.total_contacts >= 5) {
+      return { emoji: '⭐', label: 'Good', color: '#f59e0b' };
+    }
+    return { emoji: '🆕', label: 'New', color: '#6b7280' };
+  }, [performanceData]);
 
   useEffect(() => {
     setIsHydrated(true);
@@ -271,16 +314,33 @@ export default function ChooseCities({ lane, onBack, onComplete }) {
             {cities.map((city) => {
               const key = keyOf(city);
               const milesValue = typeof city.miles === "number" ? Math.round(city.miles) : "—";
+              const badge = getPerformanceBadge(city, side);
               const label = `${city.city}, ${city.state} (${milesValue} mi)`;
               const checked = side === "origin" ? Boolean(originSel[key]) : Boolean(destSel[key]);
 
               return (
-                <Checkbox
-                  key={key}
-                  checked={checked}
-                  onChange={() => toggleSelection(side, city)}
-                  label={label}
-                />
+                <div key={key} style={{ position: 'relative' }}>
+                  <Checkbox
+                    checked={checked}
+                    onChange={() => toggleSelection(side, city)}
+                    label={label}
+                  />
+                  <span style={{
+                    position: 'absolute',
+                    right: '8px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    fontSize: '10px',
+                    padding: '2px 6px',
+                    borderRadius: '3px',
+                    background: `${badge.color}15`,
+                    color: badge.color,
+                    fontWeight: 600,
+                    pointerEvents: 'none'
+                  }}>
+                    {badge.emoji}
+                  </span>
+                </div>
               );
             })}
           </div>

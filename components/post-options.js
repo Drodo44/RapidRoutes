@@ -40,12 +40,19 @@ export default function PostOptions({ onBack, renderActions }) {
     }
 
     const { lane, selectedOrigin = [], selectedDestination = [] } = state.payload;
-    const count = Math.min(selectedOrigin.length, selectedDestination.length);
+    
+    // Handle unequal pickup/delivery counts by cycling through the smaller list
+    const maxCount = Math.max(selectedOrigin.length, selectedDestination.length);
     const result = [];
 
-    for (let index = 0; index < count; index += 1) {
-      const pickup = selectedOrigin[index];
-      const drop = selectedDestination[index];
+    for (let index = 0; index < maxCount; index += 1) {
+      // Cycle through arrays - if one is shorter, wrap around to beginning
+      const pickup = selectedOrigin[index % selectedOrigin.length];
+      const drop = selectedDestination[index % selectedDestination.length];
+      
+      // Skip if either array is empty
+      if (!pickup || !drop) continue;
+      
       let miles = typeof lane?.distance === "number" ? Math.round(lane.distance) : null;
 
       if (
@@ -172,8 +179,8 @@ export default function PostOptions({ onBack, renderActions }) {
               </div>
             </div>
             {countsDiffer && (
-              <span className="text-sm text-amber-400">
-                Extra cities will be ignored when generating recap pairs.
+              <span className="text-sm text-green-400">
+                ✓ Smart pairing enabled: using all {Math.max(originCount, destinationCount)} cities with rotation
               </span>
             )}
           </div>

@@ -9,8 +9,9 @@ import { resolveCoords } from "@/lib/resolve-coords";
 import { z } from 'zod';
 // NOTE: Not using external p-limit dependency to avoid adding new package; implementing lightweight limiter inline.
 
-// Cities rejected by DAT - blacklist these from generation
-const BLACKLISTED_CITIES = new Set([
+// Cities rejected by DAT - blacklist these from generation (kept for backward compatibility)
+// NOTE: Primary blacklist is now managed via database (blacklisted_cities table)
+const LEGACY_BLACKLISTED_CITIES = new Set([
   'SHANNONDALE, WV',
   'BROWNSDALE, FL',
   'MOSKOEITE CORNER, CA',
@@ -38,6 +39,11 @@ const BLACKLISTED_CITIES = new Set([
   'GRANTLEY, PA'
 ]);
 
+// Cache for database blacklist (refreshed on each request)
+let dbBlacklistCache = new Set();
+let lastBlacklistFetch = 0;
+const BLACKLIST_CACHE_TTL = 60000; // 1 minute cache
+
 // City name corrections for DAT compatibility
 const CITY_CORRECTIONS = {
   'REDWOOD, OR': 'Redmond, OR',
@@ -55,9 +61,33 @@ function correctCityName(city, state) {
   return { city, state };
 }
 
-function isBlacklisted(city, state) {
+async function fetchDatabaseBlacklist(supabase) {
+  const now = Date.now();
+  if (now - lastBlacklistFetch < BLACKLIST_CACHE_TTL) {
+    return dbBlacklistCache; // Return cached version
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('blacklisted_cities')
+      .select('city, state');
+
+    if (!error && data) {
+      dbBlacklistCache = new Set(
+        data.map(row => `${row.city}, ${row.state}`.toUpperCase())
+      );
+      lastBlacklistFetch = now;
+    }
+  } catch (err) {
+    console.warn('Failed to fetch database blacklist:', err);
+  }
+
+  return dbBlacklistCache;
+}
+
+function isBlacklisted(city, state, dbBlacklist = new Set()) {
   const key = `${city}, ${state}`.toUpperCase();
-  return BLACKLISTED_CITIES.has(key);
+  return LEGACY_BLACKLISTED_CITIES.has(key) || dbBlacklist.has(key);
 }
 
 const ApiSchema = z.object({
@@ -90,10 +120,10 @@ function haversine(lat1, lon1, lat2, lon2) {
 
 // Group results by KMA and spread them evenly
 // For each KMA, take the closest cities up to a per-KMA limit
-function balanceByKMA(cities, max = 50) {
+function balanceByKMA(cities, max = 50, dbBlacklist = new Set()) {
   // Filter out blacklisted cities and apply corrections
   const filtered = cities
-    .filter(c => !isBlacklisted(c.city, c.state_or_province || c.state))
+    .filter(c => !isBlacklisted(c.city, c.state_or_province || c.state, dbBlacklist))
     .map(c => {
       const corrected = correctCityName(c.city, c.state_or_province || c.state);
       return {
@@ -146,6 +176,9 @@ function balanceByKMA(cities, max = 50) {
 
 // Simple haversine utilities retained for legacy option generation
 async function generateOptionsForLane(laneId, supabaseAdmin) {
+  // Fetch database blacklist
+  const dbBlacklist = await fetchDatabaseBlacklist(supabaseAdmin);
+  
   // Fetch lane
   const { data: lane, error: laneErr } = await supabaseAdmin
     .from("lanes")
@@ -209,12 +242,12 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
   }
   const originOptions = enriched
     .map(c => ({ ...c, distance: haversine(originLat, originLon, c.latitude, c.longitude) }))
-    .filter(c => c.distance <= 150); // Increased from 100 to 150 miles
+    .filter(c => c.distance <= 100); // Optimized to 100 miles for better local coverage
   const destOptions = enriched
     .map(c => ({ ...c, distance: haversine(destLat, destLon, c.latitude, c.longitude) }))
-    .filter(c => c.distance <= 150); // Increased from 100 to 150 miles
-  const balancedOrigin = balanceByKMA(originOptions, 100); // Increased from 50 to 100
-  const balancedDest = balanceByKMA(destOptions, 100); // Increased from 50 to 100
+    .filter(c => c.distance <= 100); // Optimized to 100 miles for better local coverage
+  const balancedOrigin = balanceByKMA(originOptions, 100, dbBlacklist); // Keep up to 100 diverse cities
+  const balancedDest = balanceByKMA(destOptions, 100, dbBlacklist); // Keep up to 100 diverse cities
   return {
     laneId,
     origin: { city: lane.origin_city, state: lane.origin_state, options: balancedOrigin },

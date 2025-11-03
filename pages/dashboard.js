@@ -7,6 +7,7 @@ import Head from 'next/head';
 import { supabase } from '../lib/supabaseClient';
 import DatMarketMaps from '../components/DatMarketMaps.jsx';
 import ErrorBoundary from '../components/ErrorBoundary';
+import TopPerformingCities from '../components/TopPerformingCities.jsx';
 // Removed non-core dashboard widgets to keep focus on maps, calculators, and core logistics
 
 function Section({ title, right, children, className = '' }) {
@@ -251,6 +252,15 @@ function Dashboard() {
           <ErrorBoundary componentName="DatMarketMaps">
             <DatMarketMaps />
           </ErrorBoundary>
+        </div>
+
+        {/* Top Performing Cities */}
+        <div style={{ marginBottom: 'var(--space-6)' }}>
+          <Section title="🔥 Top Posting Cities" className="dashboard-section">
+            <ErrorBoundary componentName="TopPerformingCities">
+              <TopPerformingCities />
+            </ErrorBoundary>
+          </Section>
         </div>
 
         {/* Calculators Below - Side by side */}

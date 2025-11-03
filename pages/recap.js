@@ -8,6 +8,7 @@ import { getDisplayReferenceId, matchesReferenceId, cleanReferenceId } from '../
 // Avoid importing server-only services on the client; use API instead
 import RecapDynamic from '../components/RecapDynamic.jsx';
 import { fetchLaneRecords as fetchLaneRecordsBrowser } from '@/services/browserLaneService';
+import LogContactModal from '../components/LogContactModal.jsx';
 
 // Generate reference ID for generated pairs (same logic as CSV)
 function generatePairReferenceId(baseRefId, pairIndex) {
@@ -195,15 +196,36 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
                       padding: '6px 10px',
                       background: 'var(--bg-tertiary)',
                       borderRadius: '4px',
-                      border: '1px solid var(--border)'
+                      border: '1px solid var(--border)',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
                     }}
                   >
-                    <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
-                      {city.city}, {city.state}
+                    <div>
+                      <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
+                        {city.city}, {city.state}
+                      </div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
+                        {city.kma_code} • {city.distance ? `${Math.round(city.distance)} mi from origin` : 'Unknown distance'}
+                      </div>
                     </div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
-                      {city.kma_code} • {city.distance ? `${Math.round(city.distance)} mi from origin` : 'Unknown distance'}
-                    </div>
+                    <button
+                      onClick={() => setContactModal({ open: true, lane, city, cityType: 'pickup' })}
+                      style={{
+                        padding: '4px 8px',
+                        fontSize: '11px',
+                        background: 'var(--primary, #3b82f6)',
+                        border: 'none',
+                        borderRadius: '4px',
+                        color: 'white',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap'
+                      }}
+                      title="Log a contact received from this city"
+                    >
+                      📞 Log Contact
+                    </button>
                   </div>
                 ))}
               </div>
@@ -223,15 +245,36 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
                       padding: '6px 10px',
                       background: 'var(--bg-tertiary)',
                       borderRadius: '4px',
-                      border: '1px solid var(--border)'
+                      border: '1px solid var(--border)',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
                     }}
                   >
-                    <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
-                      {city.city}, {city.state}
+                    <div>
+                      <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
+                        {city.city}, {city.state}
+                      </div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
+                        {city.kma_code} • {city.distance ? `${Math.round(city.distance)} mi from destination` : 'Unknown distance'}
+                      </div>
                     </div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
-                      {city.kma_code} • {city.distance ? `${Math.round(city.distance)} mi from destination` : 'Unknown distance'}
-                    </div>
+                    <button
+                      onClick={() => setContactModal({ open: true, lane, city, cityType: 'delivery' })}
+                      style={{
+                        padding: '4px 8px',
+                        fontSize: '11px',
+                        background: 'var(--primary, #3b82f6)',
+                        border: 'none',
+                        borderRadius: '4px',
+                        color: 'white',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap'
+                      }}
+                      title="Log a contact received from this city"
+                    >
+                      📞 Log Contact
+                    </button>
                   </div>
                 ))}
               </div>
@@ -317,6 +360,7 @@ export default function RecapPage() {
   const [selectedLaneId, setSelectedLaneId] = useState(''); // For dropdown snap-to functionality
   const [isGeneratingCSV, setIsGeneratingCSV] = useState(false);
   const [viewMode, setViewMode] = useState('classic'); // 'classic' or 'dynamic' - default to classic for saved city selections
+  const [contactModal, setContactModal] = useState({ open: false, lane: null, city: null, cityType: null });
   
   // Generate CSV for all visible lanes (active or posted)
   async function generateCSV(contactMethod = 'both') {
@@ -865,6 +909,15 @@ export default function RecapPage() {
           )}
         </div>
       </div>
+
+      {/* Contact Logging Modal */}
+      <LogContactModal
+        isOpen={contactModal.open}
+        onClose={() => setContactModal({ open: false, lane: null, city: null, cityType: null })}
+        lane={contactModal.lane}
+        city={contactModal.city}
+        cityType={contactModal.cityType}
+      />
     </>
   );
 }
