@@ -116,6 +116,24 @@ export default async function handler(req, res) {
         return `RR${random}`;
       }
 
+      // City name corrections for known typos/variations (applied before database lookup)
+      const CITY_CORRECTIONS = {
+        'BELLWOOD, VA': 'Elkwood, VA',
+        'REDWOOD, OR': 'Redmond, OR',
+        'DASHER, GA': 'Jasper, GA',
+        'ENSLEY, FL': 'Ensley, AL'
+      };
+
+      function applyCityCorrection(city, state) {
+        const key = `${city}, ${state}`.toUpperCase();
+        if (CITY_CORRECTIONS[key]) {
+          const corrected = CITY_CORRECTIONS[key].split(', ');
+          console.log(`✅ Corrected city: ${city}, ${state} → ${corrected[0]}, ${corrected[1]}`);
+          return { city: corrected[0], state: corrected[1] };
+        }
+        return { city, state };
+      }
+
       // Handle defaults and field mapping
       // Never trust client for user_id/created_by, always generate new reference_id
       // Extract all possible destination field variants
@@ -131,15 +149,24 @@ export default async function handler(req, res) {
       
       // Map all destination variations to the canonical destination_* fields
       // Using nullish coalescing to try each possible source in priority order
-      const destinationCity = payloadDestinationCity ?? dest_city ?? destCity ?? null;
-      const destinationState = payloadDestinationState ?? dest_state ?? destState ?? null;
+      let destinationCity = payloadDestinationCity ?? dest_city ?? destCity ?? null;
+      let destinationState = payloadDestinationState ?? dest_state ?? destState ?? null;
+
+      // Apply city name corrections to origin and destination BEFORE database lookup
+      const correctedOrigin = applyCityCorrection(payload.origin_city, payload.origin_state);
+      const correctedDest = applyCityCorrection(destinationCity, destinationState);
+      
+      const originCityToLookup = correctedOrigin.city;
+      const originStateToLookup = correctedOrigin.state;
+      destinationCity = correctedDest.city;
+      destinationState = correctedDest.state;
       
       // Look up coordinates from cities table
       const { data: originCity, error: originError } = await supabaseAdmin
         .from('cities')
         .select('latitude, longitude, zip')
-        .eq('city', payload.origin_city)
-        .eq('state_or_province', payload.origin_state)
+        .eq('city', originCityToLookup)  // Use corrected city name
+        .eq('state_or_province', originStateToLookup)  // Use corrected state
         .maybeSingle();
       
       if (originError) {
@@ -149,7 +176,7 @@ export default async function handler(req, res) {
       
       if (!originCity) {
         return res.status(400).json({ 
-          error: `Origin city not found: ${payload.origin_city}, ${payload.origin_state}. Please use a city from the database.`
+          error: `Origin city not found: ${originCityToLookup}, ${originStateToLookup}. Please use a city from the database.`
         });
       }
 
@@ -157,7 +184,7 @@ export default async function handler(req, res) {
       let originLat = originCity.latitude;
       let originLon = originCity.longitude;
       if ((!originLat || !originLon) && (payload.origin_zip5 || payload.origin_zip || originCity.zip)) {
-        console.log(`[lanes] Origin city missing coords, attempting ZIP lookup for ${payload.origin_city}`);
+        console.log(`[lanes] Origin city missing coords, attempting ZIP lookup for ${originCityToLookup}`);
         const { resolveCoords } = await import('@/lib/resolve-coords');
         const zip = payload.origin_zip5 || payload.origin_zip || originCity.zip;
         const coordsResult = await resolveCoords(zip);
@@ -170,8 +197,8 @@ export default async function handler(req, res) {
           await supabaseAdmin
             .from('cities')
             .update({ latitude: originLat, longitude: originLon })
-            .eq('city', payload.origin_city)
-            .eq('state_or_province', payload.origin_state);
+            .eq('city', originCityToLookup)
+            .eq('state_or_province', originStateToLookup);
         }
       }
       
@@ -218,7 +245,7 @@ export default async function handler(req, res) {
       // Validate that we have coordinates
       if (!originLat || !originLon) {
         return res.status(400).json({
-          error: `Unable to determine coordinates for origin city: ${payload.origin_city}, ${payload.origin_state}. Please provide a valid ZIP code.`
+          error: `Unable to determine coordinates for origin city: ${originCityToLookup}, ${originStateToLookup}. Please provide a valid ZIP code.`
         });
       }
       
@@ -236,7 +263,9 @@ export default async function handler(req, res) {
         created_at: new Date().toISOString(),
         created_by: auth.user.id,
         user_id: auth.user.id,
-        // Always use destination_* fields for database consistency
+        // Store the CORRECTED city names in the database
+        origin_city: originCityToLookup,
+        origin_state: originStateToLookup,
         destination_city: destinationCity,
         destination_state: destinationState,
         // Add coordinates (resolved from cities table or ZIP lookup)
