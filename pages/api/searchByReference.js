@@ -1,6 +1,6 @@
 // pages/api/searchByReference.js
 // API endpoint to search for lanes by reference ID
-import { adminSupabase } from '@/utils/supabaseClient';
+import { adminSupabase } from '@/lib/supabaseAdmin';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {

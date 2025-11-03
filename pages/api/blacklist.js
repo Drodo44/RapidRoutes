@@ -1,6 +1,6 @@
 // pages/api/blacklist.js
 // API for managing blacklisted cities
-import { adminSupabase } from '@/utils/supabaseClient';
+import { adminSupabase } from '@/lib/supabaseAdmin';
 
 export default async function handler(req, res) {
   try {
