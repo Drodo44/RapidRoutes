@@ -1,6 +1,7 @@
 // pages/api/laneRecords.js
 // Updated: Return real user lanes from the 'lanes' table (not analytics)
 // This ensures any existing clients that still call /api/laneRecords get correct, editable rows.
+// Force rebuild: 2025-11-05
 
 import { withErrorHandler } from '@/lib/apiErrorHandler';
 
