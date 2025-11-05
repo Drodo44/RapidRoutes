@@ -1,5 +1,6 @@
 // services/browserLaneService.js
 // Browser-safe lane service: wraps internal API routes. Do NOT import server-only clients here.
+// Rebuilt: 2025-11-05
 
 const DEFAULT_LIMIT = 200;
 const MAX_LIMIT = 2000;
