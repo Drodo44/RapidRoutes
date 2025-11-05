@@ -393,6 +393,92 @@ export default function RecapExport() {
                 // Sort alphabetically by origin → destination
                 allPairs.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
                 
+                // Generate lane cards HTML from data
+                const generateLaneCards = () => {
+                  return groups.map(([equip, arr]) => `
+                    <section style="margin-bottom: 32px;">
+                      <h2 style="font-size: 18px; font-weight: 600; border-bottom: 1px solid var(--border-default); padding-bottom: 8px; margin-bottom: 12px; color: var(--text-primary);">
+                        ${equip === 'V' ? 'Dry Van' : equip === 'R' ? 'Reefer' : equip === 'F' || equip === 'FD' ? 'Flatbed' : equip} Lanes
+                      </h2>
+                      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 16px;">
+                        ${arr.map(lane => {
+                          const recap = recaps[lane.id];
+                          const baseRefId = getDisplayReferenceId(lane);
+                          const hasSavedCities = lane.saved_origin_cities?.length > 0 && lane.saved_dest_cities?.length > 0;
+                          const pairs = [];
+                          
+                          if (hasSavedCities) {
+                            const numPairs = Math.min(lane.saved_origin_cities.length, lane.saved_dest_cities.length);
+                            for (let i = 0; i < numPairs; i++) {
+                              const pairRefId = generatePairReferenceId(baseRefId, i);
+                              pairs.push({
+                                refId: pairRefId,
+                                pickup: lane.saved_origin_cities[i],
+                                delivery: lane.saved_dest_cities[i]
+                              });
+                            }
+                          }
+                          
+                          return `
+                            <article id="lane-${lane.id}" class="lane-card" style="border-radius: 8px; border: 1px solid var(--border-default); overflow: hidden; break-inside: avoid; background: var(--surface);">
+                              <div style="background: var(--bg-secondary); padding: 12px;">
+                                <div style="display: flex; align-items: center; justify-content: space-between;">
+                                  <div style="font-weight: 500; font-size: 16px; color: var(--text-primary);">
+                                    ${lane.origin_city || '?'}, ${lane.origin_state || '?'} 
+                                    <span style="color: var(--text-secondary); margin: 0 8px;">→</span> 
+                                    ${lane.dest_city || lane.destination_city || '?'}, ${lane.dest_state || lane.destination_state || '?'}
+                                  </div>
+                                  <div style="font-size: 12px; font-family: monospace; color: var(--text-secondary); background: var(--surface); padding: 4px 8px; border-radius: 4px;">
+                                    ${baseRefId}
+                                  </div>
+                                </div>
+                                <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
+                                  <span style="font-weight: 500;">
+                                    ${lane.equipment_code === 'V' ? 'Dry Van' : lane.equipment_code === 'R' ? 'Reefer' : lane.equipment_code === 'F' || lane.equipment_code === 'FD' ? 'Flatbed' : lane.equipment_code} • ${lane.length_ft || '?'}ft
+                                  </span>
+                                  <span style="margin-left: 8px;">
+                                    ${lane.randomize_weight ? `${lane.weight_min?.toLocaleString() || '?'}-${lane.weight_max?.toLocaleString() || '?'} lbs` : `${lane.weight_lbs?.toLocaleString() || '—'} lbs`}
+                                  </span>
+                                  <span style="margin-left: 8px;">Pickup: ${lane.pickup_earliest || '?'} → ${lane.pickup_latest || '?'}</span>
+                                </div>
+                              </div>
+                              
+                              <div style="padding: 12px;">
+                                ${pairs.length > 0 ? `
+                                  <div style="margin-bottom: 12px;">
+                                    <h4 style="font-size: 13px; font-weight: 500; color: var(--text-primary); margin-bottom: 8px;">
+                                      Current Lanes (${pairs.length} total)
+                                    </h4>
+                                    <div style="display: flex; flex-direction: column; gap: 6px; max-height: 180px; overflow-y: auto;">
+                                      ${pairs.slice(0, 15).map((pair, index) => `
+                                        <div style="font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; justify-content: space-between;">
+                                          <div style="display: flex; align-items: center; flex: 1;">
+                                            <span style="color: var(--primary); margin-right: 8px; min-width: 16px;">📍</span>
+                                            <span>
+                                              <span style="font-weight: 500;">P${index + 1}:</span>
+                                              <span style="margin-left: 6px;">
+                                                ${pair.pickup.city}, ${pair.pickup.state || pair.pickup.state_or_province} → ${pair.delivery.city}, ${pair.delivery.state || pair.delivery.state_or_province}
+                                              </span>
+                                            </span>
+                                          </div>
+                                          <span style="font-size: 11px; font-family: monospace; background: var(--bg-tertiary); color: var(--text-secondary); padding: 2px 6px; border-radius: 3px; margin-left: 8px;">
+                                            ${pair.refId}
+                                          </span>
+                                        </div>
+                                      `).join('')}
+                                      ${pairs.length > 15 ? `<div style="font-size: 11px; color: var(--text-tertiary); font-style: italic;">... and ${pairs.length - 15} more pairs</div>` : ''}
+                                    </div>
+                                  </div>
+                                ` : ''}
+                              </div>
+                            </article>
+                          `;
+                        }).join('')}
+                      </div>
+                    </section>
+                  `).join('');
+                };
+                
                 // Create full standalone HTML document with all features
                 const htmlContent = `<!DOCTYPE html>
 <html lang="en" data-theme="light">
@@ -557,7 +643,7 @@ export default function RecapExport() {
   </div>
 
   <div id="content">
-${document.querySelector('#content')?.innerHTML || ''}
+    ${generateLaneCards()}
   </div>
 
   <script>
