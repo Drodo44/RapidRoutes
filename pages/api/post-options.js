@@ -240,14 +240,41 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
       state: c.state_or_province // Normalize state field name
     });
   }
-  const originOptions = enriched
-    .map(c => ({ ...c, distance: haversine(originLat, originLon, c.latitude, c.longitude) }))
-    .filter(c => c.distance <= 100); // Optimized to 100 miles for better local coverage
-  const destOptions = enriched
-    .map(c => ({ ...c, distance: haversine(destLat, destLon, c.latitude, c.longitude) }))
-    .filter(c => c.distance <= 100); // Optimized to 100 miles for better local coverage
+  
+  // Calculate distances for all cities
+  const originWithDistances = enriched
+    .map(c => ({ ...c, distance: haversine(originLat, originLon, c.latitude, c.longitude) }));
+  const destWithDistances = enriched
+    .map(c => ({ ...c, distance: haversine(destLat, destLon, c.latitude, c.longitude) }));
+  
+  // Start with 100 mile radius
+  let originOptions = originWithDistances.filter(c => c.distance <= 100);
+  let destOptions = destWithDistances.filter(c => c.distance <= 100);
+  
+  // If we have very few options (coastal/sparse areas), expand radius progressively
+  if (originOptions.length < 30) {
+    console.log(`⚠️  Only ${originOptions.length} origin cities within 100 miles, expanding to 150 miles`);
+    originOptions = originWithDistances.filter(c => c.distance <= 150);
+  }
+  if (originOptions.length < 15) {
+    console.log(`⚠️  Still only ${originOptions.length} origin cities, expanding to 200 miles for sparse area`);
+    originOptions = originWithDistances.filter(c => c.distance <= 200);
+  }
+  
+  if (destOptions.length < 30) {
+    console.log(`⚠️  Only ${destOptions.length} destination cities within 100 miles, expanding to 150 miles`);
+    destOptions = destWithDistances.filter(c => c.distance <= 150);
+  }
+  if (destOptions.length < 15) {
+    console.log(`⚠️  Still only ${destOptions.length} destination cities, expanding to 200 miles for sparse area`);
+    destOptions = destWithDistances.filter(c => c.distance <= 200);
+  }
+  
   const balancedOrigin = balanceByKMA(originOptions, 100, dbBlacklist); // Keep up to 100 diverse cities
   const balancedDest = balanceByKMA(destOptions, 100, dbBlacklist); // Keep up to 100 diverse cities
+  
+  console.log(`📊 Final counts: ${balancedOrigin.length} origin cities, ${balancedDest.length} destination cities`);
+  
   return {
     laneId,
     origin: { city: lane.origin_city, state: lane.origin_state, options: balancedOrigin },
