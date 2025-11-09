@@ -1,7 +1,7 @@
 // pages/admin.js
 // Admin page for system management - heat map uploads, user management, settings
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
@@ -39,6 +39,14 @@ function AdminPage() {
     storageUsed: '0 MB'
   });
 
+  // State for user management
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [usersError, setUsersError] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [userFilter, setUserFilter] = useState('pending');
+  const [roleUpdating, setRoleUpdating] = useState({});
+  const [statusUpdating, setStatusUpdating] = useState({});
+
   const equipmentTypes = [
     { 
       value: 'dry-van', 
@@ -67,6 +75,13 @@ function AdminPage() {
     }
   }, [loading, isAuthenticated, router]);
 
+  // Prevent non-admin users from accessing admin page
+  useEffect(() => {
+    if (!loading && isAuthenticated && profile && profile.role !== 'Admin') {
+      router.replace('/dashboard');
+    }
+  }, [loading, isAuthenticated, profile, router]);
+
   // Load existing heat map images
   useEffect(() => {
     const loadImages = async () => {
@@ -88,11 +103,12 @@ function AdminPage() {
       }
     };
 
-    if (isAuthenticated) {
+    if (isAuthenticated && profile?.role === 'Admin') {
       loadImages();
       loadStats();
+      loadUsers();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, profile?.role, loadUsers]);
 
   const loadStats = async () => {
     try {
@@ -108,6 +124,99 @@ function AdminPage() {
     } catch (error) {
       console.error('Error loading stats:', error);
     }
+  };
+
+  const loadUsers = useCallback(async () => {
+    if (!profile || profile.role !== 'Admin') return;
+
+    setUsersLoading(true);
+    setUsersError(null);
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, email, role, status, active, created_at, updated_at')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error loading users:', error);
+        setUsersError('Failed to load users');
+        setUsers([]);
+      } else {
+        setUsers(Array.isArray(data) ? data : []);
+        setStats(prev => ({
+          ...prev,
+          totalUsers: Array.isArray(data) ? data.length : 0
+        }));
+      }
+    } catch (error) {
+      console.error('Unexpected error loading users:', error);
+      setUsersError('Unexpected error loading users');
+      setUsers([]);
+    } finally {
+      setUsersLoading(false);
+    }
+  }, [profile]);
+
+  const filteredUsers = useMemo(() => {
+    if (!Array.isArray(users)) return [];
+    if (userFilter === 'all') return users;
+    if (userFilter === 'active') return users.filter(u => u.status === 'approved');
+    if (userFilter === 'inactive') return users.filter(u => u.status === 'rejected');
+    return users.filter(u => u.status === 'pending');
+  }, [users, userFilter]);
+
+  const setUserRole = async (userId, nextRole) => {
+    setRoleUpdating(prev => ({ ...prev, [userId]: true }));
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ role: nextRole, updated_at: new Date().toISOString() })
+        .eq('id', userId);
+
+      if (error) {
+        console.error('Failed to update role:', error);
+        alert('Failed to update role. See console for details.');
+      } else {
+        await loadUsers();
+      }
+    } finally {
+      setRoleUpdating(prev => ({ ...prev, [userId]: false }));
+    }
+  };
+
+  const setUserStatus = async (userId, updates) => {
+    setStatusUpdating(prev => ({ ...prev, [userId]: true }));
+    try {
+      const payload = {
+        ...updates,
+        updated_at: new Date().toISOString()
+      };
+
+      const { error } = await supabase
+        .from('profiles')
+        .update(payload)
+        .eq('id', userId);
+
+      if (error) {
+        console.error('Failed to update status:', error);
+        alert('Failed to update user. Check console for details.');
+      } else {
+        await loadUsers();
+      }
+    } finally {
+      setStatusUpdating(prev => ({ ...prev, [userId]: false }));
+    }
+  };
+
+  const handleApproveUser = async (userRecord) => {
+    if (!confirm(`Approve access for ${userRecord.email}?`)) return;
+    await setUserStatus(userRecord.id, { status: 'approved', active: true });
+  };
+
+  const handleRejectUser = async (userRecord) => {
+    if (!confirm(`Reject ${userRecord.email}? This will block access.`)) return;
+    await setUserStatus(userRecord.id, { status: 'rejected', active: false });
   };
 
   const handleImageUpload = async (event) => {
@@ -435,19 +544,204 @@ function AdminPage() {
 
         {/* User Management (Placeholder) */}
         <Section title="User Management">
-          <div style={{ 
-            padding: '40px',
-            textAlign: 'center',
-            color: 'var(--text-secondary)'
-          }}>
-            <div style={{ fontSize: '32px', marginBottom: '12px' }}>👥</div>
-            <div style={{ fontSize: '14px', fontWeight: 500, marginBottom: '6px' }}>
-              User Management Coming Soon
+          {usersError && (
+            <div style={{
+              marginBottom: '16px',
+              padding: '12px',
+              borderRadius: 'var(--radius)',
+              border: '1px solid var(--danger)',
+              background: 'var(--danger-alpha)',
+              color: 'var(--danger)'
+            }}>
+              {usersError}
             </div>
-            <div style={{ fontSize: '12px' }}>
-              View and manage user accounts, permissions, and activity logs
+          )}
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {[
+                { key: 'pending', label: 'Pending' },
+                { key: 'active', label: 'Active' },
+                { key: 'inactive', label: 'Rejected' },
+                { key: 'all', label: 'All Users' }
+              ].map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => setUserFilter(key)}
+                  className="btn btn-sm"
+                  style={{
+                    background: userFilter === key ? 'var(--primary)' : 'var(--bg-tertiary)',
+                    color: userFilter === key ? '#fff' : 'var(--text-secondary)',
+                    border: '1px solid var(--border)',
+                    padding: '6px 12px',
+                    borderRadius: 'var(--radius)',
+                    fontWeight: 500,
+                    fontSize: '12px'
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
+            <button
+              onClick={loadUsers}
+              className="btn btn-sm"
+              style={{
+                background: 'var(--bg-tertiary)',
+                color: 'var(--text-secondary)',
+                border: '1px solid var(--border)',
+                padding: '6px 12px',
+                borderRadius: 'var(--radius)',
+                fontSize: '12px'
+              }}
+              disabled={usersLoading}
+            >
+              {usersLoading ? 'Refreshing…' : 'Refresh'}
+            </button>
           </div>
+
+          {usersLoading ? (
+            <div style={{ textAlign: 'center', padding: '24px' }}>
+              <div className="spinner-border" />
+            </div>
+          ) : filteredUsers.length === 0 ? (
+            <div style={{
+              textAlign: 'center',
+              padding: '32px',
+              color: 'var(--text-secondary)',
+              border: '1px dashed var(--border)',
+              borderRadius: 'var(--radius)'
+            }}>
+              {userFilter === 'pending' ? 'No pending users right now.' : 'No users in this view.'}
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table className="table" style={{ minWidth: '640px' }}>
+                <thead>
+                  <tr>
+                    <th>Email</th>
+                    <th>Status</th>
+                    <th>Role</th>
+                    <th>Active</th>
+                    <th>Joined</th>
+                    <th style={{ textAlign: 'right' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredUsers.map((userRecord) => {
+                    const statusBusy = Boolean(statusUpdating[userRecord.id]);
+                    const roleBusy = Boolean(roleUpdating[userRecord.id]);
+                    const createdAt = userRecord.created_at ? new Date(userRecord.created_at) : null;
+
+                    return (
+                      <tr key={userRecord.id}>
+                        <td>
+                          <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{userRecord.email || '—'}</div>
+                          <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{userRecord.id}</div>
+                        </td>
+                        <td>
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            color: userRecord.status === 'approved' ? 'var(--success)' : userRecord.status === 'pending' ? 'var(--warning)' : 'var(--danger)'
+                          }}>
+                            • {userRecord.status || 'unknown'}
+                          </span>
+                        </td>
+                        <td>
+                          <select
+                            value={userRecord.role || 'Broker'}
+                            disabled={roleBusy || userRecord.id === user?.id}
+                            onChange={(event) => setUserRole(userRecord.id, event.target.value)}
+                            className="form-input"
+                            style={{
+                              minWidth: '140px',
+                              padding: '6px 8px',
+                              fontSize: '12px'
+                            }}
+                          >
+                            {['Admin', 'Broker', 'Support', 'Apprentice'].map(role => (
+                              <option key={role} value={role}>{role}</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td>
+                          <span style={{
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            color: userRecord.active ? 'var(--success)' : 'var(--text-tertiary)'
+                          }}>
+                            {userRecord.active ? 'Yes' : 'No'}
+                          </span>
+                        </td>
+                        <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                          {createdAt ? createdAt.toLocaleDateString() : '—'}
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                            {userRecord.status === 'pending' && (
+                              <>
+                                <button
+                                  className="btn btn-sm"
+                                  onClick={() => handleApproveUser(userRecord)}
+                                  disabled={statusBusy}
+                                  style={{
+                                    background: 'var(--success-alpha)',
+                                    color: 'var(--success)',
+                                    border: '1px solid var(--success)',
+                                    padding: '6px 12px',
+                                    borderRadius: 'var(--radius)',
+                                    fontSize: '12px'
+                                  }}
+                                >
+                                  {statusBusy ? 'Approving…' : 'Approve'}
+                                </button>
+                                <button
+                                  className="btn btn-sm"
+                                  onClick={() => handleRejectUser(userRecord)}
+                                  disabled={statusBusy}
+                                  style={{
+                                    background: 'var(--danger-alpha)',
+                                    color: 'var(--danger)',
+                                    border: '1px solid var(--danger)',
+                                    padding: '6px 12px',
+                                    borderRadius: 'var(--radius)',
+                                    fontSize: '12px'
+                                  }}
+                                >
+                                  {statusBusy ? 'Rejecting…' : 'Reject'}
+                                </button>
+                              </>
+                            )}
+                            {userRecord.status === 'approved' && (
+                              <button
+                                className="btn btn-sm"
+                                onClick={() => handleRejectUser(userRecord)}
+                                disabled={statusBusy || userRecord.id === user?.id}
+                                style={{
+                                  background: 'var(--bg-tertiary)',
+                                  color: 'var(--text-secondary)',
+                                  border: '1px solid var(--border)',
+                                  padding: '6px 12px',
+                                  borderRadius: 'var(--radius)',
+                                  fontSize: '12px'
+                                }}
+                              >
+                                {statusBusy ? 'Updating…' : 'Deactivate'}
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </Section>
 
         {/* System Settings (Placeholder) */}
