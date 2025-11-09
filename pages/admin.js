@@ -82,34 +82,6 @@ function AdminPage() {
     }
   }, [loading, isAuthenticated, profile, router]);
 
-  // Load existing heat map images
-  useEffect(() => {
-    const loadImages = async () => {
-      for (const eq of equipmentTypes) {
-        try {
-          const response = await fetch(`/api/getMapImage?equipment=${eq.value}`);
-          if (response.ok) {
-            const data = await response.json();
-            if (data.imageUrl) {
-              setUploadedImages(prev => ({
-                ...prev,
-                [eq.value]: data.imageUrl
-              }));
-            }
-          }
-        } catch (error) {
-          console.error(`Error loading ${eq.value} image:`, error);
-        }
-      }
-    };
-
-    if (isAuthenticated && profile?.role === 'Admin') {
-      loadImages();
-      loadStats();
-      loadUsers();
-    }
-  }, [isAuthenticated, profile?.role, loadUsers]);
-
   const loadStats = async () => {
     try {
       // Load lane counts
@@ -157,6 +129,34 @@ function AdminPage() {
       setUsersLoading(false);
     }
   }, [profile]);
+
+  // Load existing heat map images
+  useEffect(() => {
+    const loadImages = async () => {
+      for (const eq of equipmentTypes) {
+        try {
+          const response = await fetch(`/api/getMapImage?equipment=${eq.value}`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.imageUrl) {
+              setUploadedImages(prev => ({
+                ...prev,
+                [eq.value]: data.imageUrl
+              }));
+            }
+          }
+        } catch (error) {
+          console.error(`Error loading ${eq.value} image:`, error);
+        }
+      }
+    };
+
+    if (isAuthenticated && profile?.role === 'Admin') {
+      loadImages();
+      loadStats();
+      loadUsers();
+    }
+  }, [isAuthenticated, profile?.role, loadUsers]);
 
   const filteredUsers = useMemo(() => {
     if (!Array.isArray(users)) return [];
