@@ -278,57 +278,26 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
   
   if (destOptions.length < 30) {
     console.log(`⚠️  Only ${destOptions.length} destination cities within 100 miles, expanding to 150 miles`);
-    let expanded = destWithDistances.filter(c => c.distance <= 150);
-    // Apply filter again for expanded radius if New England
-    if (isNewEnglandLane) {
-      const normalizeStateName = (state) => {
-        if (!state) return '';
-        const s = String(state).trim().toUpperCase();
-        if (s.length === 2) return s;
-        const stateMap = {
-          'MASSACHUSETTS': 'MA', 'NEW HAMPSHIRE': 'NH', 'MAINE': 'ME',
-          'VERMONT': 'VT', 'RHODE ISLAND': 'RI', 'CONNECTICUT': 'CT',
-          'NEW YORK': 'NY'
-        };
-        return stateMap[s] || s.slice(0, 2);
-      };
-      expanded = expanded.filter(c => {
-        const cState = normalizeStateName(c.state || c.state_or_province || '');
-        if (NYC_LI_KMA_BLOCKLIST.has(c.kma_code)) return false;
-        if (!NEW_ENGLAND.has(cState)) return false;
-        return true;
-      });
-    }
-    destOptions = expanded;
+    destOptions = destWithDistances.filter(c => c.distance <= 150);
   }
   if (destOptions.length < 15) {
     console.log(`⚠️  Still only ${destOptions.length} destination cities, expanding to 200 miles for sparse area`);
-    let expanded = destWithDistances.filter(c => c.distance <= 200);
-    // Apply filter again for expanded radius if New England
-    if (isNewEnglandLane) {
-      const normalizeStateName = (state) => {
-        if (!state) return '';
-        const s = String(state).trim().toUpperCase();
-        if (s.length === 2) return s;
-        const stateMap = {
-          'MASSACHUSETTS': 'MA', 'NEW HAMPSHIRE': 'NH', 'MAINE': 'ME',
-          'VERMONT': 'VT', 'RHODE ISLAND': 'RI', 'CONNECTICUT': 'CT',
-          'NEW YORK': 'NY'
-        };
-        return stateMap[s] || s.slice(0, 2);
-      };
-      expanded = expanded.filter(c => {
-        const cState = normalizeStateName(c.state || c.state_or_province || '');
-        if (NYC_LI_KMA_BLOCKLIST.has(c.kma_code)) return false;
-        if (!NEW_ENGLAND.has(cState)) return false;
-        return true;
-      });
-    }
-    destOptions = expanded;
+    destOptions = destWithDistances.filter(c => c.distance <= 200);
   }
   
   const balancedOrigin = balanceByKMA(originOptions, 100, dbBlacklist); // Keep up to 100 diverse cities
   let balancedDest = balanceByKMA(destOptions, 100, dbBlacklist); // Keep up to 100 diverse cities
+  
+  console.log(`[generateOptionsForLane] ✅ After balanceByKMA: ${balancedDest.length} destination cities`);
+  if (balancedDest.length > 0) {
+    const samples = balancedDest.slice(0, 8).map(c => ({
+      city: c.city,
+      state: c.state,
+      state_or_province: c.state_or_province,
+      kma: c.kma_code
+    }));
+    console.log(`[generateOptionsForLane] Sample cities from balanceByKMA:`, JSON.stringify(samples, null, 2));
+  }
   
   // NEW ENGLAND FILTER: Only keep MA/NH/ME/VT/RI/CT cities (NYC KMAs already blocked by balanceByKMA)
   if (isNewEnglandLane && balancedDest.length > 0) {
