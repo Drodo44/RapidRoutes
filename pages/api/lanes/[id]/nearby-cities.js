@@ -77,6 +77,9 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // Ensure no caching so users always see live, prioritized results
+  try { res.setHeader('Cache-Control', 'no-store'); } catch {}
+
   const { id } = req.query;
 
   try {
