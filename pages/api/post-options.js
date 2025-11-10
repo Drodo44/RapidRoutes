@@ -301,21 +301,36 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
     console.log(`[generateOptionsForLane] Total cities from DB query: ${enriched.length}`);
   }
   
+  // NEW ENGLAND FILTER: Apply BEFORE balanceByKMA so we keep MA/NH/ME cities instead of NYC
+  if (isNewEnglandLane && destOptions.length > 0) {
+    const preFilterCount = destOptions.length;
+    
+    const normalizeStateName = (state) => {
+      if (!state) return '';
+      const s = String(state).trim().toUpperCase();
+      if (s.length === 2) return s;
+      const stateMap = {
+        'MASSACHUSETTS': 'MA', 'NEW HAMPSHIRE': 'NH', 'MAINE': 'ME',
+        'VERMONT': 'VT', 'RHODE ISLAND': 'RI', 'CONNECTICUT': 'CT',
+        'NEW YORK': 'NY', 'NEW JERSEY': 'NJ', 'PENNSYLVANIA': 'PA'
+      };
+      return stateMap[s] || s.slice(0, 2);
+    };
+    
+    destOptions = destOptions.filter(c => {
+      const cState = normalizeStateName(c.state_or_province || '');
+      return NEW_ENGLAND.has(cState);
+    });
+    
+    console.log(`[generateOptionsForLane] 🔒 NE Pre-filter: ${preFilterCount} → ${destOptions.length} cities (kept only MA/NH/ME/VT/RI/CT)`);
+  }
+  
   const balancedOrigin = balanceByKMA(originOptions, 100, dbBlacklist); // Keep up to 100 diverse cities
   let balancedDest = balanceByKMA(destOptions, 100, dbBlacklist); // Keep up to 100 diverse cities
   
   console.log(`[generateOptionsForLane] ✅ After balanceByKMA: ${balancedDest.length} destination cities`);
-  if (balancedDest.length > 0) {
-    const samples = balancedDest.slice(0, 8).map(c => ({
-      city: c.city,
-      state: c.state,
-      state_or_province: c.state_or_province,
-      kma: c.kma_code
-    }));
-    console.log(`[generateOptionsForLane] Sample cities from balanceByKMA:`, JSON.stringify(samples, null, 2));
-  }
   
-  // NEW ENGLAND FILTER: Only keep MA/NH/ME/VT/RI/CT cities (NYC KMAs already blocked by balanceByKMA)
+  console.log(`📊 Final counts: ${balancedOrigin.length} origin cities, ${balancedDest.length} destination cities`);  // NEW ENGLAND FILTER: Only keep MA/NH/ME/VT/RI/CT cities (NYC KMAs already blocked by balanceByKMA)
   if (isNewEnglandLane && balancedDest.length > 0) {
     const preFilterCount = balancedDest.length;
     
