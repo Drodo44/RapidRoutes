@@ -200,6 +200,19 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
       destLon: lane.dest_longitude 
     }
   });
+  
+  // NEW ENGLAND FILTER: Hard-block NYC/Long Island KMAs for MA/NH/ME/VT/RI/CT destinations
+  const NEW_ENGLAND = new Set(['MA', 'NH', 'ME', 'VT', 'RI', 'CT']);
+  const NYC_LI_KMA_BLOCKLIST = new Set([
+    'NY_BRN', 'NY_BKN', 'NY_NYC', 'NY_QUE', 'NY_BRX', 'NY_STA', 'NY_NAS', 'NY_SUF'
+  ]);
+  const destState = (lane.destination_state || lane.dest_state || '').toUpperCase();
+  const isNewEnglandLane = NEW_ENGLAND.has(destState);
+  
+  if (isNewEnglandLane) {
+    console.log(`[generateOptionsForLane] 🔒 New England destination detected (${destState}), will filter NYC/LI cities`);
+  }
+  
   const originLat = lane.origin_latitude;
   const originLon = lane.origin_longitude;
   const destLat = lane.dest_latitude;
@@ -251,6 +264,20 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
   let originOptions = originWithDistances.filter(c => c.distance <= 100);
   let destOptions = destWithDistances.filter(c => c.distance <= 100);
   
+  // NEW ENGLAND FILTER: Remove NYC/LI cities and non-New England cities from destination options
+  if (isNewEnglandLane) {
+    const preFilterCount = destOptions.length;
+    destOptions = destOptions.filter(c => {
+      const cState = (c.state || c.state_or_province || '').toUpperCase();
+      // Only keep New England states
+      if (!NEW_ENGLAND.has(cState)) return false;
+      // Block NYC/LI KMAs
+      if (NYC_LI_KMA_BLOCKLIST.has(c.kma_code)) return false;
+      return true;
+    });
+    console.log(`[generateOptionsForLane] 🔒 Filtered ${preFilterCount - destOptions.length} non-NE/NYC cities for ${destState} destination`);
+  }
+  
   // If we have very few options (coastal/sparse areas), expand radius progressively
   if (originOptions.length < 30) {
     console.log(`⚠️  Only ${originOptions.length} origin cities within 100 miles, expanding to 150 miles`);
@@ -263,11 +290,31 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
   
   if (destOptions.length < 30) {
     console.log(`⚠️  Only ${destOptions.length} destination cities within 100 miles, expanding to 150 miles`);
-    destOptions = destWithDistances.filter(c => c.distance <= 150);
+    let expanded = destWithDistances.filter(c => c.distance <= 150);
+    // Apply filter again for expanded radius if New England
+    if (isNewEnglandLane) {
+      expanded = expanded.filter(c => {
+        const cState = (c.state || c.state_or_province || '').toUpperCase();
+        if (!NEW_ENGLAND.has(cState)) return false;
+        if (NYC_LI_KMA_BLOCKLIST.has(c.kma_code)) return false;
+        return true;
+      });
+    }
+    destOptions = expanded;
   }
   if (destOptions.length < 15) {
     console.log(`⚠️  Still only ${destOptions.length} destination cities, expanding to 200 miles for sparse area`);
-    destOptions = destWithDistances.filter(c => c.distance <= 200);
+    let expanded = destWithDistances.filter(c => c.distance <= 200);
+    // Apply filter again for expanded radius if New England
+    if (isNewEnglandLane) {
+      expanded = expanded.filter(c => {
+        const cState = (c.state || c.state_or_province || '').toUpperCase();
+        if (!NEW_ENGLAND.has(cState)) return false;
+        if (NYC_LI_KMA_BLOCKLIST.has(c.kma_code)) return false;
+        return true;
+      });
+    }
+    destOptions = expanded;
   }
   
   const balancedOrigin = balanceByKMA(originOptions, 100, dbBlacklist); // Keep up to 100 diverse cities
