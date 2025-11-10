@@ -223,19 +223,33 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
     console.error('[generateOptionsForLane] Missing coordinates for lane:', laneId, { originLat, originLon, destLat, destLon });
     throw new Error('Lane missing coordinates');
   }
-  const latMin = Math.min(originLat, destLat) - 3; // Increased from 2 to 3 degrees
-  const latMax = Math.max(originLat, destLat) + 3;
-  const lonMin = Math.min(originLon, destLon) - 3;
-  const lonMax = Math.max(originLon, destLon) + 3;
-  const { data: cities, error: cityErr } = await supabaseAdmin
-    .from("cities")
-    .select("id, city, state_or_province, latitude, longitude, zip, kma_code")
-    .gte("latitude", latMin)
-    .lte("latitude", latMax)
-    .gte("longitude", lonMin)
-    .lte("longitude", lonMax);
+  let cities, cityErr;
+  if (isNewEnglandLane) {
+    // Fetch all cities in MA, NH, ME, VT, RI, CT, NY (upstate)
+    const states = ['MA', 'NH', 'ME', 'VT', 'RI', 'CT', 'NY'];
+    const { data, error } = await supabaseAdmin
+      .from("cities")
+      .select("id, city, state_or_province, latitude, longitude, zip, kma_code")
+      .in('state_or_province', states);
+    cities = data;
+    cityErr = error;
+  } else {
+    const latMin = Math.min(originLat, destLat) - 3;
+    const latMax = Math.max(originLat, destLat) + 3;
+    const lonMin = Math.min(originLon, destLon) - 3;
+    const lonMax = Math.max(originLon, destLon) + 3;
+    const { data, error } = await supabaseAdmin
+      .from("cities")
+      .select("id, city, state_or_province, latitude, longitude, zip, kma_code")
+      .gte("latitude", latMin)
+      .lte("latitude", latMax)
+      .gte("longitude", lonMin)
+      .lte("longitude", lonMax);
+    cities = data;
+    cityErr = error;
+  }
   if (cityErr) throw new Error('Failed to fetch cities');
-  if (!cities || cities.length === 0) throw new Error('No cities found near lane');
+  if (!cities || cities.length === 0) throw new Error('No cities found for lane');
   const enriched = [];
   for (const c of cities) {
     let kma = c.kma_code;
