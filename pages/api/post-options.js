@@ -178,7 +178,6 @@ function balanceByKMA(cities, max = 50, dbBlacklist = new Set()) {
 async function generateOptionsForLane(laneId, supabaseAdmin) {
   // Fetch database blacklist
   const dbBlacklist = await fetchDatabaseBlacklist(supabaseAdmin);
-  
   // Fetch lane
   const { data: lane, error: laneErr } = await supabaseAdmin
     .from("lanes")
@@ -189,6 +188,7 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
     console.error('[generateOptionsForLane] Lane fetch failed:', laneId, laneErr?.message);
     throw new Error('Lane not found');
   }
+  // Debug: log lane and coords
   console.log('[generateOptionsForLane] Lane data:', { 
     id: lane.id,
     origin: `${lane.origin_city}, ${lane.origin_state}`,
@@ -362,7 +362,10 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
         city: c.city,
         state: c.state || c.state_or_province,
         kma: c.kma_code
-      }))
+      })),
+      boundingBox: { latMin, latMax, lonMin, lonMax },
+      destCoords: { destLat, destLon },
+      totalCitiesFromDB: enriched.length
     }
   };
 }
