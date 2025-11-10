@@ -175,7 +175,7 @@ export default async function handler(req, res) {
       buildKmaBucket(pickupBuckets, pair.origin, pair.origin?.distance);
       // If New England lane, only allow destination cities inside New England states
       if (blockNYC) {
-        const destState = (pair.destination?.state || pair.destination?.state_or_province || '').toUpperCase();
+        const destState = normalizeState(pair.destination?.state || pair.destination?.state_or_province || '');
         if (!NEW_ENGLAND.has(destState)) continue;
         if (NYC_LI_KMA_BLOCKLIST.has(pair.destination?.kma_code)) continue;
       }
