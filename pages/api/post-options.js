@@ -301,7 +301,8 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
     console.log(`[generateOptionsForLane] Total cities from DB query: ${enriched.length}`);
   }
   
-  // NEW ENGLAND FILTER: Apply BEFORE balanceByKMA so we keep MA/NH/ME cities instead of NYC
+  // NEW ENGLAND FILTER: Apply BEFORE balanceByKMA
+  // Keep MA/NH/ME/VT/RI/CT + upstate NY (but block NYC/LI KMAs)
   if (isNewEnglandLane && destOptions.length > 0) {
     const preFilterCount = destOptions.length;
     
@@ -319,10 +320,17 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
     
     destOptions = destOptions.filter(c => {
       const cState = normalizeStateName(c.state_or_province || '');
-      return NEW_ENGLAND.has(cState);
+      
+      // Block NYC/Long Island KMAs explicitly
+      if (NYC_LI_KMA_BLOCKLIST.has(c.kma_code)) {
+        return false;
+      }
+      
+      // Keep New England states + NY (upstate will remain after KMA filter)
+      return NEW_ENGLAND.has(cState) || cState === 'NY';
     });
     
-    console.log(`[generateOptionsForLane] 🔒 NE Pre-filter: ${preFilterCount} → ${destOptions.length} cities (kept only MA/NH/ME/VT/RI/CT)`);
+    console.log(`[generateOptionsForLane] 🔒 NE Pre-filter: ${preFilterCount} → ${destOptions.length} cities (kept MA/NH/ME/VT/RI/CT/NY, blocked NYC/LI KMAs)`);
   }
   
   const balancedOrigin = balanceByKMA(originOptions, 100, dbBlacklist); // Keep up to 100 diverse cities
