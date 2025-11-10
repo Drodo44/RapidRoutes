@@ -8,6 +8,12 @@
 import supabaseAdmin from '@/lib/supabaseAdmin';
 import { generateGeographicCrawlPairs } from '../../../../lib/geographicCrawl.js';
 
+// Business rule: exclude NYC/Long Island KMAs for New England deliveries
+const NYC_LI_KMA_BLOCKLIST = new Set([
+  'NY_BRN', 'NY_BKN', 'NY_NYC', 'NY_QUE', 'NY_BRX', 'NY_STA', 'NY_NAS', 'NY_SUF'
+]);
+const NEW_ENGLAND = new Set(['MA', 'NH', 'ME', 'VT', 'RI', 'CT']);
+
 const supabase = supabaseAdmin;
 
 function buildKmaBucket(map, city, miles) {
@@ -80,34 +86,35 @@ export default async function handler(req, res) {
       });
     }
 
-    const crawlResult = await generateGeographicCrawlPairs({
-      origin: {
+    const crawlResult = await generateGeographicCrawlPairs(
+      {
         city: lane.origin_city,
         state: lane.origin_state,
-        latitude: originMeta.latitude,
-        longitude: originMeta.longitude,
+        latitude: Number(originMeta.latitude),
+        longitude: Number(originMeta.longitude),
         zip: originMeta.zip,
         kma_code: originMeta.kma_code
       },
-      destination: {
+      {
         city: lane.dest_city,
         state: lane.dest_state,
-        latitude: destMeta.latitude,
-        longitude: destMeta.longitude,
+        latitude: Number(destMeta.latitude),
+        longitude: Number(destMeta.longitude),
         zip: destMeta.zip,
         kma_code: destMeta.kma_code
       },
-      equipment: lane.equipment_code,
-      preferFillTo10: true
-    });
+      75
+    );
 
     const pickupBuckets = {};
     const deliveryBuckets = {};
 
     const pairs = Array.isArray(crawlResult?.pairs) ? crawlResult.pairs : [];
 
+    const blockNYC = NEW_ENGLAND.has(lane.dest_state);
     for (const pair of pairs) {
       buildKmaBucket(pickupBuckets, pair.origin, pair.origin?.distance);
+      if (blockNYC && NYC_LI_KMA_BLOCKLIST.has(pair.destination?.kma_code)) continue;
       buildKmaBucket(deliveryBuckets, pair.destination, pair.destination?.distance);
     }
 
