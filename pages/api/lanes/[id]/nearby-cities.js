@@ -132,6 +132,7 @@ export default async function handler(req, res) {
 
     const destStateNorm = normalizeState(lane.dest_state);
     const blockNYC = NEW_ENGLAND.has(destStateNorm);
+    console.log(`[nearby-cities] Lane ${id}: dest_state='${lane.dest_state}' -> normalized='${destStateNorm}', blockNYC=${blockNYC}`);
     for (const pair of pairs) {
       buildKmaBucket(pickupBuckets, pair.origin, pair.origin?.distance);
       // If New England lane, only allow destination cities inside New England states
