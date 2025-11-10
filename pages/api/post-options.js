@@ -330,12 +330,23 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
   const balancedOrigin = balanceByKMA(originOptions, 100, dbBlacklist); // Keep up to 100 diverse cities
   let balancedDest = balanceByKMA(destOptions, 100, dbBlacklist); // Keep up to 100 diverse cities
   
-  // NEW ENGLAND FILTER: Apply AFTER balanceByKMA to avoid double-filtering
+  // NEW ENGLAND FILTER: Apply AFTER balanceByKMA (NYC KMAs already removed by blacklist)
+  // Just need to restrict to New England states only
   if (isNewEnglandLane) {
     const preFilterCount = balancedDest.length;
-    console.log(`[generateOptionsForLane] Pre-NE-filter (after balance): ${preFilterCount} destination cities`);
+    console.log(`[generateOptionsForLane] Pre-NE-filter: ${preFilterCount} destination cities`);
     
-    // Helper to normalize state names to 2-letter codes
+    // Log ALL cities to diagnose state field issue
+    if (balancedDest.length > 0) {
+      console.log(`[generateOptionsForLane] Sample cities:`, balancedDest.slice(0, 10).map(c => ({
+        city: c.city,
+        state: c.state,
+        state_or_province: c.state_or_province,
+        kma: c.kma_code
+      })));
+    }
+    
+    // Helper to normalize state names
     const normalizeStateName = (state) => {
       if (!state) return '';
       const s = String(state).trim().toUpperCase();
@@ -348,30 +359,14 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
       return stateMap[s] || s.slice(0, 2);
     };
     
-    // Log samples
-    if (balancedDest.length > 0) {
-      const sample = balancedDest.slice(0, 5);
-      console.log(`[generateOptionsForLane] Sample before NE filter:`, sample.map(c => ({
-        city: c.city,
-        state: c.state || c.state_or_province,
-        kma: c.kma_code,
-        normalized: normalizeStateName(c.state || c.state_or_province || '')
-      })));
-    }
-    
+    // ONLY filter by state (KMAs already filtered by balanceByKMA blacklist)
     balancedDest = balancedDest.filter(c => {
       const cState = normalizeStateName(c.state || c.state_or_province || '');
-      // Block NYC/LI KMAs explicitly
-      if (NYC_LI_KMA_BLOCKLIST.has(c.kma_code)) {
-        console.log(`[generateOptionsForLane] 🚫 Blocked NYC KMA: ${c.city}, ${c.kma_code}`);
-        return false;
+      const keep = NEW_ENGLAND.has(cState);
+      if (!keep) {
+        console.log(`[generateOptionsForLane] 🚫 Blocked non-NE state: ${c.city}, state='${c.state || c.state_or_province}', normalized='${cState}'`);
       }
-      // Only keep New England states
-      if (!NEW_ENGLAND.has(cState)) {
-        console.log(`[generateOptionsForLane] 🚫 Blocked non-NE: ${c.city}, ${cState}`);
-        return false;
-      }
-      return true;
+      return keep;
     });
     console.log(`[generateOptionsForLane] 🔒 NE Filter: removed ${preFilterCount - balancedDest.length}, kept ${balancedDest.length}`);
   }
