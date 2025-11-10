@@ -285,6 +285,22 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
     destOptions = destWithDistances.filter(c => c.distance <= 200);
   }
   
+  console.log(`[generateOptionsForLane] 📍 BEFORE balanceByKMA: ${destOptions.length} destination cities`);
+  if (destOptions.length > 0) {
+    const samples = destOptions.slice(0, 10).map(c => ({
+      city: c.city,
+      state: c.state_or_province,
+      kma: c.kma_code,
+      dist: Math.round(c.distance)
+    }));
+    console.log(`[generateOptionsForLane] Sample dest cities BEFORE balance:`, JSON.stringify(samples, null, 2));
+  } else {
+    console.log(`[generateOptionsForLane] ❌ NO destination cities found within 200 miles!`);
+    console.log(`[generateOptionsForLane] Destination coords: lat=${destLat}, lon=${destLon}`);
+    console.log(`[generateOptionsForLane] Query bounding box: lat [${latMin}, ${latMax}], lon [${lonMin}, ${lonMax}]`);
+    console.log(`[generateOptionsForLane] Total cities from DB query: ${enriched.length}`);
+  }
+  
   const balancedOrigin = balanceByKMA(originOptions, 100, dbBlacklist); // Keep up to 100 diverse cities
   let balancedDest = balanceByKMA(destOptions, 100, dbBlacklist); // Keep up to 100 diverse cities
   
