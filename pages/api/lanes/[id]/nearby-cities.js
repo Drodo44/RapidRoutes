@@ -1,20 +1,56 @@
 // ============================================================================
-// API: Get nearby cities for a lane (instant lookup from pre-computed data)
+// API: Get nearby cities for a lane (live calculation using geographic crawl)
 // ============================================================================
-// Purpose: Fetch pre-computed nearby cities from JSONB column
-// Performance: ~50ms (vs 30s with real-time ST_Distance calculations)
+// Purpose: Provide prioritized pickup/delivery cities using latest intelligence
+// Notes: Replaces stale JSONB snapshots that skewed toward NYC/Long Island
 // ============================================================================
+
+import supabaseAdmin from '@/lib/supabaseAdmin';
+import { generateGeographicCrawlPairs } from '../../../../lib/geographicCrawl.js';
 
 const supabase = supabaseAdmin;
 
-export default async function handler(req, res) {
-  let supabaseAdmin;
-  try {
-    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
-  } catch (importErr) {
-    return res.status(500).json({ error: 'Admin client initialization failed' });
+function buildKmaBucket(map, city, miles) {
+  if (!city?.kma_code) return;
+  const kma = city.kma_code;
+  if (!map[kma]) {
+    map[kma] = [];
   }
 
+  const key = `${city.city}_${city.state || city.state_or_province}`.toUpperCase();
+  const exists = map[kma].some(entry => `${entry.city}_${entry.state}`.toUpperCase() === key);
+  if (exists) return;
+
+  map[kma].push({
+    city: city.city,
+    state: city.state || city.state_or_province,
+    zip: city.zip || '',
+    kma_code: city.kma_code,
+    kma_name: city.kma_name || null,
+    miles: Math.round(Number.isFinite(miles) ? miles : city.distance || 0)
+  });
+}
+
+async function loadCityMetadata(city, state) {
+  if (!city || !state) return null;
+
+  const { data, error } = await supabase
+    .from('cities')
+    .select('city, state_or_province, latitude, longitude, zip, kma_code, kma_name')
+    .eq('state_or_province', state)
+    .ilike('city', city)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.warn('[nearby-cities] Failed to load city metadata', { city, state, error: error.message });
+    return null;
+  }
+
+  return data || null;
+}
+
+export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -22,10 +58,9 @@ export default async function handler(req, res) {
   const { id } = req.query;
 
   try {
-    // Fetch the lane to get origin and destination
     const { data: lane, error: laneError } = await supabase
       .from('lanes')
-      .select('origin_city, origin_state, dest_city, dest_state')
+      .select('origin_city, origin_state, dest_city, dest_state, equipment_code')
       .eq('id', id)
       .single();
 
@@ -34,67 +69,97 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'Lane not found' });
     }
 
-    // Fetch origin city
-    const { data: originCity, error: originError } = await supabase
-      .from('cities')
-      .select('id, nearby_cities, city, state_or_province, latitude, longitude')
-      .eq('city', lane.origin_city)
-      .eq('state_or_province', lane.origin_state)
-      .single();
+    const originMeta = await loadCityMetadata(lane.origin_city, lane.origin_state);
+    const destMeta = await loadCityMetadata(lane.dest_city, lane.dest_state);
 
-    if (originError) throw originError;
-
-    // If origin doesn't have nearby cities computed yet, compute them now
-    if (!originCity.nearby_cities) {
-      const { data: computed, error: computeError } = await supabase
-        .rpc('compute_nearby_cities', { target_city_id: originCity.id });
-      
-      if (!computeError) {
-        originCity.nearby_cities = computed;
-      }
+    if (!originMeta || !destMeta) {
+      return res.status(422).json({
+        error: 'Unable to load city metadata',
+        originFound: !!originMeta,
+        destinationFound: !!destMeta
+      });
     }
 
-    // Fetch destination city
-    const { data: destCity, error: destError } = await supabase
-      .from('cities')
-      .select('id, nearby_cities, city, state_or_province, latitude, longitude')
-      .eq('city', lane.dest_city)
-      .eq('state_or_province', lane.dest_state)
-      .single();
-
-    if (destError) throw destError;
-
-    // If destination doesn't have nearby cities computed yet, compute them now
-    if (!destCity.nearby_cities) {
-      const { data: computed, error: computeError } = await supabase
-        .rpc('compute_nearby_cities', { target_city_id: destCity.id });
-      
-      if (!computeError) {
-        destCity.nearby_cities = computed;
-      }
-    }
-
-    // Return both origin and destination nearby cities
-    res.status(200).json({
+    const crawlResult = await generateGeographicCrawlPairs({
       origin: {
-        city: originCity.city,
-        state: originCity.state_or_province,
-        latitude: originCity.latitude,
-        longitude: originCity.longitude,
-        nearby_cities: originCity.nearby_cities || { kmas: {} }
+        city: lane.origin_city,
+        state: lane.origin_state,
+        latitude: originMeta.latitude,
+        longitude: originMeta.longitude,
+        zip: originMeta.zip,
+        kma_code: originMeta.kma_code
       },
       destination: {
-        city: destCity.city,
-        state: destCity.state_or_province,
-        latitude: destCity.latitude,
-        longitude: destCity.longitude,
-        nearby_cities: destCity.nearby_cities || { kmas: {} }
+        city: lane.dest_city,
+        state: lane.dest_state,
+        latitude: destMeta.latitude,
+        longitude: destMeta.longitude,
+        zip: destMeta.zip,
+        kma_code: destMeta.kma_code
+      },
+      equipment: lane.equipment_code,
+      preferFillTo10: true
+    });
+
+    const pickupBuckets = {};
+    const deliveryBuckets = {};
+
+    const pairs = Array.isArray(crawlResult?.pairs) ? crawlResult.pairs : [];
+
+    for (const pair of pairs) {
+      buildKmaBucket(pickupBuckets, pair.origin, pair.origin?.distance);
+      buildKmaBucket(deliveryBuckets, pair.destination, pair.destination?.distance);
+    }
+
+    if (originMeta?.kma_code) {
+      const baseEntry = {
+        city: lane.origin_city,
+        state: lane.origin_state,
+        zip: originMeta.zip || '',
+        kma_code: originMeta.kma_code,
+        kma_name: originMeta.kma_name || null,
+        miles: 0
+      };
+      pickupBuckets[originMeta.kma_code] = [
+        baseEntry,
+        ...(pickupBuckets[originMeta.kma_code] || []).filter(c => c.city !== baseEntry.city)
+      ];
+    }
+
+    if (destMeta?.kma_code) {
+      const baseEntry = {
+        city: lane.dest_city,
+        state: lane.dest_state,
+        zip: destMeta.zip || '',
+        kma_code: destMeta.kma_code,
+        kma_name: destMeta.kma_name || null,
+        miles: 0
+      };
+      deliveryBuckets[destMeta.kma_code] = [
+        baseEntry,
+        ...(deliveryBuckets[destMeta.kma_code] || []).filter(c => c.city !== baseEntry.city)
+      ];
+    }
+
+    res.status(200).json({
+      origin: {
+        city: lane.origin_city,
+        state: lane.origin_state,
+        latitude: originMeta.latitude,
+        longitude: originMeta.longitude,
+        nearby_cities: { kmas: pickupBuckets }
+      },
+      destination: {
+        city: lane.dest_city,
+        state: lane.dest_state,
+        latitude: destMeta.latitude,
+        longitude: destMeta.longitude,
+        nearby_cities: { kmas: deliveryBuckets }
       },
       lane_id: id
     });
-
   } catch (error) {
-    console.error('Error fetching nearby cities:', error);
+    console.error('[nearby-cities] Error generating cities', error);
     res.status(500).json({ error: error.message });
   }
 }
