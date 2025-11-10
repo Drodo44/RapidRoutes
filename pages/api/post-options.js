@@ -223,7 +223,8 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
     console.error('[generateOptionsForLane] Missing coordinates for lane:', laneId, { originLat, originLon, destLat, destLon });
     throw new Error('Lane missing coordinates');
   }
-  let cities, cityErr;
+  
+  let cities, cityErr, latMin, latMax, lonMin, lonMax;
   if (isNewEnglandLane) {
     // Fetch all cities in MA, NH, ME, VT, RI, CT, NY (upstate)
     const states = ['MA', 'NH', 'ME', 'VT', 'RI', 'CT', 'NY'];
@@ -234,10 +235,10 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
     cities = data;
     cityErr = error;
   } else {
-    const latMin = Math.min(originLat, destLat) - 3;
-    const latMax = Math.max(originLat, destLat) + 3;
-    const lonMin = Math.min(originLon, destLon) - 3;
-    const lonMax = Math.max(originLon, destLon) + 3;
+    latMin = Math.min(originLat, destLat) - 3;
+    latMax = Math.max(originLat, destLat) + 3;
+    lonMin = Math.min(originLon, destLon) - 3;
+    lonMax = Math.max(originLon, destLon) + 3;
     const { data, error } = await supabaseAdmin
       .from("cities")
       .select("id, city, state_or_province, latitude, longitude, zip, kma_code")
