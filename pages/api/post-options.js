@@ -209,6 +209,8 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
   const destState = (lane.destination_state || lane.dest_state || '').toUpperCase();
   const isNewEnglandLane = NEW_ENGLAND.has(destState);
   
+  console.log(`[generateOptionsForLane] Lane ${laneId}: Destination state = '${destState}', isNewEnglandLane = ${isNewEnglandLane}`);
+  
   if (isNewEnglandLane) {
     console.log(`[generateOptionsForLane] 🔒 New England destination detected (${destState}), will filter NYC/LI cities`);
   }
@@ -267,6 +269,7 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
   // NEW ENGLAND FILTER: Remove NYC/LI cities and non-New England cities from destination options
   if (isNewEnglandLane) {
     const preFilterCount = destOptions.length;
+    console.log(`[generateOptionsForLane] Pre-filter: ${preFilterCount} destination cities`);
     
     // Helper to normalize state names to 2-letter codes
     const normalizeStateName = (state) => {
@@ -281,16 +284,26 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
       return stateMap[s] || s.slice(0, 2);
     };
     
+    // Log a sample of what we're seeing
+    if (destOptions.length > 0) {
+      const sample = destOptions.slice(0, 3);
+      console.log(`[generateOptionsForLane] Sample cities before filter:`, sample.map(c => ({
+        city: c.city,
+        state: c.state,
+        state_or_province: c.state_or_province,
+        kma_code: c.kma_code,
+        normalized: normalizeStateName(c.state || c.state_or_province || '')
+      })));
+    }
+    
     destOptions = destOptions.filter(c => {
       const cState = normalizeStateName(c.state || c.state_or_province || '');
       // Block NYC/LI KMAs explicitly
       if (NYC_LI_KMA_BLOCKLIST.has(c.kma_code)) {
-        console.log(`[generateOptionsForLane] 🚫 Blocking NYC/LI KMA: ${c.city}, ${cState} (${c.kma_code})`);
         return false;
       }
       // Only keep New England states
       if (!NEW_ENGLAND.has(cState)) {
-        console.log(`[generateOptionsForLane] 🚫 Blocking non-NE state: ${c.city}, ${cState}`);
         return false;
       }
       return true;
