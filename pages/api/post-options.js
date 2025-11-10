@@ -386,7 +386,18 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
       options: balancedDest 
     },
     originOptions: balancedOrigin,
-    destOptions: balancedDest
+    destOptions: balancedDest,
+    _debug: {
+      isNewEnglandLane,
+      destState,
+      preFilterDestCount: isNewEnglandLane ? 'see logs' : 'N/A',
+      finalDestCount: balancedDest.length,
+      sampleDestCities: balancedDest.slice(0, 5).map(c => ({
+        city: c.city,
+        state: c.state || c.state_or_province,
+        kma: c.kma_code
+      }))
+    }
   };
 }
 
