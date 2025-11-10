@@ -334,37 +334,9 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
   }
   
   const balancedOrigin = balanceByKMA(originOptions, 100, dbBlacklist); // Keep up to 100 diverse cities
-  let balancedDest = balanceByKMA(destOptions, 100, dbBlacklist); // Keep up to 100 diverse cities
+  const balancedDest = balanceByKMA(destOptions, 100, dbBlacklist); // Keep up to 100 diverse cities
   
   console.log(`[generateOptionsForLane] ✅ After balanceByKMA: ${balancedDest.length} destination cities`);
-  
-  console.log(`📊 Final counts: ${balancedOrigin.length} origin cities, ${balancedDest.length} destination cities`);  // NEW ENGLAND FILTER: Only keep MA/NH/ME/VT/RI/CT cities (NYC KMAs already blocked by balanceByKMA)
-  if (isNewEnglandLane && balancedDest.length > 0) {
-    const preFilterCount = balancedDest.length;
-    
-    // Helper to normalize state names to 2-letter codes
-    const normalizeStateName = (state) => {
-      if (!state) return '';
-      const s = String(state).trim().toUpperCase();
-      if (s.length === 2) return s;
-      const stateMap = {
-        'MASSACHUSETTS': 'MA', 'NEW HAMPSHIRE': 'NH', 'MAINE': 'ME',
-        'VERMONT': 'VT', 'RHODE ISLAND': 'RI', 'CONNECTICUT': 'CT',
-        'NEW YORK': 'NY', 'NEW JERSEY': 'NJ', 'PENNSYLVANIA': 'PA'
-      };
-      return stateMap[s] || s.slice(0, 2);
-    };
-    
-    // Filter to New England states only
-    balancedDest = balancedDest.filter(c => {
-      // Use state_or_province directly (that's what the DB query returns)
-      const cState = normalizeStateName(c.state_or_province || '');
-      return NEW_ENGLAND.has(cState);
-    });
-    
-    console.log(`[generateOptionsForLane] � NE Filter: ${preFilterCount} → ${balancedDest.length} cities (removed ${preFilterCount - balancedDest.length} non-NE)`);
-  }
-  
   console.log(`📊 Final counts: ${balancedOrigin.length} origin cities, ${balancedDest.length} destination cities`);
   
   return {
