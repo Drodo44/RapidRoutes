@@ -14,6 +14,22 @@ const NYC_LI_KMA_BLOCKLIST = new Set([
 ]);
 const NEW_ENGLAND = new Set(['MA', 'NH', 'ME', 'VT', 'RI', 'CT']);
 
+function normalizeState(state) {
+  if (!state) return '';
+  const s = String(state).trim();
+  const upper = s.toUpperCase();
+  if (upper.length === 2) return upper;
+  const map = {
+    'MASSACHUSETTS': 'MA',
+    'NEW HAMPSHIRE': 'NH',
+    'MAINE': 'ME',
+    'VERMONT': 'VT',
+    'RHODE ISLAND': 'RI',
+    'CONNECTICUT': 'CT'
+  };
+  return map[upper] || upper.slice(0,2).toUpperCase();
+}
+
 const supabase = supabaseAdmin;
 
 function buildKmaBucket(map, city, miles) {
@@ -89,7 +105,7 @@ export default async function handler(req, res) {
     const crawlResult = await generateGeographicCrawlPairs(
       {
         city: lane.origin_city,
-        state: lane.origin_state,
+        state: normalizeState(lane.origin_state),
         latitude: Number(originMeta.latitude),
         longitude: Number(originMeta.longitude),
         zip: originMeta.zip,
@@ -97,7 +113,7 @@ export default async function handler(req, res) {
       },
       {
         city: lane.dest_city,
-        state: lane.dest_state,
+        state: normalizeState(lane.dest_state),
         latitude: Number(destMeta.latitude),
         longitude: Number(destMeta.longitude),
         zip: destMeta.zip,
@@ -111,10 +127,16 @@ export default async function handler(req, res) {
 
     const pairs = Array.isArray(crawlResult?.pairs) ? crawlResult.pairs : [];
 
-    const blockNYC = NEW_ENGLAND.has(lane.dest_state);
+    const destStateNorm = normalizeState(lane.dest_state);
+    const blockNYC = NEW_ENGLAND.has(destStateNorm);
     for (const pair of pairs) {
       buildKmaBucket(pickupBuckets, pair.origin, pair.origin?.distance);
-      if (blockNYC && NYC_LI_KMA_BLOCKLIST.has(pair.destination?.kma_code)) continue;
+      // If New England lane, only allow destination cities inside New England states
+      if (blockNYC) {
+        const destState = (pair.destination?.state || pair.destination?.state_or_province || '').toUpperCase();
+        if (!NEW_ENGLAND.has(destState)) continue;
+        if (NYC_LI_KMA_BLOCKLIST.has(pair.destination?.kma_code)) continue;
+      }
       buildKmaBucket(deliveryBuckets, pair.destination, pair.destination?.distance);
     }
 
