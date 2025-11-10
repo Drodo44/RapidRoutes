@@ -9,7 +9,6 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { Button, Card, Badge, Checkbox, Spinner } from '../../../components/EnterpriseUI';
-import { theme } from '../../../styles/enterprise-theme';
 
 export default function ChooseCitiesPage() {
   const router = useRouter();
@@ -133,14 +132,14 @@ export default function ChooseCitiesPage() {
 
       // Download file
       const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+  const url = globalThis.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `DAT_Lane_${id}_${new Date().toISOString().slice(0, 10)}.csv`;
       document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
+  a.remove();
+  globalThis.URL.revokeObjectURL(url);
 
       alert('✅ DAT CSV exported successfully!');
       
@@ -178,13 +177,13 @@ export default function ChooseCitiesPage() {
         </div>
         
         <div className="grid grid-cols-2 gap-2">
-          {cities.map((city, idx) => {
+          {cities.map((city) => {
             const key = `${city.city}-${city.state}-${city.zip}`;
             const isSelected = selected.some(c => `${c.city}-${c.state}-${c.zip}` === key);
             
             return (
               <Checkbox
-                key={idx}
+                key={key}
                 checked={isSelected}
                 onChange={() => toggleCity(side, city)}
                 label={`${city.city}, ${city.state} (${city.miles} mi)`}
@@ -216,7 +215,20 @@ export default function ChooseCitiesPage() {
   }
 
   const originKMAs = cityData?.origin?.nearby_cities?.kmas || {};
-  const destKMAs = cityData?.destination?.nearby_cities?.kmas || {};
+  let destKMAs = cityData?.destination?.nearby_cities?.kmas || {};
+
+  // Client-side safety: For New England destination lanes, strictly show only NE states
+  const NEW_ENGLAND = new Set(['MA', 'NH', 'ME', 'VT', 'RI', 'CT']);
+  const destState = (cityData?.destination?.state || '').toString().toUpperCase();
+  const enforceNE = NEW_ENGLAND.has(destState);
+  if (enforceNE) {
+    const filtered = {};
+    for (const [kma, cities] of Object.entries(destKMAs)) {
+      const kept = (cities || []).filter(c => NEW_ENGLAND.has((c.state || '').toString().toUpperCase()));
+      if (kept.length > 0) filtered[kma] = kept;
+    }
+    destKMAs = filtered;
+  }
 
   return (
     <>
@@ -271,7 +283,7 @@ export default function ChooseCitiesPage() {
                   variant="success"
                   onClick={handleExportDatCsv}
                   disabled={exporting || !hasSavedChoices}
-                  title={!hasSavedChoices ? 'Save choices first' : 'Download DAT CSV file'}
+                  title={hasSavedChoices ? 'Download DAT CSV file' : 'Save choices first'}
                 >
                   {exporting ? <Spinner size="sm" /> : '📥 Export DAT CSV'}
                 </Button>
