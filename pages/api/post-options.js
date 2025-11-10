@@ -267,15 +267,35 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
   // NEW ENGLAND FILTER: Remove NYC/LI cities and non-New England cities from destination options
   if (isNewEnglandLane) {
     const preFilterCount = destOptions.length;
+    
+    // Helper to normalize state names to 2-letter codes
+    const normalizeStateName = (state) => {
+      if (!state) return '';
+      const s = String(state).trim().toUpperCase();
+      if (s.length === 2) return s;
+      const stateMap = {
+        'MASSACHUSETTS': 'MA', 'NEW HAMPSHIRE': 'NH', 'MAINE': 'ME',
+        'VERMONT': 'VT', 'RHODE ISLAND': 'RI', 'CONNECTICUT': 'CT',
+        'NEW YORK': 'NY', 'NEW JERSEY': 'NJ', 'PENNSYLVANIA': 'PA'
+      };
+      return stateMap[s] || s.slice(0, 2);
+    };
+    
     destOptions = destOptions.filter(c => {
-      const cState = (c.state || c.state_or_province || '').toUpperCase();
+      const cState = normalizeStateName(c.state || c.state_or_province || '');
+      // Block NYC/LI KMAs explicitly
+      if (NYC_LI_KMA_BLOCKLIST.has(c.kma_code)) {
+        console.log(`[generateOptionsForLane] 🚫 Blocking NYC/LI KMA: ${c.city}, ${cState} (${c.kma_code})`);
+        return false;
+      }
       // Only keep New England states
-      if (!NEW_ENGLAND.has(cState)) return false;
-      // Block NYC/LI KMAs
-      if (NYC_LI_KMA_BLOCKLIST.has(c.kma_code)) return false;
+      if (!NEW_ENGLAND.has(cState)) {
+        console.log(`[generateOptionsForLane] 🚫 Blocking non-NE state: ${c.city}, ${cState}`);
+        return false;
+      }
       return true;
     });
-    console.log(`[generateOptionsForLane] 🔒 Filtered ${preFilterCount - destOptions.length} non-NE/NYC cities for ${destState} destination`);
+    console.log(`[generateOptionsForLane] 🔒 Filtered ${preFilterCount - destOptions.length} non-NE/NYC cities for ${destState} destination (kept ${destOptions.length})`);
   }
   
   // If we have very few options (coastal/sparse areas), expand radius progressively
@@ -293,10 +313,21 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
     let expanded = destWithDistances.filter(c => c.distance <= 150);
     // Apply filter again for expanded radius if New England
     if (isNewEnglandLane) {
+      const normalizeStateName = (state) => {
+        if (!state) return '';
+        const s = String(state).trim().toUpperCase();
+        if (s.length === 2) return s;
+        const stateMap = {
+          'MASSACHUSETTS': 'MA', 'NEW HAMPSHIRE': 'NH', 'MAINE': 'ME',
+          'VERMONT': 'VT', 'RHODE ISLAND': 'RI', 'CONNECTICUT': 'CT',
+          'NEW YORK': 'NY'
+        };
+        return stateMap[s] || s.slice(0, 2);
+      };
       expanded = expanded.filter(c => {
-        const cState = (c.state || c.state_or_province || '').toUpperCase();
-        if (!NEW_ENGLAND.has(cState)) return false;
+        const cState = normalizeStateName(c.state || c.state_or_province || '');
         if (NYC_LI_KMA_BLOCKLIST.has(c.kma_code)) return false;
+        if (!NEW_ENGLAND.has(cState)) return false;
         return true;
       });
     }
@@ -307,10 +338,21 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
     let expanded = destWithDistances.filter(c => c.distance <= 200);
     // Apply filter again for expanded radius if New England
     if (isNewEnglandLane) {
+      const normalizeStateName = (state) => {
+        if (!state) return '';
+        const s = String(state).trim().toUpperCase();
+        if (s.length === 2) return s;
+        const stateMap = {
+          'MASSACHUSETTS': 'MA', 'NEW HAMPSHIRE': 'NH', 'MAINE': 'ME',
+          'VERMONT': 'VT', 'RHODE ISLAND': 'RI', 'CONNECTICUT': 'CT',
+          'NEW YORK': 'NY'
+        };
+        return stateMap[s] || s.slice(0, 2);
+      };
       expanded = expanded.filter(c => {
-        const cState = (c.state || c.state_or_province || '').toUpperCase();
-        if (!NEW_ENGLAND.has(cState)) return false;
+        const cState = normalizeStateName(c.state || c.state_or_province || '');
         if (NYC_LI_KMA_BLOCKLIST.has(c.kma_code)) return false;
+        if (!NEW_ENGLAND.has(cState)) return false;
         return true;
       });
     }
