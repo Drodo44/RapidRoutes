@@ -25,7 +25,45 @@ function normalizeState(state) {
     'MAINE': 'ME',
     'VERMONT': 'VT',
     'RHODE ISLAND': 'RI',
-    'CONNECTICUT': 'CT'
+    'CONNECTICUT': 'CT',
+    'NEW YORK': 'NY',
+    'NEW JERSEY': 'NJ',
+    'PENNSYLVANIA': 'PA',
+    'DELAWARE': 'DE',
+    'MARYLAND': 'MD',
+    'NORTH CAROLINA': 'NC',
+    'SOUTH CAROLINA': 'SC',
+    'GEORGIA': 'GA',
+    'FLORIDA': 'FL',
+    'VIRGINIA': 'VA',
+    'WEST VIRGINIA': 'WV',
+    'OHIO': 'OH',
+    'INDIANA': 'IN',
+    'ILLINOIS': 'IL',
+    'MICHIGAN': 'MI',
+    'WISCONSIN': 'WI',
+    'MINNESOTA': 'MN',
+    'IOWA': 'IA',
+    'MISSOURI': 'MO',
+    'TEXAS': 'TX',
+    'LOUISIANA': 'LA',
+    'ARKANSAS': 'AR',
+    'OKLAHOMA': 'OK',
+    'TENNESSEE': 'TN',
+    'KENTUCKY': 'KY',
+    'MISSISSIPPI': 'MS',
+    'ALABAMA': 'AL',
+    'CALIFORNIA': 'CA',
+    'OREGON': 'OR',
+    'WASHINGTON': 'WA',
+    'NEVADA': 'NV',
+    'ARIZONA': 'AZ',
+    'UTAH': 'UT',
+    'COLORADO': 'CO',
+    'NEW MEXICO': 'NM',
+    'IDAHO': 'ID',
+    'MONTANA': 'MT',
+    'WYOMING': 'WY'
   };
   return map[upper] || upper.slice(0,2).toUpperCase();
 }
@@ -189,7 +227,14 @@ export default async function handler(req, res) {
         longitude: destMeta.longitude,
         nearby_cities: { kmas: deliveryBuckets }
       },
-      lane_id: id
+      lane_id: id,
+      debug: {
+        dest_state_raw: lane.dest_state,
+        dest_state_normalized: destStateNorm,
+        blockNYC: blockNYC,
+        new_england_states: Array.from(NEW_ENGLAND),
+        nyc_li_blocklist: Array.from(NYC_LI_KMA_BLOCKLIST)
+      }
     });
   } catch (error) {
     console.error('[nearby-cities] Error generating cities', error);
