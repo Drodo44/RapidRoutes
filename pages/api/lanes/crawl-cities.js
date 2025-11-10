@@ -2,6 +2,30 @@
 // API to get crawl cities for dropdown functionality
 import { fetchLaneRecords } from '../../../services/laneService.js';
 import { generateGeographicCrawlPairs } from '../../../lib/geographicCrawl.js';
+import supabaseAdmin from '@/lib/supabaseAdmin';
+
+const adminSupabase = supabaseAdmin;
+
+async function loadCityMetadata(city, state) {
+  if (!city || !state) {
+    return null;
+  }
+
+  const { data, error } = await adminSupabase
+    .from('cities')
+    .select('city, state_or_province, latitude, longitude, zip, kma_code, kma_name')
+    .eq('state_or_province', state)
+    .ilike('city', city)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.warn('[crawl-cities] Failed to load city metadata', { city, state, error: error.message });
+    return null;
+  }
+
+  return data || null;
+}
 
 function cleanReferenceId(refId) {
   if (!refId) return '';
@@ -26,16 +50,34 @@ export default async function handler(req, res) {
     // Generate crawl cities for each lane
     for (const lane of lanes) {
       try {
+        const originMeta = await loadCityMetadata(lane.origin_city, lane.origin_state);
+        const destinationMeta = await loadCityMetadata(lane.destination_city, lane.destination_state);
+
+        if (!originMeta || !destinationMeta) {
+          console.warn('[crawl-cities] Missing city metadata, skipping lane', {
+            laneId: lane.id,
+            originFound: !!originMeta,
+            destinationFound: !!destinationMeta
+          });
+          continue;
+        }
+
         const result = await generateGeographicCrawlPairs({
           origin: { 
             city: lane.origin_city, 
             state: lane.origin_state, 
-            zip: lane.origin_zip 
+            zip: lane.origin_zip,
+            latitude: originMeta.latitude,
+            longitude: originMeta.longitude,
+            kma_code: originMeta.kma_code
           },
           destination: { 
             city: lane.destination_city, 
             state: lane.destination_state, 
-            zip: lane.destination_zip 
+            zip: lane.destination_zip,
+            latitude: destinationMeta.latitude,
+            longitude: destinationMeta.longitude,
+            kma_code: destinationMeta.kma_code
           },
           equipment: lane.equipment_code,
           preferFillTo10: true
