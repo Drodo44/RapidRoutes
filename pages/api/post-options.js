@@ -403,9 +403,57 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
   }
   
   const balancedOrigin = balanceByKMA(originOptions, 100, dbBlacklist); // Keep up to 100 diverse cities
-  let balancedDest = balanceByKMA(destOptions, 100, dbBlacklist); // Keep up to 100 diverse cities
   
-  console.log(`[generateOptionsForLane] ✅ After balanceByKMA: ${balancedDest.length} destination cities`);
+  // For New England lanes, prioritize by distance instead of KMA balance to show nearby MA/NH/VT/RI/ME/CT cities
+  let balancedDest;
+  if (isNewEnglandLane) {
+    // Sort by distance and take closest 100, ensuring state diversity
+    const sortedByDistance = [...destOptions].sort((a, b) => a.distance - b.distance);
+    
+    // Group by state to ensure representation
+    const byState = {};
+    for (const c of sortedByDistance) {
+      const state = c.state_or_province || c.state;
+      if (!byState[state]) byState[state] = [];
+      byState[state].push(c);
+    }
+    
+    // Take closest cities from each state, prioritizing MA/NH/VT/RI/ME/CT
+    const priorityStates = ['MA', 'NH', 'VT', 'RI', 'ME', 'CT'];
+    const result = [];
+    
+    // First pass: 15 closest from each priority state
+    for (const state of priorityStates) {
+      if (byState[state]) {
+        result.push(...byState[state].slice(0, 15));
+      }
+    }
+    
+    // Second pass: fill remaining slots with closest cities from any state
+    const remaining = 100 - result.length;
+    if (remaining > 0) {
+      const alreadyAdded = new Set(result.map(c => c.id));
+      for (const city of sortedByDistance) {
+        if (!alreadyAdded.has(city.id) && result.length < 100) {
+          result.push(city);
+          alreadyAdded.add(city.id);
+        }
+      }
+    }
+    
+    // Apply blacklist filter
+    balancedDest = result.filter(c => !isBlacklisted(c.city, c.state_or_province || c.state, dbBlacklist));
+    
+    console.log(`[generateOptionsForLane] ✅ NE lane: Selected ${balancedDest.length} cities by distance priority`);
+    const stateBreakdown = {};
+    balancedDest.forEach(c => {
+      stateBreakdown[c.state_or_province] = (stateBreakdown[c.state_or_province] || 0) + 1;
+    });
+    console.log(`[generateOptionsForLane] 📊 Final state breakdown:`, stateBreakdown);
+  } else {
+    balancedDest = balanceByKMA(destOptions, 100, dbBlacklist); // Keep up to 100 diverse cities
+    console.log(`[generateOptionsForLane] ✅ After balanceByKMA: ${balancedDest.length} destination cities`);
+  }
   
   console.log(`📊 Final counts: ${balancedOrigin.length} origin cities, ${balancedDest.length} destination cities`);  // NEW ENGLAND FILTER: Only keep MA/NH/ME/VT/RI/CT cities (NYC KMAs already blocked by balanceByKMA)
   // Removed redundant NE-only filter here. Pre-balanceByKMA filter already blocks NYC/LI and keeps all required states (MA/NH/ME/VT/RI/CT + upstate NY).
