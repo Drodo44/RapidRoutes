@@ -298,7 +298,16 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
   
   // Start with 100 mile radius
   let originOptions = originWithDistances.filter(c => c.distance <= 100);
-  let destOptions = destWithDistances.filter(c => c.distance <= 100);
+  let destOptions;
+  
+  if (isNewEnglandLane) {
+    // For New England lanes, don't apply distance filter to destination cities
+    // We want ALL New England and upstate NY cities, regardless of distance
+    destOptions = destWithDistances;
+    console.log(`[generateOptionsForLane] 🔒 New England lane: including all destination cities (${destOptions.length}) without distance filter`);
+  } else {
+    destOptions = destWithDistances.filter(c => c.distance <= 100);
+  }
   
   // If we have very few options (coastal/sparse areas), expand radius progressively
   if (originOptions.length < 30) {
@@ -310,13 +319,16 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
     originOptions = originWithDistances.filter(c => c.distance <= 200);
   }
   
-  if (destOptions.length < 30) {
-    console.log(`⚠️  Only ${destOptions.length} destination cities within 100 miles, expanding to 150 miles`);
-    destOptions = destWithDistances.filter(c => c.distance <= 150);
-  }
-  if (destOptions.length < 15) {
-    console.log(`⚠️  Still only ${destOptions.length} destination cities, expanding to 200 miles for sparse area`);
-    destOptions = destWithDistances.filter(c => c.distance <= 200);
+  // Only expand destination radius for non-New England lanes
+  if (!isNewEnglandLane) {
+    if (destOptions.length < 30) {
+      console.log(`⚠️  Only ${destOptions.length} destination cities within 100 miles, expanding to 150 miles`);
+      destOptions = destWithDistances.filter(c => c.distance <= 150);
+    }
+    if (destOptions.length < 15) {
+      console.log(`⚠️  Still only ${destOptions.length} destination cities, expanding to 200 miles for sparse area`);
+      destOptions = destWithDistances.filter(c => c.distance <= 200);
+    }
   }
   
   console.log(`[generateOptionsForLane] 📍 BEFORE balanceByKMA: ${destOptions.length} destination cities`);
