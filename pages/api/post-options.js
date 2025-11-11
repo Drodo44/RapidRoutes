@@ -251,6 +251,12 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
       .in('state_or_province', states);
     if (neData) {
       neStateCities = neData;
+      console.log(`[generateOptionsForLane] 🔍 Fetched ${neStateCities.length} New England + NY cities from DB`);
+      const stateCounts = {};
+      for (const c of neStateCities) {
+        stateCounts[c.state_or_province] = (stateCounts[c.state_or_province] || 0) + 1;
+      }
+      console.log(`[generateOptionsForLane] 🔍 State breakdown:`, stateCounts);
     }
   }
   
@@ -269,6 +275,15 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
     }
   }
   const allCities = Array.from(allCitiesMap.values());
+  
+  if (isNewEnglandLane) {
+    console.log(`[generateOptionsForLane] 🔍 After deduplication: ${allCities.length} total cities`);
+    const dedupedStateCounts = {};
+    for (const c of allCities) {
+      dedupedStateCounts[c.state_or_province] = (dedupedStateCounts[c.state_or_province] || 0) + 1;
+    }
+    console.log(`[generateOptionsForLane] 🔍 Deduped state breakdown:`, dedupedStateCounts);
+  }
   
   const enriched = [];
   for (const c of allCities) {
@@ -377,6 +392,14 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
     });
     
     console.log(`[generateOptionsForLane] 🔒 NE Pre-filter: ${preFilterCount} → ${destOptions.length} cities (kept MA/NH/ME/VT/RI/CT/NY, blocked NYC/LI KMAs)`);
+    
+    if (destOptions.length > 0) {
+      const filteredStateCounts = {};
+      for (const c of destOptions) {
+        filteredStateCounts[c.state_or_province] = (filteredStateCounts[c.state_or_province] || 0) + 1;
+      }
+      console.log(`[generateOptionsForLane] 🔍 After NE filter state breakdown:`, filteredStateCounts);
+    }
   }
   
   const balancedOrigin = balanceByKMA(originOptions, 100, dbBlacklist); // Keep up to 100 diverse cities
