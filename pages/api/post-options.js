@@ -224,35 +224,48 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
     throw new Error('Lane missing coordinates');
   }
   
-  let cities, cityErr, latMin, latMax, lonMin, lonMax;
+  // Always use bounding box for initial city fetch (covers both origin and destination)
+  const latMin = Math.min(originLat, destLat) - 3;
+  const latMax = Math.max(originLat, destLat) + 3;
+  const lonMin = Math.min(originLon, destLon) - 3;
+  const lonMax = Math.max(originLon, destLon) + 3;
+  
+  const { data: cities, error: cityErr } = await supabaseAdmin
+    .from("cities")
+    .select("id, city, state_or_province, latitude, longitude, zip, kma_code")
+    .gte("latitude", latMin)
+    .lte("latitude", latMax)
+    .gte("longitude", lonMin)
+    .lte("longitude", lonMax);
+  
+  if (cityErr) throw new Error('Failed to fetch cities');
+  if (!cities || cities.length === 0) throw new Error('No cities found near lane');
+  
+  // For New England lanes, also fetch ALL cities in New England and upstate NY states
+  let neStateCities = [];
   if (isNewEnglandLane) {
-    // Fetch all cities in MA, NH, ME, VT, RI, CT, NY (upstate)
     const states = ['MA', 'NH', 'ME', 'VT', 'RI', 'CT', 'NY'];
-    const { data, error } = await supabaseAdmin
+    const { data: neData } = await supabaseAdmin
       .from("cities")
       .select("id, city, state_or_province, latitude, longitude, zip, kma_code")
       .in('state_or_province', states);
-    cities = data;
-    cityErr = error;
-  } else {
-    latMin = Math.min(originLat, destLat) - 3;
-    latMax = Math.max(originLat, destLat) + 3;
-    lonMin = Math.min(originLon, destLon) - 3;
-    lonMax = Math.max(originLon, destLon) + 3;
-    const { data, error } = await supabaseAdmin
-      .from("cities")
-      .select("id, city, state_or_province, latitude, longitude, zip, kma_code")
-      .gte("latitude", latMin)
-      .lte("latitude", latMax)
-      .gte("longitude", lonMin)
-      .lte("longitude", lonMax);
-    cities = data;
-    cityErr = error;
+    if (neData) {
+      neStateCities = neData;
+    }
   }
-  if (cityErr) throw new Error('Failed to fetch cities');
-  if (!cities || cities.length === 0) throw new Error('No cities found for lane');
-  const enriched = [];
+  
+  // Combine cities: bounding box + New England state cities (dedupe by id)
+  const allCitiesMap = new Map();
   for (const c of cities) {
+    allCitiesMap.set(c.id, c);
+  }
+  for (const c of neStateCities) {
+    allCitiesMap.set(c.id, c);
+  }
+  const allCities = Array.from(allCitiesMap.values());
+  
+  const enriched = [];
+  for (const c of allCities) {
     let kma = c.kma_code;
     // If no KMA code, try to look it up from zip (first 3 digits)
     if (!kma && c.zip) {
