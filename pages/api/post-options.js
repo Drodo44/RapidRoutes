@@ -254,13 +254,19 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
     }
   }
   
-  // Combine cities: bounding box + New England state cities (dedupe by id)
+  // Combine cities: bounding box + New England state cities (dedupe by city+state)
   const allCitiesMap = new Map();
   for (const c of cities) {
-    allCitiesMap.set(c.id, c);
+    const key = `${c.city}|${c.state_or_province}`.toUpperCase();
+    if (!allCitiesMap.has(key)) {
+      allCitiesMap.set(key, c);
+    }
   }
   for (const c of neStateCities) {
-    allCitiesMap.set(c.id, c);
+    const key = `${c.city}|${c.state_or_province}`.toUpperCase();
+    if (!allCitiesMap.has(key)) {
+      allCitiesMap.set(key, c);
+    }
   }
   const allCities = Array.from(allCitiesMap.values());
   
