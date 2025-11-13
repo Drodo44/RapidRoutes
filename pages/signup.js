@@ -9,6 +9,8 @@ export default function SignupPage() {
   const [pw, setPw] = useState('');
   const [selectedTeam, setSelectedTeam] = useState('');
   const [selectedRole, setSelectedRole] = useState('Apprentice');
+  const [accountType, setAccountType] = useState('member'); // 'member' or 'broker'
+  const [teamName, setTeamName] = useState('');
   const [teams, setTeams] = useState([]);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -45,8 +47,14 @@ export default function SignupPage() {
     e.preventDefault();
     setErr('');
     
-    if (!selectedTeam) {
+    // Validate based on account type
+    if (accountType === 'member' && !selectedTeam) {
       setErr('Please select a team to join');
+      return;
+    }
+    
+    if (accountType === 'broker' && !teamName.trim()) {
+      setErr('Please enter a team name');
       return;
     }
     
@@ -64,21 +72,40 @@ export default function SignupPage() {
         throw new Error('Account creation failed - no user returned');
       }
       
-      // 2. Assign user to team with selected role
-      const response = await fetch('/api/teams', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: authData.user.id,
-          organizationId: selectedTeam,
-          role: selectedRole
-        })
-      });
-      
-      const result = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to join team');
+      // 2. Setup profile based on account type
+      if (accountType === 'broker') {
+        // Create new broker with their own team
+        const response = await fetch('/api/teams/create-broker', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: authData.user.id,
+            teamName: teamName.trim()
+          })
+        });
+        
+        const result = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(result.error || 'Failed to create broker account');
+        }
+      } else {
+        // Join existing team as Apprentice/Support
+        const response = await fetch('/api/teams', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: authData.user.id,
+            organizationId: selectedTeam,
+            role: selectedRole
+          })
+        });
+        
+        const result = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(result.error || 'Failed to join team');
+        }
       }
       
       // Success! Redirect to login
@@ -140,6 +167,54 @@ export default function SignupPage() {
           style={{ padding: 'var(--space-6)' }}
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+            {/* Account Type Selection */}
+            <div>
+              <label className="form-label">I am a...</label>
+              <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                <button
+                  type="button"
+                  onClick={() => setAccountType('member')}
+                  style={{
+                    flex: 1,
+                    padding: 'var(--space-3)',
+                    borderRadius: 'var(--radius-md)',
+                    border: `2px solid ${accountType === 'member' ? 'var(--primary)' : 'var(--border-default)'}`,
+                    backgroundColor: accountType === 'member' ? 'var(--primary-light)' : 'transparent',
+                    color: accountType === 'member' ? 'var(--primary)' : 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    fontSize: '13px',
+                    fontWeight: 500,
+                    transition: 'all 0.15s'
+                  }}
+                >
+                  👥 Team Member
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAccountType('broker')}
+                  style={{
+                    flex: 1,
+                    padding: 'var(--space-3)',
+                    borderRadius: 'var(--radius-md)',
+                    border: `2px solid ${accountType === 'broker' ? 'var(--primary)' : 'var(--border-default)'}`,
+                    backgroundColor: accountType === 'broker' ? 'var(--primary-light)' : 'transparent',
+                    color: accountType === 'broker' ? 'var(--primary)' : 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    fontSize: '13px',
+                    fontWeight: 500,
+                    transition: 'all 0.15s'
+                  }}
+                >
+                  🏢 New Broker
+                </button>
+              </div>
+              <p style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: 'var(--space-1)' }}>
+                {accountType === 'member' 
+                  ? 'Join an existing broker\'s team as Apprentice or Support' 
+                  : 'Create your own team and manage lanes independently'}
+              </p>
+            </div>
+            
             <div>
               <label className="form-label">Email</label>
               <input
@@ -161,8 +236,27 @@ export default function SignupPage() {
               />
             </div>
             
-            {/* Team Selection */}
-            <div>
+            {accountType === 'broker' ? (
+              // Broker setup: Team name
+              <div>
+                <label className="form-label">Team Name</label>
+                <input
+                  type="text"
+                  required
+                  value={teamName}
+                  onChange={(e) => setTeamName(e.target.value)}
+                  placeholder="e.g., Connellan Logistics, Smith Freight"
+                  className="form-input"
+                />
+                <p style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: 'var(--space-1)' }}>
+                  Your team name will be visible to members who join your team
+                </p>
+              </div>
+            ) : (
+              // Team member setup: Team + Role selection
+              <>
+                {/* Team Selection */}
+                <div>
               <label className="form-label">Select Broker Team</label>
               {loadingTeams ? (
                 <div style={{ padding: 'var(--space-3)', color: 'var(--text-secondary)', fontSize: '13px' }}>
@@ -208,15 +302,17 @@ export default function SignupPage() {
                   : '✏️ Support can create lanes, generate CSVs, and manage team data'}
               </p>
             </div>
+            </>
+            )}
             
             {err && <p style={{ fontSize: '12px', color: 'var(--danger)' }}>{err}</p>}
             <button
               type="submit"
-              disabled={busy || loadingTeams || teams.length === 0}
+              disabled={busy || (accountType === 'member' && (loadingTeams || teams.length === 0))}
               className="btn btn-primary"
               style={{ width: '100%' }}
             >
-              {busy ? 'Creating account…' : 'Sign up'}
+              {busy ? 'Creating account…' : accountType === 'broker' ? 'Create Broker Account' : 'Join Team'}
             </button>
             <p style={{ fontSize: '11px', color: 'var(--text-tertiary)', textAlign: 'center' }}>
               Already have an account?{' '}

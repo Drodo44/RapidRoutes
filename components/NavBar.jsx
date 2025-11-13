@@ -40,7 +40,7 @@ export default function Navbar() {
     { href: "/recap", label: "Recap", icon: "📋" },
     { href: "/post-options", label: "Post Options", icon: "🎯" },
     { href: "/admin", label: "Admin", icon: "🔧" },
-    { href: "/profile", label: "Profile", icon: "👤" },
+    { href: "/team", label: "Team", icon: "�" },
     { href: "/settings", label: "Settings", icon: "⚙️" },
   ];
 
