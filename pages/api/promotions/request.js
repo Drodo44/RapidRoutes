@@ -1,5 +1,5 @@
 // pages/api/promotions/request.js
-import { adminSupabase as supabase } from '../../../utils/supabaseClient.js';
+import supabaseAdmin from '@/lib/supabaseAdmin';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -7,7 +7,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser(
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(
       req.headers.authorization?.replace('Bearer ', '')
     );
 
@@ -22,7 +22,7 @@ export default async function handler(req, res) {
     }
 
     // Verify user is Apprentice or Support
-    const { data: profile } = await supabase
+    const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('role, email, organization_id')
       .eq('id', user.id)
@@ -33,7 +33,7 @@ export default async function handler(req, res) {
     }
 
     // Check for existing pending request
-    const { data: existing } = await supabase
+    const { data: existing } = await supabaseAdmin
       .from('promotion_requests')
       .select('id')
       .eq('user_id', user.id)
@@ -45,7 +45,7 @@ export default async function handler(req, res) {
     }
 
     // Create promotion request
-    const { data: request, error: insertError } = await supabase
+    const { data: request, error: insertError } = await supabaseAdmin
       .from('promotion_requests')
       .insert({
         user_id: user.id,

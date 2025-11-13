@@ -1,5 +1,5 @@
 // pages/api/promotions/approve.js
-import { adminSupabase as supabase } from '../../../utils/supabaseClient.js';
+import supabaseAdmin from '@/lib/supabaseAdmin';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -7,7 +7,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser(
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(
       req.headers.authorization?.replace('Bearer ', '')
     );
 
@@ -16,7 +16,7 @@ export default async function handler(req, res) {
     }
 
     // Verify user is Admin
-    const { data: profile } = await supabase
+    const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('role')
       .eq('id', user.id)
@@ -33,7 +33,7 @@ export default async function handler(req, res) {
     }
 
     // Get the promotion request
-    const { data: request } = await supabase
+    const { data: request } = await supabaseAdmin
       .from('promotion_requests')
       .select('*')
       .eq('id', requestId)
@@ -49,7 +49,7 @@ export default async function handler(req, res) {
 
     if (action === 'approve') {
       // Promote user to Broker
-      const { error: updateProfileError } = await supabase
+      const { error: updateProfileError } = await supabaseAdmin
         .from('profiles')
         .update({
           role: 'Broker',
@@ -65,7 +65,7 @@ export default async function handler(req, res) {
       }
 
       // Update request status
-      await supabase
+      await supabaseAdmin
         .from('promotion_requests')
         .update({
           status: 'approved',
@@ -80,7 +80,7 @@ export default async function handler(req, res) {
       });
     } else {
       // Deny request
-      await supabase
+      await supabaseAdmin
         .from('promotion_requests')
         .update({
           status: 'denied',

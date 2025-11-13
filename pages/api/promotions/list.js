@@ -1,5 +1,5 @@
 // pages/api/promotions/list.js
-import { adminSupabase as supabase } from '../../../utils/supabaseClient.js';
+import supabaseAdmin from '@/lib/supabaseAdmin';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -7,7 +7,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser(
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(
       req.headers.authorization?.replace('Bearer ', '')
     );
 
@@ -16,7 +16,7 @@ export default async function handler(req, res) {
     }
 
     // Verify user is Admin
-    const { data: profile } = await supabase
+    const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('role')
       .eq('id', user.id)
@@ -27,7 +27,7 @@ export default async function handler(req, res) {
     }
 
     // Get all pending promotion requests
-    const { data: requests, error: fetchError } = await supabase
+    const { data: requests, error: fetchError } = await supabaseAdmin
       .from('promotion_requests')
       .select('*')
       .order('created_at', { ascending: false });

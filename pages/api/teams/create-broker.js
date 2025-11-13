@@ -1,5 +1,5 @@
 // pages/api/teams/create-broker.js
-import { adminSupabase as supabase } from '../../../utils/supabaseClient.js';
+import supabaseAdmin from '@/lib/supabaseAdmin';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -14,7 +14,7 @@ export default async function handler(req, res) {
     }
 
     // Create broker profile with their user ID as organization_id
-    const { data: profile, error: profileError } = await supabase
+    const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .update({
         organization_id: userId, // Broker's user ID becomes their org ID

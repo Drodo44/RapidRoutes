@@ -1,5 +1,5 @@
 // pages/api/teams/remove-member.js
-import { adminSupabase as supabase } from '../../../utils/supabaseClient.js';
+import supabaseAdmin from '@/lib/supabaseAdmin';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -7,7 +7,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser(
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(
       req.headers.authorization?.replace('Bearer ', '')
     );
 
@@ -22,7 +22,7 @@ export default async function handler(req, res) {
     }
 
     // Verify user is team owner
-    const { data: profile } = await supabase
+    const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('team_role, organization_id, role')
       .eq('id', user.id)
@@ -33,7 +33,7 @@ export default async function handler(req, res) {
     }
 
     // Verify member is in the same organization
-    const { data: memberProfile } = await supabase
+    const { data: memberProfile } = await supabaseAdmin
       .from('profiles')
       .select('organization_id, team_role')
       .eq('id', memberId)
@@ -52,7 +52,7 @@ export default async function handler(req, res) {
     }
 
     // Remove member (set to inactive or delete)
-    const { error: updateError } = await supabase
+    const { error: updateError } = await supabaseAdmin
       .from('profiles')
       .update({ 
         status: 'inactive',
