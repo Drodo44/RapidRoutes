@@ -7,25 +7,82 @@ export default function SignupPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
+  const [selectedTeam, setSelectedTeam] = useState('');
+  const [selectedRole, setSelectedRole] = useState('Apprentice');
+  const [teams, setTeams] = useState([]);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
+  const [loadingTeams, setLoadingTeams] = useState(true);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) router.replace('/dashboard');
     });
+    
+    // Load available teams
+    fetchTeams();
   }, [router]);
+
+  async function fetchTeams() {
+    try {
+      const response = await fetch('/api/teams');
+      const data = await response.json();
+      if (data.teams) {
+        setTeams(data.teams);
+        // Auto-select first team if available
+        if (data.teams.length > 0) {
+          setSelectedTeam(data.teams[0].organization_id);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading teams:', error);
+    } finally {
+      setLoadingTeams(false);
+    }
+  }
 
   async function onSubmit(e) {
     e.preventDefault();
     setErr('');
+    
+    if (!selectedTeam) {
+      setErr('Please select a team to join');
+      return;
+    }
+    
     setBusy(true);
     try {
-      // Standard email/password signup. Approval gating is done via your Admin role in-app.
-      const { error } = await supabase.auth.signUp({ email, password: pw });
-      if (error) throw error;
-      // After signup, direct to login (no magic links)
-      router.replace('/login');
+      // 1. Create the auth account
+      const { data: authData, error: signupError } = await supabase.auth.signUp({ 
+        email, 
+        password: pw 
+      });
+      
+      if (signupError) throw signupError;
+      
+      if (!authData.user) {
+        throw new Error('Account creation failed - no user returned');
+      }
+      
+      // 2. Assign user to team with selected role
+      const response = await fetch('/api/teams', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: authData.user.id,
+          organizationId: selectedTeam,
+          role: selectedRole
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to join team');
+      }
+      
+      // Success! Redirect to login
+      router.replace('/login?message=Account created! Please sign in.');
     } catch (e) {
       setErr(e.message || 'Signup failed');
     } finally {
@@ -103,14 +160,63 @@ export default function SignupPage() {
                 className="form-input"
               />
             </div>
+            
+            {/* Team Selection */}
+            <div>
+              <label className="form-label">Select Broker Team</label>
+              {loadingTeams ? (
+                <div style={{ padding: 'var(--space-3)', color: 'var(--text-secondary)', fontSize: '13px' }}>
+                  Loading teams...
+                </div>
+              ) : teams.length === 0 ? (
+                <div style={{ padding: 'var(--space-3)', color: 'var(--text-secondary)', fontSize: '13px' }}>
+                  No teams available. Contact your administrator.
+                </div>
+              ) : (
+                <select
+                  required
+                  value={selectedTeam}
+                  onChange={(e) => setSelectedTeam(e.target.value)}
+                  className="form-input"
+                  style={{ cursor: 'pointer' }}
+                >
+                  {teams.map(team => (
+                    <option key={team.organization_id} value={team.organization_id}>
+                      {team.broker_name} ({team.broker_email})
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+            
+            {/* Role Selection */}
+            <div>
+              <label className="form-label">Your Role</label>
+              <select
+                required
+                value={selectedRole}
+                onChange={(e) => setSelectedRole(e.target.value)}
+                className="form-input"
+                style={{ cursor: 'pointer' }}
+              >
+                <option value="Apprentice">Apprentice (View Only)</option>
+                <option value="Support">Support (Full Access)</option>
+              </select>
+              <p style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: 'var(--space-1)' }}>
+                {selectedRole === 'Apprentice' 
+                  ? '📖 Apprentices can view lanes and data but cannot create or edit' 
+                  : '✏️ Support can create lanes, generate CSVs, and manage team data'}
+              </p>
+            </div>
+            
             {err && <p style={{ fontSize: '12px', color: 'var(--danger)' }}>{err}</p>}
             <button
               type="submit"
-              disabled={busy}
+              disabled={busy || loadingTeams || teams.length === 0}
               className="btn btn-primary"
               style={{ width: '100%' }}
             >
-              {busy ? 'Creating…' : 'Sign up'}
+              {busy ? 'Creating account…' : 'Sign up'}
             </button>
             <p style={{ fontSize: '11px', color: 'var(--text-tertiary)', textAlign: 'center' }}>
               Already have an account?{' '}
