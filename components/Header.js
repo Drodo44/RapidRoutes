@@ -1,14 +1,33 @@
 // Header.js - Navigation component with links
 import Link from 'next/link';
 import { useRouter } from 'next/router';
+import { useAuth } from '../contexts/AuthContext';
+import { useState } from 'react';
 
 export default function Header() {
   const router = useRouter();
+  const { user, profile, signOut } = useAuth();
+  const [loggingOut, setLoggingOut] = useState(false);
   
   // Determine if a link is active
   const isActive = (path) => {
     return router.pathname === path ? 'text-blue-400' : 'text-gray-300 hover:text-white';
   };
+  
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await signOut();
+      router.push('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      setLoggingOut(false);
+    }
+  };
+  
+  // Get display name from profile or email
+  const displayName = profile?.email?.split('@')[0] || user?.email?.split('@')[0] || 'User';
+  const userRole = profile?.role || '';
   
   return (
     <header className="bg-gray-900 border-b border-gray-800 shadow-lg">
@@ -38,9 +57,32 @@ export default function Header() {
         </div>
         
         <div className="flex items-center space-x-4">
-          <Link href="/profile">
-            <span className="text-sm text-gray-300 hover:text-white cursor-pointer">Profile</span>
-          </Link>
+          {/* User Info */}
+          {user && (
+            <div className="flex items-center space-x-3">
+              <div className="text-right hidden sm:block">
+                <div className="text-sm font-medium text-gray-200">{displayName}</div>
+                {userRole && (
+                  <div className="text-xs text-gray-400">{userRole}</div>
+                )}
+              </div>
+              
+              <Link href="/profile">
+                <span className="text-sm text-gray-300 hover:text-white cursor-pointer px-3 py-1 rounded hover:bg-gray-800 transition-colors">
+                  Profile
+                </span>
+              </Link>
+              
+              <button
+                onClick={handleLogout}
+                disabled={loggingOut}
+                className="text-sm text-gray-300 hover:text-white cursor-pointer px-3 py-1 rounded hover:bg-gray-800 transition-colors disabled:opacity-50"
+                title="Sign out"
+              >
+                {loggingOut ? '...' : '🚪 Logout'}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>
