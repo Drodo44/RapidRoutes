@@ -2,6 +2,7 @@
 // API for managing user's personal preferred pickup locations
 
 import supabase from '../../utils/supabaseClient';
+import { getUserOrganizationId } from '@/lib/organizationHelper';
 
 export default async function handler(req, res) {
   let supabaseAdmin;
@@ -32,6 +33,12 @@ export default async function handler(req, res) {
       // Add new preferred pickup for current user
       const { city, state, zip, frequency_score, equipment_preference, notes } = req.body;
       
+      // Get user's organization_id
+      const organizationId = await getUserOrganizationId(userId);
+      if (!organizationId) {
+        return res.status(500).json({ error: 'User profile not properly configured' });
+      }
+      
       // Look up KMA info from cities table
       const { data: cityData } = await supabaseAdmin
         .from('cities')
@@ -47,6 +54,8 @@ export default async function handler(req, res) {
         .from('preferred_pickups')
         .insert([{
           user_id: userId,
+          created_by: userId,
+          organization_id: organizationId,
           city,
           state_or_province: state,
           zip,

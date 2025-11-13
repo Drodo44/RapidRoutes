@@ -2,8 +2,10 @@
 import { useState, useEffect } from "react";
 import Head from "next/head";
 import { Card, Button, Spinner } from "../components/EnterpriseUI";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function Settings() {
+  const { user } = useAuth();
   const [notification, setNotification] = useState(false);
   const [blacklist, setBlacklist] = useState([]);
   const [corrections, setCorrections] = useState([]);
@@ -65,13 +67,18 @@ export default function Settings() {
       showMessage('City and state are required', 'error');
       return;
     }
+    
+    if (!user?.id) {
+      showMessage('You must be logged in to add cities', 'error');
+      return;
+    }
 
     try {
       setAdding(true);
       const response = await fetch('/api/blacklist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newCity)
+        body: JSON.stringify({ ...newCity, userId: user.id })
       });
 
       const data = await response.json();
@@ -116,13 +123,18 @@ export default function Settings() {
       showMessage('All city and state fields are required', 'error');
       return;
     }
+    
+    if (!user?.id) {
+      showMessage('You must be logged in to add corrections', 'error');
+      return;
+    }
 
     try {
       setAddingCorrection(true);
       const response = await fetch('/api/corrections', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newCorrection)
+        body: JSON.stringify({ ...newCorrection, userId: user.id })
       });
 
       const data = await response.json();

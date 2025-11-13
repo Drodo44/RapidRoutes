@@ -3,6 +3,7 @@ import { validateApiAuth } from '../../middleware/auth.unified';
 import { fetchLaneById } from '../../services/laneService.js';
 import { getLanes } from '@/lib/laneService';
 import { assertApiAuth, isInternalBypass } from '@/lib/auth';
+import { getUserOrganizationId } from '@/lib/organizationHelper';
 
 export default async function handler(req, res) {
   // Handle CORS preflight
@@ -255,6 +256,13 @@ export default async function handler(req, res) {
         });
       }
       
+      // Get user's organization_id for team-based data isolation
+      const organizationId = await getUserOrganizationId(auth.user.id);
+      if (!organizationId) {
+        console.error('[API] User has no organization_id:', auth.user.id);
+        return res.status(500).json({ error: 'User profile not properly configured' });
+      }
+      
       // Create the final lane object with standardized fields only
       const lane = {
         ...payloadWithoutDestFields, // Base fields excluding any dest_* variants
@@ -263,6 +271,7 @@ export default async function handler(req, res) {
         created_at: new Date().toISOString(),
         created_by: auth.user.id,
         user_id: auth.user.id,
+        organization_id: organizationId, // Team ownership
         // Store the CORRECTED city names in the database
         origin_city: originCityToLookup,
         origin_state: originStateToLookup,

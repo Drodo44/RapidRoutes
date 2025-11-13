@@ -2,6 +2,7 @@
 // API endpoint to manage city name corrections
 
 import { supabase } from '@/utils/supabaseClient';
+import { getUserOrganizationId } from '@/lib/organizationHelper';
 
 export default async function handler(req, res) {
   try {
@@ -19,10 +20,20 @@ export default async function handler(req, res) {
 
     if (req.method === 'POST') {
       // Add new correction
-      const { incorrect_city, incorrect_state, correct_city, correct_state, notes } = req.body;
+      const { incorrect_city, incorrect_state, correct_city, correct_state, notes, userId } = req.body;
 
       if (!incorrect_city || !incorrect_state || !correct_city || !correct_state) {
         return res.status(400).json({ error: 'All city and state fields are required' });
+      }
+      
+      if (!userId) {
+        return res.status(400).json({ error: 'User ID is required' });
+      }
+      
+      // Get user's organization_id
+      const organizationId = await getUserOrganizationId(userId);
+      if (!organizationId) {
+        return res.status(500).json({ error: 'User profile not properly configured' });
       }
 
       const { data, error } = await supabase
@@ -32,7 +43,9 @@ export default async function handler(req, res) {
           incorrect_state: incorrect_state.trim().toUpperCase(),
           correct_city: correct_city.trim(),
           correct_state: correct_state.trim().toUpperCase(),
-          notes: notes?.trim() || null
+          notes: notes?.trim() || null,
+          created_by: userId,
+          organization_id: organizationId
         })
         .select()
         .single();

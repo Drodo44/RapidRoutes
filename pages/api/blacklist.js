@@ -1,6 +1,7 @@
 // pages/api/blacklist.js
 // API for managing blacklisted cities
 import { adminSupabase } from '@/lib/supabaseAdmin';
+import { getUserOrganizationId } from '@/lib/organizationHelper';
 
 export default async function handler(req, res) {
   try {
@@ -20,10 +21,14 @@ export default async function handler(req, res) {
 
       case 'POST':
         // Add city to blacklist
-        const { city, state, reason } = req.body;
+        const { city, state, reason, userId } = req.body;
 
         if (!city || !state) {
           return res.status(400).json({ error: 'City and state are required' });
+        }
+        
+        if (!userId) {
+          return res.status(400).json({ error: 'User ID is required' });
         }
 
         const normalizedCity = city.trim().toUpperCase();
@@ -40,13 +45,21 @@ export default async function handler(req, res) {
         if (existing) {
           return res.status(409).json({ error: 'City already blacklisted' });
         }
+        
+        // Get user's organization_id
+        const organizationId = await getUserOrganizationId(userId);
+        if (!organizationId) {
+          return res.status(500).json({ error: 'User profile not properly configured' });
+        }
 
         const { data: newEntry, error: insertError } = await adminSupabase
           .from('blacklisted_cities')
           .insert([{
             city: normalizedCity,
             state: normalizedState,
-            reason: reason || 'User blacklisted'
+            reason: reason || 'User blacklisted',
+            created_by: userId,
+            organization_id: organizationId
           }])
           .select()
           .single();
