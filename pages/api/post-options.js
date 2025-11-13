@@ -45,19 +45,64 @@ let lastBlacklistFetch = 0;
 const BLACKLIST_CACHE_TTL = 60000; // 1 minute cache
 
 // City name corrections for DAT compatibility
-const CITY_CORRECTIONS = {
+// NOTE: Primary corrections are now managed via database (city_corrections table)
+const LEGACY_CITY_CORRECTIONS = {
   'REDWOOD, OR': 'Redmond, OR',
   'BELLWOOD, VA': 'Elkwood, VA',
   'DASHER, GA': 'Jasper, GA',
-  'ENSLEY, FL': 'Ensley, AL'
+  'ENSLEY, FL': 'Ensley, AL',
+  'SUNNY SIDE, GA': 'Sunnyside, GA'
 };
 
-function correctCityName(city, state) {
+// Cache for database corrections (refreshed periodically)
+let dbCorrectionsCache = new Map();
+let lastCorrectionsFetch = 0;
+const CORRECTIONS_CACHE_TTL = 60000; // 1 minute cache
+
+async function fetchDatabaseCorrections(supabase) {
+  const now = Date.now();
+  if (now - lastCorrectionsFetch < CORRECTIONS_CACHE_TTL) {
+    return dbCorrectionsCache; // Return cached version
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('city_corrections')
+      .select('incorrect_city, incorrect_state, correct_city, correct_state');
+
+    if (!error && data) {
+      const corrections = new Map();
+      data.forEach(row => {
+        const key = `${row.incorrect_city}, ${row.incorrect_state}`.toUpperCase();
+        corrections.set(key, {
+          city: row.correct_city,
+          state: row.correct_state
+        });
+      });
+      dbCorrectionsCache = corrections;
+      lastCorrectionsFetch = now;
+    }
+  } catch (err) {
+    console.error('Error fetching city corrections from database:', err);
+  }
+
+  return dbCorrectionsCache;
+}
+
+function correctCityName(city, state, dbCorrections = new Map()) {
   const key = `${city}, ${state}`.toUpperCase();
-  if (CITY_CORRECTIONS[key]) {
-    const corrected = CITY_CORRECTIONS[key].split(', ');
+  
+  // Check database corrections first
+  if (dbCorrections.has(key)) {
+    return dbCorrections.get(key);
+  }
+  
+  // Fall back to legacy corrections
+  if (LEGACY_CITY_CORRECTIONS[key]) {
+    const corrected = LEGACY_CITY_CORRECTIONS[key].split(', ');
     return { city: corrected[0], state: corrected[1] };
   }
+  
   return { city, state };
 }
 
@@ -120,12 +165,12 @@ function haversine(lat1, lon1, lat2, lon2) {
 
 // Group results by KMA and spread them evenly
 // For each KMA, take the closest cities up to a per-KMA limit
-function balanceByKMA(cities, max = 50, dbBlacklist = new Set()) {
+function balanceByKMA(cities, max = 50, dbBlacklist = new Set(), dbCorrections = new Map()) {
   // Filter out blacklisted cities and apply corrections
   const filtered = cities
     .filter(c => !isBlacklisted(c.city, c.state_or_province || c.state, dbBlacklist))
     .map(c => {
-      const corrected = correctCityName(c.city, c.state_or_province || c.state);
+      const corrected = correctCityName(c.city, c.state_or_province || c.state, dbCorrections);
       return {
         ...c,
         city: corrected.city,
@@ -176,8 +221,10 @@ function balanceByKMA(cities, max = 50, dbBlacklist = new Set()) {
 
 // Simple haversine utilities retained for legacy option generation
 async function generateOptionsForLane(laneId, supabaseAdmin) {
-  // Fetch database blacklist
+  // Fetch database blacklist and corrections
   const dbBlacklist = await fetchDatabaseBlacklist(supabaseAdmin);
+  const dbCorrections = await fetchDatabaseCorrections(supabaseAdmin);
+  
   // Fetch lane
   const { data: lane, error: laneErr } = await supabaseAdmin
     .from("lanes")
@@ -402,7 +449,7 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
     }
   }
   
-  const balancedOrigin = balanceByKMA(originOptions, 100, dbBlacklist); // Keep up to 100 diverse cities
+  const balancedOrigin = balanceByKMA(originOptions, 100, dbBlacklist, dbCorrections); // Keep up to 100 diverse cities
   
   // For New England lanes, prioritize by distance instead of KMA balance to show nearby MA/NH/VT/RI/ME/CT cities
   let balancedDest;
@@ -451,7 +498,7 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
     });
     console.log(`[generateOptionsForLane] 📊 Final state breakdown:`, stateBreakdown);
   } else {
-    balancedDest = balanceByKMA(destOptions, 100, dbBlacklist); // Keep up to 100 diverse cities
+    balancedDest = balanceByKMA(destOptions, 100, dbBlacklist, dbCorrections); // Keep up to 100 diverse cities
     console.log(`[generateOptionsForLane] ✅ After balanceByKMA: ${balancedDest.length} destination cities`);
   }
   

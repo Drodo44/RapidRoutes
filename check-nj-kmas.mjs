@@ -1,41 +1,43 @@
-import supabase from './lib/supabaseAdmin.js';
+import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
 
-async function checkNJKMAs() {
-  // Sewell, NJ coordinates (approximate)
-  const sewellLat = 39.7640;
-  const sewellLon = -75.0979;
-  
-  const { data, error } = await supabase
-    .from('cities')
-    .select('city, state_or_province, kma_code, latitude, longitude')
-    .gte('latitude', sewellLat - 3)
-    .lte('latitude', sewellLat + 3)
-    .gte('longitude', sewellLon - 3)
-    .lte('longitude', sewellLon + 3)
-    .not('kma_code', 'is', null)
-    .limit(1000);
-    
-  if (error) {
-    console.error('Error:', error);
-    return;
-  }
-  
-  // Group by KMA
-  const kmaGroups = {};
-  data.forEach(city => {
-    if (!kmaGroups[city.kma_code]) {
-      kmaGroups[city.kma_code] = [];
-    }
-    kmaGroups[city.kma_code].push(city);
-  });
-  
-  console.log('KMAs found near Sewell, NJ:');
-  Object.keys(kmaGroups).sort().forEach(kma => {
-    const sample = kmaGroups[kma][0];
-    console.log(`  ${kma}: ${kmaGroups[kma].length} cities (e.g., ${sample.city}, ${sample.state_or_province})`);
-  });
-  
-  console.log(`\nTotal unique KMAs: ${Object.keys(kmaGroups).length}`);
-}
+dotenv.config({ path: '.env.local' });
 
-checkNJKMAs().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); });
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
+console.log('=== NJ COVERAGE ANALYSIS ===\n');
+
+const { data: njCities } = await supabase
+  .from('cities')
+  .select('city, kma_code, latitude, longitude')
+  .eq('state_or_province', 'NJ')
+  .order('city');
+
+console.log(`Total NJ cities: ${njCities?.length || 0}\n`);
+
+// Group by KMA
+const byKma = {};
+njCities?.forEach(c => {
+  const kma = c.kma_code || 'NO_KMA';
+  if (!byKma[kma]) byKma[kma] = [];
+  byKma[kma].push(c.city);
+});
+
+console.log('Cities by KMA:\n');
+Object.entries(byKma).sort((a, b) => b[1].length - a[1].length).forEach(([kma, cities]) => {
+  console.log(`${kma}: ${cities.length} cities`);
+  console.log(`  ${cities.join(', ')}`);
+  console.log();
+});
+
+console.log('\n💡 ANALYSIS:');
+console.log('NJ has major freight activity in:');
+console.log('  - North Jersey (Newark metro/I-95 corridor)');
+console.log('  - Central Jersey (Trenton/I-295 corridor)');
+console.log('  - South Jersey (Philadelphia suburbs/I-76)');
+console.log('  - Jersey Shore (Toms River/Atlantic City)');
+console.log('\nCurrent coverage looks light for such a high-volume state.');
+console.log('Recommendation: Add 30-40 more cities for comprehensive coverage.');
