@@ -50,7 +50,7 @@ export default async function handler(req, res) {
       .insert({
         user_id: user.id,
         user_email: profile.email,
-        current_role: profile.role,
+        user_current_role: profile.role,
         current_organization_id: profile.organization_id,
         requested_team_name: requestedTeamName.trim(),
         status: 'pending'

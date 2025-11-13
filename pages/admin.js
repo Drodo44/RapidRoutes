@@ -875,7 +875,7 @@ function AdminPage() {
                           {request.user_email}
                         </div>
                         <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '2px' }}>
-                          Current Role: <strong>{request.current_role}</strong>
+                          Current Role: <strong>{request.user_current_role}</strong>
                         </div>
                         <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                           Requested Team Name: <strong style={{ color: 'var(--primary)' }}>{request.requested_team_name}</strong>

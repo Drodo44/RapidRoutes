@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS promotion_requests (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   user_email TEXT NOT NULL,
-  current_role TEXT NOT NULL,
+  user_current_role TEXT NOT NULL,
   current_organization_id UUID,
   requested_team_name TEXT NOT NULL,
   status TEXT NOT NULL CHECK (status IN ('pending', 'approved', 'denied')) DEFAULT 'pending',
