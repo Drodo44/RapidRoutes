@@ -1,10 +1,38 @@
 import Link from "next/link";
 import { useRouter } from "next/router";
+import { useAuth } from "../contexts/AuthContext";
+import { useState, useEffect } from "react";
+import { supabase } from "../lib/supabaseClient";
 import ThemeToggle from "./ThemeToggle";
 
 export default function Navbar() {
   const router = useRouter();
   const currentPath = router.pathname;
+  const { session, signOut } = useAuth();
+  const [profile, setProfile] = useState(null);
+
+  // Fetch user profile data
+  useEffect(() => {
+    async function fetchProfile() {
+      if (session?.user) {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('email, role, team_role')
+          .eq('id', session.user.id)
+          .single();
+        
+        if (data && !error) {
+          setProfile(data);
+        }
+      }
+    }
+    fetchProfile();
+  }, [session]);
+
+  const handleLogout = async () => {
+    await signOut();
+    router.push('/login');
+  };
 
   const navLinks = [
     { href: "/dashboard", label: "Dashboard", icon: "📊" },
@@ -87,6 +115,64 @@ export default function Navbar() {
           
           {/* Theme Toggle integrated into NavBar */}
           <ThemeToggle />
+          
+          {/* User Info and Logout */}
+          {profile && (
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 'var(--space-2)',
+              paddingLeft: 'var(--space-3)',
+              borderLeft: '1px solid var(--border-default)'
+            }}>
+              <div style={{ 
+                display: 'flex', 
+                flexDirection: 'column',
+                alignItems: 'flex-end',
+                gap: '2px'
+              }}>
+                <span style={{ 
+                  fontSize: '12px', 
+                  fontWeight: 500,
+                  color: 'var(--text-primary)' 
+                }}>
+                  {profile.email?.split('@')[0]}
+                </span>
+                <span style={{ 
+                  fontSize: '10px', 
+                  color: 'var(--text-tertiary)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px'
+                }}>
+                  {profile.role} {profile.team_role && `• ${profile.team_role}`}
+                </span>
+              </div>
+              <button
+                onClick={handleLogout}
+                style={{
+                  padding: 'var(--space-2) var(--space-3)',
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--danger)',
+                  backgroundColor: 'transparent',
+                  color: 'var(--danger)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--danger)';
+                  e.currentTarget.style.color = 'white';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.color = 'var(--danger)';
+                }}
+              >
+                Logout
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </nav>
