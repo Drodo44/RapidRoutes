@@ -139,6 +139,26 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
+  // Logout function
+  const signOut = async () => {
+    try {
+      console.log('AuthContext: Signing out...');
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('AuthContext: Sign out error:', error);
+        throw error;
+      }
+      // Clear local state
+      setSession(null);
+      setUser(null);
+      setProfile(null);
+      console.log('AuthContext: Sign out complete');
+    } catch (error) {
+      console.error('AuthContext: Sign out failed:', error.message);
+      throw error;
+    }
+  };
+
   const value = {
     session,
     user,
@@ -154,6 +174,8 @@ export function AuthProvider({ children }) {
     hasBrokerAccess: ['Admin', 'Broker'].includes(profile?.role),
     hasSupportAccess: ['Admin', 'Broker', 'Support'].includes(profile?.role),
     hasAnyAccess: ['Admin', 'Broker', 'Support', 'Apprentice'].includes(profile?.role),
+    // Auth actions
+    signOut,
   };
 
   return (
