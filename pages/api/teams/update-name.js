@@ -7,25 +7,17 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(
-      req.headers.authorization?.replace('Bearer ', '')
-    );
+    const { userId, teamName } = req.body;
 
-    if (authError || !user) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    const { teamName } = req.body;
-
-    if (!teamName || !teamName.trim()) {
-      return res.status(400).json({ error: 'Team name is required' });
+    if (!userId || !teamName || !teamName.trim()) {
+      return res.status(400).json({ error: 'User ID and team name are required' });
     }
 
     // Verify user is team owner
     const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('team_role, organization_id')
-      .eq('id', user.id)
+      .eq('id', userId)
       .single();
 
     if (profile?.team_role !== 'owner') {
@@ -36,7 +28,7 @@ export default async function handler(req, res) {
     const { error: updateError } = await supabaseAdmin
       .from('profiles')
       .update({ team_name: teamName.trim() })
-      .eq('id', user.id);
+      .eq('id', userId);
 
     if (updateError) {
       console.error('Error updating team name:', updateError);

@@ -77,7 +77,10 @@ export default function TeamManagementPage() {
       const response = await fetch('/api/teams/update-name', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ teamName: teamName.trim() })
+        body: JSON.stringify({ 
+          userId: profile.id,
+          teamName: teamName.trim() 
+        })
       });
 
       const result = await response.json();
@@ -104,6 +107,7 @@ export default function TeamManagementPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          userId: profile.id,
           requestedTeamName: teamName.trim() || `${profile.email.split('@')[0]}'s Team`
         })
       });
@@ -130,7 +134,10 @@ export default function TeamManagementPage() {
       const response = await fetch('/api/teams/remove-member', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ memberId })
+        body: JSON.stringify({ 
+          userId: profile.id,
+          memberId 
+        })
       });
 
       if (response.ok) {

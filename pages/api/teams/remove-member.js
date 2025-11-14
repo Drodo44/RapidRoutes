@@ -7,25 +7,17 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(
-      req.headers.authorization?.replace('Bearer ', '')
-    );
+    const { userId, memberId } = req.body;
 
-    if (authError || !user) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    const { memberId } = req.body;
-
-    if (!memberId) {
-      return res.status(400).json({ error: 'Member ID is required' });
+    if (!userId || !memberId) {
+      return res.status(400).json({ error: 'User ID and member ID are required' });
     }
 
     // Verify user is team owner
     const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('team_role, organization_id, role')
-      .eq('id', user.id)
+      .eq('id', userId)
       .single();
 
     if (profile?.team_role !== 'owner' && profile?.role !== 'Admin') {

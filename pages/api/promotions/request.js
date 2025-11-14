@@ -7,25 +7,17 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(
-      req.headers.authorization?.replace('Bearer ', '')
-    );
+    const { userId, requestedTeamName } = req.body;
 
-    if (authError || !user) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    const { requestedTeamName } = req.body;
-
-    if (!requestedTeamName || !requestedTeamName.trim()) {
-      return res.status(400).json({ error: 'Team name is required' });
+    if (!userId || !requestedTeamName || !requestedTeamName.trim()) {
+      return res.status(400).json({ error: 'User ID and team name are required' });
     }
 
     // Verify user is Apprentice or Support
     const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('role, email, organization_id')
-      .eq('id', user.id)
+      .eq('id', userId)
       .single();
 
     if (!['Apprentice', 'Support'].includes(profile?.role)) {
@@ -36,7 +28,7 @@ export default async function handler(req, res) {
     const { data: existing } = await supabaseAdmin
       .from('promotion_requests')
       .select('id')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .eq('status', 'pending')
       .single();
 
@@ -48,7 +40,7 @@ export default async function handler(req, res) {
     const { data: request, error: insertError } = await supabaseAdmin
       .from('promotion_requests')
       .insert({
-        user_id: user.id,
+        user_id: userId,
         user_email: profile.email,
         user_current_role: profile.role,
         current_organization_id: profile.organization_id,
