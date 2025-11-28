@@ -44,7 +44,32 @@ export default async function handler(req, res) {
 
       const status = rawStatus ? String(rawStatus) : undefined;
       const limit = Number(rawLimit) || undefined;
-      const organizationId = rawOrgId ? String(rawOrgId) : undefined;
+      
+      // Determine organization filtering
+      let organizationId = rawOrgId ? String(rawOrgId) : undefined;
+      
+      // If no explicit organizationId was requested, auto-filter by user's org
+      // (unless they're Admin, in which case they see all by default)
+      if (!organizationId && auth) {
+        const userId = auth.user?.id || auth.userId || auth.id;
+        const userOrgId = await getUserOrganizationId(userId);
+        const isAdmin = auth.profile?.role === 'Admin' || auth.user?.role === 'Admin';
+        
+        console.log('[GET /api/lanes] Auto-filter check:', {
+          userId,
+          userRole: auth.profile?.role,
+          isAdmin,
+          userOrgId,
+          explicitOrgIdRequested: !!rawOrgId
+        });
+        
+        // For non-Admin users, always filter by their organization
+        // For Admin users, only filter if they explicitly requested it via toggle
+        if (!isAdmin && userOrgId) {
+          organizationId = userOrgId;
+          console.log('[GET /api/lanes] Applied auto-filter for non-Admin user:', organizationId);
+        }
+      }
 
       const lanes = await getLanes({ status, limit, organizationId });
       return res.status(200).json(lanes);
