@@ -101,7 +101,7 @@ function LanesPage() {
     }
   }
   const router = useRouter();
-  const { loading, isAuthenticated, session } = useAuth();
+  const { loading, isAuthenticated, session, profile, isAdmin } = useAuth();
   
   // Form state
   const [origin, setOrigin] = useState('');
@@ -149,6 +149,9 @@ function LanesPage() {
   const [masterEarliest, setMasterEarliest] = useState('');
   const [masterLatest, setMasterLatest] = useState('');
   const [masterScope, setMasterScope] = useState('all'); // 'all', 'pending', 'active'
+
+  // Admin view toggle state
+  const [showMyLanesOnly, setShowMyLanesOnly] = useState(false);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -265,12 +268,20 @@ function LanesPage() {
         }
       }
       
+      // Build query parameters
+      const params = new URLSearchParams({ limit: '200' });
+      
+      // If Admin user has "My Lanes Only" toggle enabled, filter by their organization_id
+      if (showMyLanesOnly && profile?.organization_id) {
+        params.append('organizationId', profile.organization_id);
+      }
+      
       // Pull from real lanes API so actions (archive/delete/edit) operate on valid IDs
       const [currentRes, archivedRes] = await Promise.all([
-        fetch('/api/lanes?status=current&limit=200', {
+        fetch(`/api/lanes?status=current&${params.toString()}`, {
           headers: { 'Authorization': `Bearer ${session?.access_token || ''}` }
         }),
-        fetch('/api/lanes?status=archive&limit=50', {
+        fetch(`/api/lanes?status=archive&limit=50${showMyLanesOnly && profile?.organization_id ? `&organizationId=${profile.organization_id}` : ''}`, {
           headers: { 'Authorization': `Bearer ${session?.access_token || ''}` }
         })
       ]);
@@ -300,6 +311,14 @@ function LanesPage() {
     console.log('Initial load effect triggered');
     loadLists();
   }, []);
+
+  // Reload lanes when Admin toggle changes
+  useEffect(() => {
+    if (profile) {
+      console.log('Admin toggle changed, reloading lanes...', { showMyLanesOnly });
+      loadLists();
+    }
+  }, [showMyLanesOnly]);
 
   // Master Date Setter - Bulk update dates for multiple lanes
   async function applyMasterDates() {
@@ -941,25 +960,50 @@ function LanesPage() {
               Create and manage freight lanes for DAT posting
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowMasterDateModal(true)}
-            className="btn btn-primary"
-            style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '6px',
-              whiteSpace: 'nowrap'
-            }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-              <line x1="16" y1="2" x2="16" y2="6"/>
-              <line x1="8" y1="2" x2="8" y2="6"/>
-              <line x1="3" y1="10" x2="21" y2="10"/>
-            </svg>
-            Set Dates for All Lanes
-          </button>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            {/* Admin View Toggle */}
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => setShowMyLanesOnly(!showMyLanesOnly)}
+                className="btn"
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '6px',
+                  whiteSpace: 'nowrap',
+                  backgroundColor: showMyLanesOnly ? 'var(--color-blue-600)' : 'var(--surface)',
+                  color: showMyLanesOnly ? 'white' : 'var(--text-primary)',
+                  border: '1px solid var(--surface-border)'
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M9 11l3 3L22 4"/>
+                  <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+                </svg>
+                {showMyLanesOnly ? 'My Team\'s Lanes' : 'All RapidRoutes Lanes'}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowMasterDateModal(true)}
+              className="btn btn-primary"
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '6px',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/>
+                <line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+              Set Dates for All Lanes
+            </button>
+          </div>
         </div>
 
         {/* RR# Search Section */}

@@ -40,11 +40,13 @@ export default async function handler(req, res) {
         ? req.query.status[0]
         : req.query.status ?? (Array.isArray(req.query.lane_status) ? req.query.lane_status[0] : req.query.lane_status);
       const rawLimit = Array.isArray(req.query.limit) ? req.query.limit[0] : req.query.limit;
+      const rawOrgId = Array.isArray(req.query.organizationId) ? req.query.organizationId[0] : req.query.organizationId;
 
       const status = rawStatus ? String(rawStatus) : undefined;
       const limit = Number(rawLimit) || undefined;
+      const organizationId = rawOrgId ? String(rawOrgId) : undefined;
 
-      const lanes = await getLanes({ status, limit });
+      const lanes = await getLanes({ status, limit, organizationId });
       return res.status(200).json(lanes);
     }
     
