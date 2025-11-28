@@ -6,11 +6,11 @@ import { adminSupabase } from '@/lib/supabaseAdmin';
 export default async function handler(req, res) {
   try {
     if (req.method === 'GET') {
-      // Get all teams (brokers who are team owners)
+      // Get all teams (brokers and admins who are team owners)
       const { data: teams, error } = await adminSupabase
         .from('profiles')
         .select('id, email, organization_id, role, team_role')
-        .eq('role', 'Broker')
+        .in('role', ['Broker', 'Admin'])
         .eq('team_role', 'owner')
         .eq('status', 'approved')
         .order('email', { ascending: true });
