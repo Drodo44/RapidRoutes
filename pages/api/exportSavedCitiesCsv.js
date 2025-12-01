@@ -95,7 +95,13 @@ export default async function handler(req, res) {
     
     // Authenticate user and determine organization filtering
     const auth = await getAuthFromRequest(req, res);
-    let organizationId = undefined;
+    let organizationId = req.query.organizationId ? String(req.query.organizationId) : undefined;
+    
+    console.log('[exportSavedCitiesCsv] Query params:', {
+      contactMethod,
+      organizationId: req.query.organizationId,
+      parsedOrgId: organizationId
+    });
     
     if (auth) {
       const userId = auth.user?.id || auth.userId || auth.id;
@@ -106,16 +112,19 @@ export default async function handler(req, res) {
         userId,
         userRole: auth.profile?.role,
         isAdmin,
-        userOrgId
+        userOrgId,
+        requestedOrgId: organizationId
       });
       
-      // For non-Admin users, always filter by their organization
+      // For non-Admin users, always filter by their organization (override any query param)
       if (!isAdmin && userOrgId) {
         organizationId = userOrgId;
         console.log('[exportSavedCitiesCsv] Applied auto-filter for non-Admin user:', organizationId);
       }
-      // For Admin users: only filter if explicitly requested via query param
-      // (The frontend should pass organizationId when the toggle is enabled)
+      // For Admin users: organizationId from query param is already set above
+      else if (isAdmin && organizationId) {
+        console.log('[exportSavedCitiesCsv] Admin requested organization filter:', organizationId);
+      }
     }
     
     // Fetch all current lanes with saved city selections
