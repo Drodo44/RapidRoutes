@@ -373,6 +373,21 @@ export default function RecapPage() {
         return;
       }
 
+      // Check if Admin user has "My Lanes Only" toggle enabled
+      let organizationIdParam = '';
+      if (profile?.role === 'Admin' && profile?.organization_id) {
+        try {
+          const { getMyLanesOnlyPreference } = await import('../lib/laneFilterPreferences.js');
+          const showMyLanesOnly = getMyLanesOnlyPreference();
+          if (showMyLanesOnly) {
+            organizationIdParam = `&organizationId=${profile.organization_id}`;
+            console.log('[recap] Admin toggle enabled, filtering CSV by organization:', profile.organization_id);
+          }
+        } catch (err) {
+          console.warn('[recap] Could not check lane filter preference:', err);
+        }
+      }
+
       // Get filtered lanes that have saved choices (check arrays directly)
       const lanesWithChoices = filtered.filter(l => 
         l.saved_origin_cities?.length > 0 && 
@@ -398,7 +413,7 @@ export default function RecapPage() {
       }
 
       // Call the new CSV export API for saved city selections
-      const response = await fetch(`/api/exportSavedCitiesCsv?contactMethod=${contactMethod}`, {
+      const response = await fetch(`/api/exportSavedCitiesCsv?contactMethod=${contactMethod}${organizationIdParam}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${session.access_token}`

@@ -2,6 +2,8 @@
 // Export DAT CSV for lanes with saved city selections (one-to-one pairing)
 
 import { DAT_HEADERS } from '../../lib/datCsvBuilder.js';
+import { getAuthFromRequest } from '@/lib/auth';
+import { getUserOrganizationId } from '@/lib/organizationHelper';
 
 // Track used RR#s globally to ensure uniqueness across entire export
 const usedRRNumbers = new Set();
@@ -91,14 +93,46 @@ export default async function handler(req, res) {
     
     console.log(`[exportSavedCitiesCsv] Contact method: ${contactMethod}`);
     
+    // Authenticate user and determine organization filtering
+    const auth = await getAuthFromRequest(req, res);
+    let organizationId = undefined;
+    
+    if (auth) {
+      const userId = auth.user?.id || auth.userId || auth.id;
+      const userOrgId = await getUserOrganizationId(userId);
+      const isAdmin = auth.profile?.role === 'Admin' || auth.user?.role === 'Admin';
+      
+      console.log('[exportSavedCitiesCsv] Auth check:', {
+        userId,
+        userRole: auth.profile?.role,
+        isAdmin,
+        userOrgId
+      });
+      
+      // For non-Admin users, always filter by their organization
+      if (!isAdmin && userOrgId) {
+        organizationId = userOrgId;
+        console.log('[exportSavedCitiesCsv] Applied auto-filter for non-Admin user:', organizationId);
+      }
+      // For Admin users: only filter if explicitly requested via query param
+      // (The frontend should pass organizationId when the toggle is enabled)
+    }
+    
     // Fetch all current lanes with saved city selections
-    const { data: lanes, error } = await supabaseAdmin
+    let query = supabaseAdmin
       .from('lanes')
       .select('*')
       .eq('lane_status', 'current')
       .not('saved_origin_cities', 'is', null)
-      .not('saved_dest_cities', 'is', null)
-      .order('created_at', { ascending: false });
+      .not('saved_dest_cities', 'is', null);
+    
+    // Apply organization filter if needed
+    if (organizationId) {
+      query = query.eq('organization_id', organizationId);
+      console.log('[exportSavedCitiesCsv] Filtering by organization:', organizationId);
+    }
+    
+    const { data: lanes, error } = await query.order('created_at', { ascending: false });
 
     if (error) {
       console.error('[exportSavedCitiesCsv] Database query failed:', error);
