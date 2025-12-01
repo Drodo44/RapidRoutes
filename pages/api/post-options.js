@@ -253,13 +253,18 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
   const NYC_LI_KMA_BLOCKLIST = new Set([
     'NY_BRN', 'NY_BKN', 'NY_NYC', 'NY_QUE', 'NY_BRX', 'NY_STA', 'NY_NAS', 'NY_SUF'
   ]);
+  const originState = (lane.origin_state || '').toUpperCase();
   const destState = (lane.destination_state || lane.dest_state || '').toUpperCase();
   const isNewEnglandLane = NEW_ENGLAND.has(destState);
+  const isFloridaLane = originState === 'FL' || destState === 'FL';
   
-  console.log(`[generateOptionsForLane] Lane ${laneId}: Destination state = '${destState}', isNewEnglandLane = ${isNewEnglandLane}`);
+  console.log(`[generateOptionsForLane] Lane ${laneId}: Origin = '${originState}', Destination = '${destState}', isNewEnglandLane = ${isNewEnglandLane}, isFloridaLane = ${isFloridaLane}`);
   
   if (isNewEnglandLane) {
     console.log(`[generateOptionsForLane] 🔒 New England destination detected (${destState}), will filter NYC/LI cities`);
+  }
+  if (isFloridaLane) {
+    console.log(`[generateOptionsForLane] 🌴 Florida lane detected, will include all major FL cities for deadheading`);
   }
   
   const originLat = lane.origin_latitude;
@@ -307,7 +312,38 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
     }
   }
   
-  // Combine cities: bounding box + New England state cities (dedupe by city+state)
+  // For Florida lanes, fetch major FL cities to support long deadheading patterns (300-500 miles)
+  let flCities = [];
+  if (isFloridaLane) {
+    const majorFLCities = [
+      'Tallahassee', 'Lake City', 'Jacksonville', 'Gainesville', 'St Augustine',
+      'Daytona Beach', 'Ocala', 'Orlando', 'The Villages', 'Kissimmee',
+      'Bartow', 'Lakeland', 'Tampa', 'Sarasota', 'Clearwater',
+      'St. Petersburg', 'Bradenton', 'Sebring', 'Melbourne', 'Fort Pierce',
+      'Vero Beach', 'Punta Gorda', 'Fort Myers', 'Cape Coral', 'Fort Lauderdale',
+      'Bornton Beach', 'Boca Raton', 'West Palm Beach', 'Doral', 'Port St Lucie',
+      'Delray Beach', 'Miami', 'Homestead', 'Naples', 'Bonita Springs',
+      'Hollywood', 'Pembroke Pines', 'Hialeah', 'Lehigh Acres', 'Labelle',
+      'Ft Meade', 'Auburndale', 'Zephyrhills', 'Dade City', 'Silver Springs',
+      'Panama City', 'Alachua', 'Lady Lake', 'Belleview', 'Clermont',
+      'Oviedo', 'Apopka', 'Winter Park', 'Winter Garden', 'Bay Lake',
+      'Polk City', 'Land O Lakes', 'New Port Richey', 'Odessa', 'Spring Hill',
+      'Holiday', 'Williston'
+    ];
+    
+    const { data: flData } = await supabaseAdmin
+      .from("cities")
+      .select("id, city, state_or_province, latitude, longitude, zip, kma_code")
+      .eq('state_or_province', 'FL')
+      .in('city', majorFLCities);
+    
+    if (flData) {
+      flCities = flData;
+      console.log(`[generateOptionsForLane] 🌴 Fetched ${flCities.length} major FL cities from DB for deadheading coverage`);
+    }
+  }
+  
+  // Combine cities: bounding box + New England state cities + FL cities (dedupe by city+state)
   const allCitiesMap = new Map();
   for (const c of cities) {
     const key = `${c.city}|${c.state_or_province}`.toUpperCase();
@@ -316,6 +352,12 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
     }
   }
   for (const c of neStateCities) {
+    const key = `${c.city}|${c.state_or_province}`.toUpperCase();
+    if (!allCitiesMap.has(key)) {
+      allCitiesMap.set(key, c);
+    }
+  }
+  for (const c of flCities) {
     const key = `${c.city}|${c.state_or_province}`.toUpperCase();
     if (!allCitiesMap.has(key)) {
       allCitiesMap.set(key, c);
@@ -330,6 +372,9 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
       dedupedStateCounts[c.state_or_province] = (dedupedStateCounts[c.state_or_province] || 0) + 1;
     }
     console.log(`[generateOptionsForLane] 🔍 Deduped state breakdown:`, dedupedStateCounts);
+  }
+  if (isFloridaLane) {
+    console.log(`[generateOptionsForLane] 🌴 After FL city merge: ${allCities.length} total cities (${flCities.length} FL cities added)`);
   }
   
   const enriched = [];
@@ -358,31 +403,49 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
   const destWithDistances = enriched
     .map(c => ({ ...c, distance: haversine(destLat, destLon, c.latitude, c.longitude) }));
   
-  // Start with 100 mile radius
-  let originOptions = originWithDistances.filter(c => c.distance <= 100);
-  let destOptions;
+  // Start with 100 mile radius for origin, but FL lanes get all FL cities regardless of distance
+  let originOptions;
+  if (isFloridaLane && originState === 'FL') {
+    // For FL origin lanes, include all FL cities for deadheading, plus nearby cities from other states
+    const flOriginCities = originWithDistances.filter(c => c.state === 'FL');
+    const nearbyNonFL = originWithDistances.filter(c => c.state !== 'FL' && c.distance <= 100);
+    originOptions = [...flOriginCities, ...nearbyNonFL];
+    console.log(`[generateOptionsForLane] 🌴 FL origin: including all ${flOriginCities.length} FL cities + ${nearbyNonFL.length} nearby non-FL cities`);
+  } else {
+    originOptions = originWithDistances.filter(c => c.distance <= 100);
+  }
   
+  let destOptions;
   if (isNewEnglandLane) {
     // For New England lanes, don't apply distance filter to destination cities
     // We want ALL New England and upstate NY cities, regardless of distance
     destOptions = destWithDistances;
     console.log(`[generateOptionsForLane] 🔒 New England lane: including all destination cities (${destOptions.length}) without distance filter`);
+  } else if (isFloridaLane && destState === 'FL') {
+    // For FL destination lanes, include all FL cities for deadheading, plus nearby cities from other states
+    const flDestCities = destWithDistances.filter(c => c.state === 'FL');
+    const nearbyNonFL = destWithDistances.filter(c => c.state !== 'FL' && c.distance <= 100);
+    destOptions = [...flDestCities, ...nearbyNonFL];
+    console.log(`[generateOptionsForLane] 🌴 FL destination: including all ${flDestCities.length} FL cities + ${nearbyNonFL.length} nearby non-FL cities`);
   } else {
     destOptions = destWithDistances.filter(c => c.distance <= 100);
   }
   
   // If we have very few options (coastal/sparse areas), expand radius progressively
-  if (originOptions.length < 30) {
-    console.log(`⚠️  Only ${originOptions.length} origin cities within 100 miles, expanding to 150 miles`);
-    originOptions = originWithDistances.filter(c => c.distance <= 150);
-  }
-  if (originOptions.length < 15) {
-    console.log(`⚠️  Still only ${originOptions.length} origin cities, expanding to 200 miles for sparse area`);
-    originOptions = originWithDistances.filter(c => c.distance <= 200);
+  // Skip expansion for FL origin lanes since they already have all FL cities
+  if (!isFloridaLane || originState !== 'FL') {
+    if (originOptions.length < 30) {
+      console.log(`⚠️  Only ${originOptions.length} origin cities within 100 miles, expanding to 150 miles`);
+      originOptions = originWithDistances.filter(c => c.distance <= 150);
+    }
+    if (originOptions.length < 15) {
+      console.log(`⚠️  Still only ${originOptions.length} origin cities, expanding to 200 miles for sparse area`);
+      originOptions = originWithDistances.filter(c => c.distance <= 200);
+    }
   }
   
-  // Only expand destination radius for non-New England lanes
-  if (!isNewEnglandLane) {
+  // Only expand destination radius for non-New England and non-FL destination lanes
+  if (!isNewEnglandLane && (!isFloridaLane || destState !== 'FL')) {
     if (destOptions.length < 30) {
       console.log(`⚠️  Only ${destOptions.length} destination cities within 100 miles, expanding to 150 miles`);
       destOptions = destWithDistances.filter(c => c.distance <= 150);
