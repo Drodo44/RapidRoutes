@@ -76,6 +76,12 @@ export async function fetchLaneRecords(filters = {}) {
       try {
         const { getMyLanesOnlyPreference } = await import('../lib/laneFilterPreferences.js');
         const showMyLanesOnly = getMyLanesOnlyPreference();
+        console.log('[browserLaneService] Admin user detected:', {
+          role: userProfile.role,
+          organizationId: userProfile.organization_id,
+          togglePreference: showMyLanesOnly,
+          willFilter: showMyLanesOnly && userProfile.organization_id
+        });
         if (showMyLanesOnly && userProfile.organization_id) {
           f.organizationId = userProfile.organization_id;
           console.log('[browserLaneService] Admin toggle enabled, filtering by organization:', f.organizationId);
