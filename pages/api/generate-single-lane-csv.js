@@ -40,13 +40,21 @@ export default async function handler(req, res) {
     const userOrgId = await getUserOrganizationId(userId);
     const isAdmin = auth.profile?.role === 'Admin' || auth.user?.role === 'Admin';
 
+    console.log('[generate-single-lane-csv] Auth check:', {
+      userId,
+      userOrgId,
+      isAdmin,
+      laneOrgId: lane.organization_id,
+      userEmail: auth.user?.email || auth.profile?.email
+    });
+
     // Non-admin users can only export their own organization's lanes
     if (!isAdmin && userOrgId && lane.organization_id !== userOrgId) {
       console.log('[generate-single-lane-csv] Access denied: user org', userOrgId, 'lane org', lane.organization_id);
       return res.status(403).json({ error: 'You do not have access to this lane' });
     }
 
-    console.log(`[generate-single-lane-csv] Generating CSV for lane ${laneId}...`);
+    console.log(`[generate-single-lane-csv] Generating CSV for lane ${laneId}: ${lane.origin_city}, ${lane.origin_state} to ${lane.dest_city}, ${lane.dest_state}`);
 
     // Generate DAT CSV rows for this lane
     const rows = await generateDatCsvRows(lane);
