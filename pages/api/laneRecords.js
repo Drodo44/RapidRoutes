@@ -64,7 +64,7 @@ async function handler(req, res) {
   // Filter for lanes with saved cities if requested
   if (filterSavedCities) {
     query = query.not('saved_origin_cities', 'is', null)
-                 .not('saved_dest_cities', 'is', null');
+                 .not('saved_dest_cities', 'is', null);
   }
 
   const { data, error } = await query;
