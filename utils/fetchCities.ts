@@ -221,10 +221,15 @@ async function fetchMajorFloridaCities(
   originState: string | null,
   destinationState: string | null
 ): Promise<IntelligentCityRow[]> {
+  console.log('[fetchMajorFloridaCities] Called with:', { originState, destinationState });
+  
   // Only apply FL enhancement if either origin or destination is in Florida
   if (originState !== 'FL' && destinationState !== 'FL') {
+    console.log('[fetchMajorFloridaCities] Not a FL lane, skipping');
     return [];
   }
+
+  console.log('[fetchMajorFloridaCities] FL lane detected! Fetching major cities...');
 
   // Comprehensive list of major Florida freight cities
   // User-provided list to support 300-500 mile deadheading patterns common in FL freight market
@@ -255,9 +260,11 @@ async function fetchMajorFloridaCities(
   );
 
   if (error) {
-    console.warn('Failed to fetch major FL cities:', error);
+    console.warn('[fetchMajorFloridaCities] Failed to fetch major FL cities:', error);
     return [];
   }
+
+  console.log('[fetchMajorFloridaCities] Successfully fetched', data?.length || 0, 'major FL cities');
 
   return Array.isArray(data) ? data : [];
 }
@@ -277,11 +284,15 @@ export async function fetchCities({ origin, destination }: FetchCitiesInput): Pr
   const originState = origin?.state ?? origin?.state_or_province ?? origin?.origin_state ?? null;
   const destState = destination?.state ?? destination?.state_or_province ?? destination?.dest_state ?? destination?.destinationState ?? null;
 
+  console.log('[fetchCities] State detection:', { originState, destState, origin, destination });
+
   const [originRows, destinationRows, majorFLCities] = await Promise.all([
     queryBoundingBox(supabase, originBounds, "origin"),
     queryBoundingBox(supabase, destinationBounds, "destination"),
     fetchMajorFloridaCities(supabase, originCoord, originState, destState)
   ]);
+
+  console.log('[fetchCities] Major FL cities fetched:', majorFLCities.length);
 
   let normalizedOrigin = normalizeResults(originRows, originCoord);
   let normalizedDestination = normalizeResults(destinationRows, destinationCoord);
