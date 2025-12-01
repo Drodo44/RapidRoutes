@@ -62,8 +62,17 @@ export default async function handler(req, res) {
       has_saved_dests: !!lane.saved_dest_cities
     });
 
+    // Single-lane CSV requires saved cities - don't fall back to intelligent generation
+    if (!lane.saved_origin_cities || !lane.saved_dest_cities || 
+        lane.saved_origin_cities.length === 0 || lane.saved_dest_cities.length === 0) {
+      return res.status(400).json({ 
+        error: 'This lane has no saved cities. Please use "Choose Cities" to select cities before generating CSV.' 
+      });
+    }
+
     // Generate DAT CSV rows for this lane
-    const rows = await generateDatCsvRows(lane);
+    // Pass requireSavedCities=true to prevent intelligent generation from pulling in other lanes' data
+    const rows = await generateDatCsvRows(lane, { requireSavedCities: true });
     
     if (!rows || rows.length === 0) {
       return res.status(400).json({ 
