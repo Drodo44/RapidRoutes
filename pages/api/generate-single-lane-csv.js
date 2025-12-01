@@ -55,6 +55,12 @@ export default async function handler(req, res) {
     }
 
     console.log(`[generate-single-lane-csv] Generating CSV for lane ${laneId}: ${lane.origin_city}, ${lane.origin_state} to ${lane.dest_city}, ${lane.dest_state}`);
+    console.log(`[generate-single-lane-csv] Lane saved cities:`, {
+      saved_origin_cities: lane.saved_origin_cities?.length || 0,
+      saved_dest_cities: lane.saved_dest_cities?.length || 0,
+      has_saved_origins: !!lane.saved_origin_cities,
+      has_saved_dests: !!lane.saved_dest_cities
+    });
 
     // Generate DAT CSV rows for this lane
     const rows = await generateDatCsvRows(lane);
