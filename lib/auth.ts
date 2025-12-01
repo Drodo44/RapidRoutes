@@ -27,7 +27,7 @@ export async function getAuthFromRequest(req: NextApiRequest, res: NextApiRespon
     let supabaseAdmin;
     try {
       const module = await import('./supabaseAdmin.js');
-      supabaseAdmin = module.default || module.adminSupabase;
+      supabaseAdmin = module.default;
     } catch (e) {
       console.error('[getAuthFromRequest] Admin client import failed:', e?.message || e);
       return null;
