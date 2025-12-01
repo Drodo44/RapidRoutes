@@ -7,6 +7,7 @@ import EquipmentPicker from '../components/EquipmentPicker.jsx';
 import IntermodalNudge from '../components/IntermodalNudge.jsx';
 import IntermodalEmailModal from '../components/IntermodalEmailModal.jsx';
 import { supabase } from '../lib/supabaseClient';
+import { getMyLanesOnlyPreference, setMyLanesOnlyPreference } from '../lib/laneFilterPreferences.js';
 // Removed direct import - now using API call for server-side intelligence generation
 import { useAuth } from '../contexts/AuthContext';
 import { checkIntermodalEligibility } from '../lib/intermodalAdvisor';
@@ -150,8 +151,15 @@ function LanesPage() {
   const [masterLatest, setMasterLatest] = useState('');
   const [masterScope, setMasterScope] = useState('all'); // 'all', 'pending', 'active'
 
-  // Admin view toggle state
-  const [showMyLanesOnly, setShowMyLanesOnly] = useState(false);
+  // Admin view toggle state - initialize from localStorage
+  const [showMyLanesOnly, setShowMyLanesOnly] = useState(() => {
+    return getMyLanesOnlyPreference() ?? false;
+  });
+
+  // Save toggle preference when it changes
+  useEffect(() => {
+    setMyLanesOnlyPreference(showMyLanesOnly);
+  }, [showMyLanesOnly]);
 
   // Redirect if not authenticated
   useEffect(() => {

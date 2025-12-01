@@ -16,17 +16,18 @@ async function handler(req, res) {
     return res.status(500).json({ ok: false, error: 'Server initialization failed' });
   }
 
-  const { status, limit, onlyWithSavedCities } = req.query || {};
+  const { status, limit, onlyWithSavedCities, organizationId: requestedOrgId } = req.query || {};
 
   const finalStatus = typeof status === 'string' ? status : 'current';
   const finalLimit = Math.max(1, Math.min(Number(limit) || 200, 1000));
   const filterSavedCities = onlyWithSavedCities === '1' || onlyWithSavedCities === 'true';
 
   // Determine organization filtering - auto-filter by user's org unless they're Admin
-  let organizationId = undefined;
+  let organizationId = requestedOrgId ? String(requestedOrgId) : undefined;
   const auth = await getAuthFromRequest(req, res);
   
-  if (auth) {
+  if (auth && !organizationId) {
+    // Only auto-filter if no explicit organizationId was requested
     const userId = auth.user?.id || auth.userId || auth.id;
     const userOrgId = await getUserOrganizationId(userId);
     const isAdmin = auth.profile?.role === 'Admin' || auth.user?.role === 'Admin';
@@ -35,11 +36,12 @@ async function handler(req, res) {
       userId,
       userRole: auth.profile?.role,
       isAdmin,
-      userOrgId
+      userOrgId,
+      explicitOrgIdRequested: !!requestedOrgId
     });
     
     // For non-Admin users, always filter by their organization
-    // For Admin users, show all lanes by default (unless they use the toggle on lanes page)
+    // For Admin users, only filter if they explicitly requested it via toggle
     if (!isAdmin && userOrgId) {
       organizationId = userOrgId;
       console.log('[laneRecords] Applied auto-filter for non-Admin user:', organizationId);

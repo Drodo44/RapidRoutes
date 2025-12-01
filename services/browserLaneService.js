@@ -18,6 +18,7 @@ export function sanitizeLaneFilters(filters = {}) {
     searchTerm: typeof filters.searchTerm === 'string' ? filters.searchTerm.trim() : undefined,
     onlyWithSavedCities: !!filters.onlyWithSavedCities,
     includeArchived: !!filters.includeArchived,
+    organizationId: filters.organizationId || undefined,
     originKmaCodes: Array.isArray(filters.originKmaCodes) ? filters.originKmaCodes : [],
     destinationKmaCodes: Array.isArray(filters.destinationKmaCodes) ? filters.destinationKmaCodes : [],
     originZip3: filters.originZip3,
@@ -48,19 +49,43 @@ function toQuery(params = {}) {
 export async function fetchLaneRecords(filters = {}) {
   try {
     const f = sanitizeLaneFilters(filters);
-    const qs = toQuery(f);
     
-    // Get auth token from Supabase session
+    // Get auth token and user profile from Supabase session
     let authHeader = {};
+    let userProfile = null;
     try {
       const { default: supabase } = await import('../lib/supabaseClient.js');
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.access_token) {
         authHeader = { 'Authorization': `Bearer ${session.access_token}` };
+        
+        // Get user profile to check role and organizationId
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role, organization_id')
+          .eq('id', session.user.id)
+          .single();
+        userProfile = profile;
       }
     } catch (err) {
       console.warn('[browserLaneService] Could not get auth token:', err);
     }
+    
+    // If user is Admin and hasn't explicitly set organizationId, check localStorage preference
+    if (userProfile?.role === 'Admin' && !f.organizationId && typeof window !== 'undefined') {
+      try {
+        const { getMyLanesOnlyPreference } = await import('../lib/laneFilterPreferences.js');
+        const showMyLanesOnly = getMyLanesOnlyPreference();
+        if (showMyLanesOnly && userProfile.organization_id) {
+          f.organizationId = userProfile.organization_id;
+          console.log('[browserLaneService] Admin toggle enabled, filtering by organization:', f.organizationId);
+        }
+      } catch (err) {
+        console.warn('[browserLaneService] Could not check lane filter preference:', err);
+      }
+    }
+    
+    const qs = toQuery(f);
     
     const res = await fetch(`/api/laneRecords?${qs}`, { 
       method: 'GET',
