@@ -215,6 +215,53 @@ function normalizeResults(rows: IntelligentCityRow[], reference: Coordinate): Ne
     .filter((city): city is NearbyCity => city !== null);
 }
 
+async function fetchMajorFloridaCities(
+  client: SupabaseClient<Database>,
+  referenceCoord: Coordinate,
+  originState: string | null,
+  destinationState: string | null
+): Promise<IntelligentCityRow[]> {
+  // Only apply FL enhancement if either origin or destination is in Florida
+  if (originState !== 'FL' && destinationState !== 'FL') {
+    return [];
+  }
+
+  // Comprehensive list of major Florida freight cities
+  // User-provided list to support 300-500 mile deadheading patterns common in FL freight market
+  const majorFLCities = [
+    'Tallahassee', 'Lake City', 'Jacksonville', 'Gainesville', 'St Augustine',
+    'Daytona Beach', 'Ocala', 'Orlando', 'The Villages', 'Kissimmee',
+    'Bartow', 'Lakeland', 'Tampa', 'Sarasota', 'Clearwater',
+    'St. Petersburg', 'Bradenton', 'Sebring', 'Melbourne', 'Fort Pierce',
+    'Vero Beach', 'Punta Gorda', 'Fort Myers', 'Cape Coral', 'Fort Lauderdale',
+    'Bornton Beach', 'Boca Raton', 'West Palm Beach', 'Doral', 'Port St Lucie',
+    'Delray Beach', 'Miami', 'Homestead', 'Naples', 'Bonita Springs',
+    'Hollywood', 'Pembroke Pines', 'Hialeah', 'Lehigh Acres', 'Labelle',
+    'Ft Meade', 'Auburndale', 'Zephyrhills', 'Dade City', 'Silver Springs',
+    'Panama City', 'Alachua', 'Lady Lake', 'Belleview', 'Clermont',
+    'Oviedo', 'Apopka', 'Winter Park', 'Winter Garden', 'Bay Lake',
+    'Polk City', 'Land O Lakes', 'New Port Richey', 'Odessa', 'Spring Hill',
+    'Holiday', 'Williston'
+  ];
+
+  const { data, error } = await withRetry(
+    () =>
+      client
+        .from(TABLE)
+        .select(COORD_COLUMNS)
+        .eq('state_or_province', 'FL')
+        .in('city', majorFLCities),
+    'major-fl-cities'
+  );
+
+  if (error) {
+    console.warn('Failed to fetch major FL cities:', error);
+    return [];
+  }
+
+  return Array.isArray(data) ? data : [];
+}
+
 export async function fetchCities({ origin, destination }: FetchCitiesInput): Promise<FetchCitiesResult> {
   if (!origin || !destination) {
     throw new Error("Origin and destination inputs are required");
@@ -226,13 +273,96 @@ export async function fetchCities({ origin, destination }: FetchCitiesInput): Pr
   const originBounds = bboxFromMiles({ ...originCoord, miles: SEARCH_RADIUS_MI });
   const destinationBounds = bboxFromMiles({ ...destinationCoord, miles: SEARCH_RADIUS_MI });
 
-  const [originRows, destinationRows] = await Promise.all([
+  // Extract states from origin and destination
+  const originState = origin?.state ?? origin?.state_or_province ?? origin?.origin_state ?? null;
+  const destState = destination?.state ?? destination?.state_or_province ?? destination?.dest_state ?? destination?.destinationState ?? null;
+
+  const [originRows, destinationRows, majorFLCities] = await Promise.all([
     queryBoundingBox(supabase, originBounds, "origin"),
-    queryBoundingBox(supabase, destinationBounds, "destination")
+    queryBoundingBox(supabase, destinationBounds, "destination"),
+    fetchMajorFloridaCities(supabase, originCoord, originState, destState)
   ]);
 
-  const normalizedOrigin = normalizeResults(originRows, originCoord);
-  const normalizedDestination = normalizeResults(destinationRows, destinationCoord);
+  let normalizedOrigin = normalizeResults(originRows, originCoord);
+  let normalizedDestination = normalizeResults(destinationRows, destinationCoord);
+
+  // Add major FL cities to origin list if origin is in FL
+  if (originState === 'FL' && majorFLCities.length > 0) {
+    const majorFLNormalized = majorFLCities
+      .map((row) => {
+        const milesValue = haversineMiles({
+          lat1: originCoord.lat,
+          lon1: originCoord.lon,
+          lat2: row.latitude,
+          lon2: row.longitude
+        });
+
+        if (Number.isNaN(milesValue)) {
+          return null;
+        }
+
+        const city: NearbyCity = {
+          city: row.city,
+          state: row.state_or_province,
+          kma_code: row.kma_code ?? null,
+          kma_name: row.kma_name ?? null,
+          lat: row.latitude,
+          lon: row.longitude,
+          miles: Number(milesValue.toFixed(2)),
+          zip: (row as any).zip ?? null,
+          zip3: typeof (row as any).zip === "string" ? (row as any).zip.slice(0, 3) : null
+        };
+
+        return city;
+      })
+      .filter((city): city is NearbyCity => city !== null);
+
+    // Merge with existing cities, avoiding duplicates
+    const originCityKeys = new Set(normalizedOrigin.map(c => `${c.city}|${c.state}`));
+    const uniqueFL = majorFLNormalized.filter(c => !originCityKeys.has(`${c.city}|${c.state}`));
+    normalizedOrigin = [...normalizedOrigin, ...uniqueFL];
+    
+    console.log(`Added ${uniqueFL.length} major FL cities to origin list for broader coverage`);
+  }
+
+  // Add major FL cities to destination list if destination is in FL
+  if (destState === 'FL' && majorFLCities.length > 0) {
+    const majorFLNormalized = majorFLCities
+      .map((row) => {
+        const milesValue = haversineMiles({
+          lat1: destinationCoord.lat,
+          lon1: destinationCoord.lon,
+          lat2: row.latitude,
+          lon2: row.longitude
+        });
+
+        if (Number.isNaN(milesValue)) {
+          return null;
+        }
+
+        const city: NearbyCity = {
+          city: row.city,
+          state: row.state_or_province,
+          kma_code: row.kma_code ?? null,
+          kma_name: row.kma_name ?? null,
+          lat: row.latitude,
+          lon: row.longitude,
+          miles: Number(milesValue.toFixed(2)),
+          zip: (row as any).zip ?? null,
+          zip3: typeof (row as any).zip === "string" ? (row as any).zip.slice(0, 3) : null
+        };
+
+        return city;
+      })
+      .filter((city): city is NearbyCity => city !== null);
+
+    // Merge with existing cities, avoiding duplicates
+    const destCityKeys = new Set(normalizedDestination.map(c => `${c.city}|${c.state}`));
+    const uniqueFL = majorFLNormalized.filter(c => !destCityKeys.has(`${c.city}|${c.state}`));
+    normalizedDestination = [...normalizedDestination, ...uniqueFL];
+    
+    console.log(`Added ${uniqueFL.length} major FL cities to destination list for broader coverage`);
+  }
 
   return {
     originCities: groupAndLimitByKMA(normalizedOrigin, 10),
