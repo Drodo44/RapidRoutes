@@ -373,15 +373,22 @@ export default function RecapPage() {
         return;
       }
 
+      // Get user profile to check role and organization
+      const { data: userProfile } = await supabase
+        .from('profiles')
+        .select('role, organization_id')
+        .eq('id', session.user.id)
+        .single();
+
       // Check if Admin user has "My Lanes Only" toggle enabled
       let organizationIdParam = '';
-      if (profile?.role === 'Admin' && profile?.organization_id) {
+      if (userProfile?.role === 'Admin' && userProfile?.organization_id) {
         try {
           const { getMyLanesOnlyPreference } = await import('../lib/laneFilterPreferences.js');
           const showMyLanesOnly = getMyLanesOnlyPreference();
           if (showMyLanesOnly) {
-            organizationIdParam = `&organizationId=${profile.organization_id}`;
-            console.log('[recap] Admin toggle enabled, filtering CSV by organization:', profile.organization_id);
+            organizationIdParam = `&organizationId=${userProfile.organization_id}`;
+            console.log('[recap] Admin toggle enabled, filtering CSV by organization:', userProfile.organization_id);
           }
         } catch (err) {
           console.warn('[recap] Could not check lane filter preference:', err);
