@@ -863,6 +863,58 @@ function LanesPage() {
     }
   }
 
+  // Generate CSV for a single lane
+  async function generateSingleLaneCSV(lane) {
+    try {
+      console.log('[lanes.js] Generating single-lane CSV for:', lane.id);
+      
+      // Get auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Authentication required. Please log in again.');
+      }
+      
+      const response = await fetch('/api/generate-single-lane-csv', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ laneId: lane.id }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate CSV');
+      }
+
+      // Download the CSV
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      // Get filename from Content-Disposition header if available
+      const disposition = response.headers.get('Content-Disposition');
+      let filename = `Lane_${lane.reference_id || lane.id}.csv`;
+      if (disposition && disposition.includes('filename=')) {
+        const matches = /filename="?([^"]+)"?/.exec(disposition);
+        if (matches && matches[1]) filename = matches[1];
+      }
+      
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      console.log('[lanes.js] Single-lane CSV downloaded:', filename);
+    } catch (error) {
+      console.error('Single-lane CSV Generation Error:', error);
+      alert(`Failed to generate CSV for this lane: ${error.message}`);
+    }
+  }
+
   function RRSearch() {
     return (
       <div className="space-y-4">
@@ -1218,6 +1270,11 @@ function LanesPage() {
                         <a href="/recap" className="btn btn-success" style={{ fontSize: '12px', padding: '4px 10px' }}>
                           📊 Recap
                         </a>
+                      )}
+                      {l.saved_origin_cities?.length > 0 && (
+                        <button onClick={() => generateSingleLaneCSV(l)} className="btn btn-success" style={{ fontSize: '12px', padding: '4px 10px' }} title="Generate DAT CSV for this lane only">
+                          📄 CSV
+                        </button>
                       )}
                       <button onClick={() => startEditLane(l)} className="btn btn-primary" style={{ fontSize: '12px', padding: '4px 10px' }}>
                         ✏️ Edit

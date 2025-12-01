@@ -35,6 +35,66 @@ export default function LaneList({ lanes = [], onGenerateOptions, loading = fals
     console.log('Selection changed for lane:', laneId, selections);
     // TODO: Store selections in parent component state
   };
+
+  // Generate CSV for a single lane
+  const generateSingleLaneCSV = async (lane) => {
+    try {
+      console.log('[LaneList] Generating single-lane CSV for:', lane.id);
+      
+      // Get auth token from Supabase session
+      let authToken = null;
+      try {
+        const { supabase } = await import('../../lib/supabaseClient.js');
+        const { data: { session } } = await supabase.auth.getSession();
+        authToken = session?.access_token;
+      } catch (err) {
+        console.error('[LaneList] Could not get auth token:', err);
+      }
+      
+      if (!authToken) {
+        throw new Error('Authentication required. Please log in again.');
+      }
+      
+      const response = await fetch('/api/generate-single-lane-csv', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({ laneId: lane.id }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate CSV');
+      }
+
+      // Download the CSV
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      // Get filename from Content-Disposition header if available
+      const disposition = response.headers.get('Content-Disposition');
+      let filename = `Lane_${lane.reference_id || lane.id}.csv`;
+      if (disposition && disposition.includes('filename=')) {
+        const matches = /filename="?([^"]+)"?/.exec(disposition);
+        if (matches && matches[1]) filename = matches[1];
+      }
+      
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      console.log('[LaneList] Single-lane CSV downloaded:', filename);
+    } catch (error) {
+      console.error('Single-lane CSV Generation Error:', error);
+      alert(`Failed to generate CSV for this lane: ${error.message}`);
+    }
+  };
   
   if (loading) {
     return (
@@ -123,6 +183,15 @@ export default function LaneList({ lanes = [], onGenerateOptions, loading = fals
                 >
                   Generate Options
                 </button>
+                {lane?.saved_origin_cities?.length > 0 && (
+                  <button
+                    onClick={() => generateSingleLaneCSV(lane)}
+                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm"
+                    title="Generate DAT CSV for this lane only"
+                  >
+                    📄 CSV
+                  </button>
+                )}
                 {options && (
                   <button
                     onClick={() => toggleLaneExpansion(laneId)}

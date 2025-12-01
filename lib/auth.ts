@@ -1,4 +1,75 @@
-import type { NextApiRequest } from 'next';
+import type { NextApiRequest, NextApiResponse } from 'next';
+
+/**
+ * Get authenticated user information from API request
+ * Returns user, profile, and session information or null if not authenticated
+ */
+export async function getAuthFromRequest(req: NextApiRequest, res: NextApiResponse) {
+  try {
+    // Check for internal bypass first
+    if (isInternalBypass(req)) {
+      console.log('[getAuthFromRequest] Internal bypass granted');
+      return {
+        user: { id: 'test-user-id' },
+        profile: { role: 'Admin', active: true, status: 'approved', organization_id: null }
+      };
+    }
+
+    // Extract Bearer token from Authorization header
+    const authHeader = req.headers.authorization;
+    const authToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+
+    if (!authToken) {
+      return null;
+    }
+
+    // Import supabaseAdmin dynamically to avoid circular dependencies
+    let supabaseAdmin;
+    try {
+      const module = await import('./supabaseAdmin.js');
+      supabaseAdmin = module.default || module.adminSupabase;
+    } catch (e) {
+      console.error('[getAuthFromRequest] Admin client import failed:', e?.message || e);
+      return null;
+    }
+
+    // Validate the token and get user
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(authToken);
+
+    if (userError || !user) {
+      console.error('[getAuthFromRequest] Invalid token:', userError?.message || 'No user');
+      return null;
+    }
+
+    // Fetch user profile
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError || !profile) {
+      console.error('[getAuthFromRequest] Profile lookup failed:', profileError?.message || 'No profile');
+      return null;
+    }
+
+    // Check if user is active and approved
+    if (!profile.active || profile.status !== 'approved') {
+      console.warn('[getAuthFromRequest] User not active or approved:', { active: profile.active, status: profile.status });
+      return null;
+    }
+
+    return {
+      user,
+      profile,
+      userId: user.id,
+      id: user.id
+    };
+  } catch (error) {
+    console.error('[getAuthFromRequest] Exception:', error);
+    return null;
+  }
+}
 
 export function isInternalBypass(req: NextApiRequest): boolean {
   const prodBypassEnabled = process.env.INTERNAL_TEST_BYPASS === '1';

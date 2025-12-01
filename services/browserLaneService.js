@@ -49,8 +49,22 @@ export async function fetchLaneRecords(filters = {}) {
   try {
     const f = sanitizeLaneFilters(filters);
     const qs = toQuery(f);
+    
+    // Get auth token from Supabase session
+    let authHeader = {};
+    try {
+      const { default: supabase } = await import('../lib/supabaseClient.js');
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        authHeader = { 'Authorization': `Bearer ${session.access_token}` };
+      }
+    } catch (err) {
+      console.warn('[browserLaneService] Could not get auth token:', err);
+    }
+    
     const res = await fetch(`/api/laneRecords?${qs}`, { 
       method: 'GET',
+      headers: authHeader,
       // Add timeout and error handling to prevent infinite retries
       signal: AbortSignal.timeout(10000) // 10 second timeout
     });
