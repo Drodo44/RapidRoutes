@@ -218,10 +218,14 @@ export default function ChooseCitiesPage() {
   let destKMAs = cityData?.destination?.nearby_cities?.kmas || {};
 
   // Client-side safety: For New England destination lanes, strictly show only NE states + NJ (major freight corridor)
+  // For NJ lanes, show all cities (no filtering needed)
   const NEW_ENGLAND = new Set(['MA', 'NH', 'ME', 'VT', 'RI', 'CT']);
   const destState = (cityData?.destination?.state || '').toString().toUpperCase();
+  const originState = (cityData?.origin?.state || '').toString().toUpperCase();
   const enforceNE = NEW_ENGLAND.has(destState);
-  if (enforceNE) {
+  const isNJLane = originState === 'NJ' || destState === 'NJ';
+  
+  if (enforceNE && !isNJLane) {
     const filtered = {};
     for (const [kma, cities] of Object.entries(destKMAs)) {
       const kept = (cities || []).filter(c => {

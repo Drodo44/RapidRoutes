@@ -594,6 +594,50 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
       stateBreakdown[c.state_or_province] = (stateBreakdown[c.state_or_province] || 0) + 1;
     });
     console.log(`[generateOptionsForLane] 📊 Final state breakdown:`, stateBreakdown);
+  } else if (isNewJerseyLane) {
+    // For NJ lanes, ensure NJ cities are well-represented
+    const sortedByDistance = [...destOptions].sort((a, b) => a.distance - b.distance);
+    
+    // Group by state
+    const byState = {};
+    for (const c of sortedByDistance) {
+      const state = c.state_or_province || c.state;
+      if (!byState[state]) byState[state] = [];
+      byState[state].push(c);
+    }
+    
+    // Prioritize NJ cities, then nearby states
+    const priorityStates = ['NJ', 'PA', 'NY', 'CT', 'MA'];
+    const result = [];
+    
+    // First pass: 20 closest from each priority state
+    for (const state of priorityStates) {
+      if (byState[state]) {
+        result.push(...byState[state].slice(0, 20));
+      }
+    }
+    
+    // Fill remaining slots
+    const remaining = 100 - result.length;
+    if (remaining > 0) {
+      const alreadyAdded = new Set(result.map(c => c.id));
+      for (const city of sortedByDistance) {
+        if (!alreadyAdded.has(city.id) && result.length < 100) {
+          result.push(city);
+          alreadyAdded.add(city.id);
+        }
+      }
+    }
+    
+    // Apply blacklist filter
+    balancedDest = result.filter(c => !isBlacklisted(c.city, c.state_or_province || c.state, dbBlacklist));
+    
+    console.log(`[generateOptionsForLane] ✅ NJ lane: Selected ${balancedDest.length} cities with NJ priority`);
+    const stateBreakdown = {};
+    balancedDest.forEach(c => {
+      stateBreakdown[c.state_or_province] = (stateBreakdown[c.state_or_province] || 0) + 1;
+    });
+    console.log(`[generateOptionsForLane] 📊 Final state breakdown:`, stateBreakdown);
   } else {
     balancedDest = balanceByKMA(destOptions, 100, dbBlacklist, dbCorrections); // Keep up to 100 diverse cities
     console.log(`[generateOptionsForLane] ✅ After balanceByKMA: ${balancedDest.length} destination cities`);
