@@ -340,6 +340,12 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
     if (flData) {
       flCities = flData;
       console.log(`[generateOptionsForLane] 🌴 Fetched ${flCities.length} major FL cities from DB for deadheading coverage`);
+      if (flCities.length > 0) {
+        console.log(`[generateOptionsForLane] 🌴 FL cities found:`, flCities.map(c => c.city).join(', '));
+      }
+      if (flCities.length < majorFLCities.length) {
+        console.log(`[generateOptionsForLane] ⚠️  Only found ${flCities.length} of ${majorFLCities.length} requested FL cities in database`);
+      }
     }
   }
   
@@ -406,11 +412,15 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
   // Start with 100 mile radius for origin, but FL lanes get all FL cities regardless of distance
   let originOptions;
   if (isFloridaLane && originState === 'FL') {
-    // For FL origin lanes, include all FL cities for deadheading, plus nearby cities from other states
-    const flOriginCities = originWithDistances.filter(c => c.state === 'FL');
+    // For FL origin lanes, include ONLY the major FL cities list (user-specific), plus nearby non-FL cities
+    // Create a Set of major FL city names for fast lookup
+    const majorFLCityNames = new Set(flCities.map(c => c.city.toUpperCase()));
+    const majorFLOriginCities = originWithDistances.filter(c => 
+      c.state === 'FL' && majorFLCityNames.has(c.city.toUpperCase())
+    );
     const nearbyNonFL = originWithDistances.filter(c => c.state !== 'FL' && c.distance <= 100);
-    originOptions = [...flOriginCities, ...nearbyNonFL];
-    console.log(`[generateOptionsForLane] 🌴 FL origin: including all ${flOriginCities.length} FL cities + ${nearbyNonFL.length} nearby non-FL cities`);
+    originOptions = [...majorFLOriginCities, ...nearbyNonFL];
+    console.log(`[generateOptionsForLane] 🌴 FL origin: including ${majorFLOriginCities.length} major FL cities (from user list) + ${nearbyNonFL.length} nearby non-FL cities`);
   } else {
     originOptions = originWithDistances.filter(c => c.distance <= 100);
   }
@@ -422,11 +432,14 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
     destOptions = destWithDistances;
     console.log(`[generateOptionsForLane] 🔒 New England lane: including all destination cities (${destOptions.length}) without distance filter`);
   } else if (isFloridaLane && destState === 'FL') {
-    // For FL destination lanes, include all FL cities for deadheading, plus nearby cities from other states
-    const flDestCities = destWithDistances.filter(c => c.state === 'FL');
+    // For FL destination lanes, include ONLY the major FL cities list (user-specific), plus nearby non-FL cities
+    const majorFLCityNames = new Set(flCities.map(c => c.city.toUpperCase()));
+    const majorFLDestCities = destWithDistances.filter(c => 
+      c.state === 'FL' && majorFLCityNames.has(c.city.toUpperCase())
+    );
     const nearbyNonFL = destWithDistances.filter(c => c.state !== 'FL' && c.distance <= 100);
-    destOptions = [...flDestCities, ...nearbyNonFL];
-    console.log(`[generateOptionsForLane] 🌴 FL destination: including all ${flDestCities.length} FL cities + ${nearbyNonFL.length} nearby non-FL cities`);
+    destOptions = [...majorFLDestCities, ...nearbyNonFL];
+    console.log(`[generateOptionsForLane] 🌴 FL destination: including ${majorFLDestCities.length} major FL cities (from user list) + ${nearbyNonFL.length} nearby non-FL cities`);
   } else {
     destOptions = destWithDistances.filter(c => c.distance <= 100);
   }
