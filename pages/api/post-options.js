@@ -249,6 +249,7 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
   });
   
   // NEW ENGLAND FILTER: Hard-block NYC/Long Island KMAs for MA/NH/ME/VT/RI/CT destinations
+  // NJ is included as a major freight corridor for New England lanes
   const NEW_ENGLAND = new Set(['MA', 'NH', 'ME', 'VT', 'RI', 'CT']);
   const NYC_LI_KMA_BLOCKLIST = new Set([
     'NY_BRN', 'NY_BKN', 'NY_NYC', 'NY_QUE', 'NY_BRX', 'NY_STA', 'NY_NAS', 'NY_SUF'
@@ -257,14 +258,18 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
   const destState = (lane.destination_state || lane.dest_state || '').toUpperCase();
   const isNewEnglandLane = NEW_ENGLAND.has(destState);
   const isFloridaLane = originState === 'FL' || destState === 'FL';
+  const isNewJerseyLane = originState === 'NJ' || destState === 'NJ';
   
-  console.log(`[generateOptionsForLane] Lane ${laneId}: Origin = '${originState}', Destination = '${destState}', isNewEnglandLane = ${isNewEnglandLane}, isFloridaLane = ${isFloridaLane}`);
+  console.log(`[generateOptionsForLane] Lane ${laneId}: Origin = '${originState}', Destination = '${destState}', isNewEnglandLane = ${isNewEnglandLane}, isFloridaLane = ${isFloridaLane}, isNewJerseyLane = ${isNewJerseyLane}`);
   
   if (isNewEnglandLane) {
     console.log(`[generateOptionsForLane] 🔒 New England destination detected (${destState}), will filter NYC/LI cities`);
   }
   if (isFloridaLane) {
     console.log(`[generateOptionsForLane] 🌴 Florida lane detected, will include all major FL cities for deadheading`);
+  }
+  if (isNewJerseyLane) {
+    console.log(`[generateOptionsForLane] 🚛 New Jersey lane detected, will include all major NJ freight cities`);
   }
   
   const originLat = lane.origin_latitude;
@@ -526,11 +531,11 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
         return false;
       }
       
-      // Keep New England states + NY (upstate will remain after KMA filter)
-      return NEW_ENGLAND.has(cState) || cState === 'NY';
+      // Keep New England states + NY + NJ (NJ is major freight corridor, upstate NY will remain after KMA filter)
+      return NEW_ENGLAND.has(cState) || cState === 'NY' || cState === 'NJ';
     });
     
-    console.log(`[generateOptionsForLane] 🔒 NE Pre-filter: ${preFilterCount} → ${destOptions.length} cities (kept MA/NH/ME/VT/RI/CT/NY, blocked NYC/LI KMAs)`);
+    console.log(`[generateOptionsForLane] 🔒 NE Pre-filter: ${preFilterCount} → ${destOptions.length} cities (kept MA/NH/ME/VT/RI/CT/NY/NJ, blocked NYC/LI KMAs)`);
     
     if (destOptions.length > 0) {
       const filteredStateCounts = {};
@@ -557,8 +562,8 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
       byState[state].push(c);
     }
     
-    // Take closest cities from each state, prioritizing MA/NH/VT/RI/ME/CT
-    const priorityStates = ['MA', 'NH', 'VT', 'RI', 'ME', 'CT'];
+    // Take closest cities from each state, prioritizing MA/NH/VT/RI/ME/CT/NJ
+    const priorityStates = ['MA', 'NH', 'VT', 'RI', 'ME', 'CT', 'NJ'];
     const result = [];
     
     // First pass: 15 closest from each priority state

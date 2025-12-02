@@ -173,10 +173,10 @@ export default async function handler(req, res) {
     console.log(`[nearby-cities] Lane ${id}: dest_state='${lane.dest_state}' -> normalized='${destStateNorm}', blockNYC=${blockNYC}`);
     for (const pair of pairs) {
       buildKmaBucket(pickupBuckets, pair.origin, pair.origin?.distance);
-      // If New England lane, only allow destination cities inside New England states
+      // If New England lane, only allow destination cities inside New England states + NJ (major freight corridor)
       if (blockNYC) {
         const destState = normalizeState(pair.destination?.state || pair.destination?.state_or_province || '');
-        if (!NEW_ENGLAND.has(destState)) continue;
+        if (!NEW_ENGLAND.has(destState) && destState !== 'NJ') continue;
         if (NYC_LI_KMA_BLOCKLIST.has(pair.destination?.kma_code)) continue;
       }
       buildKmaBucket(deliveryBuckets, pair.destination, pair.destination?.distance);
