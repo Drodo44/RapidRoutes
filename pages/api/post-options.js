@@ -341,10 +341,13 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
       flCities = flData;
       console.log(`[generateOptionsForLane] 🌴 Fetched ${flCities.length} major FL cities from DB for deadheading coverage`);
       if (flCities.length > 0) {
-        console.log(`[generateOptionsForLane] 🌴 FL cities found:`, flCities.map(c => c.city).join(', '));
+        console.log(`[generateOptionsForLane] 🌴 FL cities found:`, flCities.map(c => c.city).sort().join(', '));
       }
       if (flCities.length < majorFLCities.length) {
         console.log(`[generateOptionsForLane] ⚠️  Only found ${flCities.length} of ${majorFLCities.length} requested FL cities in database`);
+        const foundCityNames = new Set(flCities.map(c => c.city));
+        const missing = majorFLCities.filter(c => !foundCityNames.has(c));
+        console.log(`[generateOptionsForLane] ⚠️  Missing cities:`, missing.join(', '));
       }
     }
   }
@@ -409,18 +412,35 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
   const destWithDistances = enriched
     .map(c => ({ ...c, distance: haversine(destLat, destLon, c.latitude, c.longitude) }));
   
-  // Start with 100 mile radius for origin, but FL lanes get all FL cities regardless of distance
+  // For FL lanes, also calculate distances for the major FL cities from the database
+  let flOriginWithDistances = [];
+  let flDestWithDistances = [];
+  if (isFloridaLane && flCities.length > 0) {
+    flOriginWithDistances = flCities.map(c => ({
+      ...c,
+      state: c.state_or_province,
+      kma_code: c.kma_code || 'UNK',
+      distance: haversine(originLat, originLon, c.latitude, c.longitude)
+    }));
+    flDestWithDistances = flCities.map(c => ({
+      ...c,
+      state: c.state_or_province,
+      kma_code: c.kma_code || 'UNK',
+      distance: haversine(destLat, destLon, c.latitude, c.longitude)
+    }));
+    console.log(`[generateOptionsForLane] 🌴 Calculated distances for ${flCities.length} major FL cities`);
+  }
+  
+  // Start with 100 mile radius for origin, but FL lanes use ONLY the major FL cities list
   let originOptions;
   if (isFloridaLane && originState === 'FL') {
-    // For FL origin lanes, include ONLY the major FL cities list (user-specific), plus nearby non-FL cities
-    // Create a Set of major FL city names for fast lookup
-    const majorFLCityNames = new Set(flCities.map(c => c.city.toUpperCase()));
-    const majorFLOriginCities = originWithDistances.filter(c => 
-      c.state === 'FL' && majorFLCityNames.has(c.city.toUpperCase())
-    );
+    // For FL origin lanes, include ONLY the major FL cities from database query, plus nearby non-FL cities
     const nearbyNonFL = originWithDistances.filter(c => c.state !== 'FL' && c.distance <= 100);
-    originOptions = [...majorFLOriginCities, ...nearbyNonFL];
-    console.log(`[generateOptionsForLane] 🌴 FL origin: including ${majorFLOriginCities.length} major FL cities (from user list) + ${nearbyNonFL.length} nearby non-FL cities`);
+    originOptions = [...flOriginWithDistances, ...nearbyNonFL];
+    console.log(`[generateOptionsForLane] 🌴 FL origin: ${flOriginWithDistances.length} major FL cities (from user list) + ${nearbyNonFL.length} nearby non-FL cities = ${originOptions.length} total`);
+    if (flOriginWithDistances.length > 0) {
+      console.log(`[generateOptionsForLane] 🌴 Major FL cities in origin options:`, flOriginWithDistances.slice(0, 10).map(c => c.city).join(', '), flOriginWithDistances.length > 10 ? `... (${flOriginWithDistances.length} total)` : '');
+    }
   } else {
     originOptions = originWithDistances.filter(c => c.distance <= 100);
   }
@@ -432,14 +452,10 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
     destOptions = destWithDistances;
     console.log(`[generateOptionsForLane] 🔒 New England lane: including all destination cities (${destOptions.length}) without distance filter`);
   } else if (isFloridaLane && destState === 'FL') {
-    // For FL destination lanes, include ONLY the major FL cities list (user-specific), plus nearby non-FL cities
-    const majorFLCityNames = new Set(flCities.map(c => c.city.toUpperCase()));
-    const majorFLDestCities = destWithDistances.filter(c => 
-      c.state === 'FL' && majorFLCityNames.has(c.city.toUpperCase())
-    );
+    // For FL destination lanes, include ONLY the major FL cities from database query, plus nearby non-FL cities
     const nearbyNonFL = destWithDistances.filter(c => c.state !== 'FL' && c.distance <= 100);
-    destOptions = [...majorFLDestCities, ...nearbyNonFL];
-    console.log(`[generateOptionsForLane] 🌴 FL destination: including ${majorFLDestCities.length} major FL cities (from user list) + ${nearbyNonFL.length} nearby non-FL cities`);
+    destOptions = [...flDestWithDistances, ...nearbyNonFL];
+    console.log(`[generateOptionsForLane] 🌴 FL destination: ${flDestWithDistances.length} major FL cities (from user list) + ${nearbyNonFL.length} nearby non-FL cities`);
   } else {
     destOptions = destWithDistances.filter(c => c.distance <= 100);
   }
