@@ -208,10 +208,10 @@ export default async function handler(req, res) {
             'Contact Method*': currentContactMethod,
             'Origin City*': originCity.city || '',
             'Origin State*': normalizeStateCode(originCity.state || originCity.state_or_province || ''),
-            'Origin Postal Code': originCity.zip || '',
+            'Origin Postal Code': '', // Empty per DAT recommendation - reduces manual clicks
             'Destination City*': destCity.city || '',
             'Destination State*': normalizeStateCode(destCity.state || destCity.state_or_province || ''),
-            'Destination Postal Code': destCity.zip || '',
+            'Destination Postal Code': '', // Empty per DAT recommendation - reduces manual clicks
             'Comment': lane.comment || '',
             'Commodity': lane.commodity || '',
             'Reference ID': pairRefId

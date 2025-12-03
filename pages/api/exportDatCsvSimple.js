@@ -231,10 +231,10 @@ function rowForContactMethod(lane, contactMethod) {
     contactMethod,                                  // Contact Method*
     String(normalized.origin_city || ''),                 // Origin City*
     String(normalized.origin_state || ''),                // Origin State*
-    String(normalized.origin_zip || ''),                  // Origin Postal Code
+    '',                                                   // Origin Postal Code - Empty per DAT recommendation
     String(normalized.destination_city || ''),            // Destination City*
     String(normalized.destination_state || ''),           // Destination State*
-    String(normalized.destination_zip || ''),             // Destination Postal Code
+    '',                                                   // Destination Postal Code - Empty per DAT recommendation
     String(normalized.comment || ''),                     // Comment
     String(normalized.commodity || ''),                   // Commodity
     String(normalized.reference_id || normalized.id || ''),     // Reference ID (RR#)
