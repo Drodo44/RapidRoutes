@@ -117,30 +117,33 @@ export default async function handler(req, res) {
       userEmail: auth.user?.email || auth.profile?.email
     });
     
-    // SECURITY: Non-Admin users can ONLY export their own organization's lanes
+    // SECURITY: Default behavior - EVERYONE gets filtered to their org
+    // UNLESS admin explicitly requests all orgs with exportAll=true
+    
     if (!isAdmin) {
+      // Non-admins: ALWAYS filter to their org
       if (!userOrgId) {
         console.error('[exportSavedCitiesCsv] BLOCKED: User has no organization_id', { userId, userEmail: auth.user?.email });
         return res.status(403).json({ error: 'User not assigned to an organization' });
       }
-      organizationId = userOrgId; // Force to user's org, ignore any query param
+      organizationId = userOrgId;
       console.log('[exportSavedCitiesCsv] Non-Admin: ENFORCING filter to user org:', organizationId);
     } 
-    // Admin users can specify organization filter via query param
-    else if (isAdmin && organizationId) {
-      console.log('[exportSavedCitiesCsv] Admin requested organization filter:', organizationId);
-    }
-    // Admin without org filter - REQUIRE explicit confirmation
-    else if (isAdmin && !organizationId) {
-      // For Admins, require explicit "all" parameter to export all orgs
-      if (req.query.exportAll !== 'true') {
-        console.log('[exportSavedCitiesCsv] BLOCKED: Admin must set exportAll=true to see all orgs');
-        return res.status(400).json({ 
-          error: 'Admin must specify organization filter or set exportAll=true',
-          userOrgId: userOrgId 
-        });
+    else if (isAdmin) {
+      // Admins: Check if they want ALL orgs or just their own
+      if (req.query.exportAll === 'true') {
+        // Admin explicitly requested all organizations
+        organizationId = undefined; // No filter = all orgs
+        console.log('[exportSavedCitiesCsv] Admin exporting ALL organizations (explicit confirmation)');
+      } else {
+        // Admin gets their own org by default (safest behavior)
+        if (!userOrgId) {
+          console.error('[exportSavedCitiesCsv] BLOCKED: Admin has no organization_id', { userId, userEmail: auth.user?.email });
+          return res.status(403).json({ error: 'Admin not assigned to an organization' });
+        }
+        organizationId = userOrgId;
+        console.log('[exportSavedCitiesCsv] Admin: Defaulting to user org (use exportAll=true for all):', organizationId);
       }
-      console.log('[exportSavedCitiesCsv] Admin exporting ALL organizations (explicit confirmation)');
     }
     
     // FINAL SAFETY CHECK: Never export without org filter unless explicitly allowed
