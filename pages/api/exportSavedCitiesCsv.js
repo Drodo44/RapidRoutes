@@ -120,19 +120,38 @@ export default async function handler(req, res) {
     // SECURITY: Non-Admin users can ONLY export their own organization's lanes
     if (!isAdmin) {
       if (!userOrgId) {
-        console.error('[exportSavedCitiesCsv] User has no organization_id');
+        console.error('[exportSavedCitiesCsv] BLOCKED: User has no organization_id', { userId, userEmail: auth.user?.email });
         return res.status(403).json({ error: 'User not assigned to an organization' });
       }
       organizationId = userOrgId; // Force to user's org, ignore any query param
-      console.log('[exportSavedCitiesCsv] Non-Admin: Filtering to user org:', organizationId);
+      console.log('[exportSavedCitiesCsv] Non-Admin: ENFORCING filter to user org:', organizationId);
     } 
     // Admin users can specify organization filter via query param
     else if (isAdmin && organizationId) {
       console.log('[exportSavedCitiesCsv] Admin requested organization filter:', organizationId);
     }
-    // Admin without org filter sees all lanes
+    // Admin without org filter - REQUIRE explicit confirmation
     else if (isAdmin && !organizationId) {
-      console.log('[exportSavedCitiesCsv] Admin exporting all organizations');
+      // For Admins, require explicit "all" parameter to export all orgs
+      if (req.query.exportAll !== 'true') {
+        console.log('[exportSavedCitiesCsv] BLOCKED: Admin must set exportAll=true to see all orgs');
+        return res.status(400).json({ 
+          error: 'Admin must specify organization filter or set exportAll=true',
+          userOrgId: userOrgId 
+        });
+      }
+      console.log('[exportSavedCitiesCsv] Admin exporting ALL organizations (explicit confirmation)');
+    }
+    
+    // FINAL SAFETY CHECK: Never export without org filter unless explicitly allowed
+    if (!organizationId && req.query.exportAll !== 'true') {
+      console.error('[exportSavedCitiesCsv] CRITICAL: No organization filter set!', {
+        userId,
+        userEmail: auth.user?.email,
+        isAdmin,
+        userOrgId
+      });
+      return res.status(500).json({ error: 'Server security error: Organization filter missing' });
     }
     
     // Fetch all current lanes with saved city selections
