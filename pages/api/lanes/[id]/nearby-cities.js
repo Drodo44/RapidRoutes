@@ -123,7 +123,7 @@ export default async function handler(req, res) {
   try {
     const { data: lane, error: laneError } = await supabase
       .from('lanes')
-      .select('origin_city, origin_state, dest_city, dest_state, equipment_code')
+      .select('origin_city, origin_state, dest_city, dest_state, destination_city, destination_state, equipment_code')
       .eq('id', id)
       .single();
 
@@ -132,8 +132,14 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'Lane not found' });
     }
 
-    const originMeta = await loadCityMetadata(lane.origin_city, lane.origin_state);
-    const destMeta = await loadCityMetadata(lane.dest_city, lane.dest_state);
+    // Support both old and new column names (dest_city vs destination_city)
+    const originCity = lane.origin_city;
+    const originState = lane.origin_state;
+    const destCity = lane.dest_city || lane.destination_city;
+    const destState = lane.dest_state || lane.destination_state;
+
+    const originMeta = await loadCityMetadata(originCity, originState);
+    const destMeta = await loadCityMetadata(destCity, destState);
 
     if (!originMeta || !destMeta) {
       return res.status(422).json({
@@ -145,16 +151,16 @@ export default async function handler(req, res) {
 
     const crawlResult = await generateGeographicCrawlPairs(
       {
-        city: lane.origin_city,
-        state: normalizeState(lane.origin_state),
+        city: originCity,
+        state: normalizeState(originState),
         latitude: Number(originMeta.latitude),
         longitude: Number(originMeta.longitude),
         zip: originMeta.zip,
         kma_code: originMeta.kma_code
       },
       {
-        city: lane.dest_city,
-        state: normalizeState(lane.dest_state),
+        city: destCity,
+        state: normalizeState(destState),
         latitude: Number(destMeta.latitude),
         longitude: Number(destMeta.longitude),
         zip: destMeta.zip,
@@ -168,10 +174,10 @@ export default async function handler(req, res) {
 
     const pairs = Array.isArray(crawlResult?.pairs) ? crawlResult.pairs : [];
 
-    const destStateNorm = normalizeState(lane.dest_state);
+    const destStateNorm = normalizeState(destState);
     const blockNYC = NEW_ENGLAND.has(destStateNorm);
-    const isNJLane = normalizeState(lane.origin_state) === 'NJ' || destStateNorm === 'NJ';
-    console.log(`[nearby-cities] Lane ${id}: dest_state='${lane.dest_state}' -> normalized='${destStateNorm}', blockNYC=${blockNYC}, isNJLane=${isNJLane}`);
+    const isNJLane = normalizeState(originState) === 'NJ' || destStateNorm === 'NJ';
+    console.log(`[nearby-cities] Lane ${id}: dest_state='${destState}' -> normalized='${destStateNorm}', blockNYC=${blockNYC}, isNJLane=${isNJLane}`);
     for (const pair of pairs) {
       buildKmaBucket(pickupBuckets, pair.origin, pair.origin?.distance);
       // If New England lane, only allow destination cities inside New England states + NJ (major freight corridor)
@@ -186,8 +192,8 @@ export default async function handler(req, res) {
 
     if (originMeta?.kma_code) {
       const baseEntry = {
-        city: lane.origin_city,
-        state: lane.origin_state,
+        city: originCity,
+        state: originState,
         zip: originMeta.zip || '',
         kma_code: originMeta.kma_code,
         kma_name: originMeta.kma_name || null,
@@ -201,8 +207,8 @@ export default async function handler(req, res) {
 
     if (destMeta?.kma_code) {
       const baseEntry = {
-        city: lane.dest_city,
-        state: lane.dest_state,
+        city: destCity,
+        state: destState,
         zip: destMeta.zip || '',
         kma_code: destMeta.kma_code,
         kma_name: destMeta.kma_name || null,
@@ -216,22 +222,22 @@ export default async function handler(req, res) {
 
     res.status(200).json({
       origin: {
-        city: lane.origin_city,
-        state: lane.origin_state,
+        city: originCity,
+        state: originState,
         latitude: originMeta.latitude,
         longitude: originMeta.longitude,
         nearby_cities: { kmas: pickupBuckets }
       },
       destination: {
-        city: lane.dest_city,
-        state: lane.dest_state,
+        city: destCity,
+        state: destState,
         latitude: destMeta.latitude,
         longitude: destMeta.longitude,
         nearby_cities: { kmas: deliveryBuckets }
       },
       lane_id: id,
       debug: {
-        dest_state_raw: lane.dest_state,
+        dest_state_raw: destState,
         dest_state_normalized: destStateNorm,
         blockNYC: blockNYC,
         new_england_states: Array.from(NEW_ENGLAND),
