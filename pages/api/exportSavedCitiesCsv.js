@@ -113,7 +113,8 @@ export default async function handler(req, res) {
       userRole: auth.profile?.role,
       isAdmin,
       userOrgId,
-      requestedOrgId: organizationId
+      requestedOrgId: organizationId,
+      userEmail: auth.user?.email || auth.profile?.email
     });
     
     // SECURITY: Non-Admin users can ONLY export their own organization's lanes
@@ -159,7 +160,11 @@ export default async function handler(req, res) {
       return res.status(422).json({ error: 'No lanes with saved city selections found' });
     }
 
-    console.log(`[exportSavedCitiesCsv] Processing ${lanes.length} lanes with saved selections`);
+    console.log(`[exportSavedCitiesCsv] Found ${lanes.length} lanes with saved selections`);
+    console.log(`[exportSavedCitiesCsv] Lane org IDs:`, lanes.map(l => ({
+      lane: l.origin_city + ' → ' + l.dest_city,
+      orgId: l.organization_id
+    })).slice(0, 5));
 
     // Generate CSV rows
     const rows = [];
