@@ -95,36 +95,43 @@ export default async function handler(req, res) {
     
     // Authenticate user and determine organization filtering
     const auth = await getAuthFromRequest(req, res);
+    
+    // SECURITY: Require authentication for CSV exports
+    if (!auth || !auth.user) {
+      console.error('[exportSavedCitiesCsv] Unauthorized: No valid auth token');
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    
+    const userId = auth.user?.id || auth.userId || auth.id;
+    const userOrgId = await getUserOrganizationId(userId);
+    const isAdmin = auth.profile?.role === 'Admin' || auth.user?.role === 'Admin';
+    
     let organizationId = req.query.organizationId ? String(req.query.organizationId) : undefined;
     
-    console.log('[exportSavedCitiesCsv] Query params:', {
-      contactMethod,
-      organizationId: req.query.organizationId,
-      parsedOrgId: organizationId
+    console.log('[exportSavedCitiesCsv] Auth check:', {
+      userId,
+      userRole: auth.profile?.role,
+      isAdmin,
+      userOrgId,
+      requestedOrgId: organizationId
     });
     
-    if (auth) {
-      const userId = auth.user?.id || auth.userId || auth.id;
-      const userOrgId = await getUserOrganizationId(userId);
-      const isAdmin = auth.profile?.role === 'Admin' || auth.user?.role === 'Admin';
-      
-      console.log('[exportSavedCitiesCsv] Auth check:', {
-        userId,
-        userRole: auth.profile?.role,
-        isAdmin,
-        userOrgId,
-        requestedOrgId: organizationId
-      });
-      
-      // For non-Admin users, always filter by their organization (override any query param)
-      if (!isAdmin && userOrgId) {
-        organizationId = userOrgId;
-        console.log('[exportSavedCitiesCsv] Applied auto-filter for non-Admin user:', organizationId);
+    // SECURITY: Non-Admin users can ONLY export their own organization's lanes
+    if (!isAdmin) {
+      if (!userOrgId) {
+        console.error('[exportSavedCitiesCsv] User has no organization_id');
+        return res.status(403).json({ error: 'User not assigned to an organization' });
       }
-      // For Admin users: organizationId from query param is already set above
-      else if (isAdmin && organizationId) {
-        console.log('[exportSavedCitiesCsv] Admin requested organization filter:', organizationId);
-      }
+      organizationId = userOrgId; // Force to user's org, ignore any query param
+      console.log('[exportSavedCitiesCsv] Non-Admin: Filtering to user org:', organizationId);
+    } 
+    // Admin users can specify organization filter via query param
+    else if (isAdmin && organizationId) {
+      console.log('[exportSavedCitiesCsv] Admin requested organization filter:', organizationId);
+    }
+    // Admin without org filter sees all lanes
+    else if (isAdmin && !organizationId) {
+      console.log('[exportSavedCitiesCsv] Admin exporting all organizations');
     }
     
     // Fetch all current lanes with saved city selections
