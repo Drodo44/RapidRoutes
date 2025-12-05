@@ -40,7 +40,7 @@ function PromptCard({ prompt, isAdmin, onView, onDownload, onEdit, onDelete }) {
     toast.success('Prompt copied to clipboard!');
   };
 
-  const isHtmlWorkflow = workflow_type === 'Download HTML';
+  const isHtmlWorkflow = workflow_type === 'download_html';
 
   return (
     <div className="card h-full flex flex-col bg-gray-800 border border-gray-700 rounded-lg overflow-hidden hover:border-blue-500 transition-colors">
@@ -54,7 +54,7 @@ function PromptCard({ prompt, isAdmin, onView, onDownload, onEdit, onDelete }) {
               </span>
               {workflow_type && (
                 <span className={`inline-block px-2 py-1 text-xs font-semibold rounded ${isHtmlWorkflow ? 'bg-purple-900 text-purple-200' : 'bg-green-900 text-green-200'}`}>
-                  {workflow_type}
+                  {workflow_type === 'download_html' ? 'Download HTML' : 'Copy Prompt'}
                 </span>
               )}
             </div>
@@ -165,7 +165,7 @@ function PromptLibrary() {
       description: prompt.description,
       category: prompt.category,
       html_content: prompt.html_content,
-      workflow_type: prompt.workflow_type || 'Copy Prompt'
+      workflow_type: prompt.workflow_type || 'copy'
     });
     setSelectedPrompt(prompt);
     setEditModalOpen(true);
@@ -177,7 +177,7 @@ function PromptLibrary() {
       description: '', 
       category: 'General', 
       html_content: '',
-      workflow_type: 'Copy Prompt'
+      workflow_type: 'copy'
     });
     setSelectedPrompt(null);
     setEditModalOpen(true);
@@ -371,7 +371,7 @@ function PromptLibrary() {
             </span>
             {selectedPrompt?.workflow_type && (
               <span className="ml-2 inline-block px-2 py-1 text-xs font-semibold rounded bg-purple-900 text-purple-200">
-                {selectedPrompt.workflow_type}
+                {selectedPrompt.workflow_type === 'download_html' ? 'Download HTML' : 'Copy Prompt'}
               </span>
             )}
           </div>
@@ -443,8 +443,8 @@ function PromptLibrary() {
                 value={formData.workflow_type}
                 onChange={(e) => setFormData({...formData, workflow_type: e.target.value})}
               >
-                <option value="Copy Prompt">Copy Prompt</option>
-                <option value="Download HTML">Download HTML</option>
+                <option value="copy">Copy Prompt</option>
+                <option value="download_html">Download HTML</option>
               </select>
             </div>
           </div>
