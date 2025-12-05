@@ -5,6 +5,7 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { supabase } from '../../lib/supabaseClient';
 import ErrorBoundary from '../../components/ErrorBoundary';
+import { toast } from 'react-hot-toast';
 
 function Section({ title, right, children, className = '' }) {
   return (
@@ -18,7 +19,16 @@ function Section({ title, right, children, className = '' }) {
   );
 }
 
-function PromptCard({ title, description, category }) {
+function PromptCard({ title, description, category, content }) {
+  const handleCopy = () => {
+    if (!content) {
+      toast.error('No content to copy');
+      return;
+    }
+    navigator.clipboard.writeText(content);
+    toast.success('Prompt copied to clipboard!');
+  };
+
   return (
     <div className="card">
       <div className="card-body">
@@ -26,7 +36,7 @@ function PromptCard({ title, description, category }) {
         <p className="text-gray-500">{category}</p>
         <p>{description}</p>
         <div className="flex justify-end space-x-2 mt-4">
-          <button className="btn btn-sm btn-outline">Copy</button>
+          <button onClick={handleCopy} className="btn btn-sm btn-outline">Copy</button>
           <button className="btn btn-sm btn-outline">View</button>
           <button className="btn btn-sm btn-outline">Download</button>
         </div>
@@ -116,6 +126,7 @@ function PromptLibrary() {
               title={prompt.title}
               description={prompt.description}
               category={prompt.category}
+              content={prompt.html_content}
             />
           ))}
         </div>
