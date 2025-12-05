@@ -78,9 +78,11 @@ function PromptCard({ prompt, isAdmin, onView, onDownload, onEdit, onDelete }) {
           {!isHtmlWorkflow && (
             <button onClick={() => onView(prompt)} className="px-3 py-1 text-sm border border-gray-600 rounded hover:bg-gray-700 text-gray-300 transition-colors">View</button>
           )}
-          <button onClick={() => onDownload(prompt)} className={`px-3 py-1 text-sm border rounded transition-colors ${isHtmlWorkflow ? 'bg-blue-600 border-blue-600 text-white hover:bg-blue-700' : 'border-gray-600 hover:bg-gray-700 text-gray-300'}`}>
-            Download
-          </button>
+          {isHtmlWorkflow && (
+            <button onClick={() => onDownload(prompt)} className="px-3 py-1 text-sm border rounded transition-colors bg-blue-600 border-blue-600 text-white hover:bg-blue-700">
+              Download HTML
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -143,9 +145,8 @@ function PromptLibrary() {
   };
 
   const handleDownload = (prompt) => {
-    const isHtml = prompt.workflow_type === 'download_html' || prompt.workflow_type === 'Download HTML';
-    const extension = isHtml ? 'html' : 'txt';
-    const mimeType = isHtml ? 'text/html' : 'text/plain';
+    const extension = 'html';
+    const mimeType = 'text/html';
     
     const element = document.createElement("a");
     const file = new Blob([prompt.html_content], {type: mimeType});
@@ -398,12 +399,6 @@ function PromptLibrary() {
               className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded transition-colors"
             >
               Copy Content
-            </button>
-            <button 
-              onClick={() => handleDownload(selectedPrompt)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition-colors"
-            >
-              Download File
             </button>
           </div>
         </div>
