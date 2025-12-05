@@ -13,7 +13,13 @@ const __dirname = dirname(__filename);
 dotenv.config({ path: join(__dirname, '../.env.local') });
 
 // Read SQL file
-const sqlPath = join(__dirname, '../sql/create-city-performance.sql');
+if (process.argv.length < 3) {
+  console.error('❌ Usage: node scripts/run-migration.mjs <migration-file-path>');
+  process.exit(1);
+}
+
+const migrationFilePath = process.argv[2];
+const sqlPath = join(process.cwd(), migrationFilePath);
 const sql = readFileSync(sqlPath, 'utf-8');
 
 // Use direct SQL execution via Supabase REST API
@@ -32,8 +38,8 @@ console.log('🚀 Starting database migration...\n');
 async function executeMigration() {
   try {
     // Import adminSupabase for server-side operations
-    const { getServerSupabase } = await import('../utils/supabaseClient.js');
-    const supabase = getServerSupabase();
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
     
     console.log('📝 Executing SQL migration...');
     
@@ -92,7 +98,7 @@ async function executeMigration() {
       console.log('1. Go to: https://supabase.com/dashboard');
       console.log('2. Select your project');
       console.log('3. Click "SQL Editor" in left menu');
-      console.log('4. Paste contents of: sql/create-city-performance.sql');
+      console.log(`4. Paste contents of: ${migrationFilePath}`);
       console.log('5. Click "Run" button\n');
       console.log('Or use the Supabase CLI:');
       console.log('   supabase db push\n');

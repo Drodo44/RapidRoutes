@@ -1,198 +1,70 @@
-# RapidRoutes
 
-Production-grade Next.js app for freight brokerage load posting, crawl generation, DAT bulk export, and shipper recap.
+# TEMPORARY FILE
 
-## Local Setup
+This file contains the SQL migration script that you requested. You can copy and paste this into the Supabase SQL editor to run the migration.
 
-1. **Install dependencies**
+To restore the original README.md content, run the following command:
+`git checkout README.md`
 
-   ```bash
-   npm install
-   ```
+```sql
+-- Create ai_prompts table
+CREATE TABLE IF NOT EXISTS ai_prompts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL,
+    description TEXT,
+    html_content TEXT NOT NULL,
+    category TEXT,
+    created_by_user_id UUID REFERENCES auth.users(id),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
-2. **Create a `.env.local` file** by copying `.env.example`, then update the Supabase URL, anon key, and service role key with your project credentials. Keep the service role secret on the server side only.
+-- Enable RLS
+ALTER TABLE ai_prompts ENABLE ROW LEVEL SECURITY;
 
-3. **Verify Supabase connectivity and seed data**
+-- Create policies for ai_prompts
+CREATE POLICY "Admins can manage all prompts"
+    ON ai_prompts FOR ALL
+    USING (
+        EXISTS (
+            SELECT 1 FROM profiles
+            WHERE id = auth.uid()
+            AND role = 'Admin'
+        )
+    );
 
-   Use the supplied utilities to confirm access:
+CREATE POLICY "Authenticated users can read all prompts"
+    ON ai_prompts FOR SELECT
+    USING (auth.role() = 'authenticated');
 
-   ```bash
-   node check-db.mjs             # confirms connection
-   npm run setup-database        # optional seed/verification script
-   ```
+-- Create prompt_suggestions table
+CREATE TABLE IF NOT EXISTS prompt_suggestions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    suggestion_title TEXT NOT NULL,
+    suggestion_text TEXT,
+    user_id UUID REFERENCES auth.users(id) DEFAULT auth.uid(),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
-   Ensure the `lanes`, `cities`, and `intelligent_cities` tables are populated; the UI relies on these for lane listings and nearby city lookups.
+-- Enable RLS
+ALTER TABLE prompt_suggestions ENABLE ROW LEVEL SECURITY;
 
-4. **Start the development server**
+-- Create policies for prompt_suggestions
+CREATE POLICY "Authenticated users can create suggestions"
+    ON prompt_suggestions FOR INSERT
+    WITH CHECK (auth.role() = 'authenticated');
 
-   ```bash
-   npm run dev
-   ```
+CREATE POLICY "Users can read their own suggestions"
+    ON prompt_suggestions FOR SELECT
+    USING (auth.uid() = user_id);
 
-   Visit `http://localhost:3000` and sign in with a Supabase user that has access to RapidRoutes.
-
-## Key Features
-
-### ✅ **Phase 9 Complete: Production-Ready Variable Pair Generation**
-
-- **Enterprise CSV Generation**: Variable pair system (6+ unique KMA pairings, no maximum)
-- **HERE.com Smart Integration**: Automatic fallback when Supabase diversity insufficient  
-- **Geographic Intelligence**: Adapts to corridor density for optimal market coverage
-- **Quality Standards**: Enforces minimum 6 pairs while maximizing available diversity
-- **Freight Industry Compliance**: DAT format (24 headers) with professional quality validation
-
-### Core System Features
-
-- **Lanes**: City autocomplete (12 results), equipment code-first, weight handling (randomize range), pending/recent tabs, per-lane export, bulk export (499 row parts)
-- **Crawl**: KMA-aware, fixed 100-mile cap (no progressive widening), scoring blend, duplicate rules, minimum 6 unique KMAs required (no maximum)
-- **CSV**: DAT Bulk Upload (24 headers, variable rows per lane). For every lane you enter:
-  - **Variable pair generation** based on geographic diversity (6-15+ pairs typical)
-  - **Unique KMA targeting** for maximum market coverage
-  - **HERE.com enrichment** when internal database lacks diversity
-  - **Contact method duplication** (Phone + Email) resulting in 12+ CSV rows minimum
-  - **No hardcoded limits** - system adapts to available geographic intelligence
-- **Recap**: Active lanes, search, print-ready export view
-
-## Hosting & Infrastructure
-
-- Next.js 14 (Pages Router)
-- Tailwind CSS 3 (dark-only)
-- Supabase (Auth, Postgres, Storage, RLS)
-- Vercel (deploy on push to `main`, weekly cron)
-
-## Environment Variables
-
-Set in Vercel:
-
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY` (server-only)
-
-## Database Schema
-
-Apply the SQL from the internal spec (cities, lanes, equipment_codes, rates_snapshots/rates_flat, dat_maps, user_prefs).
-
-## System Capabilities
-
-- **Lanes**: City autocomplete (12 results), equipment code-first, weight handling (randomize range), pending/recent tabs, per-lane export, bulk export (499 row parts)
-- **Crawl**: KMA-aware, fixed 100-mile cap (no progressive widening), scoring blend, duplicate rules, "fill to 10" option
-- **CSV**: DAT Bulk Upload (24 headers, 22 rows/lane), safe escaping, streaming, partitioning
-- **Recap**: Active lanes, search, print-ready export view
-- **Admin**: Equipment codes (seed + upsert), rate matrices upload (CSV→JSON), optional denorm to `rates_flat`
-- **Dashboard**: Weekly DAT market maps (cron fetch), Floor Space calc, Heavy Haul checker
-- **Auth**: /login, /signup, client-side gate; nav across signed-in pages
-
-## Data Flow Overview
-
-1. `useLanes` (in `hooks/useLanes.js`) queries Supabase with retry protection, returning the active brokerage lanes plus loading and error state.
-2. `useNearbyCities` (in `hooks/useNearbyCities.js`) consumes the selected lane, resolves coordinates, and groups nearby origin/destination cities by KMA for UI use.
-3. `components/choose-cities.js` renders the grouped tables, tracks broker selections, and persists the chosen cities plus coordinates into `sessionStorage` (`rr:selectedCities`).
-4. `components/post-options.js` hydrates from `sessionStorage`, zips origin and destination picks into 1↔1 recap pairs, computes miles with `haversineMiles`, and feeds the existing recap/export controls.
-
-## Cron
-
-`vercel.json` defines weekly Monday 06:00 ET (10:00 UTC) call to `/api/fetchDatBlog`.
-
-## Health Monitoring
-
-A health monitoring script is available to check the application's API health:
-
-```bash
-# Run the script directly (foreground)
-./scripts/monitor-health.sh
-
-# Run the script in the background
-./scripts/monitor-health.sh &
-
-# Set up as a cron job
-./scripts/monitor-health.sh cron
-
-# Get PM2 setup instructions
-./scripts/monitor-health.sh pm2-help
+CREATE POLICY "Admins can read all suggestions"
+    ON prompt_suggestions FOR SELECT
+    USING (
+        EXISTS (
+            SELECT 1 FROM profiles
+            WHERE id = auth.uid()
+            AND role = 'Admin'
+        )
+    );
 ```
-
-Features:
-
-- Pings `https://rapid-routes.vercel.app/api/healthcheck` every 15 minutes
-- Logs timestamps and status codes to `logs/health.log`
-- Alerts (console + Slack webhook) if status code is not 200
-- Can run as a background process or PM2 job
-- Alerts are logged to `logs/alerts.log`
-
-## GitHub Copilot Setup
-
-This repository includes comprehensive Copilot instructions for efficient development:
-
-- See `.github/copilot-instructions.md` for complete guidelines
-- Review `COPILOT.md` for quick start tips
-- Configuration in `.copilotrc.json` ensures domain-aware suggestions
-
-## Development and Testing
-
-Install dependencies:
-
-```bash
-npm i
-npm i -D vitest @vitest/coverage-v8
-```
-
-## CI/CD Pipeline
-
-### Overview
-
-Two-tier validation ensures reliability for freight pairing & DAT export:
-
-1. Unit Tests (Vitest)
-   - Trigger: every push & PR to `main`
-   - Includes KMA prefix enrichment integrity tests
-2. Production Smoke Tests
-   - Trigger: only on `main` after unit tests pass
-   - Script: `node scripts/verify-production-pairing.js --host=https://rapid-routes.vercel.app --debug`
-   - Lanes: Fitzgerald→Winter Haven, Augusta→Stephenson, Riegelwood→Altamont
-   - Fails if: API error, totalCityPairs == 0, or (originKMAs + destKMAs) < 5
-
-### Branch Protection (Recommended)
-
-Require both jobs:
-
-- `test`
-- `production-smoke-test`
-
-### Required GitHub Secrets
-
-| Secret | Purpose |
-|--------|---------|
-| HERE_API_KEY | HERE geocoding for pairing API |
-| SUPABASE_SERVICE_ROLE_KEY | Server-side Supabase RPC access |
-| SUPABASE_URL | Supabase project URL |
-| SLACK_WEBHOOK_URL (optional) | Failure notifications |
-
-### Smoke Output
-
-CI logs each lane: classification, pair count, unique origin/dest KMA counts, latency. JSON summary printed in debug mode.
-
-### KMA Enrichment
-
-Precomputed JSON map: `lib/data/kmaPrefixMap.json` (≈905 prefixes). Fallback to Excel only if JSON missing (warns: "⚠️ Fallback to Excel parser"). Unit test guarantees ≥900 prefixes and validates known market prefixes (350→BHM/AL_BIR, 606→CHI/IL_CHI, 303→ATL/GA_ATL).
-
-### Troubleshooting Smoke Failures
-
-| Symptom | Likely Cause | Action |
-|---------|--------------|--------|
-| 500 error | Deployment mismatch / transient outage | Retry, confirm latest commit deployed |
-| 0 pairs | Candidate fetch issue | Enable `PAIRING_DEBUG=1` and inspect Supabase RPC returns |
-| Diversity failure (400) | Sparse geography or missing KMA enrichment | Validate prefix map & DB city KMA fields |
-| Network error | DNS / network transient | Re-run workflow |
-
-### Local Smoke Run
-
-```bash
-node scripts/verify-production-pairing.js --debug
-```
-
-## Tech Stack
-
-- Next.js 14 (Pages Router)
-- Tailwind CSS 3
-- Supabase (Postgres, Auth, Storage)
-- Retry-aware data fetching (`withRetry`, abort-safe hooks)
