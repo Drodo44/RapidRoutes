@@ -143,7 +143,7 @@ function PromptLibrary() {
   };
 
   const handleDownload = (prompt) => {
-    const isHtml = prompt.workflow_type === 'Download HTML';
+    const isHtml = prompt.workflow_type === 'download_html' || prompt.workflow_type === 'Download HTML';
     const extension = isHtml ? 'html' : 'txt';
     const mimeType = isHtml ? 'text/html' : 'text/plain';
     
