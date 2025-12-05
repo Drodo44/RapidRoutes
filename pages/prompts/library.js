@@ -29,7 +29,7 @@ function Modal({ isOpen, onClose, title, children }) {
 }
 
 function PromptCard({ prompt, isAdmin, onView, onDownload, onEdit, onDelete }) {
-  const { title, description, category, html_content } = prompt;
+  const { title, description, category, html_content, workflow_type } = prompt;
 
   const handleCopy = () => {
     if (!html_content) {
@@ -40,15 +40,24 @@ function PromptCard({ prompt, isAdmin, onView, onDownload, onEdit, onDelete }) {
     toast.success('Prompt copied to clipboard!');
   };
 
+  const isHtmlWorkflow = workflow_type === 'Download HTML';
+
   return (
     <div className="card h-full flex flex-col bg-gray-800 border border-gray-700 rounded-lg overflow-hidden hover:border-blue-500 transition-colors">
       <div className="p-6 flex-1 flex flex-col">
         <div className="flex justify-between items-start mb-4">
           <div>
             <h3 className="text-lg font-bold text-white mb-2">{title}</h3>
-            <span className="inline-block px-2 py-1 text-xs font-semibold rounded bg-blue-900 text-blue-200">
-              {category}
-            </span>
+            <div className="flex flex-wrap gap-2">
+              <span className="inline-block px-2 py-1 text-xs font-semibold rounded bg-blue-900 text-blue-200">
+                {category}
+              </span>
+              {workflow_type && (
+                <span className={`inline-block px-2 py-1 text-xs font-semibold rounded ${isHtmlWorkflow ? 'bg-purple-900 text-purple-200' : 'bg-green-900 text-green-200'}`}>
+                  {workflow_type}
+                </span>
+              )}
+            </div>
           </div>
           {isAdmin && (
             <div className="flex space-x-2">
@@ -63,9 +72,15 @@ function PromptCard({ prompt, isAdmin, onView, onDownload, onEdit, onDelete }) {
         </div>
         <p className="text-gray-400 text-sm mb-6 flex-1">{description}</p>
         <div className="flex justify-end space-x-2 mt-auto pt-4 border-t border-gray-700">
-          <button onClick={handleCopy} className="px-3 py-1 text-sm border border-gray-600 rounded hover:bg-gray-700 text-gray-300 transition-colors">Copy</button>
-          <button onClick={() => onView(prompt)} className="px-3 py-1 text-sm border border-gray-600 rounded hover:bg-gray-700 text-gray-300 transition-colors">View</button>
-          <button onClick={() => onDownload(prompt)} className="px-3 py-1 text-sm border border-gray-600 rounded hover:bg-gray-700 text-gray-300 transition-colors">Download</button>
+          {!isHtmlWorkflow && (
+            <button onClick={handleCopy} className="px-3 py-1 text-sm border border-gray-600 rounded hover:bg-gray-700 text-gray-300 transition-colors">Copy</button>
+          )}
+          {!isHtmlWorkflow && (
+            <button onClick={() => onView(prompt)} className="px-3 py-1 text-sm border border-gray-600 rounded hover:bg-gray-700 text-gray-300 transition-colors">View</button>
+          )}
+          <button onClick={() => onDownload(prompt)} className={`px-3 py-1 text-sm border rounded transition-colors ${isHtmlWorkflow ? 'bg-blue-600 border-blue-600 text-white hover:bg-blue-700' : 'border-gray-600 hover:bg-gray-700 text-gray-300'}`}>
+            Download
+          </button>
         </div>
       </div>
     </div>
@@ -85,7 +100,13 @@ function PromptLibrary() {
   const [selectedPrompt, setSelectedPrompt] = useState(null);
   
   // Form States
-  const [formData, setFormData] = useState({ title: '', description: '', category: 'General', html_content: '' });
+  const [formData, setFormData] = useState({ 
+    title: '', 
+    description: '', 
+    category: 'General', 
+    html_content: '',
+    workflow_type: 'Copy Prompt' // Default
+  });
   const [suggestionTitle, setSuggestionTitle] = useState('');
   const [suggestionText, setSuggestionText] = useState('');
 
@@ -122,14 +143,20 @@ function PromptLibrary() {
   };
 
   const handleDownload = (prompt) => {
+    const isHtml = prompt.workflow_type === 'Download HTML';
+    const extension = isHtml ? 'html' : 'txt';
+    const mimeType = isHtml ? 'text/html' : 'text/plain';
+    
     const element = document.createElement("a");
-    const file = new Blob([prompt.html_content], {type: 'text/plain'});
+    const file = new Blob([prompt.html_content], {type: mimeType});
     element.href = URL.createObjectURL(file);
-    element.download = `${prompt.title.replace(/\s+/g, '_')}.txt`;
+    // Format filename: RapidRoutes_Prompt_Name.html
+    const safeTitle = prompt.title.replace(/[^a-z0-9]/gi, '_').replace(/_+/g, '_');
+    element.download = `RapidRoutes_${safeTitle}.${extension}`;
     document.body.appendChild(element);
     element.click();
     document.body.removeChild(element);
-    toast.success('Download started');
+    toast.success(`Download started (${extension.toUpperCase()})`);
   };
 
   const handleEdit = (prompt) => {
@@ -137,14 +164,21 @@ function PromptLibrary() {
       title: prompt.title,
       description: prompt.description,
       category: prompt.category,
-      html_content: prompt.html_content
+      html_content: prompt.html_content,
+      workflow_type: prompt.workflow_type || 'Copy Prompt'
     });
     setSelectedPrompt(prompt);
     setEditModalOpen(true);
   };
 
   const handleAddNew = () => {
-    setFormData({ title: '', description: '', category: 'General', html_content: '' });
+    setFormData({ 
+      title: '', 
+      description: '', 
+      category: 'General', 
+      html_content: '',
+      workflow_type: 'Copy Prompt'
+    });
     setSelectedPrompt(null);
     setEditModalOpen(true);
   };
@@ -165,6 +199,12 @@ function PromptLibrary() {
     e.preventDefault();
     const isUpdate = !!selectedPrompt;
     
+    // Ensure workflow_type is saved (might need schema update if column doesn't exist, 
+    // but for now we can store it. If schema is strict, we might need to add the column first)
+    // Assuming we can add it or use metadata. For now, let's try to save it.
+    // If the column doesn't exist in DB, this might fail. 
+    // We should probably add the column to the DB schema first.
+    
     let result;
     if (isUpdate) {
       result = await supabase.from('ai_prompts').update(formData).eq('id', selectedPrompt.id);
@@ -173,7 +213,8 @@ function PromptLibrary() {
     }
 
     if (result.error) {
-      toast.error(`Failed to ${isUpdate ? 'update' : 'create'} prompt`);
+      console.error('Save error:', result.error);
+      toast.error(`Failed to ${isUpdate ? 'update' : 'create'} prompt. ${result.error.message}`);
     } else {
       toast.success(`Prompt ${isUpdate ? 'updated' : 'created'} successfully`);
       setEditModalOpen(false);
@@ -328,6 +369,11 @@ function PromptLibrary() {
             <span className="ml-2 inline-block px-2 py-1 text-xs font-semibold rounded bg-blue-900 text-blue-200">
               {selectedPrompt?.category}
             </span>
+            {selectedPrompt?.workflow_type && (
+              <span className="ml-2 inline-block px-2 py-1 text-xs font-semibold rounded bg-purple-900 text-purple-200">
+                {selectedPrompt.workflow_type}
+              </span>
+            )}
           </div>
           <div>
             <h4 className="text-sm font-medium text-gray-400 mb-2">Description</h4>
@@ -335,19 +381,25 @@ function PromptLibrary() {
           </div>
           <div>
             <h4 className="text-sm font-medium text-gray-400 mb-2">Prompt Content</h4>
-            <div className="bg-gray-900 p-4 rounded border border-gray-700 font-mono text-sm text-gray-300 whitespace-pre-wrap">
+            <div className="bg-gray-900 p-4 rounded border border-gray-700 font-mono text-sm text-gray-300 whitespace-pre-wrap max-h-[400px] overflow-y-auto">
               {selectedPrompt?.html_content}
             </div>
           </div>
-          <div className="flex justify-end pt-4">
+          <div className="flex justify-end pt-4 space-x-2">
             <button 
               onClick={() => {
                 navigator.clipboard.writeText(selectedPrompt?.html_content);
                 toast.success('Copied to clipboard');
               }}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition-colors"
+              className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded transition-colors"
             >
               Copy Content
+            </button>
+            <button 
+              onClick={() => handleDownload(selectedPrompt)}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition-colors"
+            >
+              Download File
             </button>
           </div>
         </div>
@@ -370,18 +422,33 @@ function PromptLibrary() {
               required
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">Category</label>
-            <select
-              className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white focus:border-blue-500 focus:outline-none"
-              value={formData.category}
-              onChange={(e) => setFormData({...formData, category: e.target.value})}
-            >
-              {['General', 'Logistics', 'Creative', 'Sales', 'Operations'].map(c => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1">Category</label>
+              <select
+                className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white focus:border-blue-500 focus:outline-none"
+                value={formData.category}
+                onChange={(e) => setFormData({...formData, category: e.target.value})}
+              >
+                {['General', 'Logistics', 'Creative', 'Sales', 'Operations'].map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1">Workflow Intention</label>
+              <select
+                className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white focus:border-blue-500 focus:outline-none"
+                value={formData.workflow_type}
+                onChange={(e) => setFormData({...formData, workflow_type: e.target.value})}
+              >
+                <option value="Copy Prompt">Copy Prompt</option>
+                <option value="Download HTML">Download HTML</option>
+              </select>
+            </div>
           </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-400 mb-1">Description</label>
             <input
@@ -392,7 +459,7 @@ function PromptLibrary() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">Content</label>
+            <label className="block text-sm font-medium text-gray-400 mb-1">Content (HTML or Text)</label>
             <textarea
               className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white focus:border-blue-500 focus:outline-none font-mono"
               rows="10"
