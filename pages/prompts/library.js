@@ -249,6 +249,8 @@ function PromptLibrary() {
       }
     }
   };
+
+  async function fetchSuggestions() {
     const { data, error } = await supabase.from('prompt_suggestions').select('*').order('created_at', { ascending: false });
     if (error) console.error('Error fetching suggestions:', error);
     else setSuggestions(data || []);
