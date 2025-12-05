@@ -43,63 +43,95 @@ function PromptCard({ prompt, isAdmin, onView, onDownload, onEdit, onDelete }) {
   const isHtmlWorkflow = workflow_type === 'download_html' || workflow_type === 'Download HTML';
 
   return (
-    <div className="card h-full flex flex-col bg-gray-800 border border-gray-700 rounded-lg overflow-hidden hover:border-blue-500 transition-colors">
+    <div className="card h-full flex flex-col bg-gray-800 border border-gray-700 rounded-lg overflow-hidden hover:border-blue-500 transition-all duration-200 shadow-lg hover:shadow-blue-900/20">
       <div className="p-6 flex-1 flex flex-col">
         <div className="flex justify-between items-start mb-4">
-          <div>
-            <h3 className="text-lg font-bold text-white mb-2">{title}</h3>
+          <div className="flex-1 pr-4">
+            <h3 className="text-lg font-bold text-white mb-3 leading-tight">{title}</h3>
             <div className="flex flex-wrap gap-2">
-              <span className="inline-block px-2 py-1 text-xs font-semibold rounded bg-blue-900 text-blue-200">
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-900/50 text-blue-200 border border-blue-800">
                 {category}
               </span>
               {workflow_type && (
-                <span className={`inline-block px-2 py-1 text-xs font-semibold rounded ${isHtmlWorkflow ? 'bg-purple-900 text-purple-200' : 'bg-green-900 text-green-200'}`}>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+                  isHtmlWorkflow 
+                    ? 'bg-purple-900/50 text-purple-200 border-purple-800' 
+                    : 'bg-green-900/50 text-green-200 border-green-800'
+                }`}>
                   {workflow_type === 'download_html' ? 'Download HTML' : 'Copy Prompt'}
                 </span>
               )}
             </div>
           </div>
           {isAdmin && (
-            <div className="flex space-x-2">
-              <button onClick={() => onEdit(prompt)} className="p-1 text-gray-400 hover:text-blue-400 transition-colors" title="Edit">
-                ✏️
+            <div className="flex space-x-1 shrink-0">
+              <button onClick={() => onEdit(prompt)} className="p-2 text-gray-400 hover:text-blue-400 hover:bg-gray-700 rounded-full transition-colors" title="Edit">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
               </button>
-              <button onClick={() => onDelete(prompt.id)} className="p-1 text-gray-400 hover:text-red-400 transition-colors" title="Delete">
-                🗑️
+              <button onClick={() => onDelete(prompt.id)} className="p-2 text-gray-400 hover:text-red-400 hover:bg-gray-700 rounded-full transition-colors" title="Delete">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
               </button>
             </div>
           )}
         </div>
         
-        <div className="space-y-3 mb-6 flex-1">
-          {description && <p className="text-gray-300 text-sm">{description}</p>}
+        <div className="space-y-4 mb-6 flex-1">
+          {description && <p className="text-gray-300 text-sm leading-relaxed">{description}</p>}
           
-          {(use_case || target_audience) && <div className="border-t border-gray-700 my-3"></div>}
+          {(use_case || target_audience) && <div className="border-t border-gray-700/50 my-4"></div>}
           
           {use_case && (
             <div>
-              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Use Case</h4>
-              <p className="text-gray-400 text-sm">{use_case}</p>
+              <div className="flex items-center mb-1.5">
+                <svg className="w-3.5 h-3.5 text-blue-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+                <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Use Case</h4>
+              </div>
+              <p className="text-gray-200 text-sm pl-5.5">{use_case}</p>
             </div>
           )}
           
           {target_audience && (
             <div>
-              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Target Audience</h4>
-              <p className="text-gray-400 text-sm">{target_audience}</p>
+              <div className="flex items-center mb-1.5">
+                <svg className="w-3.5 h-3.5 text-green-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+                <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Target Audience</h4>
+              </div>
+              <p className="text-gray-200 text-sm pl-5.5">{target_audience}</p>
             </div>
           )}
         </div>
 
         <div className="flex justify-end space-x-2 mt-auto pt-4 border-t border-gray-700">
           {!isHtmlWorkflow && (
-            <button onClick={handleCopy} className="px-3 py-1 text-sm border border-gray-600 rounded hover:bg-gray-700 text-gray-300 transition-colors">Copy</button>
+            <button onClick={handleCopy} className="flex items-center px-3 py-1.5 text-sm border border-gray-600 rounded hover:bg-gray-700 text-gray-300 transition-colors">
+              <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+              </svg>
+              Copy
+            </button>
           )}
           {!isHtmlWorkflow && (
-            <button onClick={() => onView(prompt)} className="px-3 py-1 text-sm border border-gray-600 rounded hover:bg-gray-700 text-gray-300 transition-colors">View</button>
+            <button onClick={() => onView(prompt)} className="flex items-center px-3 py-1.5 text-sm border border-gray-600 rounded hover:bg-gray-700 text-gray-300 transition-colors">
+              <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              View
+            </button>
           )}
           {isHtmlWorkflow && (
-            <button onClick={() => onDownload(prompt)} className="px-3 py-1 text-sm border rounded transition-colors bg-blue-600 border-blue-600 text-white hover:bg-blue-700">
+            <button onClick={() => onDownload(prompt)} className="flex items-center px-4 py-2 text-sm font-medium rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-sm">
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
               Download HTML
             </button>
           )}
