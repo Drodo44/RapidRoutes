@@ -29,7 +29,7 @@ function Modal({ isOpen, onClose, title, children }) {
 }
 
 function PromptCard({ prompt, isAdmin, onView, onDownload, onEdit, onDelete }) {
-  const { title, description, category, html_content, workflow_type } = prompt;
+  const { title, description, category, html_content, workflow_type, use_case, target_audience } = prompt;
 
   const handleCopy = () => {
     if (!html_content) {
@@ -70,7 +70,27 @@ function PromptCard({ prompt, isAdmin, onView, onDownload, onEdit, onDelete }) {
             </div>
           )}
         </div>
-        <p className="text-gray-400 text-sm mb-6 flex-1">{description}</p>
+        
+        <div className="space-y-3 mb-6 flex-1">
+          {description && <p className="text-gray-300 text-sm">{description}</p>}
+          
+          {(use_case || target_audience) && <div className="border-t border-gray-700 my-3"></div>}
+          
+          {use_case && (
+            <div>
+              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Use Case</h4>
+              <p className="text-gray-400 text-sm">{use_case}</p>
+            </div>
+          )}
+          
+          {target_audience && (
+            <div>
+              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Target Audience</h4>
+              <p className="text-gray-400 text-sm">{target_audience}</p>
+            </div>
+          )}
+        </div>
+
         <div className="flex justify-end space-x-2 mt-auto pt-4 border-t border-gray-700">
           {!isHtmlWorkflow && (
             <button onClick={handleCopy} className="px-3 py-1 text-sm border border-gray-600 rounded hover:bg-gray-700 text-gray-300 transition-colors">Copy</button>
@@ -107,7 +127,9 @@ function PromptLibrary() {
     description: '', 
     category: 'General', 
     html_content: '',
-    workflow_type: 'Copy Prompt' // Default
+    workflow_type: 'copy', // Default
+    use_case: '',
+    target_audience: ''
   });
   const [suggestionTitle, setSuggestionTitle] = useState('');
   const [suggestionText, setSuggestionText] = useState('');
@@ -170,7 +192,9 @@ function PromptLibrary() {
       description: prompt.description,
       category: prompt.category,
       html_content: prompt.html_content,
-      workflow_type: wf
+      workflow_type: wf,
+      use_case: prompt.use_case || '',
+      target_audience: prompt.target_audience || ''
     });
     setSelectedPrompt(prompt);
     setEditModalOpen(true);
@@ -182,7 +206,9 @@ function PromptLibrary() {
       description: '', 
       category: 'General', 
       html_content: '',
-      workflow_type: 'copy'
+      workflow_type: 'copy',
+      use_case: '',
+      target_audience: ''
     });
     setSelectedPrompt(null);
     setEditModalOpen(true);
@@ -457,6 +483,30 @@ function PromptLibrary() {
               onChange={(e) => setFormData({...formData, description: e.target.value})}
             />
           </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1">Use Case</label>
+              <input
+                type="text"
+                className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white focus:border-blue-500 focus:outline-none"
+                value={formData.use_case}
+                onChange={(e) => setFormData({...formData, use_case: e.target.value})}
+                placeholder="e.g. Cold Outreach"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-400 mb-1">Target Audience</label>
+              <input
+                type="text"
+                className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white focus:border-blue-500 focus:outline-none"
+                value={formData.target_audience}
+                onChange={(e) => setFormData({...formData, target_audience: e.target.value})}
+                placeholder="e.g. Prospects"
+              />
+            </div>
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-400 mb-1">Content (HTML or Text)</label>
             <textarea
