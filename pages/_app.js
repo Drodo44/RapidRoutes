@@ -10,6 +10,7 @@ import Head from 'next/head';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { ThemeProvider } from 'next-themes';
 import { supabase } from '../lib/supabaseClient';
+import { Toaster } from 'react-hot-toast';
 
 const PUBLIC_ROUTES = new Set(['/login', '/signup', '/']);
 
@@ -101,6 +102,12 @@ function AppContent({ Component, pageProps }) {
           </div>
         </footer>
       </div>
+      <Toaster position="bottom-right" toastOptions={{
+        style: {
+          background: '#333',
+          color: '#fff',
+        },
+      }} />
     </>
   );
 }
