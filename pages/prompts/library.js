@@ -40,7 +40,7 @@ function PromptCard({ prompt, isAdmin, onView, onDownload, onEdit, onDelete }) {
     toast.success('Prompt copied to clipboard!');
   };
 
-  const isHtmlWorkflow = workflow_type === 'download_html';
+  const isHtmlWorkflow = workflow_type === 'download_html' || workflow_type === 'Download HTML';
 
   return (
     <div className="card h-full flex flex-col bg-gray-800 border border-gray-700 rounded-lg overflow-hidden hover:border-blue-500 transition-colors">
@@ -160,12 +160,16 @@ function PromptLibrary() {
   };
 
   const handleEdit = (prompt) => {
+    let wf = prompt.workflow_type || 'copy';
+    if (wf === 'Download HTML') wf = 'download_html';
+    if (wf === 'Copy Prompt') wf = 'copy';
+
     setFormData({
       title: prompt.title,
       description: prompt.description,
       category: prompt.category,
       html_content: prompt.html_content,
-      workflow_type: prompt.workflow_type || 'copy'
+      workflow_type: wf
     });
     setSelectedPrompt(prompt);
     setEditModalOpen(true);
