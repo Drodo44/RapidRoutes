@@ -443,7 +443,18 @@ export default function RecapPage() {
   async function handleGenerateEmail() {
     setIsGeneratingEmail(true);
     try {
-      const response = await fetch('/api/email-template/available-loads');
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        alert('Authentication required. Please refresh the page and try again.');
+        return;
+      }
+
+      const response = await fetch('/api/email-template/available-loads', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+      
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to fetch available loads');
