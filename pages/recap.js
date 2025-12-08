@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
+import Link from 'next/link';
 import { getDisplayReferenceId, matchesReferenceId, cleanReferenceId } from '../lib/referenceIdUtils';
 // Avoid importing server-only services on the client; use API instead
 import RecapDynamic from '../components/RecapDynamic.jsx';
@@ -156,7 +157,7 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
             
             {lane.comment && (
               <div style={{ fontSize: '12px', fontStyle: 'italic', color: 'var(--text-tertiary)', marginTop: '8px', paddingLeft: '12px', borderLeft: '3px solid var(--border)' }}>
-                "{lane.comment}"
+                {`"${lane.comment}"`}
               </div>
             )}
           </div>
@@ -910,7 +911,7 @@ export default function RecapPage() {
                 <div style={{ background: 'var(--bg-secondary)', borderRadius: '8px', padding: '24px', maxWidth: '500px', margin: '0 auto', textAlign: 'left' }}>
                   <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '12px', color: 'var(--text-primary)' }}>Quick Start Guide:</div>
                   <ol style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '2', paddingLeft: '20px', margin: 0 }}>
-                    <li>Go to <a href="/lanes" className="text-blue-400 hover:text-blue-300">Lanes page</a></li>
+                    <li>Go to <Link href="/lanes" className="text-blue-400 hover:text-blue-300">Lanes page</Link></li>
                     <li>Create a new lane (origin → destination)</li>
                     <li>Click "🎯 Post Options" button</li>
                     <li>Click "Generate All Pairings"</li>
@@ -919,13 +920,13 @@ export default function RecapPage() {
                     <li>Come back here to see your recap!</li>
                   </ol>
                   <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--border)' }}>
-                    <a 
+                    <Link
                       href="/lanes" 
                       className="btn btn-primary"
                       style={{ display: 'inline-block', fontSize: '14px' }}
                     >
                       Go to Lanes Page →
-                    </a>
+                    </Link>
                   </div>
                 </div>
               )}

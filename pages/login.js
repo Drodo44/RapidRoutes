@@ -39,9 +39,6 @@ export default function LoginPage() {
       setBusy(false);
     }
   }
-      setBusy(false);
-    }
-  }
 
   return (
     <div style={{ 
