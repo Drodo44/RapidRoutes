@@ -1,10 +1,5 @@
 // pages/api/email-template/available-loads.js
-import { createClient } from '@supabase/supabase-js';
-
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import { adminSupabase } from '@/lib/supabaseAdmin';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -15,7 +10,7 @@ export default async function handler(req, res) {
   try {
     // Fetch "actual" lanes that are currently available
     // Based on recap.js, 'current' is the primary status for active, usable lanes.
-    const { data, error } = await supabase
+    const { data, error } = await adminSupabase
       .from('lanes')
       .select('origin_city, origin_state, destination_city, destination_state, equipment_code, commodity, comment, length_ft')
       .in('lane_status', ['current', 'active']);
