@@ -1,69 +1,78 @@
 // components/EmailTemplateModal.jsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 function EmailTemplateModal({ isOpen, onClose, lanes }) {
-  const [emailContent, setEmailContent] = useState('');
+  const [htmlContent, setHtmlContent] = useState('');
+  const [plainTextContent, setPlainTextContent] = useState('');
   const [copySuccess, setCopySuccess] = useState(false);
 
   useEffect(() => {
     if (isOpen && lanes) {
-      // Group lanes by Origin
-      const lanesByOrigin = lanes.reduce((acc, lane) => {
-        const originKey = `${lane.origin_city}, ${lane.origin_state}`;
-        if (!acc[originKey]) {
-          acc[originKey] = [];
-        }
-        acc[originKey].push(lane);
-        return acc;
-      }, {});
+      // Generate HTML Table Rows
+      const rows = lanes.map(lane => `
+        <tr>
+          <td style="padding: 8px; border: 1px solid #ddd;">${lane.origin_city}, ${lane.origin_state}</td>
+          <td style="padding: 8px; border: 1px solid #ddd;">${lane.destination_city}, ${lane.destination_state}</td>
+          <td style="padding: 8px; border: 1px solid #ddd;">${lane.equipment_label || lane.equipment_code}</td>
+          <td style="padding: 8px; border: 1px solid #ddd;">${lane.commodity || 'General'}</td>
+        </tr>
+      `).join('');
 
-      const availableLanes = Object.entries(lanesByOrigin).map(([origin, originLanes]) => {
-        // Check if all lanes from this origin have the same equipment
-        const firstEquip = originLanes[0].equipment_label || originLanes[0].equipment_code;
-        const allSameEquip = originLanes.every(l => (l.equipment_label || l.equipment_code) === firstEquip);
-        
-        const header = allSameEquip 
-          ? `${origin} to: (${firstEquip})`
-          : `${origin} to:`;
+      const html = `
+        <div style="font-family: Arial, sans-serif; color: #333;">
+          <p>Below I have listed the lanes that are still available. Please let me know what lane you'd like and what rate you need to run it.</p>
+          <p>Please use "Reply All" when responding to this email so my team has visibility and for a faster response.</p>
+          
+          <table style="border-collapse: collapse; width: 100%; margin-bottom: 20px; font-size: 14px;">
+            <thead>
+              <tr style="background-color: #f2f2f2;">
+                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Origin</th>
+                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Destination</th>
+                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Equipment</th>
+                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Commodity</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows}
+            </tbody>
+          </table>
 
-        const destinations = originLanes.map(lane => {
-          const equipStr = allSameEquip ? '' : ` (${lane.equipment_label || lane.equipment_code})`;
-          return `- ${lane.destination_city}, ${lane.destination_state}${equipStr}`;
-        }).join('\n');
+          <p><strong>Additional Information:</strong> Tarps are required. 48' or 53'</p>
 
-        return `${header}\n${destinations}`;
-      }).join('\n\n');
+          <p>Loads are given in the order information is received FCFS. To secure this load, please send this information:</p>
+          
+          <ul style="list-style-type: none; padding: 0;">
+            <li>MC:</li>
+            <li>Your Name:</li>
+            <li>Your Phone #:</li>
+            <li>Your Email:</li>
+            <li>Driver Name:</li>
+            <li>Driver Phone Number:</li>
+            <li>Truck Number:</li>
+            <li>Trailer Number:</li>
+            <li>TYPE Of Trailer / Equipment:</li>
+            <li>Weight You Can Scale:</li>
+            <li>Where and When Empty:</li>
+            <li>ETA To Pick up Location:</li>
+          </ul>
+        </div>
+      `;
       
-      // Aggregate unique commodities
-      const commodities = [...new Set(lanes.map(l => l.commodity).filter(Boolean))].join(', ');
-
-      const content = `Below I have listed the lanes that are still available. Please let me know what lane you'd like and what rate you need to run it.
-
-Please use "Reply All" when responding to this email so my team has visibility and for a faster response.
+      setHtmlContent(html);
+      
+      // Generate Plain Text Fallback
+      const textRows = lanes.map(lane => 
+        `${lane.origin_city}, ${lane.origin_state} -> ${lane.destination_city}, ${lane.destination_state} (${lane.equipment_code})`
+      ).join('\n');
+      
+      const plainText = `Below I have listed the lanes that are still available...
 
 Available Lanes:
+${textRows}
 
-${availableLanes}
-
-Additional Information: Commodity is ${commodities || 'Lumber'}. Tarps are required. 48' or 53'
-
-Loads are given in the order information is received FCFS. To secure this load, please send this information:
- 
-MC:
-Your Name:
-Your Phone #:
-Your Email:
-Driver Name:
-Driver Phone Number:
-Truck Number:
-Trailer Number:
-TYPE Of Trailer / Equipment:
-Weight You Can Scale:
-Where and When Empty:
-ETA To Pick up Location:
-`;
-      setEmailContent(content);
-      setCopySuccess(false); // Reset copy status when modal opens
+... (See HTML for full details)`;
+      
+      setPlainTextContent(plainText);
     }
   }, [isOpen, lanes]);
 
@@ -71,14 +80,46 @@ ETA To Pick up Location:
     return null;
   }
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(emailContent).then(() => {
+  const handleCopy = async () => {
+    try {
+      const blobHtml = new Blob([htmlContent], { type: 'text/html' });
+      const blobText = new Blob([plainTextContent], { type: 'text/plain' });
+      
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          'text/html': blobHtml,
+          'text/plain': blobText
+        })
+      ]);
+      
       setCopySuccess(true);
-      setTimeout(() => setCopySuccess(false), 2000); // Hide message after 2s
-    }, () => {
-      // Handle copy error
-      alert('Failed to copy text.');
-    });
+      setTimeout(() => setCopySuccess(false), 2000);
+    } catch (err) {
+      console.error('Copy failed', err);
+      // Fallback for browsers that don't support ClipboardItem or text/html
+      try {
+          // Create a temporary hidden div
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = htmlContent;
+          tempDiv.style.position = 'fixed';
+          tempDiv.style.left = '-9999px';
+          document.body.appendChild(tempDiv);
+          
+          const range = document.createRange();
+          range.selectNodeContents(tempDiv);
+          const selection = window.getSelection();
+          selection.removeAllRanges();
+          selection.addRange(range);
+          
+          document.execCommand('copy');
+          
+          document.body.removeChild(tempDiv);
+          setCopySuccess(true);
+          setTimeout(() => setCopySuccess(false), 2000);
+      } catch (fallbackErr) {
+          alert('Copy failed. Please select the text and copy manually.');
+      }
+    }
   };
 
   return (
@@ -99,16 +140,15 @@ ETA To Pick up Location:
         padding: '24px',
         borderRadius: '8px',
         width: '90%',
-        maxWidth: '700px',
+        maxWidth: '800px',
         maxHeight: '90vh',
         display: 'flex',
         flexDirection: 'column',
         border: '1px solid var(--border)'
       }}>
         <h2 style={{ margin: '0 0 16px 0', fontSize: '18px', color: 'var(--text-primary)' }}>Generated Email Template</h2>
-        <textarea
-          readOnly
-          value={emailContent}
+        
+        <div 
           style={{
             width: '100%',
             flex: 1,
@@ -116,13 +156,15 @@ ETA To Pick up Location:
             padding: '12px',
             border: '1px solid var(--border)',
             borderRadius: '4px',
-            backgroundColor: 'var(--bg-secondary)',
-            color: 'var(--text-secondary)',
-            fontFamily: 'monospace',
-            fontSize: '12px',
-            whiteSpace: 'pre-wrap',
+            backgroundColor: '#fff', // White background for preview to match email
+            color: '#333', // Dark text for preview
+            overflowY: 'auto',
+            fontFamily: 'Arial, sans-serif',
+            fontSize: '14px'
           }}
+          dangerouslySetInnerHTML={{ __html: htmlContent }}
         />
+        
         <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
           <button onClick={onClose} className="btn btn-secondary">
             Close
