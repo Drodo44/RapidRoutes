@@ -16,8 +16,8 @@ export default async function handler(req, res) {
     // Fetch "actual" lanes that are currently available
     // Based on recap.js, 'current' is the primary status for active, usable lanes.
     const { data, error } = await supabase
-      .from('rapidroutes_lane_view')
-      .select('origin_city, origin_state, destination_city, destination_state, equipment_code, equipment_label, commodity, comment, length_ft')
+      .from('lanes')
+      .select('origin_city, origin_state, destination_city, destination_state, equipment_code, commodity, comment, length_ft')
       .in('lane_status', ['current', 'active']);
 
     if (error) {
