@@ -64,7 +64,8 @@ export default async function handler(req, res) {
           organization_id: organizationId,
           team_role: 'member',
           role: role,
-          status: 'approved', // Auto-approve team members
+          status: 'pending', // Require admin approval
+          active: false,
           updated_at: new Date().toISOString()
         })
         .eq('id', userId)

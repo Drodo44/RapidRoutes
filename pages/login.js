@@ -2,20 +2,28 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabaseClient';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { session, profile, loading } = useAuth();
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    // If already signed in, kick to dashboard
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) router.replace('/dashboard');
-    });
-  }, [router]);
+    // If already signed in, check status
+    if (!loading && session) {
+      if (profile?.status === 'pending') {
+        router.replace('/pending-approval');
+      } else if (profile?.status === 'approved') {
+        router.replace('/dashboard');
+      }
+      // If rejected or other, maybe stay here or show error?
+      // For now, let's assume pending or approved are the main ones to redirect.
+    }
+  }, [loading, session, profile, router]);
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -24,10 +32,13 @@ export default function LoginPage() {
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password: pw });
       if (error) throw error;
-      router.replace('/dashboard');
+      // The useEffect will handle the redirect based on profile status
     } catch (e) {
       setErr(e.message || 'Login failed');
     } finally {
+      setBusy(false);
+    }
+  }
       setBusy(false);
     }
   }

@@ -20,7 +20,8 @@ export default async function handler(req, res) {
         organization_id: userId, // Broker's user ID becomes their org ID
         team_role: 'owner',
         role: 'Broker',
-        status: 'approved',
+        status: 'pending',
+        active: false,
         team_name: teamName.trim()
       })
       .eq('id', userId)

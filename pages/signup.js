@@ -108,8 +108,8 @@ export default function SignupPage() {
         }
       }
       
-      // Success! Redirect to login
-      router.replace('/login?message=Account created! Please sign in.');
+      // Success! Redirect to pending approval page
+      router.replace('/pending-approval');
     } catch (e) {
       setErr(e.message || 'Signup failed');
     } finally {
