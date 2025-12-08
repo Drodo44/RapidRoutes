@@ -1,14 +1,15 @@
 // components/EmailTemplateModal.jsx
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 
 function EmailTemplateModal({ isOpen, onClose, lanes }) {
   const [htmlContent, setHtmlContent] = useState('');
   const [plainTextContent, setPlainTextContent] = useState('');
   const [copySuccess, setCopySuccess] = useState(false);
+  const [viewMode, setViewMode] = useState('table'); // 'table' or 'text'
 
   useEffect(() => {
     if (isOpen && lanes) {
-      // Generate HTML Table Rows
+      // --- 1. Generate HTML Table Version ---
       const rows = lanes.map(lane => `
         <tr>
           <td style="padding: 8px; border: 1px solid #ddd;">${lane.origin_city}, ${lane.origin_state}</td>
@@ -55,21 +56,61 @@ function EmailTemplateModal({ isOpen, onClose, lanes }) {
           </ul>
         </div>
       `;
-      
       setHtmlContent(html);
       
-      // Generate Plain Text Fallback
-      const textRows = lanes.map(lane => 
-        `${lane.origin_city}, ${lane.origin_state} -> ${lane.destination_city}, ${lane.destination_state} (${lane.equipment_label || lane.equipment_code})`
-      ).join('\n');
-      
-      const plainText = `Below I have listed the lanes that are still available...
+      // --- 2. Generate Plain Text Version (Grouped by Origin) ---
+      // Group lanes by Origin
+      const lanesByOrigin = lanes.reduce((acc, lane) => {
+        const originKey = `${lane.origin_city}, ${lane.origin_state}`;
+        if (!acc[originKey]) {
+          acc[originKey] = [];
+        }
+        acc[originKey].push(lane);
+        return acc;
+      }, {});
+
+      const availableLanesText = Object.entries(lanesByOrigin).map(([origin, originLanes]) => {
+        // Check if all lanes from this origin have the same equipment
+        const firstEquip = originLanes[0].equipment_label || originLanes[0].equipment_code;
+        const allSameEquip = originLanes.every(l => (l.equipment_label || l.equipment_code) === firstEquip);
+        
+        const header = allSameEquip 
+          ? `${origin} to: (${firstEquip})`
+          : `${origin} to:`;
+
+        const destinations = originLanes.map(lane => {
+          const equipStr = allSameEquip ? '' : ` (${lane.equipment_label || lane.equipment_code})`;
+          return `- ${lane.destination_city}, ${lane.destination_state}${equipStr}`;
+        }).join('\n');
+
+        return `${header}\n${destinations}`;
+      }).join('\n\n');
+
+      const plainText = `Below I have listed the lanes that are still available. Please let me know what lane you'd like and what rate you need to run it.
+
+Please use "Reply All" when responding to this email so my team has visibility and for a faster response.
 
 Available Lanes:
-${textRows}
 
-... (See HTML for full details)`;
-      
+${availableLanesText}
+
+Additional Information: Tarps are required. 48' or 53'
+
+Loads are given in the order information is received FCFS. To secure this load, please send this information:
+ 
+MC:
+Your Name:
+Your Phone #:
+Your Email:
+Driver Name:
+Driver Phone Number:
+Truck Number:
+Trailer Number:
+TYPE Of Trailer / Equipment:
+Weight You Can Scale:
+Where and When Empty:
+ETA To Pick up Location:
+`;
       setPlainTextContent(plainText);
     }
   }, [isOpen, lanes]);
@@ -80,40 +121,55 @@ ${textRows}
 
   const handleCopy = async () => {
     try {
-      const blobHtml = new Blob([htmlContent], { type: 'text/html' });
-      const blobText = new Blob([plainTextContent], { type: 'text/plain' });
-      
-      await navigator.clipboard.write([
-        new ClipboardItem({
-          'text/html': blobHtml,
-          'text/plain': blobText
-        })
-      ]);
+      if (viewMode === 'table') {
+        // Copy HTML with Plain Text Fallback
+        const blobHtml = new Blob([htmlContent], { type: 'text/html' });
+        const blobText = new Blob([plainTextContent], { type: 'text/plain' }); // Use full text as fallback
+        
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            'text/html': blobHtml,
+            'text/plain': blobText
+          })
+        ]);
+      } else {
+        // Copy Plain Text Only
+        await navigator.clipboard.writeText(plainTextContent);
+      }
       
       setCopySuccess(true);
       setTimeout(() => setCopySuccess(false), 2000);
     } catch (err) {
       console.error('Copy failed', err);
-      // Fallback for browsers that don't support ClipboardItem or text/html
+      // Fallback
       try {
-          // Create a temporary hidden div
-          const tempDiv = document.createElement('div');
-          tempDiv.innerHTML = htmlContent;
-          tempDiv.style.position = 'fixed';
-          tempDiv.style.left = '-9999px';
-          document.body.appendChild(tempDiv);
-          
-          const range = document.createRange();
-          range.selectNodeContents(tempDiv);
-          const selection = window.getSelection();
-          selection.removeAllRanges();
-          selection.addRange(range);
-          
-          document.execCommand('copy');
-          
-          document.body.removeChild(tempDiv);
-          setCopySuccess(true);
-          setTimeout(() => setCopySuccess(false), 2000);
+        if (viewMode === 'table') {
+           // ... existing fallback logic for HTML ...
+           const tempDiv = document.createElement('div');
+           tempDiv.innerHTML = htmlContent;
+           tempDiv.style.position = 'fixed';
+           tempDiv.style.left = '-9999px';
+           document.body.appendChild(tempDiv);
+           const range = document.createRange();
+           range.selectNodeContents(tempDiv);
+           const selection = window.getSelection();
+           selection.removeAllRanges();
+           selection.addRange(range);
+           document.execCommand('copy');
+           document.body.removeChild(tempDiv);
+        } else {
+           // Fallback for text
+           const textArea = document.createElement("textarea");
+           textArea.value = plainTextContent;
+           textArea.style.position = "fixed";
+           document.body.appendChild(textArea);
+           textArea.focus();
+           textArea.select();
+           document.execCommand('copy');
+           document.body.removeChild(textArea);
+        }
+        setCopySuccess(true);
+        setTimeout(() => setCopySuccess(false), 2000);
       } catch (fallbackErr) {
           alert('Copy failed. Please select the text and copy manually.');
       }
@@ -144,31 +200,87 @@ ${textRows}
         flexDirection: 'column',
         border: '1px solid var(--border)'
       }}>
-        <h2 style={{ margin: '0 0 16px 0', fontSize: '18px', color: 'var(--text-primary)' }}>Generated Email Template</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <h2 style={{ margin: 0, fontSize: '18px', color: 'var(--text-primary)' }}>Generated Email Template</h2>
+          
+          {/* View Mode Toggle */}
+          <div style={{ display: 'flex', backgroundColor: 'var(--bg-tertiary)', borderRadius: '4px', padding: '2px' }}>
+            <button
+              onClick={() => setViewMode('table')}
+              style={{
+                padding: '6px 12px',
+                border: 'none',
+                borderRadius: '4px',
+                backgroundColor: viewMode === 'table' ? 'var(--bg-primary)' : 'transparent',
+                color: viewMode === 'table' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: 500
+              }}
+            >
+              HTML Table
+            </button>
+            <button
+              onClick={() => setViewMode('text')}
+              style={{
+                padding: '6px 12px',
+                border: 'none',
+                borderRadius: '4px',
+                backgroundColor: viewMode === 'text' ? 'var(--bg-primary)' : 'transparent',
+                color: viewMode === 'text' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: 500
+              }}
+            >
+              Plain Text
+            </button>
+          </div>
+        </div>
         
-        <div 
-          style={{
-            width: '100%',
-            flex: 1,
-            minHeight: '300px',
-            padding: '12px',
-            border: '1px solid var(--border)',
-            borderRadius: '4px',
-            backgroundColor: '#fff', // White background for preview to match email
-            color: '#333', // Dark text for preview
-            overflowY: 'auto',
-            fontFamily: 'Arial, sans-serif',
-            fontSize: '14px'
-          }}
-          dangerouslySetInnerHTML={{ __html: htmlContent }}
-        />
+        {viewMode === 'table' ? (
+          <div 
+            style={{
+              width: '100%',
+              flex: 1,
+              minHeight: '300px',
+              padding: '12px',
+              border: '1px solid var(--border)',
+              borderRadius: '4px',
+              backgroundColor: '#fff', // White background for preview to match email
+              color: '#333', // Dark text for preview
+              overflowY: 'auto',
+              fontFamily: 'Arial, sans-serif',
+              fontSize: '14px'
+            }}
+            dangerouslySetInnerHTML={{ __html: htmlContent }}
+          />
+        ) : (
+          <textarea
+            readOnly
+            value={plainTextContent}
+            style={{
+              width: '100%',
+              flex: 1,
+              minHeight: '300px',
+              padding: '12px',
+              border: '1px solid var(--border)',
+              borderRadius: '4px',
+              backgroundColor: 'var(--bg-secondary)',
+              color: 'var(--text-secondary)',
+              fontFamily: 'monospace',
+              fontSize: '12px',
+              whiteSpace: 'pre-wrap',
+            }}
+          />
+        )}
         
         <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
           <button onClick={onClose} className="btn btn-secondary">
             Close
           </button>
           <button onClick={handleCopy} className="btn btn-primary">
-            {copySuccess ? 'Copied!' : 'Copy to Clipboard'}
+            {copySuccess ? 'Copied!' : `Copy ${viewMode === 'table' ? 'Table' : 'Text'}`}
           </button>
         </div>
       </div>
