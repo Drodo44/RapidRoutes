@@ -190,16 +190,26 @@ export default async function handler(req, res) {
       destinationState = correctedDest.state;
       
       // Look up coordinates from cities table
-      const { data: originCity, error: originError } = await supabaseAdmin
+      const { data: originCityArray, error: originError } = await supabaseAdmin
         .from('cities')
         .select('latitude, longitude, zip')
         .eq('city', originCityToLookup)  // Use corrected city name
-        .eq('state_or_province', originStateToLookup)  // Use corrected state
-        .maybeSingle();
+        .eq('state_or_province', originStateToLookup);  // Use corrected state
       
       if (originError) {
         console.error('Origin city lookup error:', originError);
         return res.status(500).json({ error: 'Failed to lookup origin city coordinates' });
+      }
+
+      let originCity = originCityArray && originCityArray.length > 0 ? originCityArray[0] : null;
+      
+      // If multiple cities found, try to match ZIP
+      if (originCityArray && originCityArray.length > 1) {
+        const targetZip = payload.origin_zip5 || payload.origin_zip;
+        if (targetZip) {
+           const exactMatch = originCityArray.find(c => c.zip === targetZip);
+           if (exactMatch) originCity = exactMatch;
+        }
       }
       
       if (!originCity) {
@@ -230,16 +240,26 @@ export default async function handler(req, res) {
         }
       }
       
-      const { data: destCityData, error: destError } = await supabaseAdmin
+      const { data: destCityDataArray, error: destError } = await supabaseAdmin
         .from('cities')
         .select('latitude, longitude, zip')
         .eq('city', destinationCity)
-        .eq('state_or_province', destinationState)
-        .maybeSingle();
+        .eq('state_or_province', destinationState);
       
       if (destError) {
         console.error('Destination city lookup error:', destError);
         return res.status(500).json({ error: 'Failed to lookup destination city coordinates' });
+      }
+
+      let destCityData = destCityDataArray && destCityDataArray.length > 0 ? destCityDataArray[0] : null;
+
+      // If multiple cities found, try to match ZIP
+      if (destCityDataArray && destCityDataArray.length > 1) {
+        const targetZip = payload.dest_zip5 || payload.dest_zip;
+        if (targetZip) {
+           const exactMatch = destCityDataArray.find(c => c.zip === targetZip);
+           if (exactMatch) destCityData = exactMatch;
+        }
       }
       
       if (!destCityData) {
