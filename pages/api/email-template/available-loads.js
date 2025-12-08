@@ -41,7 +41,8 @@ export default async function handler(req, res) {
         length_ft
       `)
       .eq('user_id', user.id) // Filter by logged-in user
-      .in('lane_status', ['current', 'active']);
+      .in('lane_status', ['current', 'active', 'archive']) // Include archived lanes as they may still be worked on
+      .order('created_at', { ascending: false }); // Newest first
 
     if (error) {
       console.error('Supabase error:', error);
