@@ -28,8 +28,7 @@ export default async function handler(req, res) {
     }
 
     // Fetch "actual" lanes that are currently available for THIS user
-    // We join with equipment_codes to get the full label
-    const { data, error } = await adminSupabase
+    const { data: lanes, error } = await adminSupabase
       .from('lanes')
       .select(`
         origin_city, 
@@ -39,10 +38,7 @@ export default async function handler(req, res) {
         equipment_code, 
         commodity, 
         comment, 
-        length_ft,
-        equipment_codes (
-          label
-        )
+        length_ft
       `)
       .eq('user_id', user.id) // Filter by logged-in user
       .in('lane_status', ['current', 'active']);
@@ -52,14 +48,25 @@ export default async function handler(req, res) {
       throw new Error(`Error fetching available loads: ${error.message}`);
     }
 
-    if (!data || data.length === 0) {
+    if (!lanes || lanes.length === 0) {
       return res.status(200).json({ lanes: [] });
     }
 
-    // Flatten the structure so the frontend receives a simple object
-    const flattenedLanes = data.map(lane => ({
+    // Fetch equipment codes manually since the foreign key relationship might be missing or named differently
+    const { data: equipmentCodes } = await adminSupabase
+      .from('equipment_codes')
+      .select('code, label');
+
+    // Create a lookup map for equipment codes
+    const equipmentMap = (equipmentCodes || []).reduce((acc, item) => {
+      acc[item.code] = item.label;
+      return acc;
+    }, {});
+
+    // Map the labels onto the lanes
+    const flattenedLanes = lanes.map(lane => ({
       ...lane,
-      equipment_label: lane.equipment_codes?.label || lane.equipment_code // Fallback to code if label missing
+      equipment_label: equipmentMap[lane.equipment_code] || lane.equipment_code
     }));
 
     res.status(200).json({ lanes: flattenedLanes });
