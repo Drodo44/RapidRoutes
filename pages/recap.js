@@ -9,6 +9,7 @@ import { getDisplayReferenceId, matchesReferenceId, cleanReferenceId } from '../
 import RecapDynamic from '../components/RecapDynamic.jsx';
 import { fetchLaneRecords as fetchLaneRecordsBrowser } from '@/services/browserLaneService';
 import LogContactModal from '../components/LogContactModal.jsx';
+import EmailTemplateModal from '../components/EmailTemplateModal.jsx';
 
 // Generate reference ID for generated pairs (same logic as CSV)
 function generatePairReferenceId(baseRefId, pairIndex) {
@@ -361,6 +362,9 @@ export default function RecapPage() {
   const [isGeneratingCSV, setIsGeneratingCSV] = useState(false);
   const [viewMode, setViewMode] = useState('classic'); // 'classic' or 'dynamic' - default to classic for saved city selections
   const [contactModal, setContactModal] = useState({ open: false, lane: null, city: null, cityType: null });
+  const [isGeneratingEmail, setIsGeneratingEmail] = useState(false);
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [emailLanes, setEmailLanes] = useState([]);
   
   // Generate CSV for all visible lanes (active or posted)
   async function generateCSV(contactMethod = 'both') {
@@ -432,6 +436,29 @@ export default function RecapPage() {
       alert(`Failed to generate CSV: ${error.message}`);
     } finally {
       setIsGeneratingCSV(false);
+    }
+  }
+
+  async function handleGenerateEmail() {
+    setIsGeneratingEmail(true);
+    try {
+      const response = await fetch('/api/email-template/available-loads');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch available loads');
+      }
+      const data = await response.json();
+      if (data.lanes && data.lanes.length > 0) {
+        setEmailLanes(data.lanes);
+        setEmailModalOpen(true);
+      } else {
+        alert('No available loads to generate an email for.');
+      }
+    } catch (error) {
+      console.error('Email Generation Error:', error);
+      alert(`Failed to generate email: ${error.message}`);
+    } finally {
+      setIsGeneratingEmail(false);
     }
   }
   
@@ -830,6 +857,14 @@ export default function RecapPage() {
               >
                 📄 Export Recap
               </button>
+              <button
+                onClick={handleGenerateEmail}
+                className="btn btn-info"
+                style={{ fontSize: '12px', padding: '6px 12px' }}
+                disabled={isGeneratingEmail}
+              >
+                {isGeneratingEmail ? '⏳ Generating...' : '✉️ Generate Load Email'}
+              </button>
             </div>
           </div>
           
@@ -917,6 +952,12 @@ export default function RecapPage() {
         lane={contactModal.lane}
         city={contactModal.city}
         cityType={contactModal.cityType}
+      />
+
+      <EmailTemplateModal
+        isOpen={emailModalOpen}
+        onClose={() => setEmailModalOpen(false)}
+        lanes={emailLanes}
       />
     </>
   );
