@@ -28,9 +28,22 @@ export default async function handler(req, res) {
     }
 
     // Fetch "actual" lanes that are currently available for THIS user
+    // We join with equipment_codes to get the full label
     const { data, error } = await adminSupabase
       .from('lanes')
-      .select('origin_city, origin_state, destination_city, destination_state, equipment_code, commodity, comment, length_ft')
+      .select(`
+        origin_city, 
+        origin_state, 
+        destination_city, 
+        destination_state, 
+        equipment_code, 
+        commodity, 
+        comment, 
+        length_ft,
+        equipment_codes (
+          label
+        )
+      `)
       .eq('user_id', user.id) // Filter by logged-in user
       .in('lane_status', ['current', 'active']);
 
@@ -43,9 +56,13 @@ export default async function handler(req, res) {
       return res.status(200).json({ lanes: [] });
     }
 
-    // The data is already in the format of "actual" lanes, so no complex transformation is needed.
-    // We just return the list of lanes.
-    res.status(200).json({ lanes: data });
+    // Flatten the structure so the frontend receives a simple object
+    const flattenedLanes = data.map(lane => ({
+      ...lane,
+      equipment_label: lane.equipment_codes?.label || lane.equipment_code // Fallback to code if label missing
+    }));
+
+    res.status(200).json({ lanes: flattenedLanes });
 
   } catch (error) {
     console.error('Server-side error:', error);

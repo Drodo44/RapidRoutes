@@ -14,7 +14,6 @@ function EmailTemplateModal({ isOpen, onClose, lanes }) {
           <td style="padding: 8px; border: 1px solid #ddd;">${lane.origin_city}, ${lane.origin_state}</td>
           <td style="padding: 8px; border: 1px solid #ddd;">${lane.destination_city}, ${lane.destination_state}</td>
           <td style="padding: 8px; border: 1px solid #ddd;">${lane.equipment_label || lane.equipment_code}</td>
-          <td style="padding: 8px; border: 1px solid #ddd;">${lane.commodity || 'General'}</td>
         </tr>
       `).join('');
 
@@ -29,7 +28,6 @@ function EmailTemplateModal({ isOpen, onClose, lanes }) {
                 <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Origin</th>
                 <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Destination</th>
                 <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Equipment</th>
-                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Commodity</th>
               </tr>
             </thead>
             <tbody>
@@ -62,7 +60,7 @@ function EmailTemplateModal({ isOpen, onClose, lanes }) {
       
       // Generate Plain Text Fallback
       const textRows = lanes.map(lane => 
-        `${lane.origin_city}, ${lane.origin_state} -> ${lane.destination_city}, ${lane.destination_state} (${lane.equipment_code})`
+        `${lane.origin_city}, ${lane.origin_state} -> ${lane.destination_city}, ${lane.destination_state} (${lane.equipment_label || lane.equipment_code})`
       ).join('\n');
       
       const plainText = `Below I have listed the lanes that are still available...
