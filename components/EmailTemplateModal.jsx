@@ -7,14 +7,35 @@ function EmailTemplateModal({ isOpen, onClose, lanes }) {
 
   useEffect(() => {
     if (isOpen && lanes) {
-      const availableLanes = lanes.map(lane => 
-        `${lane.origin_city}, ${lane.origin_state} to: (${lane.equipment_label || lane.equipment_code})
-- ${lane.destination_city}, ${lane.destination_state}`
-      ).join('\n\n');
+      // Group lanes by Origin
+      const lanesByOrigin = lanes.reduce((acc, lane) => {
+        const originKey = `${lane.origin_city}, ${lane.origin_state}`;
+        if (!acc[originKey]) {
+          acc[originKey] = [];
+        }
+        acc[originKey].push(lane);
+        return acc;
+      }, {});
+
+      const availableLanes = Object.entries(lanesByOrigin).map(([origin, originLanes]) => {
+        // Check if all lanes from this origin have the same equipment
+        const firstEquip = originLanes[0].equipment_label || originLanes[0].equipment_code;
+        const allSameEquip = originLanes.every(l => (l.equipment_label || l.equipment_code) === firstEquip);
+        
+        const header = allSameEquip 
+          ? `${origin} to: (${firstEquip})`
+          : `${origin} to:`;
+
+        const destinations = originLanes.map(lane => {
+          const equipStr = allSameEquip ? '' : ` (${lane.equipment_label || lane.equipment_code})`;
+          return `- ${lane.destination_city}, ${lane.destination_state}${equipStr}`;
+        }).join('\n');
+
+        return `${header}\n${destinations}`;
+      }).join('\n\n');
       
-      // Aggregate unique commodities and equipment
+      // Aggregate unique commodities
       const commodities = [...new Set(lanes.map(l => l.commodity).filter(Boolean))].join(', ');
-      const equipment = [...new Set(lanes.map(l => l.equipment_label || l.equipment_code).filter(Boolean))].join(', ');
 
       const content = `Below I have listed the lanes that are still available. Please let me know what lane you'd like and what rate you need to run it.
 
