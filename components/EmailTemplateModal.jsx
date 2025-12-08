@@ -9,8 +9,19 @@ function EmailTemplateModal({ isOpen, onClose, lanes }) {
 
   useEffect(() => {
     if (isOpen && lanes) {
+      // Deduplicate lanes based on Origin, Destination, and Equipment
+      const uniqueLanes = lanes.filter((lane, index, self) =>
+        index === self.findIndex((t) => (
+          t.origin_city === lane.origin_city &&
+          t.origin_state === lane.origin_state &&
+          t.destination_city === lane.destination_city &&
+          t.destination_state === lane.destination_state &&
+          t.equipment_code === lane.equipment_code
+        ))
+      );
+
       // --- 1. Generate HTML Table Version ---
-      const rows = lanes.map(lane => `
+      const rows = uniqueLanes.map(lane => `
         <tr>
           <td style="padding: 8px; border: 1px solid #ddd;">${lane.origin_city}, ${lane.origin_state}</td>
           <td style="padding: 8px; border: 1px solid #ddd;">${lane.destination_city}, ${lane.destination_state}</td>
@@ -60,7 +71,7 @@ function EmailTemplateModal({ isOpen, onClose, lanes }) {
       
       // --- 2. Generate Plain Text Version (Grouped by Origin) ---
       // Group lanes by Origin
-      const lanesByOrigin = lanes.reduce((acc, lane) => {
+      const lanesByOrigin = uniqueLanes.reduce((acc, lane) => {
         const originKey = `${lane.origin_city}, ${lane.origin_state}`;
         if (!acc[originKey]) {
           acc[originKey] = [];

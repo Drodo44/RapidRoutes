@@ -1,6 +1,7 @@
 // pages/api/email-template/available-loads.js
 import { adminSupabase } from '@/lib/supabaseAdmin';
 import { createClient } from '@supabase/supabase-js';
+import { getUserOrganizationId } from '@/lib/organizationHelper';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -27,8 +28,11 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    // Fetch "actual" lanes that are currently available for THIS user
-    const { data: lanes, error } = await adminSupabase
+    // Get user's organization
+    const organizationId = await getUserOrganizationId(user.id);
+
+    // Build query
+    let query = adminSupabase
       .from('lanes')
       .select(`
         origin_city, 
@@ -40,9 +44,17 @@ export default async function handler(req, res) {
         comment, 
         length_ft
       `)
-      .eq('user_id', user.id) // Filter by logged-in user
-      .in('lane_status', ['current', 'active', 'archive']) // Include archived lanes as they may still be worked on
-      .order('created_at', { ascending: false }); // Newest first
+      .in('lane_status', ['current', 'active']) // User requested only ACTIVE lanes
+      .order('created_at', { ascending: false });
+
+    // Filter by organization if available, otherwise by user
+    if (organizationId) {
+      query = query.eq('organization_id', organizationId);
+    } else {
+      query = query.eq('user_id', user.id);
+    }
+
+    const { data: lanes, error } = await query;
 
     if (error) {
       console.error('Supabase error:', error);
