@@ -20,6 +20,17 @@ function EmailTemplateModal({ isOpen, onClose, lanes }) {
         ))
       );
 
+      // Sort uniqueLanes alphabetically by Origin, then Destination
+      uniqueLanes.sort((a, b) => {
+        const originA = `${a.origin_city}, ${a.origin_state}`;
+        const originB = `${b.origin_city}, ${b.origin_state}`;
+        if (originA !== originB) return originA.localeCompare(originB);
+        
+        const destA = `${a.destination_city}, ${a.destination_state}`;
+        const destB = `${b.destination_city}, ${b.destination_state}`;
+        return destA.localeCompare(destB);
+      });
+
       // --- 1. Generate HTML Table Version ---
       const rows = uniqueLanes.map(lane => `
         <tr>
@@ -80,7 +91,10 @@ function EmailTemplateModal({ isOpen, onClose, lanes }) {
         return acc;
       }, {});
 
-      const availableLanesText = Object.entries(lanesByOrigin).map(([origin, originLanes]) => {
+      // Sort Origins Alphabetically
+      const sortedOrigins = Object.entries(lanesByOrigin).sort((a, b) => a[0].localeCompare(b[0]));
+
+      const availableLanesText = sortedOrigins.map(([origin, originLanes]) => {
         // Check if all lanes from this origin have the same equipment
         const firstEquip = originLanes[0].equipment_label || originLanes[0].equipment_code;
         const allSameEquip = originLanes.every(l => (l.equipment_label || l.equipment_code) === firstEquip);
@@ -89,7 +103,14 @@ function EmailTemplateModal({ isOpen, onClose, lanes }) {
           ? `${origin} to: (${firstEquip})`
           : `${origin} to:`;
 
-        const destinations = originLanes.map(lane => {
+        // Sort Destinations Alphabetically
+        const sortedDestinations = [...originLanes].sort((a, b) => {
+          const destA = `${a.destination_city}, ${a.destination_state}`;
+          const destB = `${b.destination_city}, ${b.destination_state}`;
+          return destA.localeCompare(destB);
+        });
+
+        const destinations = sortedDestinations.map(lane => {
           const equipStr = allSameEquip ? '' : ` (${lane.equipment_label || lane.equipment_code})`;
           return `- ${lane.destination_city}, ${lane.destination_state}${equipStr}`;
         }).join('\n');
