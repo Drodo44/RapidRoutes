@@ -304,7 +304,13 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
     .lte("longitude", lonMax);
   
   if (cityErr) throw new Error('Failed to fetch cities');
-  if (!cities || cities.length === 0) throw new Error('No cities found near lane');
+  
+  // If no cities found in bounding box, check if we have special handling that might find cities elsewhere
+  const hasSpecialHandling = isNewEnglandLane || isFloridaLane || isTexasLane || isCanadianLane;
+  if ((!cities || cities.length === 0) && !hasSpecialHandling) {
+    throw new Error('No cities found near lane');
+  }
+  const safeCities = cities || [];
   
   // For New England lanes, also fetch ALL cities in New England and upstate NY states
   let neStateCities = [];
@@ -397,7 +403,7 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
   
   // Combine cities: bounding box + New England state cities + FL cities + TX cities + Canadian cities (dedupe by city+state)
   const allCitiesMap = new Map();
-  for (const c of cities) {
+  for (const c of safeCities) {
     const key = `${c.city}|${c.state_or_province}`.toUpperCase();
     if (!allCitiesMap.has(key)) {
       allCitiesMap.set(key, c);
@@ -573,8 +579,8 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
     }
   }
   
-  // Only expand destination radius for non-New England and non-FL destination lanes
-  if (!isNewEnglandLane && (!isFloridaLane || destState !== 'FL') && (!isTexasLane || destState !== 'TX')) {
+  // Only expand destination radius for non-New England, non-FL, non-TX, and non-Canadian destination lanes
+  if (!isNewEnglandLane && (!isFloridaLane || destState !== 'FL') && (!isTexasLane || destState !== 'TX') && !isCanadianLane) {
     if (destOptions.length < 30) {
       console.log(`⚠️  Only ${destOptions.length} destination cities within 100 miles, expanding to 150 miles`);
       destOptions = destWithDistances.filter(c => c.distance <= 150);
