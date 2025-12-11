@@ -260,8 +260,9 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
   const isFloridaLane = originState === 'FL' || destState === 'FL';
   const isNewJerseyLane = originState === 'NJ' || destState === 'NJ';
   const isTexasLane = originState === 'TX' || destState === 'TX';
+  const isCanadianLane = ['BC', 'ON', 'QC', 'AB', 'MB', 'SK', 'NS', 'NB', 'NL', 'PE', 'YT', 'NT', 'NU'].includes(destState);
   
-  console.log(`[generateOptionsForLane] Lane ${laneId}: Origin = '${originState}', Destination = '${destState}', isNewEnglandLane = ${isNewEnglandLane}, isFloridaLane = ${isFloridaLane}, isNewJerseyLane = ${isNewJerseyLane}, isTexasLane = ${isTexasLane}`);
+  console.log(`[generateOptionsForLane] Lane ${laneId}: Origin = '${originState}', Destination = '${destState}', isNewEnglandLane = ${isNewEnglandLane}, isFloridaLane = ${isFloridaLane}, isNewJerseyLane = ${isNewJerseyLane}, isTexasLane = ${isTexasLane}, isCanadianLane = ${isCanadianLane}`);
   
   if (isNewEnglandLane) {
     console.log(`[generateOptionsForLane] 🔒 New England destination detected (${destState}), will filter NYC/LI cities`);
@@ -274,6 +275,9 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
   }
   if (isTexasLane) {
     console.log(`[generateOptionsForLane] 🤠 Texas lane detected, will include all TX cities for statewide coverage`);
+  }
+  if (isCanadianLane) {
+    console.log(`[generateOptionsForLane] 🍁 Canadian lane detected, will include all cities in ${destState}`);
   }
   
   const originLat = lane.origin_latitude;
@@ -375,8 +379,23 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
       console.log(`[generateOptionsForLane] 🤠 Fetched ${txCities.length} TX cities from DB for statewide coverage`);
     }
   }
+
+  // For Canadian lanes, fetch ALL cities in the destination province
+  let canCities = [];
+  if (isCanadianLane) {
+    const { data: canData } = await supabaseAdmin
+      .from("cities")
+      .select("id, city, state_or_province, latitude, longitude, zip, kma_code")
+      .eq('state_or_province', destState)
+      .not('kma_code', 'is', null);
+    
+    if (canData) {
+      canCities = canData;
+      console.log(`[generateOptionsForLane] 🍁 Fetched ${canCities.length} cities in ${destState} for Canadian coverage`);
+    }
+  }
   
-  // Combine cities: bounding box + New England state cities + FL cities + TX cities (dedupe by city+state)
+  // Combine cities: bounding box + New England state cities + FL cities + TX cities + Canadian cities (dedupe by city+state)
   const allCitiesMap = new Map();
   for (const c of cities) {
     const key = `${c.city}|${c.state_or_province}`.toUpperCase();
@@ -398,6 +417,16 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
   }
   for (const c of txCities) {
     const key = `${c.city}|${c.state_or_province}`.toUpperCase();
+    if (!allCitiesMap.has(key)) {
+      allCitiesMap.set(key, c);
+    }
+  }
+  for (const c of canCities) {
+    const key = `${c.city}|${c.state_or_province}`.toUpperCase();
+    if (!allCitiesMap.has(key)) {
+      allCitiesMap.set(key, c);
+    }
+  }
     if (!allCitiesMap.has(key)) {
       allCitiesMap.set(key, c);
     }
@@ -479,6 +508,18 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
     }));
     console.log(`[generateOptionsForLane] 🤠 Calculated distances for ${txCities.length} TX cities`);
   }
+
+  // For Canadian lanes, calculate distances for all cities in the province
+  let canDestWithDistances = [];
+  if (isCanadianLane && canCities.length > 0) {
+    canDestWithDistances = canCities.map(c => ({
+      ...c,
+      state: c.state_or_province,
+      kma_code: c.kma_code || 'UNK',
+      distance: haversine(destLat, destLon, c.latitude, c.longitude)
+    }));
+    console.log(`[generateOptionsForLane] 🍁 Calculated distances for ${canCities.length} Canadian cities`);
+  }
   
   // Start with 100 mile radius for origin, but FL lanes use ONLY the major FL cities list
   let originOptions;
@@ -515,6 +556,10 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
     const nearbyNonTX = destWithDistances.filter(c => c.state !== 'TX' && c.distance <= 100);
     destOptions = [...txDestWithDistances, ...nearbyNonTX];
     console.log(`[generateOptionsForLane] 🤠 TX destination: ${txDestWithDistances.length} TX cities + ${nearbyNonTX.length} nearby non-TX cities`);
+  } else if (isCanadianLane) {
+    // For Canadian destination lanes, include ALL cities in that province
+    destOptions = canDestWithDistances;
+    console.log(`[generateOptionsForLane] 🍁 Canadian destination: ${canDestWithDistances.length} cities in ${destState}`);
   } else {
     destOptions = destWithDistances.filter(c => c.distance <= 100);
   }
@@ -735,6 +780,10 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
       stateBreakdown[c.state_or_province] = (stateBreakdown[c.state_or_province] || 0) + 1;
     });
     console.log(`[generateOptionsForLane] 📊 Final state breakdown:`, stateBreakdown);
+  } else if (isCanadianLane) {
+    // For Canadian lanes, just take all available cities (since we only have major ones)
+    balancedDest = destOptions;
+    console.log(`[generateOptionsForLane] ✅ Canadian lane: Selected ${balancedDest.length} cities`);
   } else {
     balancedDest = balanceByKMA(destOptions, 100, dbBlacklist, dbCorrections); // Keep up to 100 diverse cities
     console.log(`[generateOptionsForLane] ✅ After balanceByKMA: ${balancedDest.length} destination cities`);
