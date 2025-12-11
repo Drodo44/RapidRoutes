@@ -427,10 +427,6 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
       allCitiesMap.set(key, c);
     }
   }
-    if (!allCitiesMap.has(key)) {
-      allCitiesMap.set(key, c);
-    }
-  }
   const allCities = Array.from(allCitiesMap.values());
   
   if (isNewEnglandLane) {
