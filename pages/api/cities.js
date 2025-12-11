@@ -33,7 +33,18 @@ export default async function handler(req, res) {
 
     if (looksZip) {
       // ZIP prefix search
-      query = query.ilike('zip', `${q.replace(/\D/g, '')}%`);
+      // Check if it looks like a Canadian postal code (alphanumeric)
+      const isCanadianZip = /[A-Za-z]/.test(q);
+      
+      if (isCanadianZip) {
+        // For Canadian postal codes, keep letters and digits, remove spaces/dashes
+        // Search for prefix match
+        const cleanZip = q.replace(/[^A-Za-z0-9]/g, '');
+        query = query.ilike('zip', `${cleanZip}%`);
+      } else {
+        // For US ZIPs, keep only digits
+        query = query.ilike('zip', `${q.replace(/\D/g, '')}%`);
+      }
     } else {
       query = query.ilike('city', `${cityQ}%`);
       if (stateQ) query = query.ilike('state_or_province', `${stateQ}%`);

@@ -38,7 +38,7 @@ export default function Navbar() {
     { href: "/dashboard", label: "Dashboard", icon: "📊" },
     { href: "/lanes", label: "Lanes", icon: "🛣️" },
     { href: "/recap", label: "Recap", icon: "📋" },
-    { href: "/prompts/library", label: "AI Prompts", icon: "🤖" },
+    { href: "/prompts/library", label: "Sales Resources", icon: "🛠️" },
     { href: "/post-options", label: "Post Options", icon: "🎯" },
     { href: "/admin", label: "Admin", icon: "🔧" },
     { href: "/team", label: "Team", icon: "👥" },

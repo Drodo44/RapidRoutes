@@ -47,6 +47,20 @@ export default async function handler(req, res) {
     // Sort by KMA code
     uniqueKmas.sort((a, b) => a.code.localeCompare(b.code));
 
+    // If no KMAs found and state is a Canadian province, return a default option
+    if (uniqueKmas.length === 0) {
+      const CANADIAN_PROVINCES = new Set([
+        'AB', 'BC', 'MB', 'NB', 'NL', 'NS', 'NT', 'NU', 'ON', 'PE', 'QC', 'SK', 'YT'
+      ]);
+      
+      if (CANADIAN_PROVINCES.has(state.toUpperCase())) {
+        uniqueKmas.push({
+          code: `CAN_${state.toUpperCase()}`,
+          name: `Canada ${state.toUpperCase()}`
+        });
+      }
+    }
+
     res.status(200).json(uniqueKmas);
   } catch (error) {
     console.error('Server error:', error);

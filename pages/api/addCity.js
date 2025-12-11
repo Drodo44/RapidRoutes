@@ -96,7 +96,13 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Failed to lookup KMA information' });
     }
 
-    const kmaName = kmaData?.kma_name || 'Unknown';
+    let kmaName = kmaData?.kma_name || 'Unknown';
+    
+    // Special handling for Canadian KMAs
+    if (kmaName === 'Unknown' && kmaCode.startsWith('CAN_')) {
+      const province = kmaCode.split('_')[1];
+      kmaName = `Canada ${province}`;
+    }
 
     // Check if city already exists
     const { data: existing, error: checkError } = await supabaseAdmin

@@ -384,18 +384,18 @@ function PromptLibrary() {
   return (
     <>
       <Head>
-        <title>AI Prompt Library | RapidRoutes</title>
+        <title>Sales Resources | RapidRoutes</title>
       </Head>
       
       <div className="container mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-white mb-2">AI Prompt Library</h1>
-            <p className="text-gray-400">Curated templates for logistics and freight brokerage.</p>
+            <h1 className="text-3xl font-bold text-white mb-2">Sales Resources</h1>
+            <p className="text-gray-400">Curated templates, scripts, and flow charts for freight brokerage.</p>
           </div>
           {isAdmin && (
             <button onClick={handleAddNew} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition-colors flex items-center">
-              <span className="mr-2">+</span> Add New Prompt
+              <span className="mr-2">+</span> Add New Resource
             </button>
           )}
         </div>

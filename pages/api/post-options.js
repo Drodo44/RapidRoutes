@@ -259,8 +259,9 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
   const isNewEnglandLane = NEW_ENGLAND.has(destState);
   const isFloridaLane = originState === 'FL' || destState === 'FL';
   const isNewJerseyLane = originState === 'NJ' || destState === 'NJ';
+  const isTexasLane = originState === 'TX' || destState === 'TX';
   
-  console.log(`[generateOptionsForLane] Lane ${laneId}: Origin = '${originState}', Destination = '${destState}', isNewEnglandLane = ${isNewEnglandLane}, isFloridaLane = ${isFloridaLane}, isNewJerseyLane = ${isNewJerseyLane}`);
+  console.log(`[generateOptionsForLane] Lane ${laneId}: Origin = '${originState}', Destination = '${destState}', isNewEnglandLane = ${isNewEnglandLane}, isFloridaLane = ${isFloridaLane}, isNewJerseyLane = ${isNewJerseyLane}, isTexasLane = ${isTexasLane}`);
   
   if (isNewEnglandLane) {
     console.log(`[generateOptionsForLane] 🔒 New England destination detected (${destState}), will filter NYC/LI cities`);
@@ -270,6 +271,9 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
   }
   if (isNewJerseyLane) {
     console.log(`[generateOptionsForLane] 🚛 New Jersey lane detected, will include all major NJ freight cities`);
+  }
+  if (isTexasLane) {
+    console.log(`[generateOptionsForLane] 🤠 Texas lane detected, will include all TX cities for statewide coverage`);
   }
   
   const originLat = lane.origin_latitude;
@@ -356,8 +360,23 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
       }
     }
   }
+
+  // For Texas lanes, fetch ALL cities in TX to ensure full market coverage (user request)
+  let txCities = [];
+  if (isTexasLane) {
+    const { data: txData } = await supabaseAdmin
+      .from("cities")
+      .select("id, city, state_or_province, latitude, longitude, zip, kma_code")
+      .eq('state_or_province', 'TX')
+      .not('kma_code', 'is', null); // Only cities with KMA codes
+    
+    if (txData) {
+      txCities = txData;
+      console.log(`[generateOptionsForLane] 🤠 Fetched ${txCities.length} TX cities from DB for statewide coverage`);
+    }
+  }
   
-  // Combine cities: bounding box + New England state cities + FL cities (dedupe by city+state)
+  // Combine cities: bounding box + New England state cities + FL cities + TX cities (dedupe by city+state)
   const allCitiesMap = new Map();
   for (const c of cities) {
     const key = `${c.city}|${c.state_or_province}`.toUpperCase();
@@ -372,6 +391,12 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
     }
   }
   for (const c of flCities) {
+    const key = `${c.city}|${c.state_or_province}`.toUpperCase();
+    if (!allCitiesMap.has(key)) {
+      allCitiesMap.set(key, c);
+    }
+  }
+  for (const c of txCities) {
     const key = `${c.city}|${c.state_or_province}`.toUpperCase();
     if (!allCitiesMap.has(key)) {
       allCitiesMap.set(key, c);
@@ -435,6 +460,25 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
     }));
     console.log(`[generateOptionsForLane] 🌴 Calculated distances for ${flCities.length} major FL cities`);
   }
+
+  // For TX lanes, calculate distances for all TX cities
+  let txOriginWithDistances = [];
+  let txDestWithDistances = [];
+  if (isTexasLane && txCities.length > 0) {
+    txOriginWithDistances = txCities.map(c => ({
+      ...c,
+      state: c.state_or_province,
+      kma_code: c.kma_code || 'UNK',
+      distance: haversine(originLat, originLon, c.latitude, c.longitude)
+    }));
+    txDestWithDistances = txCities.map(c => ({
+      ...c,
+      state: c.state_or_province,
+      kma_code: c.kma_code || 'UNK',
+      distance: haversine(destLat, destLon, c.latitude, c.longitude)
+    }));
+    console.log(`[generateOptionsForLane] 🤠 Calculated distances for ${txCities.length} TX cities`);
+  }
   
   // Start with 100 mile radius for origin, but FL lanes use ONLY the major FL cities list
   let originOptions;
@@ -446,6 +490,11 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
     if (flOriginWithDistances.length > 0) {
       console.log(`[generateOptionsForLane] 🌴 Major FL cities in origin options:`, flOriginWithDistances.slice(0, 10).map(c => c.city).join(', '), flOriginWithDistances.length > 10 ? `... (${flOriginWithDistances.length} total)` : '');
     }
+  } else if (isTexasLane && originState === 'TX') {
+    // For TX origin lanes, include ALL TX cities from database query, plus nearby non-TX cities
+    const nearbyNonTX = originWithDistances.filter(c => c.state !== 'TX' && c.distance <= 100);
+    originOptions = [...txOriginWithDistances, ...nearbyNonTX];
+    console.log(`[generateOptionsForLane] 🤠 TX origin: ${txOriginWithDistances.length} TX cities + ${nearbyNonTX.length} nearby non-TX cities = ${originOptions.length} total`);
   } else {
     originOptions = originWithDistances.filter(c => c.distance <= 100);
   }
@@ -461,13 +510,18 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
     const nearbyNonFL = destWithDistances.filter(c => c.state !== 'FL' && c.distance <= 100);
     destOptions = [...flDestWithDistances, ...nearbyNonFL];
     console.log(`[generateOptionsForLane] 🌴 FL destination: ${flDestWithDistances.length} major FL cities (from user list) + ${nearbyNonFL.length} nearby non-FL cities`);
+  } else if (isTexasLane && destState === 'TX') {
+    // For TX destination lanes, include ALL TX cities from database query, plus nearby non-TX cities
+    const nearbyNonTX = destWithDistances.filter(c => c.state !== 'TX' && c.distance <= 100);
+    destOptions = [...txDestWithDistances, ...nearbyNonTX];
+    console.log(`[generateOptionsForLane] 🤠 TX destination: ${txDestWithDistances.length} TX cities + ${nearbyNonTX.length} nearby non-TX cities`);
   } else {
     destOptions = destWithDistances.filter(c => c.distance <= 100);
   }
   
   // If we have very few options (coastal/sparse areas), expand radius progressively
   // Skip expansion for FL origin lanes since they already have all FL cities
-  if (!isFloridaLane || originState !== 'FL') {
+  if ((!isFloridaLane || originState !== 'FL') && (!isTexasLane || originState !== 'TX')) {
     if (originOptions.length < 30) {
       console.log(`⚠️  Only ${originOptions.length} origin cities within 100 miles, expanding to 150 miles`);
       originOptions = originWithDistances.filter(c => c.distance <= 150);
@@ -479,7 +533,7 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
   }
   
   // Only expand destination radius for non-New England and non-FL destination lanes
-  if (!isNewEnglandLane && (!isFloridaLane || destState !== 'FL')) {
+  if (!isNewEnglandLane && (!isFloridaLane || destState !== 'FL') && (!isTexasLane || destState !== 'TX')) {
     if (destOptions.length < 30) {
       console.log(`⚠️  Only ${destOptions.length} destination cities within 100 miles, expanding to 150 miles`);
       destOptions = destWithDistances.filter(c => c.distance <= 150);
@@ -633,6 +687,49 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
     balancedDest = result.filter(c => !isBlacklisted(c.city, c.state_or_province || c.state, dbBlacklist));
     
     console.log(`[generateOptionsForLane] ✅ NJ lane: Selected ${balancedDest.length} cities with NJ priority`);
+    const stateBreakdown = {};
+    balancedDest.forEach(c => {
+      stateBreakdown[c.state_or_province] = (stateBreakdown[c.state_or_province] || 0) + 1;
+    });
+    console.log(`[generateOptionsForLane] 📊 Final state breakdown:`, stateBreakdown);
+  } else if (isTexasLane && destState === 'TX') {
+    // For TX lanes, ensure we get a good distribution of TX cities across all KMAs
+    const sortedByDistance = [...destOptions].sort((a, b) => a.distance - b.distance);
+    
+    // Group by KMA
+    const byKMA = {};
+    for (const c of sortedByDistance) {
+      const kma = c.kma_code || 'UNK';
+      if (!byKMA[kma]) byKMA[kma] = [];
+      byKMA[kma].push(c);
+    }
+    
+    // We want to represent as many KMAs as possible.
+    // Let's take up to 5 cities from each KMA first to ensure coverage.
+    const result = [];
+    const kmaKeys = Object.keys(byKMA);
+    
+    // First pass: 5 closest from each KMA
+    for (const kma of kmaKeys) {
+      result.push(...byKMA[kma].slice(0, 5));
+    }
+    
+    // Second pass: fill remaining slots with closest cities overall (that aren't already added)
+    // Limit to 100 total
+    if (result.length < 100) {
+      const alreadyAdded = new Set(result.map(c => c.id));
+      for (const city of sortedByDistance) {
+        if (!alreadyAdded.has(city.id) && result.length < 100) {
+          result.push(city);
+          alreadyAdded.add(city.id);
+        }
+      }
+    }
+    
+    // Apply blacklist filter
+    balancedDest = result.filter(c => !isBlacklisted(c.city, c.state_or_province || c.state, dbBlacklist));
+    
+    console.log(`[generateOptionsForLane] ✅ TX lane: Selected ${balancedDest.length} cities with TX statewide priority`);
     const stateBreakdown = {};
     balancedDest.forEach(c => {
       stateBreakdown[c.state_or_province] = (stateBreakdown[c.state_or_province] || 0) + 1;

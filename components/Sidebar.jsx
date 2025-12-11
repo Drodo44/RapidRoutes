@@ -9,7 +9,7 @@ const navItems = [
   { href: "/lanes", label: "New Lane" },
   { href: "/recap", label: "Recap" },
   { href: "/smart-recap", label: "Smart Recap" },
-  { href: "/prompts/library", label: "AI Prompts" },
+  { href: "/prompts/library", label: "Sales Resources" },
   { href: "/settings", label: "Settings" },
   { href: "/profile", label: "Profile" },
   { href: "/admin", label: "Admin" },
