@@ -789,9 +789,6 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
     console.log(`[generateOptionsForLane] ✅ After balanceByKMA: ${balancedDest.length} destination cities`);
   }
   
-  console.log(`📊 Final counts: ${balancedOrigin.length} origin cities, ${balancedDest.length} destination cities`);  // NEW ENGLAND FILTER: Only keep MA/NH/ME/VT/RI/CT cities (NYC KMAs already blocked by balanceByKMA)
-  // Removed redundant NE-only filter here. Pre-balanceByKMA filter already blocks NYC/LI and keeps all required states (MA/NH/ME/VT/RI/CT + upstate NY).
-  
   console.log(`📊 Final counts: ${balancedOrigin.length} origin cities, ${balancedDest.length} destination cities`);
   
   return {
