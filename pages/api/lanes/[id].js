@@ -92,12 +92,23 @@ export default async function handler(req, res) {
       if (dest_state !== undefined && !filteredUpdates.destination_state) {
         filteredUpdates.destination_state = dest_state;
       }
+
+      // Map origin fields if provided via origin_* aliases
+      if (updates.origin_city !== undefined) filteredUpdates.origin_city = updates.origin_city;
+      if (updates.origin_state !== undefined) filteredUpdates.origin_state = updates.origin_state;
+      if (updates.origin_zip !== undefined) filteredUpdates.origin_zip = updates.origin_zip;
+      
+      // Ensure we don't pass undefined values
+      Object.keys(filteredUpdates).forEach(key => filteredUpdates[key] === undefined && delete filteredUpdates[key]);
       
       console.log('[API] Update lane endpoint with mapped destination fields:', {
         id,
         original_dest_city: dest_city,
         original_dest_state: dest_state,
         mapped_destination_city: filteredUpdates.destination_city,
+        mapped_destination_state: filteredUpdates.destination_state,
+        filteredUpdates
+      });
         mapped_destination_state: filteredUpdates.destination_state
       });
 
