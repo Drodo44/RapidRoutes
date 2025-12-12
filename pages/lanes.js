@@ -235,6 +235,15 @@ function LanesPage() {
           weight_max: editingLane.weight_max,
           comment: editingLane.comment,
           commodity: editingLane.commodity,
+          origin_city: editingLane.origin_city,
+          origin_state: editingLane.origin_state,
+          origin_zip: editingLane.origin_zip,
+          destination_city: editingLane.dest_city || editingLane.destination_city,
+          destination_state: editingLane.dest_state || editingLane.destination_state,
+          dest_zip: editingLane.dest_zip,
+          equipment_code: editingLane.equipment_code,
+          length_ft: editingLane.length_ft,
+          full_partial: editingLane.full_partial,
         }),
       });
 
@@ -1395,6 +1404,107 @@ function LanesPage() {
               </h3>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                {/* Origin */}
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 'var(--space-4)' }}>
+                  <div>
+                    <label className="form-label">Origin City</label>
+                    <input
+                      type="text"
+                      value={editingLane.origin_city || ''}
+                      onChange={(e) => setEditingLane({...editingLane, origin_city: e.target.value})}
+                      className="form-input"
+                    />
+                  </div>
+                  <div>
+                    <label className="form-label">State</label>
+                    <input
+                      type="text"
+                      value={editingLane.origin_state || ''}
+                      onChange={(e) => setEditingLane({...editingLane, origin_state: e.target.value})}
+                      className="form-input"
+                      maxLength={2}
+                    />
+                  </div>
+                  <div>
+                    <label className="form-label">Zip</label>
+                    <input
+                      type="text"
+                      value={editingLane.origin_zip || ''}
+                      onChange={(e) => setEditingLane({...editingLane, origin_zip: e.target.value})}
+                      className="form-input"
+                    />
+                  </div>
+                </div>
+
+                {/* Destination */}
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 'var(--space-4)' }}>
+                  <div>
+                    <label className="form-label">Dest City</label>
+                    <input
+                      type="text"
+                      value={editingLane.dest_city || editingLane.destination_city || ''}
+                      onChange={(e) => setEditingLane({...editingLane, dest_city: e.target.value, destination_city: e.target.value})}
+                      className="form-input"
+                    />
+                  </div>
+                  <div>
+                    <label className="form-label">State</label>
+                    <input
+                      type="text"
+                      value={editingLane.dest_state || editingLane.destination_state || ''}
+                      onChange={(e) => setEditingLane({...editingLane, dest_state: e.target.value, destination_state: e.target.value})}
+                      className="form-input"
+                      maxLength={2}
+                    />
+                  </div>
+                  <div>
+                    <label className="form-label">Zip</label>
+                    <input
+                      type="text"
+                      value={editingLane.dest_zip || ''}
+                      onChange={(e) => setEditingLane({...editingLane, dest_zip: e.target.value})}
+                      className="form-input"
+                    />
+                  </div>
+                </div>
+
+                {/* Equipment */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-4)' }}>
+                  <div>
+                    <label className="form-label">Equipment</label>
+                    <select
+                      value={editingLane.equipment_code || ''}
+                      onChange={(e) => setEditingLane({...editingLane, equipment_code: e.target.value})}
+                      className="form-input"
+                    >
+                      <option value="V">Van (V)</option>
+                      <option value="R">Reefer (R)</option>
+                      <option value="FD">Flatbed (FD)</option>
+                      <option value="SD">Stepdeck (SD)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="form-label">Length (ft)</label>
+                    <input
+                      type="number"
+                      value={editingLane.length_ft || ''}
+                      onChange={(e) => setEditingLane({...editingLane, length_ft: e.target.value ? parseInt(e.target.value) : null})}
+                      className="form-input"
+                    />
+                  </div>
+                  <div>
+                    <label className="form-label">Type</label>
+                    <select
+                      value={editingLane.full_partial || 'full'}
+                      onChange={(e) => setEditingLane({...editingLane, full_partial: e.target.value})}
+                      className="form-input"
+                    >
+                      <option value="full">Full</option>
+                      <option value="partial">Partial</option>
+                    </select>
+                  </div>
+                </div>
+
                 {/* Pickup Dates */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-4)' }}>
                   <div>
