@@ -109,8 +109,6 @@ export default async function handler(req, res) {
         mapped_destination_state: filteredUpdates.destination_state,
         filteredUpdates
       });
-        mapped_destination_state: filteredUpdates.destination_state
-      });
 
       const { data, error } = await supabaseAdmin
         .from('lanes')
