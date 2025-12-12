@@ -41,6 +41,7 @@ function PromptCard({ prompt, isAdmin, onView, onDownload, onEdit, onDelete, isF
   };
 
   const isHtmlWorkflow = workflow_type === 'download_html' || workflow_type === 'Download HTML';
+  const isFileWorkflow = workflow_type === 'download_file' || workflow_type === 'Download File';
   
   const isNew = (dateString) => {
     const date = new Date(dateString);
@@ -71,9 +72,11 @@ function PromptCard({ prompt, isAdmin, onView, onDownload, onEdit, onDelete, isF
                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
                   isHtmlWorkflow 
                     ? 'bg-purple-900/50 text-purple-200 border-purple-800' 
+                    : isFileWorkflow
+                    ? 'bg-teal-900/50 text-teal-200 border-teal-800'
                     : 'bg-green-900/50 text-green-200 border-green-800'
                 }`}>
-                  {workflow_type === 'download_html' ? 'Download HTML' : 'Copy Prompt'}
+                  {workflow_type === 'download_html' ? 'Download HTML' : workflow_type === 'download_file' ? 'Download File' : 'Copy Prompt'}
                 </span>
               )}
             </div>
@@ -138,7 +141,7 @@ function PromptCard({ prompt, isAdmin, onView, onDownload, onEdit, onDelete, isF
         </div>
 
         <div className="flex justify-end space-x-2 mt-auto pt-4 border-t border-gray-700">
-          {!isHtmlWorkflow && (
+          {!isHtmlWorkflow && !isFileWorkflow && (
             <button onClick={handleCopy} className="flex items-center px-3 py-1.5 text-sm border border-gray-600 rounded hover:bg-gray-700 text-gray-300 transition-colors">
               <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
@@ -146,7 +149,7 @@ function PromptCard({ prompt, isAdmin, onView, onDownload, onEdit, onDelete, isF
               Copy
             </button>
           )}
-          {!isHtmlWorkflow && (
+          {!isHtmlWorkflow && !isFileWorkflow && (
             <button onClick={() => onView(prompt)} className="flex items-center px-3 py-1.5 text-sm border border-gray-600 rounded hover:bg-gray-700 text-gray-300 transition-colors">
               <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -161,6 +164,14 @@ function PromptCard({ prompt, isAdmin, onView, onDownload, onEdit, onDelete, isF
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
               Download HTML
+            </button>
+          )}
+          {isFileWorkflow && (
+            <button onClick={() => window.open(prompt.html_content, '_blank')} className="flex items-center px-4 py-2 text-sm font-medium rounded bg-teal-600 text-white hover:bg-teal-700 transition-colors shadow-sm">
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Download File
             </button>
           )}
         </div>
@@ -281,6 +292,7 @@ function PromptLibrary() {
     let wf = prompt.workflow_type || 'copy';
     if (wf === 'Download HTML') wf = 'download_html';
     if (wf === 'Copy Prompt') wf = 'copy';
+    if (wf === 'Download File') wf = 'download_file';
 
     setFormData({
       title: prompt.title,
@@ -402,7 +414,7 @@ function PromptLibrary() {
 
         {/* Category Filter */}
         <div className="flex space-x-2 mb-8 overflow-x-auto pb-2">
-          {['All', 'Favorites', 'General', 'Logistics', 'Creative', 'Sales', 'Operations'].map(cat => (
+          {['All', 'Favorites', 'General', 'Logistics', 'Creative', 'Sales', 'Operations', 'Flowcharts'].map(cat => (
             <button
               key={cat}
               onClick={() => setActiveCategory(cat)}
@@ -555,7 +567,7 @@ function PromptLibrary() {
                 value={formData.category}
                 onChange={(e) => setFormData({...formData, category: e.target.value})}
               >
-                {['General', 'Logistics', 'Creative', 'Sales', 'Operations'].map(c => (
+                {['General', 'Logistics', 'Creative', 'Sales', 'Operations', 'Flowcharts'].map(c => (
                   <option key={c} value={c}>{c}</option>
                 ))}
               </select>
@@ -569,6 +581,7 @@ function PromptLibrary() {
               >
                 <option value="copy">Copy Prompt</option>
                 <option value="download_html">Download HTML</option>
+                <option value="download_file">Download File (URL)</option>
               </select>
             </div>
           </div>
@@ -607,13 +620,16 @@ function PromptLibrary() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">Content (HTML or Text)</label>
+            <label className="block text-sm font-medium text-gray-400 mb-1">
+              {formData.workflow_type === 'download_file' ? 'File URL (e.g. Google Drive, Dropbox link)' : 'Content (HTML or Text)'}
+            </label>
             <textarea
               className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-white focus:border-blue-500 focus:outline-none font-mono"
               rows="10"
               value={formData.html_content}
               onChange={(e) => setFormData({...formData, html_content: e.target.value})}
               required
+              placeholder={formData.workflow_type === 'download_file' ? 'https://...' : 'Enter content here...'}
             ></textarea>
           </div>
           <div className="flex justify-end space-x-3 pt-4">
