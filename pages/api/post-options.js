@@ -333,6 +333,7 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
   
   // For Florida lanes, fetch major FL cities to support long deadheading patterns (300-500 miles)
   let flCities = [];
+  let mcdavidCities = [];
   if (isFloridaLane) {
     const majorFLCities = [
       'Tallahassee', 'Lake City', 'Jacksonville', 'Gainesville', 'St Augustine',
@@ -368,6 +369,30 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
         const missing = majorFLCities.filter(c => !foundCityNames.has(c));
         console.log(`[generateOptionsForLane] ⚠️  Missing cities:`, missing.join(', '));
       }
+    }
+
+    // Fetch proximity cities around McDavid, FL (covers AL, MS, GA, FL Panhandle)
+    const MCDAVID_LAT = 30.8632;
+    const MCDAVID_LON = -87.3222;
+    const PROXIMITY_RADIUS_MILES = 150;
+    const latRadius = PROXIMITY_RADIUS_MILES / 69;
+    const lonRadius = PROXIMITY_RADIUS_MILES / 53;
+
+    const { data: proxData } = await supabaseAdmin
+      .from("cities")
+      .select("id, city, state_or_province, latitude, longitude, zip, kma_code")
+      .gte("latitude", MCDAVID_LAT - latRadius)
+      .lte("latitude", MCDAVID_LAT + latRadius)
+      .gte("longitude", MCDAVID_LON - lonRadius)
+      .lte("longitude", MCDAVID_LON + lonRadius)
+      .in('state_or_province', ['FL', 'AL', 'MS', 'GA']);
+
+    if (proxData) {
+      mcdavidCities = proxData.filter(c => {
+        const dist = haversine(MCDAVID_LAT, MCDAVID_LON, c.latitude, c.longitude);
+        return dist <= PROXIMITY_RADIUS_MILES;
+      });
+      console.log(`[generateOptionsForLane] 📍 Fetched ${mcdavidCities.length} cities near McDavid, FL (within ${PROXIMITY_RADIUS_MILES} miles)`);
     }
   }
 
@@ -431,6 +456,12 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
     }
   }
   for (const c of flCities) {
+    const key = `${c.city}|${c.state_or_province}`.toUpperCase();
+    if (!allCitiesMap.has(key)) {
+      allCitiesMap.set(key, c);
+    }
+  }
+  for (const c of mcdavidCities) {
     const key = `${c.city}|${c.state_or_province}`.toUpperCase();
     if (!allCitiesMap.has(key)) {
       allCitiesMap.set(key, c);
@@ -566,13 +597,31 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
   // Start with 100 mile radius for origin, but FL lanes use ONLY the major FL cities list
   let originOptions;
   if (isFloridaLane && originState === 'FL') {
-    // For FL origin lanes, include ONLY the major FL cities from database query, plus nearby non-FL cities
+    // For FL origin lanes, include:
+    // 1. Major FL Cities (requested list)
+    // 2. McDavid Proximity Cities (AL/MS/GA/FL Panhandle)
+    // 3. Nearby Non-FL cities (standard 100 mile radius)
+    
+    const mcdavidProxWithDist = mcdavidCities.map(c => ({
+      ...c,
+      state: c.state_or_province,
+      kma_code: c.kma_code || 'UNK',
+      distance: haversine(originLat, originLon, c.latitude, c.longitude)
+    }));
+
     const nearbyNonFL = originWithDistances.filter(c => c.state !== 'FL' && c.distance <= 100);
-    originOptions = [...flOriginWithDistances, ...nearbyNonFL];
-    console.log(`[generateOptionsForLane] 🌴 FL origin: ${flOriginWithDistances.length} major FL cities (from user list) + ${nearbyNonFL.length} nearby non-FL cities = ${originOptions.length} total`);
-    if (flOriginWithDistances.length > 0) {
-      console.log(`[generateOptionsForLane] 🌴 Major FL cities in origin options:`, flOriginWithDistances.slice(0, 10).map(c => c.city).join(', '), flOriginWithDistances.length > 10 ? `... (${flOriginWithDistances.length} total)` : '');
-    }
+    
+    // Merge and Dedupe
+    const combinedMap = new Map();
+    [...flOriginWithDistances, ...mcdavidProxWithDist, ...nearbyNonFL].forEach(c => {
+        const key = `${c.city}|${c.state}`.toUpperCase();
+        if (!combinedMap.has(key)) {
+            combinedMap.set(key, c);
+        }
+    });
+    
+    originOptions = Array.from(combinedMap.values());
+    console.log(`[generateOptionsForLane] 🌴 FL origin: ${flOriginWithDistances.length} Major FL + ${mcdavidProxWithDist.length} McDavid Prox + ${nearbyNonFL.length} Nearby Non-FL = ${originOptions.length} unique options`);
   } else if (isTexasLane && originState === 'TX') {
     // For TX origin lanes, include ALL TX cities from database query, plus nearby non-TX cities
     const nearbyNonTX = originWithDistances.filter(c => c.state !== 'TX' && c.distance <= 100);
