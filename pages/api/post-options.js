@@ -306,7 +306,7 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
   if (cityErr) throw new Error('Failed to fetch cities');
   
   // If no cities found in bounding box, check if we have special handling that might find cities elsewhere
-  const hasSpecialHandling = isNewEnglandLane || isFloridaLane || isTexasLane || isCanadianLane;
+  const hasSpecialHandling = isNewEnglandLane || isFloridaLane || isTexasLane || isCanadianLane || isNewJerseyLane;
   if ((!cities || cities.length === 0) && !hasSpecialHandling) {
     throw new Error('No cities found near lane');
   }
@@ -386,6 +386,21 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
     }
   }
 
+  // For NJ lanes, fetch ALL cities in NJ to ensure full market coverage
+  let njCities = [];
+  if (isNewJerseyLane) {
+    const { data: njData } = await supabaseAdmin
+      .from("cities")
+      .select("id, city, state_or_province, latitude, longitude, zip, kma_code")
+      .eq('state_or_province', 'NJ')
+      .not('kma_code', 'is', null);
+    
+    if (njData) {
+      njCities = njData;
+      console.log(`[generateOptionsForLane] 🚛 Fetched ${njCities.length} NJ cities from DB for statewide coverage`);
+    }
+  }
+
   // For Canadian lanes, fetch ALL cities in the destination province
   let canCities = [];
   if (isCanadianLane) {
@@ -422,6 +437,12 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
     }
   }
   for (const c of txCities) {
+    const key = `${c.city}|${c.state_or_province}`.toUpperCase();
+    if (!allCitiesMap.has(key)) {
+      allCitiesMap.set(key, c);
+    }
+  }
+  for (const c of njCities) {
     const key = `${c.city}|${c.state_or_province}`.toUpperCase();
     if (!allCitiesMap.has(key)) {
       allCitiesMap.set(key, c);
@@ -511,6 +532,25 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
     console.log(`[generateOptionsForLane] 🤠 Calculated distances for ${txCities.length} TX cities`);
   }
 
+  // For NJ lanes, calculate distances for all NJ cities
+  let njOriginWithDistances = [];
+  let njDestWithDistances = [];
+  if (isNewJerseyLane && njCities.length > 0) {
+    njOriginWithDistances = njCities.map(c => ({
+      ...c,
+      state: c.state_or_province,
+      kma_code: c.kma_code || 'UNK',
+      distance: haversine(originLat, originLon, c.latitude, c.longitude)
+    }));
+    njDestWithDistances = njCities.map(c => ({
+      ...c,
+      state: c.state_or_province,
+      kma_code: c.kma_code || 'UNK',
+      distance: haversine(destLat, destLon, c.latitude, c.longitude)
+    }));
+    console.log(`[generateOptionsForLane] 🚛 Calculated distances for ${njCities.length} NJ cities`);
+  }
+
   // For Canadian lanes, calculate distances for all cities in the province
   let canDestWithDistances = [];
   if (isCanadianLane && canCities.length > 0) {
@@ -538,6 +578,11 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
     const nearbyNonTX = originWithDistances.filter(c => c.state !== 'TX' && c.distance <= 100);
     originOptions = [...txOriginWithDistances, ...nearbyNonTX];
     console.log(`[generateOptionsForLane] 🤠 TX origin: ${txOriginWithDistances.length} TX cities + ${nearbyNonTX.length} nearby non-TX cities = ${originOptions.length} total`);
+  } else if (isNewJerseyLane && originState === 'NJ') {
+    // For NJ origin lanes, include ALL NJ cities from database query, plus nearby non-NJ cities
+    const nearbyNonNJ = originWithDistances.filter(c => c.state !== 'NJ' && c.distance <= 100);
+    originOptions = [...njOriginWithDistances, ...nearbyNonNJ];
+    console.log(`[generateOptionsForLane] 🚛 NJ origin: ${njOriginWithDistances.length} NJ cities + ${nearbyNonNJ.length} nearby non-NJ cities = ${originOptions.length} total`);
   } else {
     originOptions = originWithDistances.filter(c => c.distance <= 100);
   }
@@ -558,6 +603,11 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
     const nearbyNonTX = destWithDistances.filter(c => c.state !== 'TX' && c.distance <= 100);
     destOptions = [...txDestWithDistances, ...nearbyNonTX];
     console.log(`[generateOptionsForLane] 🤠 TX destination: ${txDestWithDistances.length} TX cities + ${nearbyNonTX.length} nearby non-TX cities`);
+  } else if (isNewJerseyLane && destState === 'NJ') {
+    // For NJ destination lanes, include ALL NJ cities from database query, plus nearby non-NJ cities
+    const nearbyNonNJ = destWithDistances.filter(c => c.state !== 'NJ' && c.distance <= 100);
+    destOptions = [...njDestWithDistances, ...nearbyNonNJ];
+    console.log(`[generateOptionsForLane] 🚛 NJ destination: ${njDestWithDistances.length} NJ cities + ${nearbyNonNJ.length} nearby non-NJ cities`);
   } else if (isCanadianLane) {
     // For Canadian destination lanes, include ALL cities in that province
     destOptions = canDestWithDistances;
@@ -567,8 +617,8 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
   }
   
   // If we have very few options (coastal/sparse areas), expand radius progressively
-  // Skip expansion for FL origin lanes since they already have all FL cities
-  if ((!isFloridaLane || originState !== 'FL') && (!isTexasLane || originState !== 'TX')) {
+  // Skip expansion for FL/TX/NJ origin lanes since they already have all state cities
+  if ((!isFloridaLane || originState !== 'FL') && (!isTexasLane || originState !== 'TX') && (!isNewJerseyLane || originState !== 'NJ')) {
     if (originOptions.length < 30) {
       console.log(`⚠️  Only ${originOptions.length} origin cities within 100 miles, expanding to 150 miles`);
       originOptions = originWithDistances.filter(c => c.distance <= 150);
@@ -579,8 +629,8 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
     }
   }
   
-  // Only expand destination radius for non-New England, non-FL, non-TX, and non-Canadian destination lanes
-  if (!isNewEnglandLane && (!isFloridaLane || destState !== 'FL') && (!isTexasLane || destState !== 'TX') && !isCanadianLane) {
+  // Only expand destination radius for non-New England, non-FL, non-TX, non-NJ, and non-Canadian destination lanes
+  if (!isNewEnglandLane && (!isFloridaLane || destState !== 'FL') && (!isTexasLane || destState !== 'TX') && (!isNewJerseyLane || destState !== 'NJ') && !isCanadianLane) {
     if (destOptions.length < 30) {
       console.log(`⚠️  Only ${destOptions.length} destination cities within 100 miles, expanding to 150 miles`);
       destOptions = destWithDistances.filter(c => c.distance <= 150);
@@ -609,7 +659,7 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
   
   // NEW ENGLAND FILTER: Apply BEFORE balanceByKMA
   // Keep MA/NH/ME/VT/RI/CT + upstate NY (but block NYC/LI KMAs)
-  if (isNewEnglandLane && destOptions.length > 0) {
+  if ((isNewEnglandLane || isNewJerseyLane) && destOptions.length > 0) {
     const preFilterCount = destOptions.length;
     
     const normalizeStateName = (state) => {
@@ -632,18 +682,23 @@ async function generateOptionsForLane(laneId, supabaseAdmin) {
         return false;
       }
       
-      // Keep New England states + NY + NJ (NJ is major freight corridor, upstate NY will remain after KMA filter)
-      return NEW_ENGLAND.has(cState) || cState === 'NY' || cState === 'NJ';
+      if (isNewEnglandLane) {
+        // Keep New England states + NY + NJ (NJ is major freight corridor, upstate NY will remain after KMA filter)
+        return NEW_ENGLAND.has(cState) || cState === 'NY' || cState === 'NJ';
+      } else {
+        // For NJ lanes, we just want to block NYC/LI, but keep everything else (especially NJ)
+        return true;
+      }
     });
     
-    console.log(`[generateOptionsForLane] 🔒 NE Pre-filter: ${preFilterCount} → ${destOptions.length} cities (kept MA/NH/ME/VT/RI/CT/NY/NJ, blocked NYC/LI KMAs)`);
+    console.log(`[generateOptionsForLane] 🔒 NE/NJ Pre-filter: ${preFilterCount} → ${destOptions.length} cities (blocked NYC/LI KMAs)`);
     
     if (destOptions.length > 0) {
       const filteredStateCounts = {};
       for (const c of destOptions) {
         filteredStateCounts[c.state_or_province] = (filteredStateCounts[c.state_or_province] || 0) + 1;
       }
-      console.log(`[generateOptionsForLane] 🔍 After NE filter state breakdown:`, filteredStateCounts);
+      console.log(`[generateOptionsForLane] 🔍 After NE/NJ filter state breakdown:`, filteredStateCounts);
     }
   }
   
