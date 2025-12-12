@@ -96,7 +96,18 @@ export default async function handler(req, res) {
       // Map origin fields if provided via origin_* aliases
       if (updates.origin_city !== undefined) filteredUpdates.origin_city = updates.origin_city;
       if (updates.origin_state !== undefined) filteredUpdates.origin_state = updates.origin_state;
-      if (updates.origin_zip !== undefined) filteredUpdates.origin_zip = updates.origin_zip;
+      if (updates.origin_zip !== undefined) {
+        filteredUpdates.origin_zip = updates.origin_zip;
+        // Also update origin_zip5 if zip is provided
+        if (updates.origin_zip) {
+          filteredUpdates.origin_zip5 = updates.origin_zip.toString().substring(0, 5);
+        }
+      }
+      
+      // Also update dest_zip5 if dest_zip is provided
+      if (filteredUpdates.dest_zip) {
+        filteredUpdates.dest_zip5 = filteredUpdates.dest_zip.toString().substring(0, 5);
+      }
       
       // Ensure we don't pass undefined values
       Object.keys(filteredUpdates).forEach(key => filteredUpdates[key] === undefined && delete filteredUpdates[key]);
