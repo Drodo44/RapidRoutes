@@ -82,30 +82,35 @@ function EmailTemplateModal({ isOpen, onClose, lanes }) {
       let htmlBody = '';
 
       if (sortedVanReefer.length > 0) {
-        if (sortedOpenDeck.length > 0) {
-          htmlBody += `<h3 style="margin-bottom: 10px; color: #333;">Van & Reefer Loads</h3>`;
-        }
+        htmlBody += `<h3 style="margin-bottom: 10px; color: #333;">Van & Reefer Available Loads:</h3>`;
         htmlBody += generateTable(generateRows(sortedVanReefer));
       }
 
       if (sortedOpenDeck.length > 0) {
         if (sortedVanReefer.length > 0) {
-          htmlBody += `<h3 style="margin-top: 20px; margin-bottom: 10px; color: #333;">Open Deck Loads</h3>`;
+          htmlBody += `<div style="height: 20px;"></div>`;
         }
+        htmlBody += `<h3 style="margin-bottom: 10px; color: #333;">Open-Deck Available Loads:</h3>`;
         htmlBody += generateTable(generateRows(sortedOpenDeck));
-        htmlBody += `<p><strong>Additional Information:</strong> Tarps are required on all Flatbed or Step Deck loads unless otherwise stated.</p>`;
+      }
+
+      let additionalInfoHtml = '';
+      if (sortedOpenDeck.length > 0) {
+        additionalInfoHtml = `<p style="margin-top: 20px; margin-bottom: 20px;"><strong>Additional Information:</strong> Tarps are required on all Flatbed or Step Deck loads unless otherwise stated.</p>`;
       }
 
       const html = `
-        <div style="font-family: Arial, sans-serif; color: #333;">
-          <p>Below I have listed the lanes that are still available. Please let me know what lane you'd like and what rate you need to run it.</p>
-          <p>Please use "Reply All" when responding to this email so my team has visibility and for a faster response.</p>
+        <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.5;">
+          <p style="margin-bottom: 15px;">Below I have listed the lanes that are still available. Please let me know what lane you'd like and what rate you need to run it.</p>
+          <p style="margin-bottom: 25px;">Please use "Reply All" when responding to this email so my team has visibility and for a faster response.</p>
           
           ${htmlBody}
 
-          <p>Loads are given in the order information is received FCFS. To secure this load, please send this information:</p>
+          ${additionalInfoHtml}
+
+          <p style="margin-top: 25px; margin-bottom: 10px;">Loads are given in the order information is received FCFS. To secure this load, please send this information:</p>
           
-          <ul style="list-style-type: none; padding: 0;">
+          <ul style="list-style-type: none; padding: 0; margin: 0;">
             <li>MC:</li>
             <li>Your Name:</li>
             <li>Your Phone #:</li>
@@ -166,28 +171,27 @@ function EmailTemplateModal({ isOpen, onClose, lanes }) {
       let plainTextBody = '';
 
       if (sortedVanReefer.length > 0) {
-        if (sortedOpenDeck.length > 0) {
-          plainTextBody += `--- Van & Reefer Loads ---\n\n`;
-        }
+        plainTextBody += `Van & Reefer Available Loads:\n\n`;
         plainTextBody += generatePlainTextGroup(sortedVanReefer);
         plainTextBody += '\n\n';
       }
 
       if (sortedOpenDeck.length > 0) {
-        if (sortedVanReefer.length > 0) {
-          plainTextBody += `--- Open Deck Loads ---\n\n`;
-        }
+        plainTextBody += `Open-Deck Available Loads:\n\n`;
         plainTextBody += generatePlainTextGroup(sortedOpenDeck);
-        plainTextBody += '\n\nAdditional Information: Tarps are required on all Flatbed or Step Deck loads unless otherwise stated.\n\n';
+        plainTextBody += '\n\n';
+      }
+
+      let additionalInfoText = '';
+      if (sortedOpenDeck.length > 0) {
+        additionalInfoText = `Additional Information: Tarps are required on all Flatbed or Step Deck loads unless otherwise stated.\n\n`;
       }
 
       const plainText = `Below I have listed the lanes that are still available. Please let me know what lane you'd like and what rate you need to run it.
 
 Please use "Reply All" when responding to this email so my team has visibility and for a faster response.
 
-Available Lanes:
-
-${plainTextBody}Loads are given in the order information is received FCFS. To secure this load, please send this information:
+${plainTextBody}${additionalInfoText}Loads are given in the order information is received FCFS. To secure this load, please send this information:
  
 MC:
 Your Name:
