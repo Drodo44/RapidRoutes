@@ -168,29 +168,7 @@ function LanesPage() {
     }
   }, [loading, isAuthenticated, router]);
 
-  // Show loading if auth is still loading
-  if (loading) {
-    return (
-      <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ textAlign: 'center' }}>
-          <div className="spinner-border" style={{ margin: '0 auto 16px' }} />
-          <p style={{ fontSize: '16px' }}>Loading Lanes...</p>
-        </div>
-      </div>
-    );
-  }
 
-  // Show loading if not authenticated (during redirect)
-  if (!isAuthenticated) {
-    return (
-      <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ textAlign: 'center' }}>
-          <div className="spinner-border" style={{ margin: '0 auto 16px' }} />
-          <p style={{ fontSize: '16px' }}>Redirecting to login...</p>
-        </div>
-      </div>
-    );
-  }
 
   function onPickOrigin(it) {
     setOrigin(`${it.city}, ${it.state}`);
@@ -1003,6 +981,30 @@ function LanesPage() {
             )}
           </div>
         )}
+      </div>
+    );
+  }
+
+  // Show loading if auth is still loading
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div className="spinner-border" style={{ margin: '0 auto 16px' }} />
+          <p style={{ fontSize: '16px' }}>Loading Lanes...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show loading if not authenticated (during redirect)
+  if (!isAuthenticated) {
+    return (
+      <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div className="spinner-border" style={{ margin: '0 auto 16px' }} />
+          <p style={{ fontSize: '16px' }}>Redirecting to login...</p>
+        </div>
       </div>
     );
   }
