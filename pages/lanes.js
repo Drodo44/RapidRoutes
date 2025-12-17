@@ -303,9 +303,11 @@ function LanesPage() {
   }
 
   useEffect(() => {
-    console.log('Initial load effect triggered');
-    loadLists();
-  }, []);
+    if (isAuthenticated) {
+      console.log('Initial load effect triggered');
+      loadLists();
+    }
+  }, [isAuthenticated]);
 
   // Reload lanes when Admin toggle changes
   useEffect(() => {
