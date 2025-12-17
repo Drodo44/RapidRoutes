@@ -96,20 +96,22 @@ function EmailTemplateModal({ isOpen, onClose, lanes }) {
 
       let additionalInfoHtml = '';
       if (sortedOpenDeck.length > 0) {
-        additionalInfoHtml = `<p style="margin-top: 20px; margin-bottom: 20px;"><strong>Additional Information:</strong> Tarps are required on all Flatbed or Step Deck loads unless otherwise stated.</p>`;
+        additionalInfoHtml = `<br><p style="margin-bottom: 0;"><strong>Additional Information:</strong> Tarps are required on all Flatbed or Step Deck loads unless otherwise stated.</p>`;
       }
 
       const html = `
         <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.5;">
-          <p style="margin-bottom: 15px;">Below I have listed the lanes that are still available. Please let me know what lane you'd like and what rate you need to run it.</p>
-          <p style="margin-bottom: 25px;">Please use "Reply All" when responding to this email so my team has visibility and for a faster response.</p>
+          <p style="margin-bottom: 0;">Below I have listed the lanes that are still available. Please let me know what lane you'd like and what rate you need to run it.</p>
+          <br>
+          <p style="margin-top: 0; margin-bottom: 20px;">Please use "Reply All" when responding to this email so my team has visibility and for a faster response.</p>
           
           ${htmlBody}
 
           ${additionalInfoHtml}
 
-          <p style="margin-top: 25px; margin-bottom: 10px;">Loads are given in the order information is received FCFS. To secure this load, please send this information:</p>
-          
+          <br>
+          <p style="margin-bottom: 5px;">Loads are given in the order information is received FCFS. To secure this load, please send this information:</p>
+          <br>
           <ul style="list-style-type: none; padding: 0; margin: 0;">
             <li>MC:</li>
             <li>Your Name:</li>
@@ -192,7 +194,7 @@ function EmailTemplateModal({ isOpen, onClose, lanes }) {
 Please use "Reply All" when responding to this email so my team has visibility and for a faster response.
 
 ${plainTextBody}${additionalInfoText}Loads are given in the order information is received FCFS. To secure this load, please send this information:
- 
+
 MC:
 Your Name:
 Your Phone #:
