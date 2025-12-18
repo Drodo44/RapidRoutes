@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import Header from "../components/Header";
 import { useLanes } from "../hooks/useLanes";
 import LaneList from "../components/post-options/LaneList";
 import { generateOptions, generateOptionsBatch } from "../components/post-options/OptionsGenerator";
@@ -114,7 +113,6 @@ export default function PostOptions() {
   
   return (
     <div className="bg-gray-900 text-gray-100 min-h-screen">
-      <Header />
       
       <main className="container mx-auto p-4 md:p-6">
         <h1 className="text-2xl font-bold mb-6">Post Options</h1>
