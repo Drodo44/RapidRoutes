@@ -66,7 +66,7 @@ export default async function handler(req, res) {
       // Fields that can be updated by the user; use lane_status instead of deprecated status
       const allowedFields = [
         'pickup_earliest', 'pickup_latest', 'weight_lbs', 'weight_min', 'weight_max',
-        'comment', 'commodity', 'lane_status', 'full_partial', 'length_ft',
+        'rate', 'comment', 'commodity', 'lane_status', 'full_partial', 'length_ft',
         'destination_city', 'destination_state', 'dest_city', 'dest_state',
         'dest_latitude', 'dest_longitude', 'dest_zip', 'dest_zip5',
         'origin_city', 'origin_state', 'origin_zip', 'origin_zip5',

@@ -72,6 +72,7 @@ function LanesPage() {
         weight_lbs: randomize ? null : Number(weight),
         weight_min: randomize ? Number(randMin) || null : null,
         weight_max: randomize ? Number(randMax) || null : null,
+        rate: rate ? Number(rate) : null,
         comment: comment || null,
         commodity: commodity || null
       };
@@ -93,6 +94,7 @@ function LanesPage() {
       setOrigin(''); 
       setDest('');
       setWeight('');
+      setRate('');
       setComment('');
       setCommodity('');
     } catch (error) {
@@ -122,6 +124,7 @@ function LanesPage() {
   const [randMin, setRandMin] = useState('');
   const [randMax, setRandMax] = useState('');
   const [weight, setWeight] = useState('');
+  const [rate, setRate] = useState('');
   const [randOpen, setRandOpen] = useState(false);
   const [rememberSession, setRememberSession] = useState(true);
 
@@ -211,6 +214,7 @@ function LanesPage() {
           weight_lbs: editingLane.weight_lbs,
           weight_min: editingLane.weight_min,
           weight_max: editingLane.weight_max,
+          rate: editingLane.rate ? Number(editingLane.rate) : null,
           comment: editingLane.comment,
           commodity: editingLane.commodity,
           origin_city: editingLane.origin_city,
@@ -436,6 +440,7 @@ function LanesPage() {
         weight_lbs: laneData.weight_lbs,
         weight_min: laneData.weight_min,
         weight_max: laneData.weight_max,
+        rate: laneData.rate,
         comment: laneData.comment,
         commodity: laneData.commodity,
   // Use new lane_status column; do not set deprecated status
@@ -1144,6 +1149,10 @@ function LanesPage() {
                   <input type="number" min={1} value={weight} onChange={(e) => setWeight(e.target.value)} className="form-input" />
                 </div>
               )}
+              <div>
+                <label className="form-label">Rate ($)</label>
+                <input type="number" min={0} step="0.01" value={rate} onChange={(e) => setRate(e.target.value)} className="form-input" placeholder="Optional" />
+              </div>
               {randomize && (
                 <div style={{ gridColumn: 'span 2', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   <div>
@@ -1271,6 +1280,7 @@ function LanesPage() {
                     {l.randomize_weight 
                       ? `${l.weight_min || 0}-${l.weight_max || 0} lbs` 
                       : `${l.weight_lbs || '—'} lbs`}
+                    {l.rate && <span style={{ marginLeft: '12px' }}>💰 ${l.rate}</span>}
                     <span style={{ marginLeft: '12px' }}>📅 {l.pickup_earliest || '—'} → {l.pickup_latest || '—'}</span>
                     {l.comment && <span style={{ marginLeft: '12px' }}>💬 {String(l.comment)}</span>}
                   </div>
@@ -1565,6 +1575,32 @@ function LanesPage() {
                   </div>
                 </div>
 
+                {/* Rate and Commodity */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 'var(--space-4)' }}>
+                  <div>
+                    <label className="form-label">Rate ($)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={editingLane.rate || ''}
+                      onChange={(e) => setEditingLane({...editingLane, rate: e.target.value})}
+                      className="form-input"
+                      placeholder="Optional rate"
+                    />
+                  </div>
+                  <div>
+                    <label className="form-label">Commodity</label>
+                    <input
+                      type="text"
+                      value={editingLane.commodity || ''}
+                      onChange={(e) => setEditingLane({...editingLane, commodity: e.target.value})}
+                      className="form-input"
+                      placeholder="Optional commodity..."
+                    />
+                  </div>
+                </div>
+
                 {/* Comment */}
                 <div>
                   <label className="form-label">Comment</label>
@@ -1574,18 +1610,6 @@ function LanesPage() {
                     rows={3}
                     className="form-input"
                     placeholder="Optional comment..."
-                  />
-                </div>
-
-                {/* Commodity */}
-                <div>
-                  <label className="form-label">Commodity</label>
-                  <input
-                    type="text"
-                    value={editingLane.commodity || ''}
-                    onChange={(e) => setEditingLane({...editingLane, commodity: e.target.value})}
-                    className="form-input"
-                    placeholder="Optional commodity..."
                   />
                 </div>
               </div>
