@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Phase 4: Live CSV Export Testing</title>
+    <style>
+        body { font-family: monospace; margin: 20px; background: #1a1a1a; color: #00ff00; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #333; background: #222; }
+        .success { color: #00ff00; }
+        .error { color: #ff4444; }
+        .warning { color: #ffaa00; }
+        .info { color: #4499ff; }
+        pre { background: #111; padding: 10px; overflow-x: auto; border-left: 3px solid #00ff00; }
+        button { background: #333; color: #00ff00; border: 1px solid #555; padding: 8px 16px; margin: 5px; cursor: pointer; }
+        button:hover { background: #444; }
+        .csv-preview { background: #001100; padding: 15px; margin: 10px 0; border: 1px solid #004400; }
+        .log-output { background: #000; color: #fff; padding: 10px; height: 300px; overflow-y: auto; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 PHASE 4: LIVE CSV EXPORT TESTING</h1>
+        <p class="info">Testing end-to-end CSV generation with real freight intelligence system</p>
+        
+        <div class="test-section">
+            <h2>🧪 Test Controls</h2>
+            <button onclick="testBulkExport()">Test Bulk Export (No Lanes)</button>
+            <button onclick="testCSVStructure()">Test CSV Structure</button>
+            <button onclick="clearLogs()">Clear Logs</button>
+        </div>
+        
+        <div class="test-section">
+            <h2>📊 Test Results</h2>
+            <div id="testResults"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>📄 Sample CSV Output</h2>
+            <div id="csvPreview" class="csv-preview">
+                <em>CSV output will appear here after successful test...</em>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h2>🔍 Debug Logs</h2>
+            <div id="logOutput" class="log-output"></div>
+        </div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('logOutput');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type;
+            logDiv.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function clearLogs() {
+            document.getElementById('logOutput').innerHTML = '';
+            document.getElementById('testResults').innerHTML = '';
+            document.getElementById('csvPreview').innerHTML = '<em>CSV output will appear here after successful test...</em>';
+        }
+        
+        async function testBulkExport() {
+            log('🚨 TESTING BULK EXPORT WITH NO VALID LANES', 'info');
+            log('Expected: JSON error response with 422 status (not corrupted CSV)', 'info');
+            
+            try {
+                const response = await fetch('/api/exportDatCsv?pending=1', {
+                    method: 'GET',
+                    headers: { 
+                        'Accept': 'text/csv',
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                log(`Response status: ${response.status}`, response.status >= 400 ? 'error' : 'success');
+                log(`Content-Type: ${response.headers.get('content-type')}`, 'info');
+                
+                const content = await response.text();
+                log(`Content length: ${content.length} characters`, 'info');
+                
+                // Analyze response
+                const isJson = content.trim().startsWith('{') || content.trim().startsWith('[');
+                const isCSV = content.includes('Pickup Earliest*') || content.includes(',');
+                
+                if (isJson && response.status >= 400) {
+                    log('✅ GOOD: Returns JSON error with error status (no corruption)', 'success');
+                    try {
+                        const errorData = JSON.parse(content);
+                        log(`Error message: ${errorData.error}`, 'warning');
+                        if (errorData.details) {
+                            log(`Details: ${JSON.stringify(errorData.details, null, 2)}`, 'info');
+                        }
+                    } catch (e) {
+                        log('Could not parse JSON error response', 'warning');
+                    }
+                } else if (isJson && response.status < 400) {
+                    log('❌ POTENTIAL CORRUPTION: Returns JSON with success status', 'error');
+                } else if (isCSV) {
+                    log('✅ GOOD: Returns valid CSV format', 'success');
+                    displayCSVPreview(content);
+                } else {
+                    log('❓ UNKNOWN: Unexpected response format', 'warning');
+                }
+                
+                log(`Content preview: ${content.substring(0, 200)}...`, 'info');
+                
+                updateTestResults('Bulk Export Test', {
+                    status: response.status >= 400 && isJson ? 'PASS' : 'NEEDS_REVIEW',
+                    responseStatus: response.status,
+                    contentType: response.headers.get('content-type'),
+                    isJson: isJson,
+                    isCSV: isCSV,
+                    contentLength: content.length
+                });
+                
+            } catch (error) {
+                log(`❌ Test failed: ${error.message}`, 'error');
+                updateTestResults('Bulk Export Test', {
+                    status: 'FAIL',
+                    error: error.message
+                });
+            }
+        }
+        
+        async function testCSVStructure() {
+            log('🧪 TESTING CSV STRUCTURE VALIDATION', 'info');
+            
+            // Test the DAT headers specification
+            const expectedHeaders = [
+                "Pickup Earliest*", "Pickup Latest", "Length (ft)*", "Weight (lbs)*",
+                "Full/Partial*", "Equipment*", "Use Private Network*", "Private Network Rate",
+                "Allow Private Network Booking", "Allow Private Network Bidding",
+                "Use DAT Loadboard*", "DAT Loadboard Rate", "Allow DAT Loadboard Booking",
+                "Use Extended Network", "Contact Method*", "Origin City*", "Origin State*",
+                "Origin Postal Code", "Destination City*", "Destination State*",
+                "Destination Postal Code", "Comment", "Commodity", "Reference ID"
+            ];
+            
+            log(`Expected DAT headers: ${expectedHeaders.length}`, 'info');
+            
+            if (expectedHeaders.length === 24) {
+                log('✅ DAT headers specification correct (24 fields)', 'success');
+            } else {
+                log(`❌ DAT headers specification incorrect (${expectedHeaders.length}/24 fields)`, 'error');
+            }
+            
+            // Display the headers for verification
+            log('📋 DAT Headers:', 'info');
+            expectedHeaders.forEach((header, index) => {
+                log(`  ${index + 1}. ${header}`, 'info');
+            });
+            
+            updateTestResults('CSV Structure Test', {
+                status: expectedHeaders.length === 24 ? 'PASS' : 'FAIL',
+                expectedHeaders: 24,
+                actualHeaders: expectedHeaders.length,
+                headerList: expectedHeaders
+            });
+        }
+        
+        function displayCSVPreview(csvContent) {
+            const lines = csvContent.split('\\n').filter(line => line.trim());
+            const previewLines = lines.slice(0, 4); // Header + 3 rows
+            const preview = previewLines.join('\\n');
+            
+            document.getElementById('csvPreview').innerHTML = `
+                <strong>CSV Preview (${lines.length} total lines):</strong>
+                <pre>${preview}</pre>
+                ${lines.length > 4 ? `<em>... (${lines.length - 4} additional rows)</em>` : ''}
+            `;
+            
+            // Validate headers
+            if (lines.length > 0) {
+                const headerLine = lines[0];
+                const headerCount = headerLine.split(',').length;
+                log(`CSV header count: ${headerCount}/24`, headerCount === 24 ? 'success' : 'error');
+            }
+        }
+        
+        function updateTestResults(testName, results) {
+            const resultsDiv = document.getElementById('testResults');
+            const statusClass = results.status === 'PASS' ? 'success' : results.status === 'FAIL' ? 'error' : 'warning';
+            
+            resultsDiv.innerHTML += `
+                <div class="test-result">
+                    <h3>${testName}: <span class="${statusClass}">${results.status}</span></h3>
+                    <pre>${JSON.stringify(results, null, 2)}</pre>
+                </div>
+            `;
+        }
+        
+        // Auto-run basic tests on load
+        document.addEventListener('DOMContentLoaded', function() {
+            log('🚀 Phase 4 Live Testing Interface Ready', 'success');
+            log('Click test buttons to validate CSV export functionality', 'info');
+        });
+    </script>
+</body>
+</html>

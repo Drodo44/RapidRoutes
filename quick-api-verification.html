@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RapidRoutes API Verification</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #111;
+            color: #eee;
+            padding: 20px;
+            max-width: 900px;
+            margin: 0 auto;
+            line-height: 1.5;
+        }
+        
+        h1, h2, h3 {
+            color: #4caf50;
+        }
+        
+        .status-panel {
+            background-color: #1e1e1e;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .test-panel {
+            background-color: #1e1e1e;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .result-panel {
+            background-color: #1e1e1e;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 20px;
+            max-height: 400px;
+            overflow: auto;
+        }
+        
+        button {
+            background-color: #4caf50;
+            border: none;
+            color: white;
+            padding: 10px 15px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        
+        button:disabled {
+            background-color: #555;
+            cursor: not-allowed;
+        }
+        
+        .success {
+            color: #4caf50;
+        }
+        
+        .warning {
+            color: #ff9800;
+        }
+        
+        .error {
+            color: #f44336;
+        }
+        
+        pre {
+            background-color: #2d2d2d;
+            padding: 10px;
+            border-radius: 5px;
+            overflow: auto;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        
+        .status-indicator.success {
+            background-color: #4caf50;
+        }
+        
+        .status-indicator.error {
+            background-color: #f44336;
+        }
+        
+        .status-indicator.pending {
+            background-color: #ff9800;
+        }
+        
+        .lane-form {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .lane-form label {
+            display: block;
+            margin-bottom: 5px;
+            color: #aaa;
+        }
+        
+        .lane-form input {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+            background-color: #333;
+            border: 1px solid #555;
+            color: #eee;
+            border-radius: 3px;
+        }
+        
+        .summary-section {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #263238;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>RapidRoutes API Verification</h1>
+    
+    <div class="status-panel">
+        <h2>API Status</h2>
+        <p><span class="status-indicator pending" id="auth-status"></span> <strong>Authentication:</strong> <span id="auth-status-text">Checking...</span></p>
+        <p><span class="status-indicator pending" id="rpc-status"></span> <strong>RPC Function:</strong> <span id="rpc-status-text">Not checked yet</span></p>
+        <p><span class="status-indicator pending" id="api-status"></span> <strong>Intelligence API:</strong> <span id="api-status-text">Not checked yet</span></p>
+        
+        <div id="manual-auth" style="margin-top: 15px; display: none;">
+            <h3>Manual Authentication</h3>
+            <p>If automatic authentication fails, you can paste your token here:</p>
+            <input type="password" id="auth-token" placeholder="Paste authentication token here" style="width: 100%; padding: 8px; background: #333; border: 1px solid #555; color: #eee; margin-bottom: 10px;">
+            <button onclick="useManualToken()">Use Token</button>
+        </div>
+    </div>
+    
+    <div class="test-panel">
+        <h2>Run Verification Tests</h2>
+        <p>Use this tool to verify the intelligence-pairing API is working correctly. This uses your current browser session for authentication.</p>
+        
+        <h3>Test Predefined Lanes</h3>
+        <button id="run-test" onclick="runPredefinedTests()">Run All Tests</button>
+        <button id="test-rpc" onclick="testRpcFunction()">Test RPC Only</button>
+        <button id="test-api-only" onclick="testApiOnly()">Test API Only</button>
+        <button id="debug-btn" onclick="debugLocalStorage()" style="background-color: #666;">Debug Storage</button>
+        
+        <h3>Test Custom Lane</h3>
+        <div class="lane-form">
+            <div>
+                <label for="origin-city">Origin City</label>
+                <input type="text" id="origin-city" value="Raleigh">
+            </div>
+            <div>
+                <label for="origin-state">Origin State</label>
+                <input type="text" id="origin-state" value="NC">
+            </div>
+            <div>
+                <label for="origin-zip">Origin ZIP</label>
+                <input type="text" id="origin-zip" value="27601">
+            </div>
+            <div>
+                <label for="equipment-code">Equipment Code</label>
+                <input type="text" id="equipment-code" value="V">
+            </div>
+            <div>
+                <label for="dest-city">Destination City</label>
+                <input type="text" id="dest-city" value="Charlotte">
+            </div>
+            <div>
+                <label for="dest-state">Destination State</label>
+                <input type="text" id="dest-state" value="NC">
+            </div>
+            <div>
+                <label for="dest-zip">Destination ZIP</label>
+                <input type="text" id="dest-zip" value="28202">
+            </div>
+            <div>
+                <label for="weight">Weight (lbs)</label>
+                <input type="text" id="weight" value="40000">
+            </div>
+        </div>
+        <button id="test-custom" onclick="testCustomLane()">Test Custom Lane</button>
+    </div>
+    
+    <div class="result-panel">
+        <h2>Test Results</h2>
+        <div id="results-log">No tests run yet</div>
+    </div>
+    
+    <div class="summary-section" id="summary" style="display: none;">
+        <h2>Verification Summary</h2>
+        <p id="summary-text"></p>
+    </div>
+    
+    <script>
+        // Global variables
+        let authToken = null;
+        let supabaseUrl = null;
+        let supabaseKey = null;
+        let testResults = [];
+        let rpcTestResult = null;
+        
+        // Test lanes
+        const testLanes = [
+            {
+                origin_city: 'Raleigh',
+                origin_state: 'NC',
+                origin_zip: '27601',
+                dest_city: 'Charlotte',
+                dest_state: 'NC',
+                dest_zip: '28202',
+                equipment_code: 'V',
+                weight_lbs: 40000,
+            },
+            {
+                origin_city: 'Chicago',
+                origin_state: 'IL',
+                origin_zip: '60601',
+                dest_city: 'Indianapolis',
+                dest_state: 'IN',
+                dest_zip: '46201',
+                equipment_code: 'V',
+                weight_lbs: 35000,
+            },
+            {
+                origin_city: 'New York',
+                origin_state: 'NY',
+                origin_zip: '10001',
+                dest_city: 'Boston',
+                dest_state: 'MA',
+                dest_zip: '02101',
+                equipment_code: 'FD',
+                weight_lbs: 42000,
+            }
+        ];
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async () => {
+            await checkAuth();
+        });
+        
+        // Check for authentication - support multiple storage formats
+        async function checkAuth() {
+            const authStatusEl = document.getElementById('auth-status');
+            const authStatusTextEl = document.getElementById('auth-status-text');
+            
+            try {
+                // Try multiple possible storage locations for Supabase URL and key
+                supabaseUrl = localStorage.getItem('supabase.auth.url') || 
+                             localStorage.getItem('sb-url') || 
+                             localStorage.getItem('sb-' + window.location.hostname + '-url');
+                             
+                supabaseKey = localStorage.getItem('supabase.auth.anon') || 
+                             localStorage.getItem('sb-key') || 
+                             localStorage.getItem('sb-' + window.location.hostname + '-key');
+                
+                // Find auth token using multiple possible storage formats
+                let foundSession = false;
+                let session;
+                
+                // Try standard Next.js format
+                const supabaseSessionStr = localStorage.getItem('supabase.auth.token');
+                if (supabaseSessionStr) {
+                    try {
+                        const sessionData = JSON.parse(supabaseSessionStr);
+                        session = sessionData.currentSession;
+                        if (session && session.access_token) {
+                            authToken = session.access_token;
+                            foundSession = true;
+                            log('✅ Found session in supabase.auth.token');
+                        }
+                    } catch (e) {
+                        log('⚠️ Error parsing supabase.auth.token: ' + e.message);
+                    }
+                }
+                
+                // Try sb-[hostname]-auth-token format
+                if (!foundSession) {
+                    const hostname = window.location.hostname;
+                    const sbAuthTokenKey = `sb-${hostname}-auth-token`;
+                    const sbTokenStr = localStorage.getItem(sbAuthTokenKey);
+                    
+                    if (sbTokenStr) {
+                        try {
+                            const sbTokenData = JSON.parse(sbTokenStr);
+                            if (sbTokenData.access_token) {
+                                authToken = sbTokenData.access_token;
+                                foundSession = true;
+                                log('✅ Found session in ' + sbAuthTokenKey);
+                            }
+                        } catch (e) {
+                            log('⚠️ Error parsing ' + sbAuthTokenKey + ': ' + e.message);
+                        }
+                    }
+                }
+                
+                // Try sb-[project-id]-auth-token format (scan all localStorage for potential matches)
+                if (!foundSession) {
+                    for (let i = 0; i < localStorage.length; i++) {
+                        const key = localStorage.key(i);
+                        if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
+                            try {
+                                const tokenStr = localStorage.getItem(key);
+                                const tokenData = JSON.parse(tokenStr);
+                                if (tokenData && tokenData.access_token) {
+                                    authToken = tokenData.access_token;
+                                    foundSession = true;
+                                    log('✅ Found session in ' + key);
+                                    break;
+                                }
+                            } catch (e) {
+                                log('⚠️ Error parsing ' + key + ': ' + e.message);
+                            }
+                        }
+                    }
+                }
+                
+                // Try cookie storage
+                if (!foundSession && document.cookie) {
+                    const cookies = document.cookie.split(';');
+                    for (const cookie of cookies) {
+                        if (cookie.trim().startsWith('sb-auth-token=')) {
+                            try {
+                                const cookieValue = cookie.split('=')[1].trim();
+                                const cookieData = JSON.parse(decodeURIComponent(cookieValue));
+                                if (cookieData && cookieData.access_token) {
+                                    authToken = cookieData.access_token;
+                                    foundSession = true;
+                                    log('✅ Found session in cookie');
+                                    break;
+                                }
+                            } catch (e) {
+                                log('⚠️ Error parsing auth cookie: ' + e.message);
+                            }
+                        }
+                    }
+                }
+                
+                if (!foundSession) {
+                    throw new Error('No active session found in any storage location');
+                }
+                
+                if (!authToken) {
+                    throw new Error('Found session but no access token');
+                }
+                
+                // Update status
+                authStatusEl.className = 'status-indicator success';
+                authStatusTextEl.className = 'success';
+                authStatusTextEl.textContent = 'Authenticated';
+                
+                log('✅ Authentication successful');
+                
+            } catch (error) {
+                authStatusEl.className = 'status-indicator error';
+                authStatusTextEl.className = 'error';
+                authStatusTextEl.textContent = 'Not authenticated';
+                
+                log('❌ Authentication error: ' + error.message);
+                log('Please log in to RapidRoutes in another tab and then refresh this page');
+                
+                // Show manual token input
+                document.getElementById('manual-auth').style.display = 'block';
+            }
+        }
+        
+        // Handle manual token input
+        function useManualToken() {
+            const tokenInput = document.getElementById('auth-token');
+            const token = tokenInput.value.trim();
+            
+            if (!token) {
+                log('❌ Please enter a valid token');
+                return;
+            }
+            
+            authToken = token;
+            
+            const authStatusEl = document.getElementById('auth-status');
+            const authStatusTextEl = document.getElementById('auth-status-text');
+            
+            authStatusEl.className = 'status-indicator success';
+            authStatusTextEl.className = 'success';
+            authStatusTextEl.textContent = 'Authenticated (manual)';
+            
+            log('✅ Manual authentication successful');
+        }
+        
+        // Test API only without RPC function
+        async function testApiOnly() {
+            resetResults();
+            
+            if (!authToken) {
+                log('❌ Cannot run tests: Not authenticated');
+                log('Please log in to RapidRoutes in another tab and then refresh this page');
+                return;
+            }
+            
+            const apiBtn = document.getElementById('test-api-only');
+            apiBtn.disabled = true;
+            apiBtn.innerHTML = '<div class="loading"></div> Testing...';
+            
+            try {
+                // Skip RPC test and just test lanes
+                log('🧪 Testing intelligence-pairing API only (skipping RPC test)');
+                
+                // Test first lane only
+                const lane = testLanes[0];
+                log(`Testing lane: ${lane.origin_city}, ${lane.origin_state} to ${lane.dest_city}, ${lane.dest_state}`);
+                await testLane(lane);
+                
+                // Show partial summary
+                document.getElementById('summary').style.display = 'block';
+                document.getElementById('summary-text').innerHTML = 
+                    `<p><strong>API Direct Test:</strong> ${testResults[0].success ? 
+                        '<span class="success">✅ API responded with 200 status</span>' : 
+                        '<span class="error">❌ API request failed</span>'}</p>
+                     <p>${testResults[0].success ? 
+                        'The API endpoint is responding correctly, even if the RPC function test failed.' : 
+                        'The API endpoint is still not responding correctly. Check the logs for details.'}</p>`;
+                
+            } catch (error) {
+                log('❌ Error testing API: ' + error.message);
+            } finally {
+                apiBtn.disabled = false;
+                apiBtn.textContent = 'Test API Only';
+            }
+        }
+        
+        // Run predefined tests
+        async function runPredefinedTests() {
+            resetResults();
+            
+            if (!authToken) {
+                log('❌ Cannot run tests: Not authenticated');
+                log('Please log in to RapidRoutes in another tab and then refresh this page');
+                return;
+            }
+            
+            const runBtn = document.getElementById('run-test');
+            runBtn.disabled = true;
+            runBtn.innerHTML = '<div class="loading"></div> Running...';
+            
+            try {
+                // Test RPC function first
+                await testRpcFunction();
+                
+                // Test lanes
+                for (const lane of testLanes) {
+                    log(`🧪 Testing lane: ${lane.origin_city}, ${lane.origin_state} to ${lane.dest_city}, ${lane.dest_state}`);
+                    await testLane(lane);
+                }
+                
+                // Show summary
+                showSummary();
+                
+            } catch (error) {
+                log('❌ Error running tests: ' + error.message);
+            } finally {
+                runBtn.disabled = false;
+                runBtn.textContent = 'Run All Tests';
+            }
+        }
+        
+        // Test a custom lane
+        async function testCustomLane() {
+            if (!authToken) {
+                log('❌ Cannot run test: Not authenticated');
+                log('Please log in to RapidRoutes in another tab and then refresh this page');
+                return;
+            }
+            
+            const lane = {
+                origin_city: document.getElementById('origin-city').value,
+                origin_state: document.getElementById('origin-state').value,
+                origin_zip: document.getElementById('origin-zip').value,
+                dest_city: document.getElementById('dest-city').value,
+                dest_state: document.getElementById('dest-state').value,
+                dest_zip: document.getElementById('dest-zip').value,
+                equipment_code: document.getElementById('equipment-code').value,
+                weight_lbs: parseInt(document.getElementById('weight').value, 10) || 40000,
+            };
+            
+            const customBtn = document.getElementById('test-custom');
+            customBtn.disabled = true;
+            customBtn.innerHTML = '<div class="loading"></div> Testing...';
+            
+            try {
+                log(`🧪 Testing custom lane: ${lane.origin_city}, ${lane.origin_state} to ${lane.dest_city}, ${lane.dest_state}`);
+                await testLane(lane);
+            } catch (error) {
+                log('❌ Error testing custom lane: ' + error.message);
+            } finally {
+                customBtn.disabled = false;
+                customBtn.textContent = 'Test Custom Lane';
+            }
+        }
+        
+        // Test RPC function directly
+        async function testRpcFunction() {
+            if (!authToken) {
+                log('❌ Cannot test RPC: Not authenticated');
+                log('Please log in to RapidRoutes in another tab and then refresh this page');
+                return;
+            }
+            
+            // If URL/key not found in localStorage, use production defaults
+            if (!supabaseUrl) {
+                supabaseUrl = window.location.hostname.includes('localhost') ? 
+                    'http://localhost:54321' : 
+                    'https://tliznoxmspntzccxiyij.supabase.co';
+                log('⚠️ Using default Supabase URL: ' + supabaseUrl);
+            }
+            
+            if (!supabaseKey) {
+                // Try to use a default anonymous key or fetch from a known endpoint
+                log('⚠️ Attempting to retrieve Supabase key...');
+                try {
+                    // Try to get the key from window.__SUPABASE_KEY__ if it exists
+                    if (window.__SUPABASE_KEY__) {
+                        supabaseKey = window.__SUPABASE_KEY__;
+                        log('✅ Found Supabase key in window.__SUPABASE_KEY__');
+                    }
+                    // If we still don't have a key, use a fallback
+                    if (!supabaseKey) {
+                        supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlhdCI6MTYzMDQyNjQ0MCwiZXhwIjoxOTg5ODgwNDQwfQ.example';
+                        log('⚠️ Using fallback anonymous key');
+                    }
+                } catch (e) {
+                    log('⚠️ Error retrieving Supabase key: ' + e.message);
+                    return;
+                }
+            }
+            
+            const rpcStatusEl = document.getElementById('rpc-status');
+            const rpcStatusTextEl = document.getElementById('rpc-status-text');
+            
+            const rpcBtn = document.getElementById('test-rpc');
+            if (rpcBtn) {
+                rpcBtn.disabled = true;
+                rpcBtn.innerHTML = '<div class="loading"></div> Testing...';
+            }
+            
+            log('🔍 Testing RPC function directly...');
+            
+            try {
+                // Load or get Supabase library
+                try {
+                    await loadSupabaseLibrary();
+                } catch (error) {
+                    throw new Error('Failed to load Supabase library: ' + error.message);
+                }
+                
+                if (!window.supabase || !window.supabase.createClient) {
+                    throw new Error('Supabase library loaded but createClient not found');
+                }
+                
+                log('Creating Supabase client with URL: ' + supabaseUrl.substring(0, 15) + '...');
+                
+                // Create a temporary Supabase client
+                const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
+                
+                // Set session
+                supabaseClient.auth.setSession({
+                    access_token: authToken,
+                    refresh_token: '',
+                });
+                
+                // Test with Raleigh coordinates
+                const result = await supabaseClient.rpc('find_cities_within_radius', {
+                    lat_param: 35.7796,
+                    lng_param: -78.6382,
+                    radius_meters: 80467 // ~50 miles
+                });
+                
+                if (result.error) {
+                    throw result.error;
+                }
+                
+                const cities = result.data;
+                
+                if (!cities || !Array.isArray(cities)) {
+                    throw new Error('Invalid response from RPC function');
+                }
+                
+                // Update status
+                rpcStatusEl.className = 'status-indicator success';
+                rpcStatusTextEl.className = 'success';
+                rpcStatusTextEl.textContent = `Working (found ${cities.length} cities)`;
+                
+                log(`✅ RPC function working! Found ${cities.length} cities`);
+                
+                if (cities.length > 0) {
+                    log('Sample cities:');
+                    cities.slice(0, 3).forEach(city => {
+                        log(`  - ${city.city}, ${city.state_or_province} (${city.kma_code})`);
+                    });
+                }
+                
+                rpcTestResult = {
+                    success: true,
+                    citiesCount: cities.length
+                };
+                
+                return rpcTestResult;
+                
+            } catch (error) {
+                rpcStatusEl.className = 'status-indicator error';
+                rpcStatusTextEl.className = 'error';
+                rpcStatusTextEl.textContent = 'Failed: ' + error.message;
+                
+                log('❌ RPC function test failed: ' + error.message);
+                log('Error details: ' + JSON.stringify(error));
+                
+                rpcTestResult = {
+                    success: false,
+                    error: error.message
+                };
+                
+                return rpcTestResult;
+                
+            } finally {
+                if (rpcBtn) {
+                    rpcBtn.disabled = false;
+                    rpcBtn.textContent = 'Test RPC Only';
+                }
+            }
+        }
+        
+        // Test a specific lane
+        async function testLane(lane) {
+            const apiStatusEl = document.getElementById('api-status');
+            const apiStatusTextEl = document.getElementById('api-status-text');
+            
+            try {
+                const response = await fetch('/api/intelligence-pairing', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ lane })
+                });
+                
+                const responseText = await response.text();
+                let responseData;
+                
+                try {
+                    responseData = JSON.parse(responseText);
+                } catch (e) {
+                    responseData = { text: responseText };
+                }
+                
+                const result = {
+                    lane,
+                    status: response.status,
+                    statusText: response.statusText,
+                    success: response.status >= 200 && response.status < 300,
+                    data: responseData,
+                    timestamp: new Date().toISOString()
+                };
+                
+                testResults.push(result);
+                
+                log(`Status: ${response.status} ${response.statusText}`);
+                
+                if (result.success) {
+                    log(`✅ Request successful!`);
+                    
+                    // Update API status
+                    apiStatusEl.className = 'status-indicator success';
+                    apiStatusTextEl.className = 'success';
+                    apiStatusTextEl.textContent = 'Working';
+                } else {
+                    log(`❌ Request failed with status ${response.status}`);
+                    
+                    // Update API status
+                    apiStatusEl.className = 'status-indicator error';
+                    apiStatusTextEl.className = 'error';
+                    apiStatusTextEl.textContent = 'Failed: ' + response.statusText;
+                }
+                
+                if (responseData && responseData.cityPairs && responseData.cityPairs.length > 0) {
+                    log(`Found ${responseData.cityPairs.length} city pairs:`);
+                    
+                    // Show first 3 city pairs
+                    responseData.cityPairs.slice(0, 3).forEach(pair => {
+                        log(`  - ${pair.origin.city}, ${pair.origin.state_or_province} to ${pair.destination.city}, ${pair.destination.state_or_province}`);
+                    });
+                } else {
+                    log('⚠️ No city pairs found in response');
+                }
+                
+                // Show response data
+                log('Response data:');
+                log(JSON.stringify(responseData, null, 2), true);
+                
+                return result;
+                
+            } catch (error) {
+                log(`❌ Error: ${error.message}`);
+                
+                // Update API status
+                apiStatusEl.className = 'status-indicator error';
+                apiStatusTextEl.className = 'error';
+                apiStatusTextEl.textContent = 'Failed: ' + error.message;
+                
+                const result = {
+                    lane,
+                    status: 0,
+                    statusText: 'Request Failed',
+                    success: false,
+                    error: error.message,
+                    timestamp: new Date().toISOString()
+                };
+                
+                testResults.push(result);
+                return result;
+            }
+        }
+        
+        // Log message to the results panel
+        function log(message, isCode = false) {
+            const resultsLog = document.getElementById('results-log');
+            
+            if (resultsLog.textContent === 'No tests run yet') {
+                resultsLog.textContent = '';
+            }
+            
+            if (isCode) {
+                const pre = document.createElement('pre');
+                pre.textContent = message;
+                resultsLog.appendChild(pre);
+            } else {
+                const p = document.createElement('p');
+                p.innerHTML = message;
+                resultsLog.appendChild(p);
+            }
+            
+            // Also log to console for debugging
+            console.log(message);
+            
+            // Auto scroll to bottom
+            resultsLog.scrollTop = resultsLog.scrollHeight;
+        }
+        
+        // Debug function to show all localStorage keys (without values)
+        function debugLocalStorage() {
+            log('📋 DEBUG: Checking localStorage keys...');
+            
+            if (localStorage.length === 0) {
+                log('No items in localStorage');
+                return;
+            }
+            
+            const keys = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                keys.push(key);
+            }
+            
+            log(`Found ${keys.length} localStorage keys:`);
+            log(keys.join(', '), true);
+        }
+        
+        // Reset test results
+        function resetResults() {
+            testResults = [];
+            rpcTestResult = null;
+            
+            const resultsLog = document.getElementById('results-log');
+            resultsLog.innerHTML = '';
+            
+            const summary = document.getElementById('summary');
+            summary.style.display = 'none';
+        }
+        
+        // Show summary of test results
+        function showSummary() {
+            const summary = document.getElementById('summary');
+            const summaryText = document.getElementById('summary-text');
+            
+            summary.style.display = 'block';
+            
+            const totalTests = testResults.length;
+            const successfulTests = testResults.filter(r => r.success).length;
+            const hasActualData = testResults.some(r => 
+                r.data && r.data.cityPairs && r.data.cityPairs.length > 0
+            );
+            
+            let summaryContent = '';
+            
+            summaryContent += `<p><strong>RPC Function:</strong> ${rpcTestResult && rpcTestResult.success ? 
+                '<span class="success">✅ WORKING</span>' : 
+                '<span class="error">❌ NOT WORKING</span>'}</p>`;
+                
+            if (rpcTestResult && rpcTestResult.success) {
+                summaryContent += `<p>Found ${rpcTestResult.citiesCount} cities with RPC function</p>`;
+            }
+            
+            summaryContent += `<p><strong>API Endpoint:</strong> ${successfulTests === totalTests ? 
+                '<span class="success">✅ WORKING</span>' : 
+                '<span class="error">❌ ISSUES DETECTED</span>'}</p>`;
+                
+            summaryContent += `<p>Success rate: ${successfulTests}/${totalTests} tests passed</p>`;
+            
+            summaryContent += `<p><strong>Response data:</strong> ${hasActualData ? 
+                '<span class="success">✅ City pairs found</span>' : 
+                '<span class="warning">⚠️ No city pairs in response</span>'}</p>`;
+                
+            summaryContent += `<h3>${(rpcTestResult && rpcTestResult.success && successfulTests === totalTests && hasActualData) ? 
+                '<span class="success">🎉 VERIFICATION SUCCESSFUL - API IS WORKING CORRECTLY!</span>' : 
+                '<span class="warning">⚠️ VERIFICATION INCOMPLETE - Issues detected, check the logs</span>'}</h3>`;
+                
+            summaryText.innerHTML = summaryContent;
+        }
+    </script>
+    
+    <!-- Load Supabase library -->
+    <script>
+        // Function to load Supabase client library
+        function loadSupabaseLibrary() {
+            return new Promise((resolve, reject) => {
+                // Check if already loaded
+                if (window.supabase) {
+                    console.log('Supabase already loaded');
+                    return resolve(window.supabase);
+                }
+                
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.min.js';
+                script.async = true;
+                
+                script.onload = () => {
+                    console.log('Supabase library loaded');
+                    resolve(window.supabase);
+                };
+                
+                script.onerror = (error) => {
+                    console.error('Failed to load Supabase:', error);
+                    reject(new Error('Failed to load Supabase library'));
+                };
+                
+                document.head.appendChild(script);
+            });
+        }
+        
+        // Load immediately
+        loadSupabaseLibrary().catch(err => {
+            console.error('Error loading Supabase:', err);
+            document.getElementById('results-log').innerHTML = 
+                '<p class="error">❌ Failed to load Supabase library. Please check your connection and try again.</p>';
+        });
+    </script>
+</body>
+</html>

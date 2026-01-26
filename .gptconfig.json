@@ -1,0 +1,28 @@
+{
+  "name": "RapidRoutes",
+  "description": "Production-grade freight brokerage automation platform for brokers at Total Quality Logistics. Includes DAT CSV generator, AI recap logic, and broker dashboards. Built on Next.js 14, Tailwind CSS 3, Supabase, and Vercel.",
+  "priority_features": [
+    "Recap HTML tab with snap-to-lane dropdown and AI Selling Points",
+    "DAT CSV generator with full 22-row logic and strategic city selection",
+    "Dashboard stats, floor space calculator, and heavy haul checker",
+    "Lane entry UI with weight, equipment code, autofill, and correct visual style"
+  ],
+  "enforced_rules": [
+    "Dark mode only",
+    "No placeholder code allowed",
+    "Equipment input must start with DAT code (e.g., FD)",
+    "Weight must be entered by broker manually unless random toggle is active",
+    "Recap must be HTML only — no PDF/Excel allowed"
+  ],
+  "task_sequence": [
+    "Audit repo",
+    "Fix missing logic and styling",
+    "Run local test or preview",
+    "Push commits",
+    "Confirm readiness"
+  ],
+  "repo_goals": {
+    "completion": "App must be 100% usable by brokers at TQL daily — no bugs, no missing pieces",
+    "deployment": "Production-ready on Vercel with GitHub as source of truth"
+  }
+}

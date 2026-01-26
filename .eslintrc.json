@@ -1,0 +1,25 @@
+{
+  "extends": ["next", "next/core-web-vitals", "plugin:react/recommended"],
+  "plugins": ["react", "jsx-a11y", "import"],
+  "parserOptions": {
+    "ecmaVersion": 2023,
+    "sourceType": "module",
+    "ecmaFeatures": {
+      "jsx": true
+    }
+  },
+  "env": {
+    "browser": true,
+    "node": true,
+    "es2023": true
+  },
+  "rules": {
+    "react/react-in-jsx-scope": "off",
+    "react/prop-types": "off",
+    "react/no-unescaped-entities": "warn",
+    "@next/next/no-html-link-for-pages": "warn",
+    "react/no-unknown-property": "warn",
+    "react-hooks/rules-of-hooks": "warn",
+    "@next/next/no-assign-module-variable": "warn"
+  }
+}

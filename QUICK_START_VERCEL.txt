@@ -1,0 +1,33 @@
+═══════════════════════════════════════════════════════════════════════════
+                    🚀 VERCEL QUICK START CARD 🚀
+═══════════════════════════════════════════════════════════════════════════
+
+📌 WHAT TO DO RIGHT NOW:
+
+  1. Get the service role key:
+     → https://supabase.com/dashboard/project/gwuhjxomavulwduhvgvi
+     → Settings → API → service_role (secret key)
+     → Copy the JWT token (starts with 'eyJ')
+
+  2. Add to Vercel:
+     → https://vercel.com/dashboard
+     → Your Project → Settings → Environment Variables
+     → Add New:
+        Key:   SUPABASE_SERVICE_ROLE_KEY
+        Value: (paste the JWT)
+        Env:   ☑️ Production, ☑️ Preview
+
+  3. Redeploy:
+     → Deployments tab → Click "..." → Redeploy
+
+  4. Verify (after ~60 seconds):
+     $ node scripts/verify-service-role-production.mjs
+
+═══════════════════════════════════════════════════════════════════════════
+
+⚠️  CRITICAL: Variable name must be exactly "SUPABASE_SERVICE_ROLE_KEY"
+⚠️  NO "NEXT_PUBLIC_" prefix!
+
+📚 Full guide: VERCEL_SERVICE_ROLE_KEY_CHECKLIST.md
+
+═══════════════════════════════════════════════════════════════════════════

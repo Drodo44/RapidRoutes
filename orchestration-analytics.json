@@ -1,0 +1,203 @@
+{
+  "totalDecisions": 38,
+  "dateRange": {
+    "start": "2025-10-21T03:01:04.084Z",
+    "end": "2025-10-21T03:00:53.435Z"
+  },
+  "modelStats": {
+    "gpt-5": {
+      "modelName": "GPT-5",
+      "provider": "openai",
+      "count": 20,
+      "overrideCount": 0,
+      "totalConfidence": 20,
+      "avgConfidence": 1,
+      "totalTokens": 2617,
+      "totalLatency": 3279,
+      "successCount": 6,
+      "failureCount": 2,
+      "successRate": 0.75,
+      "avgLatency": 409.875,
+      "avgTokens": 327.125
+    },
+    "claude-3-5-sonnet": {
+      "modelName": "Claude Sonnet 4.5",
+      "provider": "anthropic",
+      "count": 8,
+      "overrideCount": 0,
+      "totalConfidence": 7.800000000000001,
+      "avgConfidence": 0.9750000000000001,
+      "totalTokens": 794,
+      "totalLatency": 869,
+      "successCount": 2,
+      "failureCount": 1,
+      "successRate": 0.6666666666666666,
+      "avgLatency": 289.6666666666667,
+      "avgTokens": 264.6666666666667
+    },
+    "claude-3-5-haiku": {
+      "modelName": "Claude Haiku 4.5",
+      "provider": "anthropic",
+      "count": 4,
+      "overrideCount": 0,
+      "totalConfidence": 4,
+      "avgConfidence": 1,
+      "totalTokens": 284,
+      "totalLatency": 123,
+      "successCount": 1,
+      "failureCount": 0,
+      "successRate": 1,
+      "avgLatency": 123,
+      "avgTokens": 284
+    },
+    "gpt-4o": {
+      "modelName": "GPT-4o",
+      "provider": "openai",
+      "count": 4,
+      "overrideCount": 0,
+      "totalConfidence": 3.2,
+      "avgConfidence": 0.8,
+      "totalTokens": 345,
+      "totalLatency": 174,
+      "successCount": 1,
+      "failureCount": 0,
+      "successRate": 1,
+      "avgLatency": 174,
+      "avgTokens": 345
+    },
+    "mistral-large-2": {
+      "modelName": "Mistral Large 2",
+      "provider": "mistral",
+      "count": 2,
+      "overrideCount": 0,
+      "totalConfidence": 2,
+      "avgConfidence": 1,
+      "totalTokens": 453,
+      "totalLatency": 539,
+      "successCount": 1,
+      "failureCount": 0,
+      "successRate": 1,
+      "avgLatency": 539,
+      "avgTokens": 453
+    }
+  },
+  "routeStats": {
+    "debugging": {
+      "count": 10,
+      "models": {
+        "gpt-5": 10
+      },
+      "avgConfidence": 1,
+      "totalConfidence": 10,
+      "successRate": 1,
+      "successCount": 4,
+      "failureCount": 0
+    },
+    "content-creation": {
+      "count": 6,
+      "models": {
+        "claude-3-5-sonnet": 6
+      },
+      "avgConfidence": 1,
+      "totalConfidence": 6,
+      "successRate": 0.5,
+      "successCount": 1,
+      "failureCount": 1
+    },
+    "quick-tasks": {
+      "count": 4,
+      "models": {
+        "claude-3-5-haiku": 4
+      },
+      "avgConfidence": 1,
+      "totalConfidence": 4,
+      "successRate": 1,
+      "successCount": 1,
+      "failureCount": 0
+    },
+    "vision-analysis": {
+      "count": 4,
+      "models": {
+        "gpt-4o": 4
+      },
+      "avgConfidence": 0.8,
+      "totalConfidence": 3.2,
+      "successRate": 1,
+      "successCount": 1,
+      "failureCount": 0
+    },
+    "freight-domain": {
+      "count": 2,
+      "models": {
+        "gpt-5": 2
+      },
+      "avgConfidence": 1,
+      "totalConfidence": 2,
+      "successRate": 0,
+      "successCount": 0,
+      "failureCount": 0
+    },
+    "deployment": {
+      "count": 4,
+      "models": {
+        "gpt-5": 4
+      },
+      "avgConfidence": 1,
+      "totalConfidence": 4,
+      "successRate": 0.5,
+      "successCount": 1,
+      "failureCount": 1
+    },
+    "database": {
+      "count": 4,
+      "models": {
+        "gpt-5": 4
+      },
+      "avgConfidence": 1,
+      "totalConfidence": 4,
+      "successRate": 0.5,
+      "successCount": 1,
+      "failureCount": 1
+    },
+    "code-review": {
+      "count": 2,
+      "models": {
+        "claude-3-5-sonnet": 2
+      },
+      "avgConfidence": 0.9,
+      "totalConfidence": 1.8,
+      "successRate": 1,
+      "successCount": 1,
+      "failureCount": 0
+    },
+    "multilingual": {
+      "count": 2,
+      "models": {
+        "mistral-large-2": 2
+      },
+      "avgConfidence": 1,
+      "totalConfidence": 2,
+      "successRate": 1,
+      "successCount": 1,
+      "failureCount": 0
+    }
+  },
+  "performanceMetrics": {
+    "avgProcessingTimeMs": 0.47368421052631576,
+    "avgLatencyMs": 356,
+    "avgTokensPerRequest": 320.92857142857144,
+    "totalTokensUsed": 4493
+  },
+  "confidenceDistribution": {
+    "0.0-0.5": 0,
+    "0.5-0.7": 0,
+    "0.7-0.9": 4,
+    "0.9-1.0": 34
+  },
+  "overrideRate": {
+    "total": 38,
+    "overrides": 0,
+    "rate": 0
+  },
+  "recommendations": []
+}

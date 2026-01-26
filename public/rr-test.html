@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RR# Debug Test</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      padding: 40px;
+      max-width: 900px;
+      margin: 0 auto;
+      background: #f5f5f5;
+    }
+    .test-card {
+      background: white;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .rr-banner {
+      background: linear-gradient(135deg, #dbeafe 0%, rgba(59, 130, 246, 0.2) 100%);
+      border-bottom: 3px solid #3b82f6;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .rr-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #3b82f6;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-right: 12px;
+    }
+    .rr-value {
+      font-family: Monaco, Consolas, monospace;
+      font-size: 18px;
+      font-weight: 800;
+      color: #3b82f6;
+      letter-spacing: 2px;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+    .badge {
+      background: #10b981;
+      color: white;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .card-body {
+      padding: 20px;
+    }
+    h1 {
+      color: #1e293b;
+      margin-bottom: 10px;
+    }
+    .subtitle {
+      color: #64748b;
+      margin-bottom: 30px;
+    }
+    .info {
+      background: #fef3c7;
+      border: 1px solid #f59e0b;
+      border-radius: 6px;
+      padding: 15px;
+      margin-bottom: 30px;
+    }
+    .success {
+      background: #d1fae5;
+      border: 1px solid #10b981;
+      border-radius: 6px;
+      padding: 15px;
+      margin-top: 30px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎯 RR# Display Test</h1>
+  <p class="subtitle">This is what you should see on the recap page</p>
+
+  <div class="info">
+    <strong>⚠️ IMPORTANT:</strong> If the recap page doesn't look like the examples below, 
+    clear your browser cache (Ctrl+F5) or open in incognito mode.
+  </div>
+
+  <h2>Example 1: Posted Lane</h2>
+  <div class="test-card">
+    <div class="rr-banner">
+      <div style="display: flex; align-items: center;">
+        <span class="rr-label">REFERENCE #</span>
+        <span class="rr-value">RR03331</span>
+      </div>
+      <span class="badge">POSTED</span>
+    </div>
+    <div class="card-body">
+      <h3 style="margin: 0 0 10px 0; font-size: 14px;">Fitzgerald, GA → Clinton, SC</h3>
+      <p style="color: #64748b; font-size: 13px; margin: 0;">FD • 48ft • 47,500 lbs • Oct 3 – Oct 3</p>
+    </div>
+  </div>
+
+  <h2>Example 2: Active Lane</h2>
+  <div class="test-card">
+    <div class="rr-banner">
+      <div style="display: flex; align-items: center;">
+        <span class="rr-label">REFERENCE #</span>
+        <span class="rr-value">RR51413</span>
+      </div>
+      <span class="badge" style="background: #06b6d4;">ACTIVE</span>
+    </div>
+    <div class="card-body">
+      <h3 style="margin: 0 0 10px 0; font-size: 14px;">Mapleville, AL → Milan, TN</h3>
+      <p style="color: #64748b; font-size: 13px; margin: 0;">FD • 48ft • 40-47,500 lbs • Oct 3 – Oct 3</p>
+    </div>
+  </div>
+
+  <h2>Example 3: Another Lane</h2>
+  <div class="test-card">
+    <div class="rr-banner">
+      <div style="display: flex; align-items: center;">
+        <span class="rr-label">REFERENCE #</span>
+        <span class="rr-value">RR00186</span>
+      </div>
+      <span class="badge" style="background: #06b6d4;">ACTIVE</span>
+    </div>
+    <div class="card-body">
+      <h3 style="margin: 0 0 10px 0; font-size: 14px;">Mapleville, AL → Hillsboro, IL</h3>
+      <p style="color: #64748b; font-size: 13px; margin: 0;">FD • 48ft • 45,000 lbs • Oct 3 – Oct 3</p>
+    </div>
+  </div>
+
+  <div class="success">
+    <strong>✅ If your recap page looks like these examples, it's working perfectly!</strong>
+    <br><br>
+    The RR# (like <code style="background: #fff; padding: 2px 6px; border-radius: 3px;">RR03331</code>) 
+    should be in a blue banner at the top of each card, not a small badge in the corner.
+  </div>
+
+  <h2 style="margin-top: 40px;">📊 Key Visual Elements</h2>
+  <ul>
+    <li><strong>Blue gradient background</strong> on RR# banner</li>
+    <li><strong>3px blue border</strong> below the RR#</li>
+    <li><strong>Large 18px monospace font</strong> for the RR# number</li>
+    <li><strong>Letter spacing</strong> makes it easy to read (R R 0 3 3 3 1)</li>
+    <li><strong>Always at the TOP</strong> of each card</li>
+  </ul>
+
+  <h2 style="margin-top: 40px;">🔧 Still Not Seeing It?</h2>
+  <ol>
+    <li><strong>Hard Refresh:</strong> Press Ctrl+F5 (Windows) or Cmd+Shift+R (Mac)</li>
+    <li><strong>Clear Cache:</strong> Ctrl+Shift+Delete → Clear cached files</li>
+    <li><strong>Incognito Mode:</strong> Open recap page in private/incognito window</li>
+    <li><strong>Wait 2-3 minutes:</strong> Vercel might still be deploying</li>
+  </ol>
+
+  <div style="margin-top: 40px; padding: 20px; background: #e2e8f0; border-radius: 8px;">
+    <strong>🚀 Deployment Status:</strong><br>
+    Latest commit pushed at: <code id="timestamp"></code><br>
+    Vercel should deploy within 2-3 minutes of push.
+  </div>
+
+  <script>
+    document.getElementById('timestamp').textContent = new Date().toLocaleString();
+  </script>
+</body>
+</html>

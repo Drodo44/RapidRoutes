@@ -1,0 +1,6 @@
+# Deployment verification logs
+deploy-history.json
+
+# Keep directory but ignore contents
+*
+!.gitignore

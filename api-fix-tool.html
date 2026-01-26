@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RapidRoutes Emergency API Fix</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #e0e0e0;
+            background-color: #1e1e2e;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #f38ba8;
+            border-bottom: 2px solid #313244;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #89b4fa;
+            margin-top: 30px;
+        }
+        pre {
+            background-color: #313244;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            margin: 20px 0;
+        }
+        .code {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #313244;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            white-space: pre-wrap;
+        }
+        button {
+            background-color: #89b4fa;
+            color: #1e1e2e;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #b4befe;
+        }
+        .error {
+            background-color: rgba(243, 139, 168, 0.2);
+            border-left: 4px solid #f38ba8;
+            padding: 10px 15px;
+            margin: 20px 0;
+        }
+        .success {
+            background-color: rgba(166, 227, 161, 0.2);
+            border-left: 4px solid #a6e3a1;
+            padding: 10px 15px;
+            margin: 20px 0;
+        }
+        .warning {
+            background-color: rgba(249, 226, 175, 0.2);
+            border-left: 4px solid #f9e2af;
+            padding: 10px 15px;
+            margin: 20px 0;
+        }
+        .info {
+            background-color: rgba(137, 180, 250, 0.2);
+            border-left: 4px solid #89b4fa;
+            padding: 10px 15px;
+            margin: 20px 0;
+        }
+        .step {
+            margin-bottom: 30px;
+            border-left: 3px solid #585b70;
+            padding-left: 15px;
+        }
+        #results {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #313244;
+            border-radius: 5px;
+            display: none;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        input, textarea {
+            background-color: #313244;
+            border: 1px solid #45475a;
+            color: #e0e0e0;
+            padding: 8px;
+            width: 100%;
+            border-radius: 4px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #cdd6f4;
+        }
+        .step-indicator {
+            display: inline-block;
+            width: 28px;
+            height: 28px;
+            background-color: #89b4fa;
+            color: #1e1e2e;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 28px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #313244;
+            font-size: 0.9em;
+            color: #7f849c;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚨 RapidRoutes Emergency API Fix 🚨</h1>
+    
+    <div class="warning">
+        <strong>Important:</strong> This tool will help fix the intelligence-pairing API by creating the necessary RPC function in your Supabase database.
+    </div>
+    
+    <div class="step">
+        <h2><span class="step-indicator">1</span>Problem Diagnosis</h2>
+        <p>The API is failing because the required RPC function <code>find_cities_within_radius</code> is missing from the Supabase database. This function is used for geospatial queries to find cities within a certain radius.</p>
+        
+        <div class="info">
+            <p>Symptoms of this issue:</p>
+            <ul>
+                <li>Intelligence-pairing API returns empty results</li>
+                <li>Errors in browser console about missing RPC function</li>
+                <li>City crawl generation fails</li>
+                <li>DAT exports contain fewer city pairs than expected</li>
+            </ul>
+        </div>
+    </div>
+    
+    <div class="step">
+        <h2><span class="step-indicator">2</span>SQL Fix</h2>
+        <p>Copy the SQL below and execute it in your Supabase SQL Editor:</p>
+        
+        <button id="copy-sql">Copy SQL to Clipboard</button>
+        
+        <pre id="sql-code">-- Create the missing find_cities_within_radius RPC function
+-- This function is essential for geographic crawl pair generation
+
+-- Enable PostGIS extension if not already enabled
+CREATE EXTENSION IF NOT EXISTS postgis;
+CREATE EXTENSION IF NOT EXISTS earthdistance CASCADE;
+
+-- Drop function if exists to avoid conflicts
+DROP FUNCTION IF EXISTS find_cities_within_radius(double precision, double precision, double precision);
+
+-- Create the PostGIS helper function for geospatial city search
+-- Usage: select * from find_cities_within_radius(lat_param, lng_param, radius_meters)
+CREATE OR REPLACE FUNCTION find_cities_within_radius(lat_param double precision, lng_param double precision, radius_meters double precision)
+RETURNS SETOF cities AS $$
+  SELECT * FROM cities
+  WHERE earth_distance(ll_to_earth(latitude, longitude), ll_to_earth(lat_param, lng_param)) <= radius_meters
+    AND latitude IS NOT NULL 
+    AND longitude IS NOT NULL
+    AND kma_code IS NOT NULL  -- Ensure KMA diversity
+  ORDER BY earth_distance(ll_to_earth(latitude, longitude), ll_to_earth(lat_param, lng_param))
+  LIMIT 100;  -- Prevent excessive results
+$$ LANGUAGE sql STABLE;
+
+-- Grant proper permissions for all roles
+GRANT EXECUTE ON FUNCTION find_cities_within_radius(double precision, double precision, double precision) TO anon;
+GRANT EXECUTE ON FUNCTION find_cities_within_radius(double precision, double precision, double precision) TO authenticated;
+GRANT EXECUTE ON FUNCTION find_cities_within_radius(double precision, double precision, double precision) TO service_role;
+
+-- Test the function with Raleigh, NC coordinates (should return cities within ~50 miles)
+SELECT 
+  city, 
+  state_or_province, 
+  kma_name,
+  ROUND(earth_distance(ll_to_earth(latitude, longitude), ll_to_earth(35.7796, -78.6382))) as distance_meters
+FROM find_cities_within_radius(35.7796, -78.6382, 80467)
+LIMIT 10;</pre>
+    </div>
+    
+    <div class="step">
+        <h2><span class="step-indicator">3</span>Execute in Supabase</h2>
+        <ol>
+            <li>Log in to your <a href="https://app.supabase.io" target="_blank">Supabase Dashboard</a></li>
+            <li>Select your RapidRoutes project</li>
+            <li>Go to the "SQL Editor" section</li>
+            <li>Create a "New Query"</li>
+            <li>Paste the SQL code above</li>
+            <li>Click "Run" to execute the query</li>
+        </ol>
+        
+        <div class="info">
+            <p>You should see a result set with cities near Raleigh, NC if the function was created successfully.</p>
+        </div>
+    </div>
+    
+    <div class="step">
+        <h2><span class="step-indicator">4</span>Test the API</h2>
+        <p>Once the SQL has been executed, you can test the API directly:</p>
+        
+        <div class="input-group">
+            <label for="api-url">API URL:</label>
+            <input type="text" id="api-url" value="https://rapidroutes.vercel.app/api/intelligence-pairing" placeholder="Enter your API URL">
+        </div>
+        
+        <div class="input-group">
+            <label for="api-key">API Key (JWT Token):</label>
+            <input type="text" id="api-key" placeholder="Paste your JWT Token here">
+        </div>
+        
+        <button id="test-api">Test API</button>
+        
+        <div id="results"></div>
+    </div>
+    
+    <div class="step">
+        <h2><span class="step-indicator">5</span>Verify Fix</h2>
+        <p>To verify the fix is working completely, check the following:</p>
+        <ul>
+            <li>The API now returns city pairs instead of empty results or errors</li>
+            <li>DAT exports contain the expected number of city pairs</li>
+            <li>No more error messages in the browser console related to RPC functions</li>
+        </ul>
+        
+        <div class="success" id="fix-complete" style="display: none;">
+            <h3>✅ Fix Complete!</h3>
+            <p>The intelligence-pairing API is now working correctly. You can continue using RapidRoutes without further issues.</p>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <p>This fix was generated for RapidRoutes © 2023</p>
+    </div>
+    
+    <script>
+        // Copy SQL code to clipboard
+        document.getElementById('copy-sql').addEventListener('click', function() {
+            const sqlCode = document.getElementById('sql-code').textContent;
+            navigator.clipboard.writeText(sqlCode).then(function() {
+                alert('SQL code copied to clipboard!');
+            }).catch(function(err) {
+                console.error('Could not copy text: ', err);
+            });
+        });
+        
+        // Test API function
+        document.getElementById('test-api').addEventListener('click', async function() {
+            const apiUrl = document.getElementById('api-url').value.trim();
+            const apiKey = document.getElementById('api-key').value.trim();
+            const results = document.getElementById('results');
+            
+            results.style.display = 'block';
+            results.innerHTML = '<p>Testing API...</p>';
+            
+            try {
+                // Sample lane data for testing
+                const testData = {
+                    lane: {
+                        origin_city: 'Raleigh',
+                        origin_state: 'NC',
+                        origin_zip: '27601',
+                        dest_city: 'Charlotte',
+                        dest_state: 'NC',
+                        dest_zip: '28202',
+                        equipment_code: 'V',
+                        weight_lbs: 40000
+                    }
+                };
+                
+                // Call the API
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': apiKey ? `Bearer ${apiKey}` : '',
+                        'X-Test-Mode': 'true',
+                        'X-Debug-Mode': 'true'
+                    },
+                    body: JSON.stringify(testData)
+                });
+                
+                const responseData = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(JSON.stringify(responseData, null, 2));
+                }
+                
+                // Display results
+                const cityPairs = responseData.cityPairs || [];
+                
+                if (cityPairs.length === 0) {
+                    results.innerHTML = `
+                        <div class="warning">
+                            <p>API responded successfully but returned 0 city pairs.</p>
+                            <p>This might indicate an issue with the city data or parameters.</p>
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('fix-complete').style.display = 'block';
+                    
+                    results.innerHTML = `
+                        <div class="success">
+                            <h3>✅ API Test Successful!</h3>
+                            <p>The API returned ${cityPairs.length} city pairs.</p>
+                        </div>
+                        <h4>Sample City Pairs:</h4>
+                        <ul>
+                            ${cityPairs.slice(0, 5).map(pair => `
+                                <li>${pair.origin.city}, ${pair.origin.state_or_province} → ${pair.destination.city}, ${pair.destination.state_or_province}</li>
+                            `).join('')}
+                        </ul>
+                    `;
+                }
+                
+            } catch (error) {
+                results.innerHTML = `
+                    <div class="error">
+                        <h3>❌ API Test Failed</h3>
+                        <p>Error: ${error.message}</p>
+                        <p>Please make sure:</p>
+                        <ul>
+                            <li>The SQL function was created successfully</li>
+                            <li>You're using a valid JWT token (if authentication is required)</li>
+                            <li>Your API URL is correct</li>
+                        </ul>
+                    </div>
+                `;
+            }
+        });
+    </script>
+</body>
+</html>

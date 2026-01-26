@@ -1,0 +1,95 @@
+name: Post-Deployment Verification
+
+on:
+  # Run after successful deployment
+  deployment_status:
+  
+  # Also allow manual trigger
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to verify'
+        required: false
+        default: 'production'
+
+jobs:
+  verify-deployment:
+    name: Verify Production Deployment
+    runs-on: ubuntu-latest
+    
+    # Only run on successful deployments to production
+    if: |
+      github.event_name == 'workflow_dispatch' || 
+      (github.event.deployment_status.state == 'success' && 
+       github.event.deployment_status.environment == 'production')
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.deployment.ref || github.ref }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci --omit=dev
+      
+      - name: Run post-deployment verification
+        env:
+          DEPLOYMENT_URL: ${{ secrets.PRODUCTION_URL || 'https://rapid-routes.vercel.app' }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          VERCEL_URL: ${{ github.event.deployment_status.environment_url }}
+        run: npm run verify:production
+      
+      - name: Upload verification results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-verification-${{ github.run_number }}
+          path: logs/deploy-history.json
+          retention-days: 90
+      
+      - name: Comment on commit (on failure)
+        if: failure() && github.event_name == 'deployment_status'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const commit_sha = '${{ github.event.deployment.sha }}';
+            const run_url = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            
+            await github.rest.repos.createCommitComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: commit_sha,
+              body: `⚠️ **Post-deployment verification FAILED**\n\nSome production checks did not pass.\n\n[View details](${run_url})`
+            });
+      
+      - name: Create issue (on failure)
+        if: failure() && github.event_name == 'deployment_status'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const commit_sha = '${{ github.event.deployment.sha }}';
+            const run_url = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            
+            // Check if there's already an open issue for deployment failures
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'deployment-failure'
+            });
+            
+            if (issues.data.length === 0) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `🚨 Production Deployment Verification Failed - ${commit_sha.substring(0, 7)}`,
+                body: `## Post-Deployment Verification Failed\n\n**Commit:** ${commit_sha}\n**Time:** ${new Date().toISOString()}\n\n### Details\nOne or more production health checks failed after deployment.\n\n### Action Items\n- [ ] Review [workflow run](${run_url})\n- [ ] Check Vercel deployment logs\n- [ ] Verify all environment variables are set correctly\n- [ ] Test endpoints manually\n- [ ] Roll back if necessary\n\n### Critical Checks\n- Health endpoint (\`/api/health\`)\n- Environment variables (\`/api/env-check\`)\n- Authentication (\`/api/auth/profile\`)\n- Data endpoints (\`/api/lanes\`)\n\ncc: @${context.actor}`,
+                labels: ['deployment-failure', 'production', 'urgent']
+              });
+            }

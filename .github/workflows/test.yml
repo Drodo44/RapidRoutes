@@ -1,0 +1,112 @@
+name: CI Tests & Smoke
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18.x
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm test
+
+  production-smoke-test:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    env:
+      HERE_API_KEY: ${{ secrets.HERE_API_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      # Additional Supabase anon key if needed by script (not used currently)
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_PROJECT: ${{ secrets.VERCEL_PROJECT_ID }}
+      VERCEL_ORG: ${{ secrets.VERCEL_ORG_ID }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18.x
+          cache: 'npm'
+
+      - name: Install dependencies (prod smoke)
+        run: npm ci --omit=dev || npm ci
+
+      - name: Resolve Vercel production deployment (API readiness wait)
+        run: |
+          set -e
+          if [ -z "$VERCEL_TOKEN" ]; then echo "VERCEL_TOKEN not set"; exit 1; fi
+          if [ -z "$VERCEL_PROJECT" ]; then echo "VERCEL_PROJECT (project id) secret not set"; exit 1; fi
+          if [ -z "$VERCEL_ORG" ]; then echo "VERCEL_ORG (org/team id) secret not set"; exit 1; fi
+          command -v jq >/dev/null 2>&1 || (sudo apt-get update -y && sudo apt-get install -y jq)
+          echo "Resolving deployment for commit $GITHUB_SHA (project=$VERCEL_PROJECT)"
+          DEADLINE=$((SECONDS + 300))
+          LAST_STATE=""
+          while [ $SECONDS -lt $DEADLINE ]; do
+            # List recent deployments for project (assuming project name); fall back to projectId if provided as ID
+            LIST=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" "https://api.vercel.com/v13/deployments?app=$VERCEL_PROJECT&limit=20&teamId=$VERCEL_ORG")
+            # Extract deployment uid matching commit
+            DEPLOY_ID=$(echo "$LIST" | jq -r --arg sha "$GITHUB_SHA" '.deployments | map(select(.meta.githubCommitSha==$sha)) | sort_by(.created) | last | .uid // empty')
+            if [ -n "$DEPLOY_ID" ]; then
+              DETAIL=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" "https://api.vercel.com/v13/deployments/$DEPLOY_ID?teamId=$VERCEL_ORG")
+              STATE=$(echo "$DETAIL" | jq -r '.state')
+              URL_SUFFIX=$(echo "$DETAIL" | jq -r '.url')
+              if [ "$STATE" != "$LAST_STATE" ]; then
+                echo "Deployment $DEPLOY_ID state=$STATE url=$URL_SUFFIX"; LAST_STATE=$STATE; fi
+              if [ "$STATE" = "READY" ]; then
+                echo "Deployment is READY";
+                echo "DEPLOYMENT_ID=$DEPLOY_ID" >> $GITHUB_ENV
+                echo "DEPLOYMENT_URL=https://$URL_SUFFIX" >> $GITHUB_ENV
+                break
+              elif [ "$STATE" = "ERROR" ]; then
+                echo "Deployment entered ERROR state"; exit 1
+              fi
+            else
+              echo "No deployment for commit yet (waiting)..."
+            fi
+            sleep 5
+          done
+          if [ -z "$DEPLOYMENT_URL" ]; then echo "Timed out (300s) waiting for deployment to become READY"; exit 1; fi
+          echo "Resolved deployment URL: $DEPLOYMENT_URL"
+
+      - name: Record smoke start time
+        run: echo "SMOKE_START=$(date +%s)" >> $GITHUB_ENV
+
+      - name: Run production smoke test
+        run: |
+          node scripts/verify-production-pairing.js --debug
+
+      - name: Log smoke test duration
+        if: always()
+        run: |
+          END=$(date +%s)
+          DURATION=$((END - SMOKE_START))
+            if [ -z "$DEPLOYMENT_URL" ]; then DEPLOYMENT_URL="(unknown)"; fi
+          echo "Smoke test against $DEPLOYMENT_URL completed in ${DURATION}s"
+
+      - name: Slack notification (failure only)
+        if: failure() && env.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          payload=$(jq -n --arg text "Production smoke test FAILED for $GITHUB_SHA" '{text:$text}')
+          curl -s -X POST -H 'Content-Type: application/json' --data "$payload" "$SLACK_WEBHOOK_URL" || echo 'Slack notification failed'

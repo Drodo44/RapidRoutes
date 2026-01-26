@@ -1,0 +1,9 @@
+# GitHub Copilot Configuration Files
+.github/copilot-instructions.md @Drodo44
+.copilotrc.json @Drodo44
+COPILOT.md @Drodo44
+
+# Core Configuration
+.gptconfig.json @Drodo44
+README_AGENT.md @Drodo44
+tasks.yaml @Drodo44

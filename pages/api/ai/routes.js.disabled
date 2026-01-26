@@ -1,0 +1,29 @@
+/**
+ * Get routing rules API
+ */
+
+import { getOrchestrator } from '../../lib/aiOrchestration.js';
+
+export default async function handler(req, res) {
+  if (req.method !== 'GET') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  try {
+    const orchestrator = getOrchestrator();
+    const routes = orchestrator.getAllRoutes();
+
+    res.status(200).json({
+      success: true,
+      count: routes.length,
+      routes
+    });
+
+  } catch (error) {
+    console.error('Error fetching routes:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch routes',
+      message: error.message 
+    });
+  }
+}

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RapidRoutes API Tester</title>
+  <style>
+    body {
+      font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #1e1e1e;
+      color: #e0e0e0;
+    }
+    h1, h2 {
+      color: #fff;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .card {
+      background-color: #2d2d2d;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      color: #bbb;
+    }
+    input, select, textarea {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 15px;
+      background-color: #3d3d3d;
+      border: 1px solid #555;
+      border-radius: 4px;
+      color: #fff;
+      font-size: 14px;
+    }
+    textarea {
+      min-height: 150px;
+      font-family: monospace;
+    }
+    button {
+      background-color: #4CAF50;
+      color: white;
+      padding: 10px 15px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    .response {
+      background-color: #3d3d3d;
+      padding: 15px;
+      border-radius: 4px;
+      overflow-x: auto;
+    }
+    .status {
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 4px;
+    }
+    .success {
+      background-color: #2e7d32;
+    }
+    .error {
+      background-color: #c62828;
+    }
+    .warning {
+      background-color: #ff8f00;
+    }
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>RapidRoutes API Tester</h1>
+    
+    <div class="card">
+      <h2>API Configuration</h2>
+      <div>
+        <label for="endpoint">API Endpoint</label>
+        <input type="text" id="endpoint" value="https://rapid-routes.vercel.app/api/kma-lookup">
+      </div>
+      
+      <div>
+        <label for="method">HTTP Method</label>
+        <select id="method">
+          <option value="POST" selected>POST</option>
+          <option value="GET">GET</option>
+          <option value="PUT">PUT</option>
+        </select>
+      </div>
+      
+      <div>
+        <label for="token">Authentication Token (optional)</label>
+        <input type="text" id="token" placeholder="Bearer ...">
+      </div>
+      
+      <div>
+        <label for="mockAuth">Use Mock Auth</label>
+        <input type="checkbox" id="mockAuth" checked>
+      </div>
+    </div>
+    
+    <div class="card">
+      <h2>Request Payload</h2>
+      <textarea id="payload">{
+  "lane_id": "61f287f5-278a-4277-b3fe-9055aad1fec8",
+  "origin_city": "Riegelwood",
+  "origin_state": "NC",
+  "destination_city": "Massillon",
+  "destination_state": "OH",
+  "equipment_code": "V"
+}</textarea>
+      <button id="sendRequest">Send Request</button>
+    </div>
+    
+    <div class="card">
+      <h2>Response</h2>
+      <div id="statusContainer"></div>
+      <div class="response">
+        <pre id="responseContent">Results will appear here...</pre>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('sendRequest').addEventListener('click', async () => {
+      const endpoint = document.getElementById('endpoint').value;
+      const method = document.getElementById('method').value;
+      const token = document.getElementById('token').value;
+      const payloadText = document.getElementById('payload').value;
+      const useMockAuth = document.getElementById('mockAuth').checked;
+      
+      const statusContainer = document.getElementById('statusContainer');
+      const responseContent = document.getElementById('responseContent');
+      
+      try {
+        // Parse payload
+        const payload = JSON.parse(payloadText);
+        
+        // Update status
+        statusContainer.innerHTML = '<div class="status warning">Sending request...</div>';
+        
+        // Build URL with mock auth if needed
+        let url = endpoint;
+        if (useMockAuth) {
+          url += (url.includes('?') ? '&' : '?') + 'mock_auth=true';
+        }
+        
+        // Send request
+        const response = await fetch(url, {
+          method: method,
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': token.startsWith('Bearer ') ? token : `Bearer ${token}` } : {})
+          },
+          body: method !== 'GET' ? JSON.stringify(payload) : undefined
+        });
+        
+        // Get response text
+        const responseText = await response.text();
+        
+        // Try to parse as JSON
+        let jsonResponse;
+        try {
+          jsonResponse = JSON.parse(responseText);
+          responseContent.textContent = JSON.stringify(jsonResponse, null, 2);
+        } catch (e) {
+          // If not JSON, just show the text
+          responseContent.textContent = responseText;
+        }
+        
+        // Update status based on response
+        if (response.ok) {
+          statusContainer.innerHTML = `<div class="status success">✅ Success: ${response.status} ${response.statusText}</div>`;
+        } else {
+          statusContainer.innerHTML = `<div class="status error">❌ Error: ${response.status} ${response.statusText}</div>`;
+        }
+        
+      } catch (error) {
+        statusContainer.innerHTML = `<div class="status error">❌ Error: ${error.message}</div>`;
+        responseContent.textContent = error.stack || error.message;
+      }
+    });
+  </script>
+</body>
+</html>

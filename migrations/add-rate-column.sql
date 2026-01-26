@@ -1,0 +1,2 @@
+
+ALTER TABLE public.lanes ADD COLUMN IF NOT EXISTS rate NUMERIC;

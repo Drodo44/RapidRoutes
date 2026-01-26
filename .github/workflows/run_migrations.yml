@@ -1,0 +1,31 @@
+name: Run DB Migrations (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      migrate_lane_intelligence:
+        description: 'Apply lane_intelligence.sql migration'
+        required: true
+        default: 'yes'
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install psql
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Run migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "Missing DATABASE_URL secret"; exit 1;
+          fi
+          echo "Applying performance_queue migration..."
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/migrations/20250909_add_performance_queue.sql
+          echo "Applying lane intelligence migration..."
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/lane_intelligence.sql

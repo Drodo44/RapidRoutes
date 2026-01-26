@@ -1,0 +1,6 @@
+{
+  "error": "Unauthorized",
+  "details": "invalid JWT: unable to parse or verify signature, token signature is invalid: signature is invalid",
+  "code": "bad_jwt",
+  "success": false
+}

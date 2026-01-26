@@ -1,0 +1,64 @@
+{
+  "noToken": {
+    "status": 401,
+    "headers": {
+      "cache-control": "public, max-age=0, must-revalidate",
+      "content-length": "90",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Sun, 21 Sep 2025 04:23:59 GMT",
+      "etag": "\"12hj70ajcs92i\"",
+      "server": "Vercel",
+      "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+      "x-matched-path": "/api/intelligence-pairing",
+      "x-vercel-cache": "MISS",
+      "x-vercel-id": "iad1::iad1::2nw85-1758428639891-3127618fb3da"
+    },
+    "result": {
+      "error": "Unauthorized",
+      "details": "Missing Supabase authentication token",
+      "success": false
+    }
+  },
+  "mockToken": {
+    "status": 401,
+    "headers": {
+      "cache-control": "public, max-age=0, must-revalidate",
+      "content-length": "168",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Sun, 21 Sep 2025 04:24:00 GMT",
+      "etag": "\"70zd8scobt4o\"",
+      "server": "Vercel",
+      "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+      "x-matched-path": "/api/intelligence-pairing",
+      "x-vercel-cache": "MISS",
+      "x-vercel-id": "iad1::iad1::mjnd9-1758428639937-f87701ae4acb"
+    },
+    "result": {
+      "error": "Unauthorized",
+      "details": "invalid JWT: unable to parse or verify signature, token signature is invalid: signature is invalid",
+      "code": "bad_jwt",
+      "success": false
+    }
+  },
+  "malformedToken": {
+    "status": 401,
+    "headers": {
+      "cache-control": "public, max-age=0, must-revalidate",
+      "content-length": "184",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Sun, 21 Sep 2025 04:24:00 GMT",
+      "etag": "\"16hmg4i3nin54\"",
+      "server": "Vercel",
+      "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+      "x-matched-path": "/api/intelligence-pairing",
+      "x-vercel-cache": "MISS",
+      "x-vercel-id": "iad1::iad1::mjnd9-1758428640210-bd791dc1111c"
+    },
+    "result": {
+      "error": "Unauthorized",
+      "details": "invalid JWT: unable to parse or verify signature, token is malformed: token contains an invalid number of segments",
+      "code": "bad_jwt",
+      "success": false
+    }
+  }
+}

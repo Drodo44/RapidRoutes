@@ -1,0 +1,17 @@
+{
+  "timestamp": "2025-09-21T20:41:17.089Z",
+  "api_url": "https://rapid-routes.vercel.app/api/intelligence-pairing",
+  "no_auth": {
+    "status": 401,
+    "response": "{\"error\":\"Unauthorized\",\"details\":\"Missing Supabase authentication token\",\"success\":false}"
+  },
+  "fake_token": {
+    "status": 401,
+    "response": "{\"error\":\"Unauthorized\",\"details\":\"invalid JWT: unable to parse or verify signature, token is malformed: token contains an invalid number of segments\",\"code\":\"bad_jwt\",\"success\":false}"
+  },
+  "analysis": {
+    "auth_required": true,
+    "token_validation_works": true,
+    "appears_functional": true
+  }
+}

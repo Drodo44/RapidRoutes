@@ -1,0 +1,299 @@
+// Simple HTML test page for intelligence-pairing API
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Intelligence Pairing API Test</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #1a1a1a;
+      color: #e0e0e0;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    h1, h2 {
+      color: #4da6ff;
+    }
+    button {
+      background-color: #0066cc;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      margin: 10px 0;
+      border-radius: 4px;
+    }
+    button:hover {
+      background-color: #0052a3;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      color: #b0b0b0;
+    }
+    input, select {
+      width: 100%;
+      padding: 8px;
+      border-radius: 4px;
+      border: 1px solid #444;
+      background-color: #2a2a2a;
+      color: #e0e0e0;
+    }
+    .row {
+      display: flex;
+      gap: 10px;
+    }
+    .row > div {
+      flex: 1;
+    }
+    .results {
+      margin-top: 20px;
+      padding: 15px;
+      background-color: #2a2a2a;
+      border-radius: 4px;
+      white-space: pre-wrap;
+      overflow-x: auto;
+    }
+    .error {
+      color: #ff6b6b;
+    }
+    .success {
+      color: #69db7c;
+    }
+    .info {
+      color: #4da6ff;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    th, td {
+      padding: 8px;
+      text-align: left;
+      border-bottom: 1px solid #444;
+    }
+    th {
+      background-color: #333;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Intelligence Pairing API Test</h1>
+    
+    <div class="form-group">
+      <div class="row">
+        <div>
+          <label for="originCity">Origin City</label>
+          <input type="text" id="originCity" value="Atlanta" required>
+        </div>
+        <div>
+          <label for="originState">Origin State</label>
+          <input type="text" id="originState" value="GA" required>
+        </div>
+        <div>
+          <label for="originZip">Origin ZIP (optional)</label>
+          <input type="text" id="originZip" value="30303">
+        </div>
+      </div>
+    </div>
+    
+    <div class="form-group">
+      <div class="row">
+        <div>
+          <label for="destCity">Destination City</label>
+          <input type="text" id="destCity" value="Chicago" required>
+        </div>
+        <div>
+          <label for="destState">Destination State</label>
+          <input type="text" id="destState" value="IL" required>
+        </div>
+        <div>
+          <label for="destZip">Destination ZIP (optional)</label>
+          <input type="text" id="destZip" value="60601">
+        </div>
+      </div>
+    </div>
+    
+    <div class="form-group">
+      <div class="row">
+        <div>
+          <label for="equipmentCode">Equipment Code</label>
+          <select id="equipmentCode">
+            <option value="FD">FD - Flatbed</option>
+            <option value="V">V - Van</option>
+            <option value="R">R - Reefer</option>
+            <option value="SD">SD - Step Deck</option>
+            <option value="DD">DD - Double Drop</option>
+          </select>
+        </div>
+        <div>
+          <label for="weight">Weight (lbs)</label>
+          <input type="number" id="weight" value="42000">
+        </div>
+        <div>
+          <label for="length">Length (ft)</label>
+          <input type="number" id="length" value="48">
+        </div>
+      </div>
+    </div>
+    
+    <div class="form-group">
+      <div class="row">
+        <div>
+          <label for="radius">Search Radius (miles)</label>
+          <input type="number" id="radius" value="75">
+        </div>
+        <div>
+          <label for="testMode">Test Mode</label>
+          <select id="testMode">
+            <option value="false">No</option>
+            <option value="true">Yes</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    
+    <button id="testButton">Test API</button>
+    <button id="clearButton">Clear Results</button>
+    
+    <div class="results" id="results">Results will appear here...</div>
+    
+    <div id="pairsContainer" style="display:none;">
+      <h2>Generated City Pairs</h2>
+      <p class="info">Showing <span id="pairCount">0</span> pairs</p>
+      <table id="pairsTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Origin</th>
+            <th>KMA</th>
+            <th>Distance</th>
+            <th>Destination</th>
+            <th>KMA</th>
+            <th>Distance</th>
+          </tr>
+        </thead>
+        <tbody id="pairsTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const testButton = document.getElementById('testButton');
+      const clearButton = document.getElementById('clearButton');
+      const resultsDiv = document.getElementById('results');
+      const pairsContainer = document.getElementById('pairsContainer');
+      const pairsTableBody = document.getElementById('pairsTableBody');
+      const pairCount = document.getElementById('pairCount');
+      
+      testButton.addEventListener('click', async () => {
+        testButton.disabled = true;
+        resultsDiv.innerHTML = 'Testing API...';
+        pairsContainer.style.display = 'none';
+        
+        try {
+          // Gather form values
+          const originCity = document.getElementById('originCity').value;
+          const originState = document.getElementById('originState').value;
+          const originZip = document.getElementById('originZip').value;
+          const destCity = document.getElementById('destCity').value;
+          const destState = document.getElementById('destState').value;
+          const destZip = document.getElementById('destZip').value;
+          const equipmentCode = document.getElementById('equipmentCode').value;
+          const weight = document.getElementById('weight').value;
+          const length = document.getElementById('length').value;
+          const radius = document.getElementById('radius').value;
+          const testMode = document.getElementById('testMode').value;
+          
+          // Construct API URL with query parameters
+          const apiUrl = `/api/intelligence-pairing?radius=${radius}&test_mode=${testMode}`;
+          
+          // Construct request body
+          const requestBody = {
+            lane: {
+              origin_city: originCity,
+              origin_state: originState,
+              origin_zip: originZip,
+              dest_city: destCity,
+              dest_state: destState,
+              dest_zip: destZip,
+              equipment_code: equipmentCode,
+              weight_lbs: parseInt(weight),
+              length_ft: parseInt(length)
+            }
+          };
+          
+          // Make the API request
+          const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
+          });
+          
+          const result = await response.json();
+          
+          // Display the results
+          resultsDiv.innerHTML = `<span class="info">Status Code:</span> ${response.status}
+<span class="info">Success:</span> ${result.success}
+<span class="info">Message:</span> ${result.message}
+<span class="info">Request ID:</span> ${result.requestId}
+<span class="info">Processing Time:</span> ${result.processingTimeMs}ms
+
+<span class="info">Response Data:</span>
+${JSON.stringify(result, null, 2)}`;
+          
+          // Show pairs table if we have pairs
+          if (result.pairs && result.pairs.length > 0) {
+            displayPairsTable(result.pairs);
+          }
+        } catch (error) {
+          resultsDiv.innerHTML = `<span class="error">Error:</span> ${error.message}`;
+        } finally {
+          testButton.disabled = false;
+        }
+      });
+      
+      clearButton.addEventListener('click', () => {
+        resultsDiv.innerHTML = 'Results will appear here...';
+        pairsContainer.style.display = 'none';
+      });
+      
+      function displayPairsTable(pairs) {
+        pairCount.textContent = pairs.length;
+        pairsTableBody.innerHTML = '';
+        
+        pairs.forEach((pair, index) => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${index + 1}</td>
+            <td>${pair.origin.city}, ${pair.origin.state}</td>
+            <td>${pair.origin.kma_code || 'N/A'}</td>
+            <td>${pair.origin.distance_miles ? pair.origin.distance_miles.toFixed(1) + 'mi' : 'N/A'}</td>
+            <td>${pair.destination.city}, ${pair.destination.state}</td>
+            <td>${pair.destination.kma_code || 'N/A'}</td>
+            <td>${pair.destination.distance_miles ? pair.destination.distance_miles.toFixed(1) + 'mi' : 'N/A'}</td>
+          `;
+          pairsTableBody.appendChild(row);
+        });
+        
+        pairsContainer.style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>
