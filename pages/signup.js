@@ -17,13 +17,17 @@ export default function SignupPage() {
   const [loadingTeams, setLoadingTeams] = useState(true);
 
   useEffect(() => {
+    // Skip on server-side (supabase is null during SSR)
+    if (!supabase) return;
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) router.replace('/dashboard');
     });
-    
+
     // Load available teams
     fetchTeams();
   }, [router]);
+
 
   async function fetchTeams() {
     try {
@@ -46,32 +50,32 @@ export default function SignupPage() {
   async function onSubmit(e) {
     e.preventDefault();
     setErr('');
-    
+
     // Validate based on account type
     if (accountType === 'member' && !selectedTeam) {
       setErr('Please select a team to join');
       return;
     }
-    
+
     if (accountType === 'broker' && !teamName.trim()) {
       setErr('Please enter a team name');
       return;
     }
-    
+
     setBusy(true);
     try {
       // 1. Create the auth account
-      const { data: authData, error: signupError } = await supabase.auth.signUp({ 
-        email, 
-        password: pw 
+      const { data: authData, error: signupError } = await supabase.auth.signUp({
+        email,
+        password: pw
       });
-      
+
       if (signupError) throw signupError;
-      
+
       if (!authData.user) {
         throw new Error('Account creation failed - no user returned');
       }
-      
+
       // 2. Setup profile based on account type
       if (accountType === 'broker') {
         // Create new broker with their own team
@@ -83,9 +87,9 @@ export default function SignupPage() {
             teamName: teamName.trim()
           })
         });
-        
+
         const result = await response.json();
-        
+
         if (!response.ok) {
           throw new Error(result.error || 'Failed to create broker account');
         }
@@ -100,14 +104,14 @@ export default function SignupPage() {
             role: selectedRole
           })
         });
-        
+
         const result = await response.json();
-        
+
         if (!response.ok) {
           throw new Error(result.error || 'Failed to join team');
         }
       }
-      
+
       // Success! Redirect to pending approval page
       router.replace('/pending-approval');
     } catch (e) {
@@ -117,211 +121,302 @@ export default function SignupPage() {
     }
   }
 
+  const inputStyle = {
+    width: '100%',
+    padding: '10px 14px',
+    fontSize: '14px',
+    color: '#F1F5F9',
+    background: 'rgba(0,0,0,0.3)',
+    border: '1px solid rgba(255, 255, 255, 0.1)',
+    borderRadius: '8px',
+    transition: 'all 0.2s ease',
+    outline: 'none'
+  };
+
+  const labelStyle = {
+    display: 'block',
+    fontSize: '13px',
+    fontWeight: 500,
+    color: '#CBD5E1',
+    marginBottom: '6px'
+  };
+
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      display: 'flex', 
-      alignItems: 'center', 
-      justifyContent: 'center', 
-      backgroundColor: 'var(--bg-primary)',
-      backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.08) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(16, 185, 129, 0.08) 0%, transparent 50%)'
+    <div style={{
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      minHeight: '100vh',
+      padding: '20px'
     }}>
-      <div style={{ width: '100%', maxWidth: '400px', padding: '0 var(--space-4)' }}>
-        <div style={{ textAlign: 'center', marginBottom: 'var(--space-8)' }}>
-          <div style={{ marginBottom: 'var(--space-4)' }}>
-            <img 
-              src="/rapidroutes-logo.png" 
-              alt="RapidRoutes logo" 
-              className="mx-auto mb-8 h-40 w-40 rounded-full ring-2 ring-cyan-400 drop-shadow-lg transition-transform duration-300 hover:scale-105"
-              style={{
-                height: '160px',
-                width: '160px',
-                margin: '0 auto 32px auto',
-                borderRadius: '50%',
-                border: '2px solid #06b6d4',
-                boxShadow: '0 10px 25px rgba(6, 182, 212, 0.3)',
-                transition: 'transform 0.3s ease',
-                display: 'block'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-            />
-          </div>
-          <h1 style={{ 
-            fontSize: '24px', 
-            fontWeight: 700, 
-            marginBottom: 'var(--space-2)',
-            background: 'linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-            letterSpacing: '-0.02em'
+      <div style={{
+        width: '100%',
+        maxWidth: '420px',
+        padding: '32px',
+        background: 'rgba(255, 255, 255, 0.05)',
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+        borderRadius: '16px',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        boxShadow: '0 12px 40px rgba(0, 0, 0, 0.5)'
+      }}>
+        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+          <img
+            src="/logo.png"
+            alt="RapidRoutes"
+            style={{
+              height: '240px',
+              width: 'auto',
+              margin: '0 auto 16px auto',
+              display: 'block',
+              borderRadius: '50%',
+              border: '2px solid #06B6D4',
+              boxShadow: '0 0 30px rgba(6, 182, 212, 0.3)'
+            }}
+          />
+          <h2 style={{
+            fontSize: '24px',
+            fontWeight: 700,
+            color: '#F1F5F9',
+            marginTop: '12px',
+            marginBottom: '8px'
           }}>
-            RapidRoutes
-          </h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>Create your account</p>
+            Create Account
+          </h2>
+          <p style={{ fontSize: '14px', color: '#94A3B8' }}>
+            Join RapidRoutes today
+          </p>
         </div>
-        <form
-          onSubmit={onSubmit}
-          className="card"
-          style={{ padding: 'var(--space-6)' }}
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-            {/* Account Type Selection */}
-            <div>
-              <label className="form-label">I am a...</label>
-              <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-                <button
-                  type="button"
-                  onClick={() => setAccountType('member')}
-                  style={{
-                    flex: 1,
-                    padding: 'var(--space-3)',
-                    borderRadius: 'var(--radius-md)',
-                    border: `2px solid ${accountType === 'member' ? 'var(--primary)' : 'var(--border-default)'}`,
-                    backgroundColor: accountType === 'member' ? 'var(--primary-light)' : 'transparent',
-                    color: accountType === 'member' ? 'var(--primary)' : 'var(--text-secondary)',
-                    cursor: 'pointer',
-                    fontSize: '13px',
-                    fontWeight: 500,
-                    transition: 'all 0.15s'
-                  }}
-                >
-                  👥 Team Member
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setAccountType('broker')}
-                  style={{
-                    flex: 1,
-                    padding: 'var(--space-3)',
-                    borderRadius: 'var(--radius-md)',
-                    border: `2px solid ${accountType === 'broker' ? 'var(--primary)' : 'var(--border-default)'}`,
-                    backgroundColor: accountType === 'broker' ? 'var(--primary-light)' : 'transparent',
-                    color: accountType === 'broker' ? 'var(--primary)' : 'var(--text-secondary)',
-                    cursor: 'pointer',
-                    fontSize: '13px',
-                    fontWeight: 500,
-                    transition: 'all 0.15s'
-                  }}
-                >
-                  🏢 New Broker
-                </button>
-              </div>
-              <p style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: 'var(--space-1)' }}>
-                {accountType === 'member' 
-                  ? 'Join an existing broker\'s team as Apprentice or Support' 
-                  : 'Create your own team and manage lanes independently'}
-              </p>
-            </div>
-            
-            <div>
-              <label className="form-label">Email</label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="form-input"
-              />
-            </div>
-            <div>
-              <label className="form-label">Password</label>
-              <input
-                type="password"
-                required
-                value={pw}
-                onChange={(e) => setPw(e.target.value)}
-                className="form-input"
-              />
-            </div>
-            
-            {accountType === 'broker' ? (
-              // Broker setup: Team name
-              <div>
-                <label className="form-label">Team Name</label>
-                <input
-                  type="text"
-                  required
-                  value={teamName}
-                  onChange={(e) => setTeamName(e.target.value)}
-                  placeholder="e.g., Connellan Logistics, Smith Freight"
-                  className="form-input"
-                />
-                <p style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: 'var(--space-1)' }}>
-                  Your team name will be visible to members who join your team
-                </p>
-              </div>
-            ) : (
-              // Team member setup: Team + Role selection
-              <>
-                {/* Team Selection */}
-                <div>
-              <label className="form-label">Select Broker Team</label>
-              {loadingTeams ? (
-                <div style={{ padding: 'var(--space-3)', color: 'var(--text-secondary)', fontSize: '13px' }}>
-                  Loading teams...
-                </div>
-              ) : teams.length === 0 ? (
-                <div style={{ padding: 'var(--space-3)', color: 'var(--text-secondary)', fontSize: '13px' }}>
-                  No teams available. Contact your administrator.
-                </div>
-              ) : (
-                <select
-                  required
-                  value={selectedTeam}
-                  onChange={(e) => setSelectedTeam(e.target.value)}
-                  className="form-input"
-                  style={{ cursor: 'pointer' }}
-                >
-                  {teams.map(team => (
-                    <option key={team.organization_id} value={team.organization_id}>
-                      {team.broker_name} ({team.broker_email})
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-            
-            {/* Role Selection */}
-            <div>
-              <label className="form-label">Your Role</label>
-              <select
-                required
-                value={selectedRole}
-                onChange={(e) => setSelectedRole(e.target.value)}
-                className="form-input"
-                style={{ cursor: 'pointer' }}
+
+        <form onSubmit={onSubmit}>
+          {/* Account Type Selection */}
+          <div style={{ marginBottom: '16px' }}>
+            <label style={labelStyle}>I am a...</label>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => setAccountType('member')}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  borderRadius: '8px',
+                  border: `2px solid ${accountType === 'member' ? '#06B6D4' : 'rgba(255, 255, 255, 0.1)'}`,
+                  backgroundColor: accountType === 'member' ? 'rgba(6, 182, 212, 0.15)' : 'transparent',
+                  color: accountType === 'member' ? '#06B6D4' : '#94A3B8',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  transition: 'all 0.15s'
+                }}
               >
-                <option value="Apprentice">Apprentice (View Only)</option>
-                <option value="Support">Support (Full Access)</option>
-              </select>
-              <p style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: 'var(--space-1)' }}>
-                {selectedRole === 'Apprentice' 
-                  ? '📖 Apprentices can view lanes and data but cannot create or edit' 
-                  : '✏️ Support can create lanes, generate CSVs, and manage team data'}
-              </p>
+                👥 Team Member
+              </button>
+              <button
+                type="button"
+                onClick={() => setAccountType('broker')}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  borderRadius: '8px',
+                  border: `2px solid ${accountType === 'broker' ? '#06B6D4' : 'rgba(255, 255, 255, 0.1)'}`,
+                  backgroundColor: accountType === 'broker' ? 'rgba(6, 182, 212, 0.15)' : 'transparent',
+                  color: accountType === 'broker' ? '#06B6D4' : '#94A3B8',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  transition: 'all 0.15s'
+                }}
+              >
+                🏢 New Broker
+              </button>
             </div>
-            </>
-            )}
-            
-            {err && <p style={{ fontSize: '12px', color: 'var(--danger)' }}>{err}</p>}
-            <button
-              type="submit"
-              disabled={busy || (accountType === 'member' && (loadingTeams || teams.length === 0))}
-              className="btn btn-primary"
-              style={{ width: '100%' }}
-            >
-              {busy ? 'Creating account…' : accountType === 'broker' ? 'Create Broker Account' : 'Join Team'}
-            </button>
-            <p style={{ fontSize: '11px', color: 'var(--text-tertiary)', textAlign: 'center' }}>
-              Already have an account?{' '}
-              <a style={{ color: 'var(--primary)', textDecoration: 'none' }} href="/login">
-                Sign in
-              </a>
+            <p style={{ fontSize: '11px', color: '#64748b', marginTop: '6px' }}>
+              {accountType === 'member'
+                ? 'Join an existing broker\'s team as Apprentice or Support'
+                : 'Create your own team and manage lanes independently'}
             </p>
           </div>
+
+          <div style={{ marginBottom: '16px' }}>
+            <label style={labelStyle}>Email</label>
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              style={inputStyle}
+              onFocus={(e) => {
+                e.target.style.borderColor = '#06B6D4';
+                e.target.style.boxShadow = '0 0 0 3px rgba(6, 182, 212, 0.15)';
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                e.target.style.boxShadow = 'none';
+              }}
+            />
+          </div>
+
+          <div style={{ marginBottom: '16px' }}>
+            <label style={labelStyle}>Password</label>
+            <input
+              type="password"
+              required
+              value={pw}
+              onChange={(e) => setPw(e.target.value)}
+              style={inputStyle}
+              onFocus={(e) => {
+                e.target.style.borderColor = '#06B6D4';
+                e.target.style.boxShadow = '0 0 0 3px rgba(6, 182, 212, 0.15)';
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                e.target.style.boxShadow = 'none';
+              }}
+            />
+          </div>
+
+          {accountType === 'broker' ? (
+            // Broker setup: Team name
+            <div style={{ marginBottom: '20px' }}>
+              <label style={labelStyle}>Team Name</label>
+              <input
+                type="text"
+                required
+                value={teamName}
+                onChange={(e) => setTeamName(e.target.value)}
+                placeholder="e.g., Connellan Logistics"
+                style={inputStyle}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#06B6D4';
+                  e.target.style.boxShadow = '0 0 0 3px rgba(6, 182, 212, 0.15)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                  e.target.style.boxShadow = 'none';
+                }}
+              />
+              <p style={{ fontSize: '11px', color: '#64748b', marginTop: '6px' }}>
+                Your team name will be visible to members who join
+              </p>
+            </div>
+          ) : (
+            // Team member setup: Team + Role selection
+            <>
+              <div style={{ marginBottom: '16px' }}>
+                <label style={labelStyle}>Select Broker Team</label>
+                {loadingTeams ? (
+                  <div style={{ padding: '10px', color: '#94A3B8', fontSize: '13px' }}>
+                    Loading teams...
+                  </div>
+                ) : teams.length === 0 ? (
+                  <div style={{ padding: '10px', color: '#94A3B8', fontSize: '13px' }}>
+                    No teams available. Contact your administrator.
+                  </div>
+                ) : (
+                  <select
+                    required
+                    value={selectedTeam}
+                    onChange={(e) => setSelectedTeam(e.target.value)}
+                    style={{ ...inputStyle, cursor: 'pointer' }}
+                  >
+                    {teams.map(team => (
+                      <option key={team.organization_id} value={team.organization_id} style={{ background: '#1f2937' }}>
+                        {team.broker_name} ({team.broker_email})
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              <div style={{ marginBottom: '20px' }}>
+                <label style={labelStyle}>Your Role</label>
+                <select
+                  required
+                  value={selectedRole}
+                  onChange={(e) => setSelectedRole(e.target.value)}
+                  style={{ ...inputStyle, cursor: 'pointer' }}
+                >
+                  <option value="Apprentice" style={{ background: '#1f2937' }}>Apprentice (View Only)</option>
+                  <option value="Support" style={{ background: '#1f2937' }}>Support (Full Access)</option>
+                </select>
+                <p style={{ fontSize: '11px', color: '#64748b', marginTop: '6px' }}>
+                  {selectedRole === 'Apprentice'
+                    ? '📖 Apprentices can view lanes and data but cannot create or edit'
+                    : '✏️ Support can create lanes, generate CSVs, and manage team data'}
+                </p>
+              </div>
+            </>
+          )}
+
+          {err && (
+            <div style={{
+              padding: '12px',
+              background: 'rgba(247, 90, 104, 0.1)',
+              border: '1px solid rgba(247, 90, 104, 0.5)',
+              borderRadius: '8px',
+              marginBottom: '16px',
+              color: '#F75A68',
+              fontSize: '13px',
+              textAlign: 'center'
+            }}>
+              {err}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={busy || (accountType === 'member' && (loadingTeams || teams.length === 0))}
+            style={{
+              width: '100%',
+              padding: '12px',
+              fontSize: '14px',
+              fontWeight: 600,
+              color: '#FFFFFF',
+              background: '#06B6D4',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: busy ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s ease',
+              boxShadow: '0 0 20px rgba(6, 182, 212, 0.3)',
+              opacity: busy ? 0.7 : 1
+            }}
+            onMouseEnter={(e) => {
+              if (!busy) {
+                e.target.style.background = '#22D3EE';
+                e.target.style.boxShadow = '0 0 30px rgba(6, 182, 212, 0.5)';
+                e.target.style.transform = 'translateY(-1px)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.background = '#06B6D4';
+              e.target.style.boxShadow = '0 0 20px rgba(6, 182, 212, 0.3)';
+              e.target.style.transform = 'translateY(0)';
+            }}
+          >
+            {busy ? 'Creating account...' : accountType === 'broker' ? 'Create Broker Account' : 'Join Team'}
+          </button>
         </form>
+
+        <p style={{
+          fontSize: '13px',
+          color: '#94A3B8',
+          textAlign: 'center',
+          marginTop: '20px'
+        }}>
+          Already have an account?{' '}
+          <a
+            href="/login"
+            style={{
+              color: '#06B6D4',
+              textDecoration: 'none',
+              fontWeight: 500
+            }}
+            onMouseEnter={(e) => e.target.style.color = '#22D3EE'}
+            onMouseLeave={(e) => e.target.style.color = '#06B6D4'}
+          >
+            Sign in
+          </a>
+        </p>
       </div>
     </div>
   );

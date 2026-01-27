@@ -8,8 +8,8 @@ export default function LoginPage() {
   const router = useRouter();
   const { session, profile, loading } = useAuth();
   const [email, setEmail] = useState('');
-  const [pw, setPw] = useState('');
-  const [err, setErr] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -20,114 +20,221 @@ export default function LoginPage() {
       } else if (profile?.status === 'approved') {
         router.replace('/dashboard');
       }
-      // If rejected or other, maybe stay here or show error?
-      // For now, let's assume pending or approved are the main ones to redirect.
     }
   }, [loading, session, profile, router]);
 
-  async function onSubmit(e) {
+  async function handleLogin(e) {
     e.preventDefault();
-    setErr('');
+    setError(null);
     setBusy(true);
+
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password: pw });
-      if (error) throw error;
-      // The useEffect will handle the redirect based on profile status
-    } catch (e) {
-      setErr(e.message || 'Login failed');
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        setError(error.message);
+      } else if (data.user) {
+        router.push('/dashboard');
+      }
+    } catch (err) {
+      setError(err.message);
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      display: 'flex', 
-      alignItems: 'center', 
-      justifyContent: 'center', 
-      backgroundColor: 'var(--bg-primary)',
-      backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.08) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(16, 185, 129, 0.08) 0%, transparent 50%)'
+    <div style={{
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      minHeight: '100vh',
+      padding: '20px'
     }}>
-      <div style={{ width: '100%', maxWidth: '400px', padding: '0 var(--space-4)' }}>
-        <div style={{ textAlign: 'center', marginBottom: 'var(--space-8)' }}>
-          <div style={{ marginBottom: 'var(--space-4)' }}>
-            <img 
-              src="/logo.png" 
-              alt="RapidRoutes logo" 
-              className="mx-auto mb-8 h-40 w-40 rounded-full ring-2 ring-cyan-400 drop-shadow-lg transition-transform duration-300 hover:scale-105"
+      <div style={{
+        width: '100%',
+        maxWidth: '380px',
+        padding: '32px',
+        background: 'rgba(255, 255, 255, 0.05)',
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+        borderRadius: '16px',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        boxShadow: '0 12px 40px rgba(0, 0, 0, 0.5)'
+      }}>
+        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+          <img
+            src="/logo.png"
+            alt="RapidRoutes"
+            style={{
+              height: '240px',
+              width: 'auto',
+              margin: '0 auto 16px auto',
+              display: 'block',
+              borderRadius: '50%',
+              border: '2px solid #06B6D4',
+              boxShadow: '0 0 30px rgba(6, 182, 212, 0.3)'
+            }}
+          />
+          <h2 style={{
+            fontSize: '24px',
+            fontWeight: 700,
+            color: '#F1F5F9',
+            marginTop: '16px',
+            marginBottom: '8px'
+          }}>
+            Welcome Back
+          </h2>
+          <p style={{ fontSize: '14px', color: '#94A3B8' }}>
+            Sign in to your RapidRoutes account
+          </p>
+        </div>
+
+        <form onSubmit={handleLogin}>
+          <div style={{ marginBottom: '16px' }}>
+            <label htmlFor="email" style={{
+              display: 'block',
+              fontSize: '13px',
+              fontWeight: 500,
+              color: '#CBD5E1',
+              marginBottom: '6px'
+            }}>Email</label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
               style={{
-                height: '160px',
-                width: '160px',
-                margin: '0 auto 32px auto',
-                borderRadius: '50%',
-                border: '2px solid #06b6d4',
-                boxShadow: '0 10px 25px rgba(6, 182, 212, 0.3)',
-                transition: 'transform 0.3s ease',
-                display: 'block'
+                width: '100%',
+                padding: '10px 14px',
+                fontSize: '14px',
+                color: '#F1F5F9',
+                background: 'rgba(0,0,0,0.3)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '8px',
+                transition: 'all 0.2s ease',
+                outline: 'none'
               }}
-              onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+              onFocus={(e) => {
+                e.target.style.borderColor = '#06B6D4';
+                e.target.style.boxShadow = '0 0 0 3px rgba(6, 182, 212, 0.15)';
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                e.target.style.boxShadow = 'none';
+              }}
             />
           </div>
-          <h1 style={{ 
-            fontSize: '24px', 
-            fontWeight: 700, 
-            marginBottom: 'var(--space-2)',
-            background: 'linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-            letterSpacing: '-0.02em'
-          }}>
-            RapidRoutes
-          </h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>Sign in to your account</p>
-        </div>
-        
-        <form
-          onSubmit={onSubmit}
-          className="card"
-          style={{ padding: 'var(--space-6)' }}
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-            <div>
-              <label className="form-label">Email</label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="form-input"
-              />
-            </div>
-            <div>
-              <label className="form-label">Password</label>
-              <input
-                type="password"
-                required
-                value={pw}
-                onChange={(e) => setPw(e.target.value)}
-                className="form-input"
-              />
-            </div>
-            {err && <p style={{ fontSize: '12px', color: 'var(--danger)' }}>{err}</p>}
-            <button
-              type="submit"
-              disabled={busy}
-              className="btn btn-primary"
-              style={{ width: '100%' }}
-            >
-              {busy ? 'Signing in…' : 'Sign In'}
-            </button>
-            <p style={{ fontSize: '11px', color: 'var(--text-tertiary)', textAlign: 'center', marginTop: 'var(--space-2)' }}>
-              No account?{' '}
-              <a style={{ color: 'var(--primary)', textDecoration: 'none' }} href="/signup">
-                Create one
-              </a>
-            </p>
+
+          <div style={{ marginBottom: '24px' }}>
+            <label htmlFor="password" style={{
+              display: 'block',
+              fontSize: '13px',
+              fontWeight: 500,
+              color: '#CBD5E1',
+              marginBottom: '6px'
+            }}>Password</label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              style={{
+                width: '100%',
+                padding: '10px 14px',
+                fontSize: '14px',
+                color: '#F1F5F9',
+                background: 'rgba(0,0,0,0.3)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '8px',
+                transition: 'all 0.2s ease',
+                outline: 'none'
+              }}
+              onFocus={(e) => {
+                e.target.style.borderColor = '#06B6D4';
+                e.target.style.boxShadow = '0 0 0 3px rgba(6, 182, 212, 0.15)';
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                e.target.style.boxShadow = 'none';
+              }}
+            />
           </div>
+
+          {error && (
+            <div style={{
+              padding: '12px',
+              background: 'rgba(247, 90, 104, 0.1)',
+              border: '1px solid rgba(247, 90, 104, 0.5)',
+              borderRadius: '8px',
+              marginBottom: '16px',
+              color: '#F75A68',
+              fontSize: '13px',
+              textAlign: 'center'
+            }}>
+              {error}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={busy}
+            style={{
+              width: '100%',
+              padding: '12px',
+              fontSize: '14px',
+              fontWeight: 600,
+              color: '#FFFFFF',
+              background: '#06B6D4',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: busy ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s ease',
+              boxShadow: '0 0 20px rgba(6, 182, 212, 0.3)',
+              opacity: busy ? 0.7 : 1
+            }}
+            onMouseEnter={(e) => {
+              if (!busy) {
+                e.target.style.background = '#22D3EE';
+                e.target.style.boxShadow = '0 0 30px rgba(6, 182, 212, 0.5)';
+                e.target.style.transform = 'translateY(-1px)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.background = '#06B6D4';
+              e.target.style.boxShadow = '0 0 20px rgba(6, 182, 212, 0.3)';
+              e.target.style.transform = 'translateY(0)';
+            }}
+          >
+            {busy ? 'Signing In...' : 'Sign In'}
+          </button>
         </form>
+
+        <p style={{
+          fontSize: '13px',
+          color: '#94A3B8',
+          textAlign: 'center',
+          marginTop: '20px'
+        }}>
+          Don't have an account?{' '}
+          <a
+            href="/signup"
+            style={{
+              color: '#06B6D4',
+              textDecoration: 'none',
+              fontWeight: 500
+            }}
+            onMouseEnter={(e) => e.target.style.color = '#22D3EE'}
+            onMouseLeave={(e) => e.target.style.color = '#06B6D4'}
+          >
+            Create one
+          </a>
+        </p>
       </div>
     </div>
   );

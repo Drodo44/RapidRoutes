@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 import supabase from '../utils/supabaseClient';
 import Head from 'next/head';
 import { getDisplayReferenceId, matchesReferenceId, cleanReferenceId } from '../lib/referenceIdUtils';
-import ThemeToggle from '../components/ThemeToggle';
+
 
 // Generate reference ID for generated pairs (same logic as CSV)
 function generatePairReferenceId(baseRefId, pairIndex) {
@@ -34,7 +34,7 @@ export default function RecapExport() {
     const url = new URL(window.location.href);
     const idsParam = url.searchParams.get('ids');
     const ids = idsParam ? idsParam.split(',').map((s) => s.trim()).filter(Boolean) : [];
-    
+
     async function fetchLanes() {
       setLoading(true);
       if (ids.length === 0) {
@@ -48,7 +48,7 @@ export default function RecapExport() {
         setLoading(false);
         return data || [];
       }
-      
+
       const { data } = await supabase
         .from('lanes')
         .select('*')
@@ -58,27 +58,27 @@ export default function RecapExport() {
       setLoading(false);
       return data || [];
     }
-    
+
     async function loadData() {
       const lanesData = await fetchLanes();
       if (lanesData.length > 0) {
         await fetchAIRecaps(lanesData.map(l => l.id));
-        
+
         // Load saved city pairs for lanes with selections
         const allPairs = [];
-        
+
         for (const lane of lanesData) {
           // Check if lane has saved city selections
           if (lane.saved_origin_cities?.length > 0 && lane.saved_dest_cities?.length > 0) {
             const baseRefId = getDisplayReferenceId(lane);
             const numPairs = Math.min(lane.saved_origin_cities.length, lane.saved_dest_cities.length);
-            
+
             // Generate pair entries (one-to-one pairing)
             for (let i = 0; i < numPairs; i++) {
               const originCity = lane.saved_origin_cities[i];
               const destCity = lane.saved_dest_cities[i];
               const pairRefId = generatePairReferenceId(baseRefId, i);
-              
+
               allPairs.push({
                 id: `pair-${lane.id}-${i}`,
                 laneId: lane.id,
@@ -100,11 +100,11 @@ export default function RecapExport() {
             }
           }
         }
-        
+
         setPostedPairs(allPairs);
       }
     }
-    
+
     loadData();
   }, []);
 
@@ -116,11 +116,11 @@ export default function RecapExport() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ laneIds })
       });
-      
+
       if (!response.ok) {
         throw new Error('Failed to fetch recaps');
       }
-      
+
       const data = await response.json();
       if (data.results?.length) {
         const recapMap = {};
@@ -141,38 +141,38 @@ export default function RecapExport() {
   // Search functionality - enhanced to include all posted pairs
   const matches = (lane, query) => {
     if (!query) return true;
-    
+
     const q = query.toLowerCase().trim();
-    
+
     // Check main lane reference ID using unified logic
     if (matchesReferenceId(q, lane)) return true;
-    
+
     // Check generated pair reference IDs
     const lanePairs = postedPairs.filter(pair => pair.laneId === lane.id);
     for (const pair of lanePairs) {
       const pairRefId = pair.referenceId || '';
       if (pairRefId.toLowerCase().includes(q)) return true;
-      
+
       // Also check pair cities
       const pairOrigin = `${pair.pickup.city}, ${pair.pickup.state}`.toLowerCase();
       const pairDest = `${pair.delivery.city}, ${pair.delivery.state}`.toLowerCase();
       if (pairOrigin.includes(q) || pairDest.includes(q)) return true;
     }
-    
+
     // Check origin and destination
     const origin = `${lane.origin_city || ''}, ${lane.origin_state || ''}`.toLowerCase();
     const dest = `${lane.dest_city || ''}, ${lane.dest_state || ''}`.toLowerCase();
-    
+
     if (origin.includes(q) || dest.includes(q)) return true;
-    
+
     // Check equipment
     const equipment = lane.equipment_code?.toLowerCase() || '';
     if (equipment.includes(q)) return true;
-    
+
     // Check commodity
     const commodity = lane.commodity?.toLowerCase() || '';
     if (commodity.includes(q)) return true;
-    
+
     return false;
   };
 
@@ -246,12 +246,12 @@ export default function RecapExport() {
       <Head>
         <title>Recap Export | RapidRoutes</title>
       </Head>
-      
-      <div style={{ 
-        padding: '24px', 
-        background: 'var(--bg-primary)', 
-        color: 'var(--text-primary)', 
-        minHeight: '100vh' 
+
+      <div style={{
+        padding: '24px',
+        background: 'var(--bg-primary)',
+        color: 'var(--text-primary)',
+        minHeight: '100vh'
       }}>
         <div className="no-print mb-6 flex items-center justify-between">
           <div>
@@ -262,12 +262,10 @@ export default function RecapExport() {
               Generated on {formatDate()}
             </p>
           </div>
-          
+
           <div className="flex gap-3 items-center">
-            {/* Theme Toggle */}
-            <ThemeToggle />
-            
             {/* Search Bar */}
+
             <div className="flex gap-2">
               <input
                 type="text"
@@ -303,16 +301,16 @@ export default function RecapExport() {
               onChange={(e) => {
                 if (e.target.value) {
                   const selectedValue = e.target.value;
-                  
+
                   let targetLaneId;
-                  
+
                   if (selectedValue.startsWith('pending-')) {
                     targetLaneId = parseInt(selectedValue.replace('pending-', ''));
                   } else if (selectedValue.includes('-')) {
                     const parts = selectedValue.split('-');
                     targetLaneId = parseInt(parts[1]);
                   }
-                  
+
                   if (targetLaneId) {
                     scrollToLane(targetLaneId);
                   }
@@ -335,7 +333,7 @@ export default function RecapExport() {
                 const lanePostedPairs = postedPairs.filter(pair => pair.laneId === lane.id);
                 const basePair = lanePostedPairs.find(pair => pair.isBase);
                 const generatedPairs = lanePostedPairs.filter(pair => !pair.isBase);
-                
+
                 return lanePostedPairs.length > 0 ? (
                   <optgroup key={lane.id} label={`${lane.origin_city || '?'}, ${lane.origin_state || '?'} → ${lane.dest_city || '?'}, ${lane.dest_state || '?'} • REF #${getDisplayReferenceId(lane)} • ${lanePostedPairs.length} pairs`}>
                     {basePair && (
@@ -363,22 +361,22 @@ export default function RecapExport() {
             </select>
 
             {aiLoading && <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Loading AI insights...</div>}
-            
-            <button 
+
+            <button
               onClick={() => {
                 // Get all generated pairs for the dropdown (alphabetically sorted)
                 const allPairs = [];
-                
+
                 filteredLanes.forEach(lane => {
                   if (lane.saved_origin_cities?.length > 0 && lane.saved_dest_cities?.length > 0) {
                     const baseRefId = getDisplayReferenceId(lane);
                     const numPairs = Math.min(lane.saved_origin_cities.length, lane.saved_dest_cities.length);
-                    
+
                     for (let i = 0; i < numPairs; i++) {
                       const originCity = lane.saved_origin_cities[i];
                       const destCity = lane.saved_dest_cities[i];
                       const pairRefId = generatePairReferenceId(baseRefId, i);
-                      
+
                       allPairs.push({
                         laneId: lane.id,
                         refId: pairRefId,
@@ -389,10 +387,10 @@ export default function RecapExport() {
                     }
                   }
                 });
-                
+
                 // Sort alphabetically by origin → destination
                 allPairs.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
-                
+
                 // Generate lane cards HTML from data
                 const generateLaneCards = () => {
                   return groups.map(([equip, arr]) => `
@@ -402,24 +400,24 @@ export default function RecapExport() {
                       </h2>
                       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 16px;">
                         ${arr.map(lane => {
-                          const recap = recaps[lane.id];
-                          const baseRefId = getDisplayReferenceId(lane);
-                          const hasSavedCities = lane.saved_origin_cities?.length > 0 && lane.saved_dest_cities?.length > 0;
-                          const pairs = [];
-                          
-                          if (hasSavedCities) {
-                            const numPairs = Math.min(lane.saved_origin_cities.length, lane.saved_dest_cities.length);
-                            for (let i = 0; i < numPairs; i++) {
-                              const pairRefId = generatePairReferenceId(baseRefId, i);
-                              pairs.push({
-                                refId: pairRefId,
-                                pickup: lane.saved_origin_cities[i],
-                                delivery: lane.saved_dest_cities[i]
-                              });
-                            }
-                          }
-                          
-                          return `
+                    const recap = recaps[lane.id];
+                    const baseRefId = getDisplayReferenceId(lane);
+                    const hasSavedCities = lane.saved_origin_cities?.length > 0 && lane.saved_dest_cities?.length > 0;
+                    const pairs = [];
+
+                    if (hasSavedCities) {
+                      const numPairs = Math.min(lane.saved_origin_cities.length, lane.saved_dest_cities.length);
+                      for (let i = 0; i < numPairs; i++) {
+                        const pairRefId = generatePairReferenceId(baseRefId, i);
+                        pairs.push({
+                          refId: pairRefId,
+                          pickup: lane.saved_origin_cities[i],
+                          delivery: lane.saved_dest_cities[i]
+                        });
+                      }
+                    }
+
+                    return `
                             <article id="lane-${lane.id}" class="lane-card" style="border-radius: 8px; border: 1px solid var(--border-default); overflow: hidden; break-inside: avoid; background: var(--surface);">
                               <div style="background: var(--bg-secondary); padding: 12px;">
                                 <div style="display: flex; align-items: center; justify-content: space-between;">
@@ -473,12 +471,12 @@ export default function RecapExport() {
                               </div>
                             </article>
                           `;
-                        }).join('')}
+                  }).join('')}
                       </div>
                     </section>
                   `).join('');
                 };
-                
+
                 // Create full standalone HTML document with all features
                 const htmlContent = `<!DOCTYPE html>
 <html lang="en" data-theme="light">
@@ -708,7 +706,7 @@ export default function RecapExport() {
   </script>
 </body>
 </html>`;
-                
+
                 const blob = new Blob([htmlContent], { type: 'text/html' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -734,9 +732,9 @@ export default function RecapExport() {
             >
               💾 Download HTML
             </button>
-            
-            <button 
-              onClick={printNow} 
+
+            <button
+              onClick={printNow}
               style={{
                 borderRadius: '8px',
                 background: 'var(--primary)',
@@ -772,9 +770,9 @@ export default function RecapExport() {
         )}
 
         <div className="print-header no-screen">
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
             justifyContent: 'space-between',
             borderBottom: '1px solid var(--border-default)',
             paddingBottom: '16px',
@@ -801,307 +799,307 @@ export default function RecapExport() {
 
         <div id="content">
           {!loading && groups.map(([equip, arr]) => (
-          <section key={equip} style={{ marginBottom: '32px' }}>
-            <h2 style={{
-              fontSize: '18px',
-              fontWeight: '600',
-              borderBottom: '1px solid var(--border-default)',
-              paddingBottom: '8px',
-              marginBottom: '12px',
-              color: 'var(--text-primary)'
-            }}>
-              {equip === 'V' ? 'Dry Van' : 
-               equip === 'R' ? 'Reefer' : 
-               equip === 'F' || equip === 'FD' ? 'Flatbed' : 
-               equip} Lanes
-            </h2>
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))',
-              gap: '16px'
-            }}>
-              {arr.map((lane) => {
-                const recap = recaps[lane.id];
-                const baseRefId = getDisplayReferenceId(lane);
-                
-                // Generate pairs from saved cities
-                const hasSavedCities = lane.saved_origin_cities?.length > 0 && lane.saved_dest_cities?.length > 0;
-                const pairs = [];
-                
-                if (hasSavedCities) {
-                  const numPairs = Math.min(lane.saved_origin_cities.length, lane.saved_dest_cities.length);
-                  for (let i = 0; i < numPairs; i++) {
-                    const pairRefId = generatePairReferenceId(baseRefId, i);
-                    const originCity = lane.saved_origin_cities[i];
-                    const destCity = lane.saved_dest_cities[i];
-                    pairs.push({
-                      refId: pairRefId,
-                      pickup: originCity,
-                      delivery: destCity
-                    });
+            <section key={equip} style={{ marginBottom: '32px' }}>
+              <h2 style={{
+                fontSize: '18px',
+                fontWeight: '600',
+                borderBottom: '1px solid var(--border-default)',
+                paddingBottom: '8px',
+                marginBottom: '12px',
+                color: 'var(--text-primary)'
+              }}>
+                {equip === 'V' ? 'Dry Van' :
+                  equip === 'R' ? 'Reefer' :
+                    equip === 'F' || equip === 'FD' ? 'Flatbed' :
+                      equip} Lanes
+              </h2>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))',
+                gap: '16px'
+              }}>
+                {arr.map((lane) => {
+                  const recap = recaps[lane.id];
+                  const baseRefId = getDisplayReferenceId(lane);
+
+                  // Generate pairs from saved cities
+                  const hasSavedCities = lane.saved_origin_cities?.length > 0 && lane.saved_dest_cities?.length > 0;
+                  const pairs = [];
+
+                  if (hasSavedCities) {
+                    const numPairs = Math.min(lane.saved_origin_cities.length, lane.saved_dest_cities.length);
+                    for (let i = 0; i < numPairs; i++) {
+                      const pairRefId = generatePairReferenceId(baseRefId, i);
+                      const originCity = lane.saved_origin_cities[i];
+                      const destCity = lane.saved_dest_cities[i];
+                      pairs.push({
+                        refId: pairRefId,
+                        pickup: originCity,
+                        delivery: destCity
+                      });
+                    }
                   }
-                }
-                
-                return (
-                  <article 
-                    key={lane.id} 
-                    id={`lane-${lane.id}`}
-                    className="lane-card"
-                    style={{
-                      borderRadius: '8px',
-                      border: '1px solid var(--border-default)',
-                      overflow: 'hidden',
-                      breakInside: 'avoid',
-                      background: 'var(--surface)'
-                    }}
-                  >
-                    <div style={{ 
-                      background: 'var(--bg-secondary)', 
-                      padding: '12px' 
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <div style={{ fontWeight: '500', fontSize: '16px', color: 'var(--text-primary)' }}>
-                          {lane.origin_city || '?'}, {lane.origin_state || '?'} 
-                          <span style={{ color: 'var(--text-secondary)', margin: '0 8px' }}>→</span> 
-                          {lane.dest_city || lane.destination_city || '?'}, {lane.dest_state || lane.destination_state || '?'}
-                        </div>
-                        <div style={{ 
-                          fontSize: '12px', 
-                          fontFamily: 'monospace', 
-                          color: 'var(--text-secondary)',
-                          background: 'var(--surface)',
-                          padding: '4px 8px',
-                          borderRadius: '4px'
-                        }}>
-                          {baseRefId}
-                        </div>
-                      </div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                        <span style={{ fontWeight: '500' }}>
-                          {(lane.equipment_code || '?') === 'V' ? 'Dry Van' : 
-                           (lane.equipment_code || '?') === 'R' ? 'Reefer' : 
-                           (lane.equipment_code || '?') === 'F' || (lane.equipment_code || '?') === 'FD' ? 'Flatbed' : 
-                           (lane.equipment_code || '?')} • {lane.length_ft || '?'}ft
-                        </span>
-                        <span style={{ marginLeft: '8px' }}>
-                          {lane.randomize_weight 
-                            ? `${lane.weight_min?.toLocaleString() || '?'}-${lane.weight_max?.toLocaleString() || '?'} lbs` 
-                            : `${lane.weight_lbs?.toLocaleString() || '—'} lbs`}
-                        </span>
-                        <span style={{ marginLeft: '8px' }}>Pickup: {lane.pickup_earliest || '?'} → {lane.pickup_latest || '?'}</span>
-                      </div>
-                    </div>
-                    
-                    <div style={{ padding: '12px' }}>
-                      {/* Show saved city pairs */}
-                      {pairs.length > 0 && (
-                        <div style={{ marginBottom: '12px' }}>
-                          <h4 style={{ 
-                            fontSize: '13px', 
-                            fontWeight: '500', 
-                            color: 'var(--text-primary)', 
-                            marginBottom: '8px' 
+
+                  return (
+                    <article
+                      key={lane.id}
+                      id={`lane-${lane.id}`}
+                      className="lane-card"
+                      style={{
+                        borderRadius: '8px',
+                        border: '1px solid var(--border-default)',
+                        overflow: 'hidden',
+                        breakInside: 'avoid',
+                        background: 'var(--surface)'
+                      }}
+                    >
+                      <div style={{
+                        background: 'var(--bg-secondary)',
+                        padding: '12px'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div style={{ fontWeight: '500', fontSize: '16px', color: 'var(--text-primary)' }}>
+                            {lane.origin_city || '?'}, {lane.origin_state || '?'}
+                            <span style={{ color: 'var(--text-secondary)', margin: '0 8px' }}>→</span>
+                            {lane.dest_city || lane.destination_city || '?'}, {lane.dest_state || lane.destination_state || '?'}
+                          </div>
+                          <div style={{
+                            fontSize: '12px',
+                            fontFamily: 'monospace',
+                            color: 'var(--text-secondary)',
+                            background: 'var(--surface)',
+                            padding: '4px 8px',
+                            borderRadius: '4px'
                           }}>
-                            Current Lanes ({pairs.length} total)
-                          </h4>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '180px', overflowY: 'auto' }}>
-                            {pairs.slice(0, 15).map((pair, index) => (
-                              <div 
-                                key={pair.refId} 
-                                style={{ 
-                                  fontSize: '12px', 
-                                  color: 'var(--text-secondary)',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'space-between'
-                                }}
-                              >
-                                <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-                                  <span style={{ color: 'var(--primary)', marginRight: '8px', minWidth: '16px' }}>
-                                    📍
-                                  </span>
-                                  <span>
-                                    <span style={{ fontWeight: '500' }}>P{index + 1}:</span>
-                                    <span style={{ marginLeft: '6px' }}>
-                                      {pair.pickup.city}, {pair.pickup.state || pair.pickup.state_or_province} → {pair.delivery.city}, {pair.delivery.state || pair.delivery.state_or_province}
+                            {baseRefId}
+                          </div>
+                        </div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                          <span style={{ fontWeight: '500' }}>
+                            {(lane.equipment_code || '?') === 'V' ? 'Dry Van' :
+                              (lane.equipment_code || '?') === 'R' ? 'Reefer' :
+                                (lane.equipment_code || '?') === 'F' || (lane.equipment_code || '?') === 'FD' ? 'Flatbed' :
+                                  (lane.equipment_code || '?')} • {lane.length_ft || '?'}ft
+                          </span>
+                          <span style={{ marginLeft: '8px' }}>
+                            {lane.randomize_weight
+                              ? `${lane.weight_min?.toLocaleString() || '?'}-${lane.weight_max?.toLocaleString() || '?'} lbs`
+                              : `${lane.weight_lbs?.toLocaleString() || '—'} lbs`}
+                          </span>
+                          <span style={{ marginLeft: '8px' }}>Pickup: {lane.pickup_earliest || '?'} → {lane.pickup_latest || '?'}</span>
+                        </div>
+                      </div>
+
+                      <div style={{ padding: '12px' }}>
+                        {/* Show saved city pairs */}
+                        {pairs.length > 0 && (
+                          <div style={{ marginBottom: '12px' }}>
+                            <h4 style={{
+                              fontSize: '13px',
+                              fontWeight: '500',
+                              color: 'var(--text-primary)',
+                              marginBottom: '8px'
+                            }}>
+                              Current Lanes ({pairs.length} total)
+                            </h4>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '180px', overflowY: 'auto' }}>
+                              {pairs.slice(0, 15).map((pair, index) => (
+                                <div
+                                  key={pair.refId}
+                                  style={{
+                                    fontSize: '12px',
+                                    color: 'var(--text-secondary)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between'
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+                                    <span style={{ color: 'var(--primary)', marginRight: '8px', minWidth: '16px' }}>
+                                      📍
                                     </span>
+                                    <span>
+                                      <span style={{ fontWeight: '500' }}>P{index + 1}:</span>
+                                      <span style={{ marginLeft: '6px' }}>
+                                        {pair.pickup.city}, {pair.pickup.state || pair.pickup.state_or_province} → {pair.delivery.city}, {pair.delivery.state || pair.delivery.state_or_province}
+                                      </span>
+                                    </span>
+                                  </div>
+                                  <span style={{
+                                    fontSize: '11px',
+                                    fontFamily: 'monospace',
+                                    background: 'var(--bg-tertiary)',
+                                    color: 'var(--text-secondary)',
+                                    padding: '2px 6px',
+                                    borderRadius: '3px',
+                                    marginLeft: '8px'
+                                  }}>
+                                    {pair.refId}
                                   </span>
                                 </div>
-                                <span style={{ 
-                                  fontSize: '11px', 
-                                  fontFamily: 'monospace',
-                                  background: 'var(--bg-tertiary)',
-                                  color: 'var(--text-secondary)',
-                                  padding: '2px 6px',
-                                  borderRadius: '3px',
-                                  marginLeft: '8px'
-                                }}>
-                                  {pair.refId}
-                                </span>
-                              </div>
-                            ))}
-                            {pairs.length > 15 && (
-                              <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
-                                ... and {pairs.length - 15} more pairs
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* AI talking points (if available) */}
-                      {recap && (
-                        <>
-                          <div style={{ marginBottom: '12px' }}>
-                            <h4 style={{ 
-                              fontSize: '13px', 
-                              fontWeight: '500', 
-                              color: 'var(--text-primary)', 
-                              marginBottom: '8px' 
-                            }}>
-                              AI Talking Points
-                            </h4>
-                            <ul style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                              {recap.bullets.map((bullet, i) => (
-                                <li key={i} style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'flex' }}>
-                                  <span style={{ color: 'var(--primary)', marginRight: '8px' }}>•</span>
-                                  <span>{bullet}</span>
-                                </li>
                               ))}
-                            </ul>
+                              {pairs.length > 15 && (
+                                <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+                                  ... and {pairs.length - 15} more pairs
+                                </div>
+                              )}
+                            </div>
                           </div>
+                        )}
 
-                          {recap.risks && recap.risks.length > 0 && (
+                        {/* AI talking points (if available) */}
+                        {recap && (
+                          <>
                             <div style={{ marginBottom: '12px' }}>
-                              <h4 style={{ 
-                                fontSize: '13px', 
-                                fontWeight: '500', 
-                                color: 'var(--text-primary)', 
-                                marginBottom: '8px' 
+                              <h4 style={{
+                                fontSize: '13px',
+                                fontWeight: '500',
+                                color: 'var(--text-primary)',
+                                marginBottom: '8px'
                               }}>
-                                Risk Factors
+                                AI Talking Points
                               </h4>
                               <ul style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                {recap.risks.map((risk, i) => (
+                                {recap.bullets.map((bullet, i) => (
                                   <li key={i} style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'flex' }}>
-                                    <span style={{ color: 'var(--warning)', marginRight: '8px' }}>•</span>
-                                    <span>{risk}</span>
+                                    <span style={{ color: 'var(--primary)', marginRight: '8px' }}>•</span>
+                                    <span>{bullet}</span>
                                   </li>
                                 ))}
                               </ul>
                             </div>
-                          )}
 
-                          {recap.price_hint && (
-                            <div style={{ 
-                              marginTop: '12px', 
-                              paddingTop: '12px', 
-                              borderTop: '1px solid var(--border-default)' 
-                            }}>
-                              <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
-                                Estimated Rate Range
+                            {recap.risks && recap.risks.length > 0 && (
+                              <div style={{ marginBottom: '12px' }}>
+                                <h4 style={{
+                                  fontSize: '13px',
+                                  fontWeight: '500',
+                                  color: 'var(--text-primary)',
+                                  marginBottom: '8px'
+                                }}>
+                                  Risk Factors
+                                </h4>
+                                <ul style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                  {recap.risks.map((risk, i) => (
+                                    <li key={i} style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'flex' }}>
+                                      <span style={{ color: 'var(--warning)', marginRight: '8px' }}>•</span>
+                                      <span>{risk}</span>
+                                    </li>
+                                  ))}
+                                </ul>
                               </div>
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '6px' }}>
-                                <span style={{ fontSize: '12px', color: 'var(--danger)' }}>
-                                  Low: ${recap.price_hint.low}/mi
-                                </span>
-                                <span style={{ fontSize: '12px', color: 'var(--success)' }}>
-                                  Target: ${recap.price_hint.mid}/mi
-                                </span>
-                                <span style={{ fontSize: '12px', color: 'var(--primary)' }}>
-                                  High: ${recap.price_hint.high}/mi
-                                </span>
-                              </div>
-                            </div>
-                          )}
-                        </>
-                      )}
-                      
-                      {/* Fallbacks when no data available */}
-                      {!recap && (lane.lane_status || lane.status) !== 'current' && lane.comment && (
-                        <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                          {lane.comment}
-                        </div>
-                      )}
-                      
-                      {!recap && (lane.lane_status || lane.status) !== 'current' && !lane.comment && (
-                        <div style={{ fontSize: '13px', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
-                          Generate AI insights or use Post Options to see more details
-                        </div>
-                      )}
-                      
-                      {(lane.lane_status || lane.status) === 'current' && postedPairs.filter(pair => pair.laneId === lane.id).length === 0 && (
-                        <div style={{ fontSize: '13px', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
-                          Loading posted pairs...
-                        </div>
-                      )}
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          </section>
-        ))}
+                            )}
 
-        <div className="flex gap-3 no-print" style={{ marginTop: '24px' }}>
-          <button
-            onClick={() => generateCSV('both')}
-            className="btn btn-success"
-            style={{
-              borderRadius: '8px',
-              background: 'var(--success)',
-              color: 'white',
-              fontWeight: '500',
-              padding: '8px 16px',
-              border: 'none',
-              cursor: 'pointer',
-              transition: 'background 0.2s',
-              flex: 1
-            }}
-            onMouseEnter={(e) => e.target.style.background = 'var(--success-hover)'}
-            onMouseLeave={(e) => e.target.style.background = 'var(--success)'}
-          >
-            Generate CSV (Phone + Email)
-          </button>
-          <button
-            onClick={() => generateCSV('email')}
-            className="btn btn-primary"
-            style={{
-              borderRadius: '8px',
-              background: 'var(--primary)',
-              color: 'white',
-              fontWeight: '500',
-              padding: '8px 16px',
-              border: 'none',
-              cursor: 'pointer',
-              transition: 'background 0.2s',
-              flex: 1
-            }}
-            onMouseEnter={(e) => e.target.style.background = 'var(--primary-hover)'}
-            onMouseLeave={(e) => e.target.style.background = 'var(--primary)'}
-          >
-            Generate CSV (Email Only)
-          </button>
-          <button
-            onClick={() => generateCSV('phone')}
-            className="btn btn-secondary"
-            style={{
-              borderRadius: '8px',
-              background: 'var(--primary)',
-              color: 'white',
-              fontWeight: '500',
-              padding: '8px 16px',
-              border: 'none',
-              cursor: 'pointer',
-              transition: 'background 0.2s',
-              flex: 1
-            }}
-            onMouseEnter={(e) => e.target.style.background = 'var(--primary-hover)'}
-            onMouseLeave={(e) => e.target.style.background = 'var(--primary)'}
-          >
-            Generate CSV (Phone Only)
-          </button>
-        </div>
+                            {recap.price_hint && (
+                              <div style={{
+                                marginTop: '12px',
+                                paddingTop: '12px',
+                                borderTop: '1px solid var(--border-default)'
+                              }}>
+                                <div style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
+                                  Estimated Rate Range
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '6px' }}>
+                                  <span style={{ fontSize: '12px', color: 'var(--danger)' }}>
+                                    Low: ${recap.price_hint.low}/mi
+                                  </span>
+                                  <span style={{ fontSize: '12px', color: 'var(--success)' }}>
+                                    Target: ${recap.price_hint.mid}/mi
+                                  </span>
+                                  <span style={{ fontSize: '12px', color: 'var(--primary)' }}>
+                                    High: ${recap.price_hint.high}/mi
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        )}
+
+                        {/* Fallbacks when no data available */}
+                        {!recap && (lane.lane_status || lane.status) !== 'current' && lane.comment && (
+                          <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                            {lane.comment}
+                          </div>
+                        )}
+
+                        {!recap && (lane.lane_status || lane.status) !== 'current' && !lane.comment && (
+                          <div style={{ fontSize: '13px', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+                            Generate AI insights or use Post Options to see more details
+                          </div>
+                        )}
+
+                        {(lane.lane_status || lane.status) === 'current' && postedPairs.filter(pair => pair.laneId === lane.id).length === 0 && (
+                          <div style={{ fontSize: '13px', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+                            Loading posted pairs...
+                          </div>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
+
+          <div className="flex gap-3 no-print" style={{ marginTop: '24px' }}>
+            <button
+              onClick={() => generateCSV('both')}
+              className="btn btn-success"
+              style={{
+                borderRadius: '8px',
+                background: 'var(--success)',
+                color: 'white',
+                fontWeight: '500',
+                padding: '8px 16px',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'background 0.2s',
+                flex: 1
+              }}
+              onMouseEnter={(e) => e.target.style.background = 'var(--success-hover)'}
+              onMouseLeave={(e) => e.target.style.background = 'var(--success)'}
+            >
+              Generate CSV (Phone + Email)
+            </button>
+            <button
+              onClick={() => generateCSV('email')}
+              className="btn btn-primary"
+              style={{
+                borderRadius: '8px',
+                background: 'var(--primary)',
+                color: 'white',
+                fontWeight: '500',
+                padding: '8px 16px',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'background 0.2s',
+                flex: 1
+              }}
+              onMouseEnter={(e) => e.target.style.background = 'var(--primary-hover)'}
+              onMouseLeave={(e) => e.target.style.background = 'var(--primary)'}
+            >
+              Generate CSV (Email Only)
+            </button>
+            <button
+              onClick={() => generateCSV('phone')}
+              className="btn btn-secondary"
+              style={{
+                borderRadius: '8px',
+                background: 'var(--primary)',
+                color: 'white',
+                fontWeight: '500',
+                padding: '8px 16px',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'background 0.2s',
+                flex: 1
+              }}
+              onMouseEnter={(e) => e.target.style.background = 'var(--primary-hover)'}
+              onMouseLeave={(e) => e.target.style.background = 'var(--primary)'}
+            >
+              Generate CSV (Phone Only)
+            </button>
+          </div>
         </div>{/* End content wrapper */}
 
         <style jsx global>{`

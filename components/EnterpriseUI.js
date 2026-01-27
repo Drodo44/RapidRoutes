@@ -1,48 +1,85 @@
 /**
  * ENTERPRISE UI COMPONENT LIBRARY
- * Clean, professional, reusable components
+ * Glassmorphism design with cyan accents
  */
 
 import React from 'react';
 
-// Button Component - Professional, clean
-export const Button = ({ 
-  children, 
-  variant = 'primary', 
-  size = 'md', 
+// Button Component - Glassmorphism with cyan primary
+export const Button = ({
+  children,
+  variant = 'primary',
+  size = 'md',
   disabled = false,
   loading = false,
   onClick,
   className = '',
-  ...props 
+  ...props
 }) => {
-  const baseClasses = 'inline-flex items-center justify-center font-medium transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900';
-  
+  const baseClasses = 'inline-flex items-center justify-center font-semibold transition-all duration-200 focus:outline-none border-0';
+
   const variants = {
-    primary: 'bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500 disabled:bg-blue-800 disabled:opacity-50',
-    secondary: 'bg-slate-700 hover:bg-slate-600 text-white focus:ring-slate-500 disabled:opacity-50',
-    success: 'bg-emerald-600 hover:bg-emerald-700 text-white focus:ring-emerald-500 disabled:opacity-50',
-    danger: 'bg-red-600 hover:bg-red-700 text-white focus:ring-red-500 disabled:opacity-50',
-    ghost: 'bg-transparent hover:bg-slate-800 text-slate-300 focus:ring-slate-600 disabled:opacity-50',
+    primary: 'text-white disabled:opacity-50',
+    secondary: 'text-white disabled:opacity-50',
+    success: 'text-white disabled:opacity-50',
+    danger: 'text-white disabled:opacity-50',
+    ghost: 'disabled:opacity-50',
   };
-  
+
+  const variantStyles = {
+    primary: {
+      background: '#06B6D4',
+      boxShadow: '0 0 20px rgba(6, 182, 212, 0.3)',
+    },
+    secondary: {
+      background: 'rgba(255, 255, 255, 0.1)',
+      backdropFilter: 'blur(10px)',
+      border: '1px solid rgba(255, 255, 255, 0.1)',
+    },
+    success: {
+      background: '#10b981',
+    },
+    danger: {
+      background: '#F75A68',
+    },
+    ghost: {
+      background: 'transparent',
+      color: '#94A3B8',
+    },
+  };
+
   const sizes = {
     sm: 'px-3 py-1.5 text-sm rounded-md',
-    md: 'px-4 py-2 text-sm rounded-lg',
+    md: 'px-4 py-2.5 text-sm rounded-lg',
     lg: 'px-6 py-3 text-base rounded-lg',
   };
-  
+
   return (
     <button
       onClick={onClick}
       disabled={disabled || loading}
       className={`${baseClasses} ${variants[variant]} ${sizes[size]} ${className}`}
+      style={variantStyles[variant]}
+      onMouseEnter={(e) => {
+        if (!disabled && !loading && variant === 'primary') {
+          e.target.style.background = '#22D3EE';
+          e.target.style.boxShadow = '0 0 30px rgba(6, 182, 212, 0.4)';
+          e.target.style.transform = 'translateY(-1px)';
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!disabled && !loading && variant === 'primary') {
+          e.target.style.background = '#06B6D4';
+          e.target.style.boxShadow = '0 0 20px rgba(6, 182, 212, 0.3)';
+          e.target.style.transform = 'translateY(0)';
+        }
+      }}
       {...props}
     >
       {loading && (
         <svg className="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
         </svg>
       )}
       {children}
@@ -50,11 +87,18 @@ export const Button = ({
   );
 };
 
-// Card Component - Clean container
+// Card Component - Glassmorphism container
 export const Card = ({ children, className = '', ...props }) => {
   return (
-    <div 
-      className={`bg-slate-800 rounded-lg border border-slate-700 ${className}`}
+    <div
+      className={`rounded-xl ${className}`}
+      style={{
+        background: 'rgba(255, 255, 255, 0.05)',
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+      }}
       {...props}
     >
       {children}
@@ -62,102 +106,169 @@ export const Card = ({ children, className = '', ...props }) => {
   );
 };
 
-// Input Component - Professional form input
-export const Input = ({ 
-  label, 
-  error, 
+// Input Component - Dark glassmorphism input
+export const Input = ({
+  label,
+  error,
   helperText,
   className = '',
-  ...props 
+  ...props
 }) => {
   return (
-    <div className="space-y-1">
+    <div className="space-y-1.5">
       {label && (
-        <label className="block text-sm font-medium text-slate-300">
+        <label style={{
+          display: 'block',
+          fontSize: '13px',
+          fontWeight: 500,
+          color: '#CBD5E1'
+        }}>
           {label}
         </label>
       )}
       <input
-        className={`w-full px-3 py-2 bg-slate-900 border ${error ? 'border-red-500' : 'border-slate-600'} rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${className}`}
+        className={className}
+        style={{
+          width: '100%',
+          padding: '10px 14px',
+          fontSize: '14px',
+          color: '#F1F5F9',
+          background: 'rgba(0, 0, 0, 0.3)',
+          border: error ? '1px solid #F75A68' : '1px solid rgba(255, 255, 255, 0.1)',
+          borderRadius: '8px',
+          transition: 'all 0.2s ease',
+          outline: 'none',
+        }}
+        onFocus={(e) => {
+          e.target.style.borderColor = '#06B6D4';
+          e.target.style.boxShadow = '0 0 0 3px rgba(6, 182, 212, 0.15)';
+        }}
+        onBlur={(e) => {
+          e.target.style.borderColor = error ? '#F75A68' : 'rgba(255, 255, 255, 0.1)';
+          e.target.style.boxShadow = 'none';
+        }}
         {...props}
       />
       {error && (
-        <p className="text-sm text-red-400">{error}</p>
+        <p style={{ fontSize: '12px', color: '#F75A68' }}>{error}</p>
       )}
       {helperText && !error && (
-        <p className="text-sm text-slate-500">{helperText}</p>
+        <p style={{ fontSize: '12px', color: '#64748b' }}>{helperText}</p>
       )}
     </div>
   );
 };
 
-// Select Component - Clean dropdown
-export const Select = ({ 
-  label, 
-  error, 
+// Select Component - Dark glassmorphism dropdown
+export const Select = ({
+  label,
+  error,
   options = [],
   className = '',
-  ...props 
+  ...props
 }) => {
   return (
-    <div className="space-y-1">
+    <div className="space-y-1.5">
       {label && (
-        <label className="block text-sm font-medium text-slate-300">
+        <label style={{
+          display: 'block',
+          fontSize: '13px',
+          fontWeight: 500,
+          color: '#CBD5E1'
+        }}>
           {label}
         </label>
       )}
       <select
-        className={`w-full px-3 py-2 bg-slate-900 border ${error ? 'border-red-500' : 'border-slate-600'} rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${className}`}
+        className={className}
+        style={{
+          width: '100%',
+          padding: '10px 14px',
+          fontSize: '14px',
+          color: '#F1F5F9',
+          background: 'rgba(0, 0, 0, 0.3)',
+          border: error ? '1px solid #F75A68' : '1px solid rgba(255, 255, 255, 0.1)',
+          borderRadius: '8px',
+          transition: 'all 0.2s ease',
+          outline: 'none',
+          cursor: 'pointer',
+        }}
         {...props}
       >
         {options.map((opt) => (
-          <option key={opt.value} value={opt.value}>
+          <option key={opt.value} value={opt.value} style={{ background: '#1f2937' }}>
             {opt.label}
           </option>
         ))}
       </select>
       {error && (
-        <p className="text-sm text-red-400">{error}</p>
+        <p style={{ fontSize: '12px', color: '#F75A68' }}>{error}</p>
       )}
     </div>
   );
 };
 
-// Badge Component - KMA and status badges
-export const Badge = ({ 
-  children, 
+// Badge Component - KMA and status badges with cyan
+export const Badge = ({
+  children,
   variant = 'default',
   size = 'md',
-  className = '' 
+  className = ''
 }) => {
-  const variants = {
-    default: 'bg-slate-700 text-slate-300',
-    kma: 'bg-violet-900/50 text-violet-300 border border-violet-700',
-    success: 'bg-emerald-900/50 text-emerald-300 border border-emerald-700',
-    warning: 'bg-amber-900/50 text-amber-300 border border-amber-700',
-    error: 'bg-red-900/50 text-red-300 border border-red-700',
+  const variantStyles = {
+    default: {
+      background: 'rgba(255, 255, 255, 0.1)',
+      color: '#94A3B8',
+      border: '1px solid rgba(255, 255, 255, 0.1)',
+    },
+    kma: {
+      background: 'rgba(6, 182, 212, 0.15)',
+      color: '#A5F3FC',
+      border: '1px solid rgba(6, 182, 212, 0.3)',
+    },
+    success: {
+      background: 'rgba(16, 185, 129, 0.15)',
+      color: '#86efac',
+      border: '1px solid rgba(16, 185, 129, 0.3)',
+    },
+    warning: {
+      background: 'rgba(245, 158, 11, 0.15)',
+      color: '#fde68a',
+      border: '1px solid rgba(245, 158, 11, 0.3)',
+    },
+    error: {
+      background: 'rgba(247, 90, 104, 0.15)',
+      color: '#fca5a5',
+      border: '1px solid rgba(247, 90, 104, 0.3)',
+    },
   };
-  
+
   const sizes = {
-    sm: 'px-2 py-0.5 text-xs',
-    md: 'px-2.5 py-1 text-sm',
-    lg: 'px-3 py-1.5 text-base',
+    sm: { padding: '2px 8px', fontSize: '11px' },
+    md: { padding: '4px 10px', fontSize: '12px' },
+    lg: { padding: '6px 12px', fontSize: '14px' },
   };
-  
+
   return (
-    <span className={`inline-flex items-center font-medium rounded-md ${variants[variant]} ${sizes[size]} ${className}`}>
+    <span
+      className={`inline-flex items-center font-medium rounded-md ${className}`}
+      style={{
+        ...variantStyles[variant],
+        ...sizes[size],
+      }}
+    >
       {children}
     </span>
   );
 };
 
-// Checkbox Component - Clean selection
-export const Checkbox = ({ 
-  label, 
-  checked, 
+// Checkbox Component - Clean selection with cyan
+export const Checkbox = ({
+  label,
+  checked,
   onChange,
   className = '',
-  ...props 
+  ...props
 }) => {
   return (
     <label className={`inline-flex items-center cursor-pointer ${className}`}>
@@ -165,29 +276,39 @@ export const Checkbox = ({
         type="checkbox"
         checked={checked}
         onChange={onChange}
-        className="w-4 h-4 bg-slate-900 border-slate-600 rounded text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-900 transition-colors"
+        style={{
+          width: '16px',
+          height: '16px',
+          accentColor: '#06B6D4',
+          cursor: 'pointer',
+        }}
         {...props}
       />
       {label && (
-        <span className="ml-2 text-sm text-slate-300">{label}</span>
+        <span style={{ marginLeft: '8px', fontSize: '14px', color: '#CBD5E1' }}>{label}</span>
       )}
     </label>
   );
 };
 
-// Loading Spinner
+// Loading Spinner with cyan
 export const Spinner = ({ size = 'md', className = '' }) => {
   const sizes = {
-    sm: 'h-4 w-4',
-    md: 'h-6 w-6',
-    lg: 'h-8 w-8',
+    sm: { width: '16px', height: '16px' },
+    md: { width: '24px', height: '24px' },
+    lg: { width: '32px', height: '32px' },
   };
-  
+
   return (
-    <svg className={`animate-spin text-blue-500 ${sizes[size]} ${className}`} fill="none" viewBox="0 0 24 24">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
-    </svg>
+    <div
+      className={`animate-spin ${className}`}
+      style={{
+        ...sizes[size],
+        border: '2px solid rgba(6, 182, 212, 0.2)',
+        borderTopColor: '#06B6D4',
+        borderRadius: '50%',
+      }}
+    />
   );
 };
 
@@ -195,9 +316,9 @@ export const Spinner = ({ size = 'md', className = '' }) => {
 export const EmptyState = ({ icon, title, description, action }) => {
   return (
     <div className="text-center py-12">
-      {icon && <div className="mb-4 flex justify-center text-slate-600">{icon}</div>}
-      <h3 className="text-lg font-medium text-slate-300 mb-2">{title}</h3>
-      {description && <p className="text-sm text-slate-500 mb-6">{description}</p>}
+      {icon && <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center', color: '#64748b' }}>{icon}</div>}
+      <h3 style={{ fontSize: '18px', fontWeight: 500, color: '#F1F5F9', marginBottom: '8px' }}>{title}</h3>
+      {description && <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '24px' }}>{description}</p>}
       {action && action}
     </div>
   );

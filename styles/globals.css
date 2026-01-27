@@ -2,17 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Ensure html and body inherit theme */
-html {
-  background: var(--bg-primary);
-  color: var(--text-primary);
-}
+/* 
+ * Dark mode only - no light mode transitions
+ * Note: html background is set in enterprise.css with animated gradient
+ */
 
-body {
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  transition: background-color 0.2s ease, color 0.2s ease;
-}
 
 /* Form focus ring tweak */
 :focus {
@@ -22,43 +16,77 @@ body {
 /* Override Tailwind's forced classes if they appear */
 @layer components {
   .btn-primary {
-    @apply px-3 py-1.5 text-white text-sm font-medium rounded-lg transition;
+    @apply px-4 py-2.5 text-white text-sm font-semibold rounded-lg transition;
     background: var(--primary);
+    box-shadow: 0 0 20px rgba(6, 182, 212, 0.3);
   }
+
   .btn-primary:hover {
     background: var(--primary-hover);
+    box-shadow: 0 0 30px rgba(6, 182, 212, 0.4);
   }
+
   .btn-secondary {
-    @apply px-3 py-1.5 text-sm font-medium rounded-lg transition;
-    background: var(--bg-tertiary);
+    @apply px-4 py-2.5 text-sm font-medium rounded-lg transition;
+    background: rgba(255, 255, 255, 0.1);
     color: var(--text-primary);
-    border: 1px solid var(--border-default);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
   }
+
   .btn-secondary:hover {
-    background: var(--bg-hover);
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.2);
   }
+
   .btn-success {
-    @apply px-3 py-1.5 text-white text-sm font-medium rounded-lg transition;
+    @apply px-4 py-2.5 text-white text-sm font-semibold rounded-lg transition;
     background: var(--success);
   }
+
   .btn-success:hover {
     opacity: 0.9;
   }
+
   .btn-danger {
-    @apply px-3 py-1.5 text-white text-sm font-medium rounded-lg transition;
+    @apply px-4 py-2.5 text-white text-sm font-semibold rounded-lg transition;
     background: var(--danger);
   }
+
   .btn-danger:hover {
     opacity: 0.9;
   }
+
   .inp {
-    @apply w-full rounded-lg px-3 py-2 outline-none transition;
-    background: var(--surface);
-    border: 1px solid var(--border-default);
+    @apply w-full rounded-lg px-3.5 py-2.5 outline-none transition;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     color: var(--text-primary);
   }
+
   .inp:focus {
     border-color: var(--primary);
-    box-shadow: 0 0 0 3px var(--primary-light);
+    box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.15);
+  }
+
+  .inp::placeholder {
+    color: var(--text-tertiary);
+  }
+}
+
+/* Glassmorphism utility for Tailwind */
+@layer utilities {
+  .glass {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .glass-dark {
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
   }
 }

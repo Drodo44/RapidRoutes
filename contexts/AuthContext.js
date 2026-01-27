@@ -15,33 +15,40 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let mounted = true;
 
+    // Skip on server-side (supabase is null during SSR)
+    if (!supabase) {
+      console.log('AuthContext: Supabase not available (SSR), waiting for client-side hydration');
+      setLoading(false);
+      return;
+    }
+
     async function initializeAuth() {
       try {
         // Get initial session
         console.log('AuthContext: Initializing auth system...');
         const { data: { session: initialSession } } = await supabase.auth.getSession();
-        
+
         if (!mounted) return;
-        
+
         console.log('AuthContext: Initial session check:', {
           hasSession: !!initialSession,
           userId: initialSession?.user?.id
         });
-        
+
         setSession(initialSession);
         setUser(initialSession?.user ?? null);
-        
+
         if (initialSession?.user) {
           // Get initial profile via API route
           console.log('AuthContext: Fetching initial profile for user:', initialSession.user.id);
-          
+
           try {
             const response = await fetch('/api/auth/profile', {
               headers: {
                 'Authorization': `Bearer ${initialSession.access_token}`
               }
             });
-            
+
             if (response.ok) {
               const { profile } = await response.json();
               console.log('AuthContext: Initial profile loaded:', {
@@ -81,13 +88,14 @@ export function AuthProvider({ children }) {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+
       if (!mounted) return;
-      
+
       console.log('Auth state change:', event, newSession?.user?.id);
-      
+
       setSession(newSession);
       setUser(newSession?.user ?? null);
-      
+
       // Clear profile on signOut
       if (event === 'SIGNED_OUT') {
         console.log('AuthContext: User signed out');
@@ -95,23 +103,23 @@ export function AuthProvider({ children }) {
         setLoading(false);
         return;
       }
-      
+
       // Update profile on auth changes
       if (newSession?.user) {
         console.log('AuthContext: Fetching profile for auth state change, user ID:', newSession.user.id);
-        
+
         try {
           const response = await fetch('/api/auth/profile', {
             headers: {
               'Authorization': `Bearer ${newSession.access_token}`
             }
           });
-          
+
           if (response.ok) {
             const { profile: newProfile } = await response.json();
             console.log('AuthContext: Profile loaded from auth change:', {
               id: newProfile?.id,
-              status: newProfile?.status, 
+              status: newProfile?.status,
               role: newProfile?.role,
               email: newProfile?.email
             });
@@ -128,7 +136,7 @@ export function AuthProvider({ children }) {
         console.log('AuthContext: No user in auth change session');
         setProfile(null);
       }
-      
+
       console.log('AuthContext: Auth change complete, setting loading to false');
       setLoading(false);
     });
@@ -141,6 +149,10 @@ export function AuthProvider({ children }) {
 
   // Logout function
   const signOut = async () => {
+    if (!supabase) {
+      console.warn('AuthContext: Cannot sign out - Supabase not initialized');
+      return;
+    }
     try {
       console.log('AuthContext: Signing out...');
       const { error } = await supabase.auth.signOut();
@@ -150,6 +162,7 @@ export function AuthProvider({ children }) {
       }
       // Clear local state
       setSession(null);
+
       setUser(null);
       setProfile(null);
       console.log('AuthContext: Sign out complete');

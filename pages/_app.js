@@ -8,7 +8,6 @@ import NavBar from '../components/NavBar.jsx';
 import useKeyboardShortcuts from '../hooks/useKeyboardShortcuts';
 import Head from 'next/head';
 import ErrorBoundary from '../components/ErrorBoundary';
-import { ThemeProvider } from 'next-themes';
 import { supabase } from '../lib/supabaseClient';
 import { Toaster } from 'react-hot-toast';
 
@@ -18,21 +17,21 @@ function AppContent({ Component, pageProps }) {
   const router = useRouter();
   const [routeLoading, setRouteLoading] = useState(false);
   const { loading, isAuthenticated, session } = useAuth();
-  
+
   // Enable keyboard shortcuts
   useKeyboardShortcuts();
-  
+
   // Verify Supabase initialization on mount
   useEffect(() => {
     console.log("✅ Supabase initialized:", !!supabase);
     console.log("✅ Supabase URL configured:", !!process.env.NEXT_PUBLIC_SUPABASE_URL);
   }, []);
-  
+
   useEffect(() => {
-    console.log('AppContent loading state:', { 
-      loading, 
-      isAuthenticated, 
-      hasSession: !!session 
+    console.log('AppContent loading state:', {
+      loading,
+      isAuthenticated,
+      hasSession: !!session
     });
   }, [loading, isAuthenticated, session]);
 
@@ -62,6 +61,9 @@ function AppContent({ Component, pageProps }) {
     };
   }, [router]);
 
+  // Check if current route is login/signup - don't show navbar
+  const isAuthPage = router.pathname === '/login' || router.pathname === '/signup';
+
   return (
     <>
       <Head>
@@ -70,42 +72,52 @@ function AppContent({ Component, pageProps }) {
         <link rel="icon" href="/favicon.ico" />
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
       </Head>
-      
+
       <div className="min-h-screen flex flex-col">
-        {!loading && <NavBar />}
-        
+        {!loading && !isAuthPage && <NavBar />}
+
         {/* Loading indicator */}
         {(loading || routeLoading) && (
           <div className="fixed top-0 left-0 right-0 h-1 z-50" style={{ background: 'var(--primary)' }}>
             <div className="h-full animate-pulse" style={{ background: 'var(--primary-hover)' }}></div>
           </div>
         )}
-        
+
         {loading ? (
           <div className="flex-grow flex items-center justify-center">
-            <div className="text-lg" style={{ color: 'var(--text-secondary)' }}>Loading RapidRoutes...</div>
+            <div className="text-center">
+              <div
+                className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin mx-auto mb-4"
+                style={{ borderColor: 'var(--primary)', borderTopColor: 'transparent' }}
+              ></div>
+              <div className="text-lg" style={{ color: 'var(--text-secondary)' }}>Loading RapidRoutes...</div>
+            </div>
           </div>
         ) : (
-          <main className="flex-grow pt-20 pb-12" style={{ background: 'var(--bg-primary)' }}>
+          <main className={`flex-grow ${isAuthPage ? '' : 'pt-20 pb-12'}`}>
             <ErrorBoundary componentName={Component.displayName || Component.name || 'Page'}>
               <Component {...pageProps} />
             </ErrorBoundary>
           </main>
         )}
-        
-        <footer className="py-4" style={{ 
-          borderTop: '1px solid var(--border-default)', 
-          background: 'var(--bg-secondary)' 
-        }}>
-          <div className="container mx-auto px-4 text-center text-xs" style={{ color: 'var(--text-tertiary)' }}>
-            © 2025 RapidRoutes | Created by Andrew Connellan - Logistics Account Executive at Total Quality Logistics
-          </div>
-        </footer>
+
+        {!isAuthPage && (
+          <footer className="py-4" style={{
+            borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+            background: 'rgba(0, 0, 0, 0.3)'
+          }}>
+            <div className="container mx-auto px-4 text-center text-xs" style={{ color: 'var(--text-tertiary)' }}>
+              © 2025 RapidRoutes | Created by Andrew Connellan - Logistics Account Executive at Total Quality Logistics
+            </div>
+          </footer>
+        )}
       </div>
       <Toaster position="bottom-right" toastOptions={{
         style: {
-          background: '#333',
-          color: '#fff',
+          background: 'rgba(255, 255, 255, 0.1)',
+          backdropFilter: 'blur(10px)',
+          color: '#F1F5F9',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
         },
       }} />
     </>
@@ -115,19 +127,21 @@ function AppContent({ Component, pageProps }) {
 export default function App({ Component, pageProps }) {
   const [mounted, setMounted] = useState(false);
 
+  // Force dark mode on document
   useEffect(() => {
     setMounted(true);
+    // Force dark theme - no toggle
+    document.documentElement.setAttribute('data-theme', 'dark');
+    document.documentElement.classList.add('dark');
   }, []);
 
   return (
     <ErrorBoundary>
-      <ThemeProvider attribute="data-theme" defaultTheme="dark" enableSystem={false}>
-        <AuthProvider>
-          {mounted ? (
-            <AppContent Component={Component} pageProps={pageProps} />
-          ) : null}
-        </AuthProvider>
-      </ThemeProvider>
+      <AuthProvider>
+        {mounted ? (
+          <AppContent Component={Component} pageProps={pageProps} />
+        ) : null}
+      </AuthProvider>
     </ErrorBoundary>
   );
 }

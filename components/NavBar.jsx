@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { useRouter } from "next/router";
-import ThemeToggle from "./ThemeToggle";
 
 export default function Navbar() {
   const router = useRouter();
@@ -17,27 +16,45 @@ export default function Navbar() {
   ];
 
   return (
-    <nav 
-      className="px-4 py-3 shadow-md fixed top-0 left-0 right-0 z-50"
+    <nav
+      className="px-4 py-3 fixed top-0 left-0 right-0 z-50"
       style={{
-        background: 'var(--surface)',
-        borderBottom: '1px solid var(--border-default)',
+        background: 'rgba(255, 255, 255, 0.05)',
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
         color: 'var(--text-primary)'
       }}
     >
       <div className="flex items-center justify-between max-w-7xl mx-auto">
+        {/* Logo/Brand */}
+        <Link href="/dashboard">
+          <span
+            className="font-bold text-lg cursor-pointer"
+            style={{
+              background: 'linear-gradient(135deg, #06B6D4 0%, #22D3EE 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text'
+            }}
+          >
+            RapidRoutes
+          </span>
+        </Link>
+
+        {/* Navigation Links */}
         <ul className="flex space-x-6">
           {navLinks.map((link) => (
             <li key={link.href}>
               <Link href={link.href}>
-                <span 
-                  className={`cursor-pointer font-medium transition`}
+                <span
+                  className={`cursor-pointer font-medium transition text-sm`}
                   style={{
-                    color: currentPath === link.href ? 'var(--primary)' : 'var(--text-primary)',
+                    color: currentPath === link.href ? '#06B6D4' : 'var(--text-primary)',
                     opacity: currentPath === link.href ? 1 : 0.8
                   }}
-                  onMouseEnter={(e) => e.target.style.color = 'var(--primary)'}
-                  onMouseLeave={(e) => e.target.style.color = currentPath === link.href ? 'var(--primary)' : 'var(--text-primary)'}
+                  onMouseEnter={(e) => e.target.style.color = '#06B6D4'}
+                  onMouseLeave={(e) => e.target.style.color = currentPath === link.href ? '#06B6D4' : 'var(--text-primary)'}
                 >
                   {link.label}
                 </span>
@@ -45,9 +62,6 @@ export default function Navbar() {
             </li>
           ))}
         </ul>
-        
-        {/* Theme Toggle */}
-        <ThemeToggle compact />
       </div>
     </nav>
   );
