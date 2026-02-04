@@ -1,0 +1,40 @@
+project: RapidRoutes
+version: 1.0
+status: in_progress
+priority: high
+
+tasks:
+  - id: recap-001
+    title: Finalize Recap Tab
+    type: frontend
+    details: >
+      Complete Recap page with dropdown-to-lane logic, AI selling points, and weather/volatility overlays. Must be HTML only with full styling.
+    status: pending
+
+  - id: lane-ui-002
+    title: Fix Lane Entry Page
+    type: frontend
+    details: >
+      Group city/state inputs. Add ZIP autofill. Ensure equipment field uses DAT code with label. Make weight required.
+    status: pending
+
+  - id: csv-logic-003
+    title: Complete DAT CSV Generator
+    type: backend
+    details: >
+      Implement 22-row per lane logic. Use real crawl cities within 75 miles. Generate valid city/state/ZIPs. Use formatting from DAT_Upload_Batch2_FINAL.csv.
+    status: pending
+
+  - id: dashboard-004
+    title: Finalize Dashboard
+    type: frontend
+    details: >
+      Implement floor space calculator (input in inches) and heavy haul checker. Add live stats. Match dark mode aesthetic.
+    status: pending
+
+  - id: export-005
+    title: Final Export Functionality
+    type: backend
+    details: >
+      Ensure HTML Recap exports are styled and usable. Ensure CSV follows DAT format exactly.
+    status: pending

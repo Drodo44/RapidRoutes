@@ -1,0 +1,13 @@
+node_modules
+.env
+.env.local
+.env.production
+.env.development
+.next
+out
+.vscode
+.DS_Store
+*.log
+coverage
+exports/
+services/laneService.ts*

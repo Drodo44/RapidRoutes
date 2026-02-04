@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TQL API Tester - RapidRoutes</title>
+    <style>
+        body {
+            font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 { color: #4285eb; }
+        h2 { color: #6cbce3; margin-top: 30px; }
+        .section {
+            background: #2d2d2d;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #404040;
+        }
+        label {
+            display: block;
+            color: #b0b0b0;
+            font-size: 12px;
+            font-weight: 700;
+            margin-bottom: 5px;
+            margin-top: 15px;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 10px;
+            background: #1a1a1a;
+            border: 1px solid #404040;
+            color: #e0e0e0;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 13px;
+        }
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        button {
+            background: #4285eb;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 700;
+            margin-top: 15px;
+            margin-right: 10px;
+        }
+        button:hover { background: #3270d9; }
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+        .response {
+            background: #1a1a1a;
+            border: 1px solid #404040;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 15px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .success { color: #3cb043; }
+        .error { color: #ff3f3f; }
+        .warning { color: #ffb700; }
+        .info { color: #6cbce3; }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .tab {
+            padding: 10px 20px;
+            background: #1a1a1a;
+            border: 1px solid #404040;
+            border-radius: 4px 4px 0 0;
+            cursor: pointer;
+        }
+        .tab.active {
+            background: #2d2d2d;
+            border-bottom: 2px solid #4285eb;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .endpoint-row {
+            display: flex;
+            gap: 10px;
+            align-items: end;
+        }
+        .endpoint-row select {
+            width: 100px;
+            flex-shrink: 0;
+        }
+        .endpoint-row input {
+            flex-grow: 1;
+        }
+        code {
+            background: #1a1a1a;
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: #6cbce3;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 TQL API Tester</h1>
+    <p class="info">Use this tool to test TQL API endpoints after discovering them. Fill in the details and click "Test Request".</p>
+
+    <div class="tabs">
+        <div class="tab active" onclick="switchTab('config')">🔐 Configuration</div>
+        <div class="tab" onclick="switchTab('test')">🧪 Test Request</div>
+        <div class="tab" onclick="switchTab('results')">📊 Results</div>
+    </div>
+
+    <!-- Configuration Tab -->
+    <div class="tab-content active" id="config">
+        <div class="section">
+            <h2>API Configuration</h2>
+            
+            <label>Base URL (from discovery)</label>
+            <input type="text" id="baseUrl" placeholder="https://api.tql.com or https://loadmanager.tql.com/api" value="https://api.tql.com">
+            
+            <label>Authentication Type</label>
+            <select id="authType" onchange="updateAuthFields()">
+                <option value="bearer">Bearer Token</option>
+                <option value="cookie">Cookie Session</option>
+                <option value="apikey">API Key</option>
+                <option value="none">None</option>
+            </select>
+            
+            <div id="bearerAuth">
+                <label>Bearer Token (from localStorage or Fiddler)</label>
+                <textarea id="bearerToken" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."></textarea>
+            </div>
+            
+            <div id="cookieAuth" style="display:none;">
+                <label>Cookie String (from browser or Fiddler)</label>
+                <textarea id="cookieValue" placeholder="tql_session=abc123; tql_auth=xyz789"></textarea>
+            </div>
+            
+            <div id="apiKeyAuth" style="display:none;">
+                <label>API Key Header Name</label>
+                <input type="text" id="apiKeyHeader" placeholder="X-API-Key" value="X-API-Key">
+                <label>API Key Value</label>
+                <input type="text" id="apiKeyValue" placeholder="your-api-key-here">
+            </div>
+            
+            <button onclick="saveConfig()">💾 Save Configuration</button>
+            <span id="saveStatus" style="margin-left: 10px;"></span>
+        </div>
+    </div>
+
+    <!-- Test Request Tab -->
+    <div class="tab-content" id="test">
+        <div class="section">
+            <h2>Make Test Request</h2>
+            
+            <label>Request</label>
+            <div class="endpoint-row">
+                <select id="method">
+                    <option value="GET">GET</option>
+                    <option value="POST">POST</option>
+                    <option value="PUT">PUT</option>
+                    <option value="DELETE">DELETE</option>
+                </select>
+                <input type="text" id="endpoint" placeholder="/loads/active or /postings">
+            </div>
+            
+            <label>Request Body (for POST/PUT)</label>
+            <textarea id="requestBody" placeholder='{"pickCity": "Cincinnati", "dropCity": "Atlanta"}'></textarea>
+            
+            <label>Additional Headers (JSON format)</label>
+            <textarea id="customHeaders" placeholder='{"X-Custom-Header": "value"}'>{}</textarea>
+            
+            <button onclick="testRequest()">🚀 Test Request</button>
+            <button onclick="clearResults()">🗑️ Clear Results</button>
+            
+            <div id="testResponse" class="response" style="display:none;"></div>
+        </div>
+
+        <div class="section">
+            <h2>📋 Common TQL Endpoints to Try</h2>
+            <p class="warning">Copy these into the endpoint field above and test them:</p>
+            <ul style="line-height: 1.8;">
+                <li><code>GET /loads</code> or <code>/loads/active</code> - List active loads</li>
+                <li><code>GET /loads/:id</code> - Get specific load details</li>
+                <li><code>GET /postings</code> or <code>/postings/active</code> - List your postings</li>
+                <li><code>POST /postings</code> - Create new posting</li>
+                <li><code>GET /broker/loads</code> - Broker's assigned loads</li>
+                <li><code>GET /api/v1/*</code> - Try with /api/v1/ prefix</li>
+                <li><code>GET /api/loads</code> - Try with /api/ prefix</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Results Tab -->
+    <div class="tab-content" id="results">
+        <div class="section">
+            <h2>Request History</h2>
+            <div id="history">
+                <p class="info">No requests made yet. Switch to "Test Request" tab to make API calls.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let requestHistory = [];
+
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            
+            // Show selected tab
+            event.target.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+        }
+
+        function updateAuthFields() {
+            const authType = document.getElementById('authType').value;
+            document.getElementById('bearerAuth').style.display = authType === 'bearer' ? 'block' : 'none';
+            document.getElementById('cookieAuth').style.display = authType === 'cookie' ? 'block' : 'none';
+            document.getElementById('apiKeyAuth').style.display = authType === 'apikey' ? 'block' : 'none';
+        }
+
+        function saveConfig() {
+            const config = {
+                baseUrl: document.getElementById('baseUrl').value,
+                authType: document.getElementById('authType').value,
+                bearerToken: document.getElementById('bearerToken').value,
+                cookieValue: document.getElementById('cookieValue').value,
+                apiKeyHeader: document.getElementById('apiKeyHeader').value,
+                apiKeyValue: document.getElementById('apiKeyValue').value
+            };
+            localStorage.setItem('tqlApiConfig', JSON.stringify(config));
+            document.getElementById('saveStatus').innerHTML = '<span class="success">✓ Saved!</span>';
+            setTimeout(() => {
+                document.getElementById('saveStatus').innerHTML = '';
+            }, 2000);
+        }
+
+        function loadConfig() {
+            const saved = localStorage.getItem('tqlApiConfig');
+            if (saved) {
+                const config = JSON.parse(saved);
+                document.getElementById('baseUrl').value = config.baseUrl || '';
+                document.getElementById('authType').value = config.authType || 'bearer';
+                document.getElementById('bearerToken').value = config.bearerToken || '';
+                document.getElementById('cookieValue').value = config.cookieValue || '';
+                document.getElementById('apiKeyHeader').value = config.apiKeyHeader || 'X-API-Key';
+                document.getElementById('apiKeyValue').value = config.apiKeyValue || '';
+                updateAuthFields();
+            }
+        }
+
+        async function testRequest() {
+            const baseUrl = document.getElementById('baseUrl').value.trim();
+            const method = document.getElementById('method').value;
+            const endpoint = document.getElementById('endpoint').value.trim();
+            const authType = document.getElementById('authType').value;
+            const requestBody = document.getElementById('requestBody').value.trim();
+            const customHeaders = document.getElementById('customHeaders').value.trim();
+            
+            if (!baseUrl || !endpoint) {
+                alert('Please enter Base URL and Endpoint');
+                return;
+            }
+
+            const url = baseUrl + endpoint;
+            const headers = {};
+
+            // Add authentication
+            if (authType === 'bearer') {
+                const token = document.getElementById('bearerToken').value.trim();
+                if (token) headers['Authorization'] = `Bearer ${token}`;
+            } else if (authType === 'cookie') {
+                const cookie = document.getElementById('cookieValue').value.trim();
+                if (cookie) headers['Cookie'] = cookie;
+            } else if (authType === 'apikey') {
+                const keyHeader = document.getElementById('apiKeyHeader').value.trim();
+                const keyValue = document.getElementById('apiKeyValue').value.trim();
+                if (keyHeader && keyValue) headers[keyHeader] = keyValue;
+            }
+
+            // Add custom headers
+            if (customHeaders) {
+                try {
+                    const custom = JSON.parse(customHeaders);
+                    Object.assign(headers, custom);
+                } catch (e) {
+                    alert('Invalid JSON in custom headers');
+                    return;
+                }
+            }
+
+            // Build fetch options
+            const options = {
+                method,
+                headers,
+                mode: 'cors'
+            };
+
+            if ((method === 'POST' || method === 'PUT') && requestBody) {
+                headers['Content-Type'] = 'application/json';
+                options.body = requestBody;
+            }
+
+            // Make request
+            const responseDiv = document.getElementById('testResponse');
+            responseDiv.style.display = 'block';
+            responseDiv.innerHTML = '<span class="info">⏳ Making request...</span>';
+
+            const startTime = Date.now();
+            let result = {};
+
+            try {
+                const response = await fetch(url, options);
+                const elapsed = Date.now() - startTime;
+                const responseText = await response.text();
+                
+                let parsedData;
+                try {
+                    parsedData = JSON.parse(responseText);
+                } catch {
+                    parsedData = responseText;
+                }
+
+                result = {
+                    timestamp: new Date().toISOString(),
+                    method,
+                    url,
+                    status: response.status,
+                    statusText: response.statusText,
+                    elapsed,
+                    headers: Object.fromEntries(response.headers.entries()),
+                    data: parsedData
+                };
+
+                // Display result
+                const statusClass = response.ok ? 'success' : 'error';
+                responseDiv.innerHTML = `
+                    <div class="${statusClass}">
+                        <strong>Status:</strong> ${response.status} ${response.statusText}
+                    </div>
+                    <div class="info">
+                        <strong>Time:</strong> ${elapsed}ms
+                    </div>
+                    <div style="margin-top: 10px;">
+                        <strong>Response Data:</strong>
+                    </div>
+                    <div style="margin-top: 5px;">
+                        ${JSON.stringify(parsedData, null, 2)}
+                    </div>
+                `;
+
+                // Add to history
+                requestHistory.unshift(result);
+                updateHistory();
+
+            } catch (error) {
+                result = {
+                    timestamp: new Date().toISOString(),
+                    method,
+                    url,
+                    error: error.message
+                };
+
+                responseDiv.innerHTML = `
+                    <div class="error">
+                        <strong>Error:</strong> ${error.message}
+                    </div>
+                    <div class="warning" style="margin-top: 10px;">
+                        <strong>Common Issues:</strong><br>
+                        • CORS error: API doesn't allow browser requests (need backend proxy)<br>
+                        • Network error: Wrong URL or authentication failed<br>
+                        • SSL error: Certificate issues
+                    </div>
+                `;
+
+                requestHistory.unshift(result);
+                updateHistory();
+            }
+        }
+
+        function updateHistory() {
+            const historyDiv = document.getElementById('history');
+            if (requestHistory.length === 0) {
+                historyDiv.innerHTML = '<p class="info">No requests made yet.</p>';
+                return;
+            }
+
+            historyDiv.innerHTML = requestHistory.slice(0, 10).map((r, i) => {
+                const statusClass = r.error ? 'error' : (r.status < 400 ? 'success' : 'error');
+                return `
+                    <div class="section" style="margin-bottom: 10px;">
+                        <div class="${statusClass}">
+                            <strong>${r.method}</strong> ${r.url}
+                        </div>
+                        <div style="font-size: 11px; color: #999; margin-top: 5px;">
+                            ${r.timestamp} ${r.elapsed ? `(${r.elapsed}ms)` : ''}
+                        </div>
+                        ${r.status ? `<div>Status: ${r.status} ${r.statusText}</div>` : ''}
+                        ${r.error ? `<div class="error">Error: ${r.error}</div>` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function clearResults() {
+            document.getElementById('testResponse').style.display = 'none';
+            document.getElementById('testResponse').innerHTML = '';
+        }
+
+        // Load saved config on page load
+        window.onload = loadConfig;
+    </script>
+</body>
+</html>

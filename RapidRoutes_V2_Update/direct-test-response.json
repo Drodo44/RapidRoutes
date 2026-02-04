@@ -1,0 +1,5 @@
+{
+  "error": "Unauthorized",
+  "details": "Missing Supabase authentication token",
+  "success": false
+}

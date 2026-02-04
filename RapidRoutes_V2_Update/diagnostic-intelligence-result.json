@@ -1,0 +1,22 @@
+{
+  "auth": {
+    "status": "fail",
+    "method": null,
+    "token_ok": false,
+    "error": "Authentication error: Anonymous authentication failed: fetch failed"
+  },
+  "api": {
+    "url": "https://rapid-routes.vercel.app/api/intelligence-pairing",
+    "status": null,
+    "time_ms": null
+  },
+  "pairs_count": 0,
+  "unique_kmas": 0,
+  "kma_details": [],
+  "sample_pairs": [],
+  "fixes_applied": [],
+  "suggested_next_steps": [
+    "Check Supabase authentication settings and credentials"
+  ],
+  "raw_response": null
+}

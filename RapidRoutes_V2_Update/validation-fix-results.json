@@ -1,0 +1,82 @@
+[
+  {
+    "name": "Chicago to Atlanta (Full data)",
+    "expected": "success",
+    "actual": "fail",
+    "passed": false,
+    "responseTime": 143,
+    "data": {
+      "error": "Unauthorized",
+      "details": "Missing authentication token. Please provide a valid token via Authorization header.",
+      "code": "AUTH_TOKEN_MISSING",
+      "success": false,
+      "debug": {
+        "test_mode": true,
+        "mock_auth": false,
+        "useTestMode": false,
+        "useMockAuth": false
+      }
+    }
+  },
+  {
+    "name": "Los Angeles to Unknown (City only)",
+    "expected": "success",
+    "actual": "fail",
+    "passed": false,
+    "responseTime": 77,
+    "data": {
+      "error": "Unauthorized",
+      "details": "Missing authentication token. Please provide a valid token via Authorization header.",
+      "code": "AUTH_TOKEN_MISSING",
+      "success": false,
+      "debug": {
+        "test_mode": true,
+        "mock_auth": false,
+        "useTestMode": false,
+        "useMockAuth": false
+      }
+    }
+  },
+  {
+    "name": "New York to Florida (State only)",
+    "expected": "success",
+    "actual": "fail",
+    "passed": false,
+    "responseTime": 60,
+    "data": {
+      "error": "Unauthorized",
+      "details": "Missing authentication token. Please provide a valid token via Authorization header.",
+      "code": "AUTH_TOKEN_MISSING",
+      "success": false,
+      "debug": {
+        "test_mode": true,
+        "mock_auth": false,
+        "useTestMode": false,
+        "useMockAuth": false
+      }
+    }
+  },
+  {
+    "name": "Seattle to Nowhere (No destination)",
+    "expected": "fail",
+    "actual": "fail",
+    "passed": true,
+    "responseTime": 62,
+    "data": {
+      "error": "Missing required fields",
+      "details": {
+        "origin_city": true,
+        "origin_state": true,
+        "destination_city": false,
+        "destination_state": false,
+        "has_destination_data": false,
+        "equipment_code": true,
+        "origin_city_value": "Seattle",
+        "origin_state_value": "WA",
+        "equipment_code_value": "FD"
+      },
+      "status": 400,
+      "success": false
+    }
+  }
+]

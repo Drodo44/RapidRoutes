@@ -1,0 +1,3628 @@
+{
+  "_isPrefixMap": true,
+  "prefixes": {
+    "100": {
+      "kma_code": "NY_BRN",
+      "kma_name": "Brooklyn Mkt"
+    },
+    "101": {
+      "kma_code": "NY_BRN",
+      "kma_name": "Brooklyn Mkt"
+    },
+    "102": {
+      "kma_code": "NY_BRN",
+      "kma_name": "Brooklyn Mkt"
+    },
+    "103": {
+      "kma_code": "NY_BRN",
+      "kma_name": "Brooklyn Mkt"
+    },
+    "104": {
+      "kma_code": "NY_BRN",
+      "kma_name": "Brooklyn Mkt"
+    },
+    "105": {
+      "kma_code": "CT_HAR",
+      "kma_name": "Hartford Mkt"
+    },
+    "106": {
+      "kma_code": "CT_HAR",
+      "kma_name": "Hartford Mkt"
+    },
+    "107": {
+      "kma_code": "CT_HAR",
+      "kma_name": "Hartford Mkt"
+    },
+    "108": {
+      "kma_code": "CT_HAR",
+      "kma_name": "Hartford Mkt"
+    },
+    "109": {
+      "kma_code": "CT_HAR",
+      "kma_name": "Hartford Mkt"
+    },
+    "110": {
+      "kma_code": "NY_BRN",
+      "kma_name": "Brooklyn Mkt"
+    },
+    "111": {
+      "kma_code": "NY_BRN",
+      "kma_name": "Brooklyn Mkt"
+    },
+    "112": {
+      "kma_code": "NY_BRN",
+      "kma_name": "Brooklyn Mkt"
+    },
+    "113": {
+      "kma_code": "NY_BRN",
+      "kma_name": "Brooklyn Mkt"
+    },
+    "114": {
+      "kma_code": "NY_BRN",
+      "kma_name": "Brooklyn Mkt"
+    },
+    "115": {
+      "kma_code": "NY_BRN",
+      "kma_name": "Brooklyn Mkt"
+    },
+    "116": {
+      "kma_code": "NY_BRN",
+      "kma_name": "Brooklyn Mkt"
+    },
+    "117": {
+      "kma_code": "NY_BRN",
+      "kma_name": "Brooklyn Mkt"
+    },
+    "118": {
+      "kma_code": "NY_BRN",
+      "kma_name": "Brooklyn Mkt"
+    },
+    "119": {
+      "kma_code": "NY_BRN",
+      "kma_name": "Brooklyn Mkt"
+    },
+    "120": {
+      "kma_code": "NY_ALB",
+      "kma_name": "Albany Mkt"
+    },
+    "121": {
+      "kma_code": "NY_ALB",
+      "kma_name": "Albany Mkt"
+    },
+    "122": {
+      "kma_code": "NY_ALB",
+      "kma_name": "Albany Mkt"
+    },
+    "123": {
+      "kma_code": "NY_ALB",
+      "kma_name": "Albany Mkt"
+    },
+    "124": {
+      "kma_code": "NY_ALB",
+      "kma_name": "Albany Mkt"
+    },
+    "125": {
+      "kma_code": "NY_ALB",
+      "kma_name": "Albany Mkt"
+    },
+    "126": {
+      "kma_code": "NY_ALB",
+      "kma_name": "Albany Mkt"
+    },
+    "127": {
+      "kma_code": "NY_ALB",
+      "kma_name": "Albany Mkt"
+    },
+    "128": {
+      "kma_code": "NY_ALB",
+      "kma_name": "Albany Mkt"
+    },
+    "129": {
+      "kma_code": "NY_ALB",
+      "kma_name": "Albany Mkt"
+    },
+    "130": {
+      "kma_code": "NY_SYR",
+      "kma_name": "Syracuse Mkt"
+    },
+    "131": {
+      "kma_code": "NY_SYR",
+      "kma_name": "Syracuse Mkt"
+    },
+    "132": {
+      "kma_code": "NY_SYR",
+      "kma_name": "Syracuse Mkt"
+    },
+    "133": {
+      "kma_code": "NY_SYR",
+      "kma_name": "Syracuse Mkt"
+    },
+    "134": {
+      "kma_code": "NY_SYR",
+      "kma_name": "Syracuse Mkt"
+    },
+    "135": {
+      "kma_code": "NY_SYR",
+      "kma_name": "Syracuse Mkt"
+    },
+    "136": {
+      "kma_code": "NY_SYR",
+      "kma_name": "Syracuse Mkt"
+    },
+    "137": {
+      "kma_code": "NY_ELM",
+      "kma_name": "Elmira Mkt"
+    },
+    "138": {
+      "kma_code": "NY_ELM",
+      "kma_name": "Elmira Mkt"
+    },
+    "139": {
+      "kma_code": "NY_ELM",
+      "kma_name": "Elmira Mkt"
+    },
+    "140": {
+      "kma_code": "NY_BUF",
+      "kma_name": "Buffalo Mkt"
+    },
+    "141": {
+      "kma_code": "NY_BUF",
+      "kma_name": "Buffalo Mkt"
+    },
+    "142": {
+      "kma_code": "NY_BUF",
+      "kma_name": "Buffalo Mkt"
+    },
+    "143": {
+      "kma_code": "NY_BUF",
+      "kma_name": "Buffalo Mkt"
+    },
+    "144": {
+      "kma_code": "NY_ROC",
+      "kma_name": "Rochester Mkt"
+    },
+    "145": {
+      "kma_code": "NY_ROC",
+      "kma_name": "Rochester Mkt"
+    },
+    "146": {
+      "kma_code": "NY_ROC",
+      "kma_name": "Rochester Mkt"
+    },
+    "147": {
+      "kma_code": "NY_BUF",
+      "kma_name": "Buffalo Mkt"
+    },
+    "148": {
+      "kma_code": "NY_ELM",
+      "kma_name": "Elmira Mkt"
+    },
+    "149": {
+      "kma_code": "NY_ELM",
+      "kma_name": "Elmira Mkt"
+    },
+    "150": {
+      "kma_code": "PA_PIT",
+      "kma_name": "Pittsburgh Mkt"
+    },
+    "151": {
+      "kma_code": "PA_PIT",
+      "kma_name": "Pittsburgh Mkt"
+    },
+    "152": {
+      "kma_code": "PA_PIT",
+      "kma_name": "Pittsburgh Mkt"
+    },
+    "153": {
+      "kma_code": "PA_PIT",
+      "kma_name": "Pittsburgh Mkt"
+    },
+    "154": {
+      "kma_code": "PA_PIT",
+      "kma_name": "Pittsburgh Mkt"
+    },
+    "155": {
+      "kma_code": "PA_PIT",
+      "kma_name": "Pittsburgh Mkt"
+    },
+    "156": {
+      "kma_code": "PA_PIT",
+      "kma_name": "Pittsburgh Mkt"
+    },
+    "157": {
+      "kma_code": "PA_PIT",
+      "kma_name": "Pittsburgh Mkt"
+    },
+    "158": {
+      "kma_code": "PA_PIT",
+      "kma_name": "Pittsburgh Mkt"
+    },
+    "159": {
+      "kma_code": "PA_PIT",
+      "kma_name": "Pittsburgh Mkt"
+    },
+    "160": {
+      "kma_code": "PA_PIT",
+      "kma_name": "Pittsburgh Mkt"
+    },
+    "161": {
+      "kma_code": "PA_PIT",
+      "kma_name": "Pittsburgh Mkt"
+    },
+    "162": {
+      "kma_code": "PA_PIT",
+      "kma_name": "Pittsburgh Mkt"
+    },
+    "163": {
+      "kma_code": "PA_ERI",
+      "kma_name": "Erie Mkt"
+    },
+    "164": {
+      "kma_code": "PA_ERI",
+      "kma_name": "Erie Mkt"
+    },
+    "165": {
+      "kma_code": "PA_ERI",
+      "kma_name": "Erie Mkt"
+    },
+    "166": {
+      "kma_code": "PA_HAR",
+      "kma_name": "Harrisburg Mkt"
+    },
+    "167": {
+      "kma_code": "PA_ERI",
+      "kma_name": "Erie Mkt"
+    },
+    "168": {
+      "kma_code": "PA_HAR",
+      "kma_name": "Harrisburg Mkt"
+    },
+    "169": {
+      "kma_code": "NY_ELM",
+      "kma_name": "Elmira Mkt"
+    },
+    "170": {
+      "kma_code": "PA_HAR",
+      "kma_name": "Harrisburg Mkt"
+    },
+    "171": {
+      "kma_code": "PA_HAR",
+      "kma_name": "Harrisburg Mkt"
+    },
+    "172": {
+      "kma_code": "PA_HAR",
+      "kma_name": "Harrisburg Mkt"
+    },
+    "173": {
+      "kma_code": "PA_HAR",
+      "kma_name": "Harrisburg Mkt"
+    },
+    "174": {
+      "kma_code": "PA_HAR",
+      "kma_name": "Harrisburg Mkt"
+    },
+    "175": {
+      "kma_code": "PA_HAR",
+      "kma_name": "Harrisburg Mkt"
+    },
+    "176": {
+      "kma_code": "PA_HAR",
+      "kma_name": "Harrisburg Mkt"
+    },
+    "177": {
+      "kma_code": "PA_HAR",
+      "kma_name": "Harrisburg Mkt"
+    },
+    "178": {
+      "kma_code": "PA_HAR",
+      "kma_name": "Harrisburg Mkt"
+    },
+    "179": {
+      "kma_code": "PA_HAR",
+      "kma_name": "Harrisburg Mkt"
+    },
+    "180": {
+      "kma_code": "PA_ALL",
+      "kma_name": "Allentown Mkt"
+    },
+    "181": {
+      "kma_code": "PA_ALL",
+      "kma_name": "Allentown Mkt"
+    },
+    "182": {
+      "kma_code": "PA_ALL",
+      "kma_name": "Allentown Mkt"
+    },
+    "183": {
+      "kma_code": "PA_ALL",
+      "kma_name": "Allentown Mkt"
+    },
+    "184": {
+      "kma_code": "PA_ALL",
+      "kma_name": "Allentown Mkt"
+    },
+    "185": {
+      "kma_code": "PA_ALL",
+      "kma_name": "Allentown Mkt"
+    },
+    "186": {
+      "kma_code": "PA_ALL",
+      "kma_name": "Allentown Mkt"
+    },
+    "187": {
+      "kma_code": "PA_ALL",
+      "kma_name": "Allentown Mkt"
+    },
+    "188": {
+      "kma_code": "NY_ELM",
+      "kma_name": "Elmira Mkt"
+    },
+    "189": {
+      "kma_code": "PA_ALL",
+      "kma_name": "Allentown Mkt"
+    },
+    "190": {
+      "kma_code": "PA_PHI",
+      "kma_name": "Philadelphia Mkt"
+    },
+    "191": {
+      "kma_code": "PA_PHI",
+      "kma_name": "Philadelphia Mkt"
+    },
+    "192": {
+      "kma_code": "PA_PHI",
+      "kma_name": "Philadelphia Mkt"
+    },
+    "193": {
+      "kma_code": "PA_PHI",
+      "kma_name": "Philadelphia Mkt"
+    },
+    "194": {
+      "kma_code": "PA_PHI",
+      "kma_name": "Philadelphia Mkt"
+    },
+    "195": {
+      "kma_code": "PA_PHI",
+      "kma_name": "Philadelphia Mkt"
+    },
+    "196": {
+      "kma_code": "PA_PHI",
+      "kma_name": "Philadelphia Mkt"
+    },
+    "197": {
+      "kma_code": "MD_BAL",
+      "kma_name": "Baltimore Mkt"
+    },
+    "198": {
+      "kma_code": "MD_BAL",
+      "kma_name": "Baltimore Mkt"
+    },
+    "199": {
+      "kma_code": "MD_BAL",
+      "kma_name": "Baltimore Mkt"
+    },
+    "200": {
+      "kma_code": "VA_ALE",
+      "kma_name": "Alexandria Mkt"
+    },
+    "201": {
+      "kma_code": "VA_ALE",
+      "kma_name": "Alexandria Mkt"
+    },
+    "202": {
+      "kma_code": "VA_ALE",
+      "kma_name": "Alexandria Mkt"
+    },
+    "203": {
+      "kma_code": "VA_ALE",
+      "kma_name": "Alexandria Mkt"
+    },
+    "204": {
+      "kma_code": "VA_ALE",
+      "kma_name": "Alexandria Mkt"
+    },
+    "205": {
+      "kma_code": "VA_ALE",
+      "kma_name": "Alexandria Mkt"
+    },
+    "206": {
+      "kma_code": "VA_ALE",
+      "kma_name": "Alexandria Mkt"
+    },
+    "207": {
+      "kma_code": "MD_BAL",
+      "kma_name": "Baltimore Mkt"
+    },
+    "208": {
+      "kma_code": "MD_BAL",
+      "kma_name": "Baltimore Mkt"
+    },
+    "209": {
+      "kma_code": "MD_BAL",
+      "kma_name": "Baltimore Mkt"
+    },
+    "210": {
+      "kma_code": "MD_BAL",
+      "kma_name": "Baltimore Mkt"
+    },
+    "211": {
+      "kma_code": "MD_BAL",
+      "kma_name": "Baltimore Mkt"
+    },
+    "212": {
+      "kma_code": "MD_BAL",
+      "kma_name": "Baltimore Mkt"
+    },
+    "214": {
+      "kma_code": "MD_BAL",
+      "kma_name": "Baltimore Mkt"
+    },
+    "215": {
+      "kma_code": "VA_WIN",
+      "kma_name": "Winchester Mkt"
+    },
+    "216": {
+      "kma_code": "MD_BAL",
+      "kma_name": "Baltimore Mkt"
+    },
+    "217": {
+      "kma_code": "VA_WIN",
+      "kma_name": "Winchester Mkt"
+    },
+    "218": {
+      "kma_code": "MD_BAL",
+      "kma_name": "Baltimore Mkt"
+    },
+    "219": {
+      "kma_code": "MD_BAL",
+      "kma_name": "Baltimore Mkt"
+    },
+    "220": {
+      "kma_code": "VA_ALE",
+      "kma_name": "Alexandria Mkt"
+    },
+    "221": {
+      "kma_code": "VA_ALE",
+      "kma_name": "Alexandria Mkt"
+    },
+    "222": {
+      "kma_code": "VA_ALE",
+      "kma_name": "Alexandria Mkt"
+    },
+    "223": {
+      "kma_code": "VA_ALE",
+      "kma_name": "Alexandria Mkt"
+    },
+    "224": {
+      "kma_code": "VA_RCH",
+      "kma_name": "Richmond Mkt"
+    },
+    "225": {
+      "kma_code": "VA_RCH",
+      "kma_name": "Richmond Mkt"
+    },
+    "226": {
+      "kma_code": "VA_WIN",
+      "kma_name": "Winchester Mkt"
+    },
+    "227": {
+      "kma_code": "VA_ALE",
+      "kma_name": "Alexandria Mkt"
+    },
+    "228": {
+      "kma_code": "VA_WIN",
+      "kma_name": "Winchester Mkt"
+    },
+    "229": {
+      "kma_code": "VA_RCH",
+      "kma_name": "Richmond Mkt"
+    },
+    "230": {
+      "kma_code": "VA_RCH",
+      "kma_name": "Richmond Mkt"
+    },
+    "231": {
+      "kma_code": "VA_RCH",
+      "kma_name": "Richmond Mkt"
+    },
+    "232": {
+      "kma_code": "VA_RCH",
+      "kma_name": "Richmond Mkt"
+    },
+    "233": {
+      "kma_code": "VA_NOR",
+      "kma_name": "Norfolk Mkt"
+    },
+    "234": {
+      "kma_code": "VA_NOR",
+      "kma_name": "Norfolk Mkt"
+    },
+    "235": {
+      "kma_code": "VA_NOR",
+      "kma_name": "Norfolk Mkt"
+    },
+    "236": {
+      "kma_code": "VA_NOR",
+      "kma_name": "Norfolk Mkt"
+    },
+    "237": {
+      "kma_code": "VA_NOR",
+      "kma_name": "Norfolk Mkt"
+    },
+    "238": {
+      "kma_code": "VA_RCH",
+      "kma_name": "Richmond Mkt"
+    },
+    "239": {
+      "kma_code": "VA_ROA",
+      "kma_name": "Roanoke Mkt"
+    },
+    "240": {
+      "kma_code": "VA_ROA",
+      "kma_name": "Roanoke Mkt"
+    },
+    "241": {
+      "kma_code": "VA_ROA",
+      "kma_name": "Roanoke Mkt"
+    },
+    "242": {
+      "kma_code": "TN_KNO",
+      "kma_name": "Knoxville Mkt"
+    },
+    "243": {
+      "kma_code": "VA_ROA",
+      "kma_name": "Roanoke Mkt"
+    },
+    "244": {
+      "kma_code": "VA_ROA",
+      "kma_name": "Roanoke Mkt"
+    },
+    "245": {
+      "kma_code": "VA_ROA",
+      "kma_name": "Roanoke Mkt"
+    },
+    "246": {
+      "kma_code": "WV_CHA",
+      "kma_name": "Charleston Mkt"
+    },
+    "247": {
+      "kma_code": "WV_CHA",
+      "kma_name": "Charleston Mkt"
+    },
+    "248": {
+      "kma_code": "WV_CHA",
+      "kma_name": "Charleston Mkt"
+    },
+    "249": {
+      "kma_code": "WV_CHA",
+      "kma_name": "Charleston Mkt"
+    },
+    "250": {
+      "kma_code": "WV_CHA",
+      "kma_name": "Charleston Mkt"
+    },
+    "251": {
+      "kma_code": "WV_CHA",
+      "kma_name": "Charleston Mkt"
+    },
+    "252": {
+      "kma_code": "WV_CHA",
+      "kma_name": "Charleston Mkt"
+    },
+    "253": {
+      "kma_code": "WV_CHA",
+      "kma_name": "Charleston Mkt"
+    },
+    "254": {
+      "kma_code": "VA_WIN",
+      "kma_name": "Winchester Mkt"
+    },
+    "255": {
+      "kma_code": "WV_HUN",
+      "kma_name": "Huntington Mkt"
+    },
+    "256": {
+      "kma_code": "WV_CHA",
+      "kma_name": "Charleston Mkt"
+    },
+    "257": {
+      "kma_code": "WV_HUN",
+      "kma_name": "Huntington Mkt"
+    },
+    "258": {
+      "kma_code": "WV_CHA",
+      "kma_name": "Charleston Mkt"
+    },
+    "259": {
+      "kma_code": "WV_CHA",
+      "kma_name": "Charleston Mkt"
+    },
+    "260": {
+      "kma_code": "PA_PIT",
+      "kma_name": "Pittsburgh Mkt"
+    },
+    "261": {
+      "kma_code": "WV_CHA",
+      "kma_name": "Charleston Mkt"
+    },
+    "262": {
+      "kma_code": "WV_CHA",
+      "kma_name": "Charleston Mkt"
+    },
+    "263": {
+      "kma_code": "WV_CHA",
+      "kma_name": "Charleston Mkt"
+    },
+    "264": {
+      "kma_code": "WV_CHA",
+      "kma_name": "Charleston Mkt"
+    },
+    "265": {
+      "kma_code": "PA_PIT",
+      "kma_name": "Pittsburgh Mkt"
+    },
+    "266": {
+      "kma_code": "WV_CHA",
+      "kma_name": "Charleston Mkt"
+    },
+    "267": {
+      "kma_code": "VA_WIN",
+      "kma_name": "Winchester Mkt"
+    },
+    "268": {
+      "kma_code": "VA_WIN",
+      "kma_name": "Winchester Mkt"
+    },
+    "270": {
+      "kma_code": "NC_GRE",
+      "kma_name": "Greensboro Mkt"
+    },
+    "271": {
+      "kma_code": "NC_GRE",
+      "kma_name": "Greensboro Mkt"
+    },
+    "272": {
+      "kma_code": "NC_GRE",
+      "kma_name": "Greensboro Mkt"
+    },
+    "273": {
+      "kma_code": "NC_GRE",
+      "kma_name": "Greensboro Mkt"
+    },
+    "274": {
+      "kma_code": "NC_GRE",
+      "kma_name": "Greensboro Mkt"
+    },
+    "275": {
+      "kma_code": "NC_RAL",
+      "kma_name": "Raleigh Mkt"
+    },
+    "276": {
+      "kma_code": "NC_RAL",
+      "kma_name": "Raleigh Mkt"
+    },
+    "277": {
+      "kma_code": "NC_RAL",
+      "kma_name": "Raleigh Mkt"
+    },
+    "278": {
+      "kma_code": "NC_RAL",
+      "kma_name": "Raleigh Mkt"
+    },
+    "279": {
+      "kma_code": "VA_NOR",
+      "kma_name": "Norfolk Mkt"
+    },
+    "280": {
+      "kma_code": "NC_CHA",
+      "kma_name": "Charlotte Mkt"
+    },
+    "281": {
+      "kma_code": "NC_CHA",
+      "kma_name": "Charlotte Mkt"
+    },
+    "282": {
+      "kma_code": "NC_CHA",
+      "kma_name": "Charlotte Mkt"
+    },
+    "283": {
+      "kma_code": "NC_CHA",
+      "kma_name": "Charlotte Mkt"
+    },
+    "284": {
+      "kma_code": "NC_WIL",
+      "kma_name": "Wilmington Mkt"
+    },
+    "285": {
+      "kma_code": "NC_WIL",
+      "kma_name": "Wilmington Mkt"
+    },
+    "286": {
+      "kma_code": "NC_CHA",
+      "kma_name": "Charlotte Mkt"
+    },
+    "287": {
+      "kma_code": "SC_GRE",
+      "kma_name": "Greenville Mkt"
+    },
+    "288": {
+      "kma_code": "SC_GRE",
+      "kma_name": "Greenville Mkt"
+    },
+    "289": {
+      "kma_code": "TN_CHA",
+      "kma_name": "Chattanooga Mkt"
+    },
+    "290": {
+      "kma_code": "SC_COL",
+      "kma_name": "Columbia Mkt"
+    },
+    "291": {
+      "kma_code": "SC_COL",
+      "kma_name": "Columbia Mkt"
+    },
+    "292": {
+      "kma_code": "SC_COL",
+      "kma_name": "Columbia Mkt"
+    },
+    "293": {
+      "kma_code": "SC_GRE",
+      "kma_name": "Greenville Mkt"
+    },
+    "294": {
+      "kma_code": "SC_CHA",
+      "kma_name": "N Charleston Mkt"
+    },
+    "295": {
+      "kma_code": "SC_COL",
+      "kma_name": "Columbia Mkt"
+    },
+    "296": {
+      "kma_code": "SC_GRE",
+      "kma_name": "Greenville Mkt"
+    },
+    "297": {
+      "kma_code": "NC_CHA",
+      "kma_name": "Charlotte Mkt"
+    },
+    "298": {
+      "kma_code": "SC_GRE",
+      "kma_name": "Greenville Mkt"
+    },
+    "299": {
+      "kma_code": "GA_SAV",
+      "kma_name": "Savannah Mkt"
+    },
+    "300": {
+      "kma_code": "GA_ATL",
+      "kma_name": "Atlanta Mkt"
+    },
+    "301": {
+      "kma_code": "GA_ATL",
+      "kma_name": "Atlanta Mkt"
+    },
+    "302": {
+      "kma_code": "GA_ATL",
+      "kma_name": "Atlanta Mkt"
+    },
+    "303": {
+      "kma_code": "GA_ATL",
+      "kma_name": "Atlanta Mkt"
+    },
+    "304": {
+      "kma_code": "GA_SAV",
+      "kma_name": "Savannah Mkt"
+    },
+    "305": {
+      "kma_code": "GA_ATL",
+      "kma_name": "Atlanta Mkt"
+    },
+    "306": {
+      "kma_code": "GA_ATL",
+      "kma_name": "Atlanta Mkt"
+    },
+    "307": {
+      "kma_code": "TN_CHA",
+      "kma_name": "Chattanooga Mkt"
+    },
+    "308": {
+      "kma_code": "SC_GRE",
+      "kma_name": "Greenville Mkt"
+    },
+    "309": {
+      "kma_code": "SC_GRE",
+      "kma_name": "Greenville Mkt"
+    },
+    "310": {
+      "kma_code": "GA_MAC",
+      "kma_name": "Macon Mkt"
+    },
+    "311": {
+      "kma_code": "GA_ATL",
+      "kma_name": "Atlanta Mkt"
+    },
+    "312": {
+      "kma_code": "GA_MAC",
+      "kma_name": "Macon Mkt"
+    },
+    "313": {
+      "kma_code": "GA_SAV",
+      "kma_name": "Savannah Mkt"
+    },
+    "314": {
+      "kma_code": "GA_SAV",
+      "kma_name": "Savannah Mkt"
+    },
+    "315": {
+      "kma_code": "GA_SAV",
+      "kma_name": "Savannah Mkt"
+    },
+    "316": {
+      "kma_code": "GA_TIF",
+      "kma_name": "Tifton Mkt"
+    },
+    "317": {
+      "kma_code": "GA_TIF",
+      "kma_name": "Tifton Mkt"
+    },
+    "318": {
+      "kma_code": "AL_MON",
+      "kma_name": "Montgomery Mkt"
+    },
+    "319": {
+      "kma_code": "AL_MON",
+      "kma_name": "Montgomery Mkt"
+    },
+    "320": {
+      "kma_code": "FL_JAX",
+      "kma_name": "Jacksonville Mkt"
+    },
+    "321": {
+      "kma_code": "FL_JAX",
+      "kma_name": "Jacksonville Mkt"
+    },
+    "322": {
+      "kma_code": "FL_JAX",
+      "kma_name": "Jacksonville Mkt"
+    },
+    "323": {
+      "kma_code": "FL_TAL",
+      "kma_name": "Tallahassee Mkt"
+    },
+    "324": {
+      "kma_code": "FL_TAL",
+      "kma_name": "Tallahassee Mkt"
+    },
+    "325": {
+      "kma_code": "AL_MOB",
+      "kma_name": "Mobile Mkt"
+    },
+    "326": {
+      "kma_code": "FL_JAX",
+      "kma_name": "Jacksonville Mkt"
+    },
+    "327": {
+      "kma_code": "FL_LAK",
+      "kma_name": "Lakeland Mkt"
+    },
+    "328": {
+      "kma_code": "FL_LAK",
+      "kma_name": "Lakeland Mkt"
+    },
+    "329": {
+      "kma_code": "FL_LAK",
+      "kma_name": "Lakeland Mkt"
+    },
+    "330": {
+      "kma_code": "FL_MIA",
+      "kma_name": "Miami Mkt"
+    },
+    "331": {
+      "kma_code": "FL_MIA",
+      "kma_name": "Miami Mkt"
+    },
+    "332": {
+      "kma_code": "FL_MIA",
+      "kma_name": "Miami Mkt"
+    },
+    "333": {
+      "kma_code": "FL_MIA",
+      "kma_name": "Miami Mkt"
+    },
+    "334": {
+      "kma_code": "FL_MIA",
+      "kma_name": "Miami Mkt"
+    },
+    "335": {
+      "kma_code": "FL_LAK",
+      "kma_name": "Lakeland Mkt"
+    },
+    "336": {
+      "kma_code": "FL_LAK",
+      "kma_name": "Lakeland Mkt"
+    },
+    "337": {
+      "kma_code": "FL_LAK",
+      "kma_name": "Lakeland Mkt"
+    },
+    "338": {
+      "kma_code": "FL_LAK",
+      "kma_name": "Lakeland Mkt"
+    },
+    "339": {
+      "kma_code": "FL_MIA",
+      "kma_name": "Miami Mkt"
+    },
+    "341": {
+      "kma_code": "FL_MIA",
+      "kma_name": "Miami Mkt"
+    },
+    "342": {
+      "kma_code": "FL_LAK",
+      "kma_name": "Lakeland Mkt"
+    },
+    "344": {
+      "kma_code": "FL_LAK",
+      "kma_name": "Lakeland Mkt"
+    },
+    "346": {
+      "kma_code": "FL_LAK",
+      "kma_name": "Lakeland Mkt"
+    },
+    "347": {
+      "kma_code": "FL_LAK",
+      "kma_name": "Lakeland Mkt"
+    },
+    "349": {
+      "kma_code": "FL_MIA",
+      "kma_name": "Miami Mkt"
+    },
+    "350": {
+      "kma_code": "AL_BIR",
+      "kma_name": "Birmingham Mkt"
+    },
+    "351": {
+      "kma_code": "AL_BIR",
+      "kma_name": "Birmingham Mkt"
+    },
+    "352": {
+      "kma_code": "AL_BIR",
+      "kma_name": "Birmingham Mkt"
+    },
+    "354": {
+      "kma_code": "AL_BIR",
+      "kma_name": "Birmingham Mkt"
+    },
+    "355": {
+      "kma_code": "AL_DEC",
+      "kma_name": "Decatur Mkt"
+    },
+    "356": {
+      "kma_code": "AL_DEC",
+      "kma_name": "Decatur Mkt"
+    },
+    "357": {
+      "kma_code": "AL_DEC",
+      "kma_name": "Decatur Mkt"
+    },
+    "358": {
+      "kma_code": "AL_DEC",
+      "kma_name": "Decatur Mkt"
+    },
+    "359": {
+      "kma_code": "TN_CHA",
+      "kma_name": "Chattanooga Mkt"
+    },
+    "360": {
+      "kma_code": "AL_MON",
+      "kma_name": "Montgomery Mkt"
+    },
+    "361": {
+      "kma_code": "AL_MON",
+      "kma_name": "Montgomery Mkt"
+    },
+    "362": {
+      "kma_code": "AL_BIR",
+      "kma_name": "Birmingham Mkt"
+    },
+    "363": {
+      "kma_code": "AL_MON",
+      "kma_name": "Montgomery Mkt"
+    },
+    "364": {
+      "kma_code": "AL_MOB",
+      "kma_name": "Mobile Mkt"
+    },
+    "365": {
+      "kma_code": "AL_MOB",
+      "kma_name": "Mobile Mkt"
+    },
+    "366": {
+      "kma_code": "AL_MOB",
+      "kma_name": "Mobile Mkt"
+    },
+    "367": {
+      "kma_code": "AL_MON",
+      "kma_name": "Montgomery Mkt"
+    },
+    "368": {
+      "kma_code": "AL_MON",
+      "kma_name": "Montgomery Mkt"
+    },
+    "369": {
+      "kma_code": "AL_MON",
+      "kma_name": "Montgomery Mkt"
+    },
+    "370": {
+      "kma_code": "TN_NAS",
+      "kma_name": "Nashville Mkt"
+    },
+    "371": {
+      "kma_code": "TN_NAS",
+      "kma_name": "Nashville Mkt"
+    },
+    "372": {
+      "kma_code": "TN_NAS",
+      "kma_name": "Nashville Mkt"
+    },
+    "373": {
+      "kma_code": "TN_CHA",
+      "kma_name": "Chattanooga Mkt"
+    },
+    "374": {
+      "kma_code": "TN_CHA",
+      "kma_name": "Chattanooga Mkt"
+    },
+    "375": {
+      "kma_code": "TN_MEM",
+      "kma_name": "Memphis Mkt"
+    },
+    "376": {
+      "kma_code": "TN_KNO",
+      "kma_name": "Knoxville Mkt"
+    },
+    "377": {
+      "kma_code": "TN_KNO",
+      "kma_name": "Knoxville Mkt"
+    },
+    "378": {
+      "kma_code": "TN_KNO",
+      "kma_name": "Knoxville Mkt"
+    },
+    "379": {
+      "kma_code": "TN_KNO",
+      "kma_name": "Knoxville Mkt"
+    },
+    "380": {
+      "kma_code": "TN_MEM",
+      "kma_name": "Memphis Mkt"
+    },
+    "381": {
+      "kma_code": "TN_MEM",
+      "kma_name": "Memphis Mkt"
+    },
+    "382": {
+      "kma_code": "TN_MEM",
+      "kma_name": "Memphis Mkt"
+    },
+    "383": {
+      "kma_code": "TN_MEM",
+      "kma_name": "Memphis Mkt"
+    },
+    "384": {
+      "kma_code": "AL_DEC",
+      "kma_name": "Decatur Mkt"
+    },
+    "385": {
+      "kma_code": "TN_NAS",
+      "kma_name": "Nashville Mkt"
+    },
+    "386": {
+      "kma_code": "TN_MEM",
+      "kma_name": "Memphis Mkt"
+    },
+    "387": {
+      "kma_code": "MS_JAC",
+      "kma_name": "Jackson Mkt"
+    },
+    "388": {
+      "kma_code": "AL_DEC",
+      "kma_name": "Decatur Mkt"
+    },
+    "389": {
+      "kma_code": "MS_JAC",
+      "kma_name": "Jackson Mkt"
+    },
+    "390": {
+      "kma_code": "MS_JAC",
+      "kma_name": "Jackson Mkt"
+    },
+    "391": {
+      "kma_code": "MS_JAC",
+      "kma_name": "Jackson Mkt"
+    },
+    "392": {
+      "kma_code": "MS_JAC",
+      "kma_name": "Jackson Mkt"
+    },
+    "393": {
+      "kma_code": "MS_JAC",
+      "kma_name": "Jackson Mkt"
+    },
+    "394": {
+      "kma_code": "AL_MOB",
+      "kma_name": "Mobile Mkt"
+    },
+    "395": {
+      "kma_code": "AL_MOB",
+      "kma_name": "Mobile Mkt"
+    },
+    "396": {
+      "kma_code": "MS_JAC",
+      "kma_name": "Jackson Mkt"
+    },
+    "397": {
+      "kma_code": "MS_JAC",
+      "kma_name": "Jackson Mkt"
+    },
+    "398": {
+      "kma_code": "GA_TIF",
+      "kma_name": "Tifton Mkt"
+    },
+    "399": {
+      "kma_code": "GA_ATL",
+      "kma_name": "Atlanta Mkt"
+    },
+    "400": {
+      "kma_code": "KY_LOU",
+      "kma_name": "Louisville Mkt"
+    },
+    "401": {
+      "kma_code": "KY_LOU",
+      "kma_name": "Louisville Mkt"
+    },
+    "402": {
+      "kma_code": "KY_LOU",
+      "kma_name": "Louisville Mkt"
+    },
+    "403": {
+      "kma_code": "KY_LEX",
+      "kma_name": "Lexington Mkt"
+    },
+    "404": {
+      "kma_code": "KY_LEX",
+      "kma_name": "Lexington Mkt"
+    },
+    "405": {
+      "kma_code": "KY_LEX",
+      "kma_name": "Lexington Mkt"
+    },
+    "406": {
+      "kma_code": "KY_LEX",
+      "kma_name": "Lexington Mkt"
+    },
+    "407": {
+      "kma_code": "TN_KNO",
+      "kma_name": "Knoxville Mkt"
+    },
+    "408": {
+      "kma_code": "TN_KNO",
+      "kma_name": "Knoxville Mkt"
+    },
+    "409": {
+      "kma_code": "TN_KNO",
+      "kma_name": "Knoxville Mkt"
+    },
+    "410": {
+      "kma_code": "KY_LEX",
+      "kma_name": "Lexington Mkt"
+    },
+    "411": {
+      "kma_code": "WV_HUN",
+      "kma_name": "Huntington Mkt"
+    },
+    "412": {
+      "kma_code": "WV_HUN",
+      "kma_name": "Huntington Mkt"
+    },
+    "413": {
+      "kma_code": "KY_LEX",
+      "kma_name": "Lexington Mkt"
+    },
+    "414": {
+      "kma_code": "KY_LEX",
+      "kma_name": "Lexington Mkt"
+    },
+    "415": {
+      "kma_code": "WV_CHA",
+      "kma_name": "Charleston Mkt"
+    },
+    "416": {
+      "kma_code": "WV_CHA",
+      "kma_name": "Charleston Mkt"
+    },
+    "417": {
+      "kma_code": "KY_LEX",
+      "kma_name": "Lexington Mkt"
+    },
+    "418": {
+      "kma_code": "KY_LEX",
+      "kma_name": "Lexington Mkt"
+    },
+    "419": {
+      "kma_code": "KY_LEX",
+      "kma_name": "Lexington Mkt"
+    },
+    "420": {
+      "kma_code": "MO_GIR",
+      "kma_name": "Cape Girardeau Mkt"
+    },
+    "421": {
+      "kma_code": "KY_BOW",
+      "kma_name": "Bowling Green Mkt"
+    },
+    "422": {
+      "kma_code": "KY_BOW",
+      "kma_name": "Bowling Green Mkt"
+    },
+    "423": {
+      "kma_code": "IN_EVA",
+      "kma_name": "Evansville Mkt"
+    },
+    "424": {
+      "kma_code": "IN_EVA",
+      "kma_name": "Evansville Mkt"
+    },
+    "425": {
+      "kma_code": "TN_KNO",
+      "kma_name": "Knoxville Mkt"
+    },
+    "426": {
+      "kma_code": "TN_KNO",
+      "kma_name": "Knoxville Mkt"
+    },
+    "427": {
+      "kma_code": "KY_BOW",
+      "kma_name": "Bowling Green Mkt"
+    },
+    "430": {
+      "kma_code": "OH_COL",
+      "kma_name": "Columbus Mkt"
+    },
+    "431": {
+      "kma_code": "OH_COL",
+      "kma_name": "Columbus Mkt"
+    },
+    "432": {
+      "kma_code": "OH_COL",
+      "kma_name": "Columbus Mkt"
+    },
+    "433": {
+      "kma_code": "OH_COL",
+      "kma_name": "Columbus Mkt"
+    },
+    "434": {
+      "kma_code": "OH_TOL",
+      "kma_name": "Toledo Mkt"
+    },
+    "435": {
+      "kma_code": "OH_TOL",
+      "kma_name": "Toledo Mkt"
+    },
+    "436": {
+      "kma_code": "OH_TOL",
+      "kma_name": "Toledo Mkt"
+    },
+    "437": {
+      "kma_code": "OH_COL",
+      "kma_name": "Columbus Mkt"
+    },
+    "438": {
+      "kma_code": "OH_COL",
+      "kma_name": "Columbus Mkt"
+    },
+    "439": {
+      "kma_code": "PA_PIT",
+      "kma_name": "Pittsburgh Mkt"
+    },
+    "440": {
+      "kma_code": "OH_CLE",
+      "kma_name": "Cleveland Mkt"
+    },
+    "441": {
+      "kma_code": "OH_CLE",
+      "kma_name": "Cleveland Mkt"
+    },
+    "442": {
+      "kma_code": "OH_CLE",
+      "kma_name": "Cleveland Mkt"
+    },
+    "443": {
+      "kma_code": "OH_CLE",
+      "kma_name": "Cleveland Mkt"
+    },
+    "444": {
+      "kma_code": "OH_CLE",
+      "kma_name": "Cleveland Mkt"
+    },
+    "445": {
+      "kma_code": "OH_CLE",
+      "kma_name": "Cleveland Mkt"
+    },
+    "446": {
+      "kma_code": "OH_CLE",
+      "kma_name": "Cleveland Mkt"
+    },
+    "447": {
+      "kma_code": "OH_CLE",
+      "kma_name": "Cleveland Mkt"
+    },
+    "448": {
+      "kma_code": "OH_CLE",
+      "kma_name": "Cleveland Mkt"
+    },
+    "449": {
+      "kma_code": "OH_CLE",
+      "kma_name": "Cleveland Mkt"
+    },
+    "450": {
+      "kma_code": "OH_CIN",
+      "kma_name": "Cincinnati Mkt"
+    },
+    "451": {
+      "kma_code": "OH_CIN",
+      "kma_name": "Cincinnati Mkt"
+    },
+    "452": {
+      "kma_code": "OH_CIN",
+      "kma_name": "Cincinnati Mkt"
+    },
+    "453": {
+      "kma_code": "OH_COL",
+      "kma_name": "Columbus Mkt"
+    },
+    "454": {
+      "kma_code": "OH_COL",
+      "kma_name": "Columbus Mkt"
+    },
+    "455": {
+      "kma_code": "OH_COL",
+      "kma_name": "Columbus Mkt"
+    },
+    "456": {
+      "kma_code": "WV_HUN",
+      "kma_name": "Huntington Mkt"
+    },
+    "457": {
+      "kma_code": "WV_CHA",
+      "kma_name": "Charleston Mkt"
+    },
+    "458": {
+      "kma_code": "OH_TOL",
+      "kma_name": "Toledo Mkt"
+    },
+    "459": {
+      "kma_code": "OH_CIN",
+      "kma_name": "Cincinnati Mkt"
+    },
+    "460": {
+      "kma_code": "IN_IND",
+      "kma_name": "Indianapolis Mkt"
+    },
+    "461": {
+      "kma_code": "IN_IND",
+      "kma_name": "Indianapolis Mkt"
+    },
+    "462": {
+      "kma_code": "IN_IND",
+      "kma_name": "Indianapolis Mkt"
+    },
+    "463": {
+      "kma_code": "IN_GRY",
+      "kma_name": "Gary Mkt"
+    },
+    "464": {
+      "kma_code": "IN_GRY",
+      "kma_name": "Gary Mkt"
+    },
+    "465": {
+      "kma_code": "IN_SBD",
+      "kma_name": "S Bend Mkt"
+    },
+    "466": {
+      "kma_code": "IN_SBD",
+      "kma_name": "S Bend Mkt"
+    },
+    "467": {
+      "kma_code": "IN_FTW",
+      "kma_name": "Ft Wayne Mkt"
+    },
+    "468": {
+      "kma_code": "IN_FTW",
+      "kma_name": "Ft Wayne Mkt"
+    },
+    "469": {
+      "kma_code": "IN_FTW",
+      "kma_name": "Ft Wayne Mkt"
+    },
+    "470": {
+      "kma_code": "OH_CIN",
+      "kma_name": "Cincinnati Mkt"
+    },
+    "471": {
+      "kma_code": "KY_LOU",
+      "kma_name": "Louisville Mkt"
+    },
+    "472": {
+      "kma_code": "IN_IND",
+      "kma_name": "Indianapolis Mkt"
+    },
+    "473": {
+      "kma_code": "IN_IND",
+      "kma_name": "Indianapolis Mkt"
+    },
+    "474": {
+      "kma_code": "IN_IND",
+      "kma_name": "Indianapolis Mkt"
+    },
+    "475": {
+      "kma_code": "IN_EVA",
+      "kma_name": "Evansville Mkt"
+    },
+    "476": {
+      "kma_code": "IN_EVA",
+      "kma_name": "Evansville Mkt"
+    },
+    "477": {
+      "kma_code": "IN_EVA",
+      "kma_name": "Evansville Mkt"
+    },
+    "478": {
+      "kma_code": "IN_TER",
+      "kma_name": "Terre Haute Mkt"
+    },
+    "479": {
+      "kma_code": "IN_IND",
+      "kma_name": "Indianapolis Mkt"
+    },
+    "480": {
+      "kma_code": "MI_DET",
+      "kma_name": "Detroit Mkt"
+    },
+    "481": {
+      "kma_code": "MI_DET",
+      "kma_name": "Detroit Mkt"
+    },
+    "482": {
+      "kma_code": "MI_DET",
+      "kma_name": "Detroit Mkt"
+    },
+    "483": {
+      "kma_code": "MI_DET",
+      "kma_name": "Detroit Mkt"
+    },
+    "484": {
+      "kma_code": "MI_DET",
+      "kma_name": "Detroit Mkt"
+    },
+    "485": {
+      "kma_code": "MI_DET",
+      "kma_name": "Detroit Mkt"
+    },
+    "486": {
+      "kma_code": "MI_SAG",
+      "kma_name": "Saginaw Mkt"
+    },
+    "487": {
+      "kma_code": "MI_SAG",
+      "kma_name": "Saginaw Mkt"
+    },
+    "488": {
+      "kma_code": "MI_RAP",
+      "kma_name": "Grand Rapids Mkt"
+    },
+    "489": {
+      "kma_code": "MI_RAP",
+      "kma_name": "Grand Rapids Mkt"
+    },
+    "490": {
+      "kma_code": "MI_RAP",
+      "kma_name": "Grand Rapids Mkt"
+    },
+    "491": {
+      "kma_code": "IN_SBD",
+      "kma_name": "S Bend Mkt"
+    },
+    "492": {
+      "kma_code": "MI_DET",
+      "kma_name": "Detroit Mkt"
+    },
+    "493": {
+      "kma_code": "MI_RAP",
+      "kma_name": "Grand Rapids Mkt"
+    },
+    "494": {
+      "kma_code": "MI_RAP",
+      "kma_name": "Grand Rapids Mkt"
+    },
+    "495": {
+      "kma_code": "MI_RAP",
+      "kma_name": "Grand Rapids Mkt"
+    },
+    "496": {
+      "kma_code": "MI_RAP",
+      "kma_name": "Grand Rapids Mkt"
+    },
+    "497": {
+      "kma_code": "MI_SAG",
+      "kma_name": "Saginaw Mkt"
+    },
+    "498": {
+      "kma_code": "MN_DUL",
+      "kma_name": "Duluth Mkt"
+    },
+    "499": {
+      "kma_code": "MN_DUL",
+      "kma_name": "Duluth Mkt"
+    },
+    "500": {
+      "kma_code": "IA_DES",
+      "kma_name": "Des Moines Mkt"
+    },
+    "501": {
+      "kma_code": "IA_DES",
+      "kma_name": "Des Moines Mkt"
+    },
+    "502": {
+      "kma_code": "IA_DES",
+      "kma_name": "Des Moines Mkt"
+    },
+    "503": {
+      "kma_code": "IA_DES",
+      "kma_name": "Des Moines Mkt"
+    },
+    "504": {
+      "kma_code": "IA_DES",
+      "kma_name": "Des Moines Mkt"
+    },
+    "505": {
+      "kma_code": "IA_DES",
+      "kma_name": "Des Moines Mkt"
+    },
+    "506": {
+      "kma_code": "IA_DUB",
+      "kma_name": "Dubuque Mkt"
+    },
+    "507": {
+      "kma_code": "IA_DUB",
+      "kma_name": "Dubuque Mkt"
+    },
+    "508": {
+      "kma_code": "IA_DES",
+      "kma_name": "Des Moines Mkt"
+    },
+    "509": {
+      "kma_code": "IA_DES",
+      "kma_name": "Des Moines Mkt"
+    },
+    "510": {
+      "kma_code": "SD_SXF",
+      "kma_name": "Sioux Falls Mkt"
+    },
+    "511": {
+      "kma_code": "SD_SXF",
+      "kma_name": "Sioux Falls Mkt"
+    },
+    "512": {
+      "kma_code": "SD_SXF",
+      "kma_name": "Sioux Falls Mkt"
+    },
+    "513": {
+      "kma_code": "SD_SXF",
+      "kma_name": "Sioux Falls Mkt"
+    },
+    "514": {
+      "kma_code": "IA_DES",
+      "kma_name": "Des Moines Mkt"
+    },
+    "515": {
+      "kma_code": "NE_OMA",
+      "kma_name": "Omaha Mkt"
+    },
+    "516": {
+      "kma_code": "NE_OMA",
+      "kma_name": "Omaha Mkt"
+    },
+    "520": {
+      "kma_code": "IA_DUB",
+      "kma_name": "Dubuque Mkt"
+    },
+    "521": {
+      "kma_code": "IA_DUB",
+      "kma_name": "Dubuque Mkt"
+    },
+    "522": {
+      "kma_code": "IA_CED",
+      "kma_name": "Cedar Rapids Mkt"
+    },
+    "523": {
+      "kma_code": "IA_CED",
+      "kma_name": "Cedar Rapids Mkt"
+    },
+    "524": {
+      "kma_code": "IA_CED",
+      "kma_name": "Cedar Rapids Mkt"
+    },
+    "525": {
+      "kma_code": "IL_ROC",
+      "kma_name": "Rock Island Mkt"
+    },
+    "526": {
+      "kma_code": "IL_ROC",
+      "kma_name": "Rock Island Mkt"
+    },
+    "527": {
+      "kma_code": "IL_ROC",
+      "kma_name": "Rock Island Mkt"
+    },
+    "528": {
+      "kma_code": "IL_ROC",
+      "kma_name": "Rock Island Mkt"
+    },
+    "530": {
+      "kma_code": "WI_MIL",
+      "kma_name": "Milwaukee Mkt"
+    },
+    "531": {
+      "kma_code": "WI_MIL",
+      "kma_name": "Milwaukee Mkt"
+    },
+    "532": {
+      "kma_code": "WI_MIL",
+      "kma_name": "Milwaukee Mkt"
+    },
+    "534": {
+      "kma_code": "WI_MIL",
+      "kma_name": "Milwaukee Mkt"
+    },
+    "535": {
+      "kma_code": "WI_MAD",
+      "kma_name": "Madison Mkt"
+    },
+    "537": {
+      "kma_code": "WI_MAD",
+      "kma_name": "Madison Mkt"
+    },
+    "538": {
+      "kma_code": "IA_DUB",
+      "kma_name": "Dubuque Mkt"
+    },
+    "539": {
+      "kma_code": "WI_MAD",
+      "kma_name": "Madison Mkt"
+    },
+    "540": {
+      "kma_code": "WI_EAU",
+      "kma_name": "Eau Claire Mkt"
+    },
+    "541": {
+      "kma_code": "WI_GRE",
+      "kma_name": "Green Bay Mkt"
+    },
+    "542": {
+      "kma_code": "WI_GRE",
+      "kma_name": "Green Bay Mkt"
+    },
+    "543": {
+      "kma_code": "WI_GRE",
+      "kma_name": "Green Bay Mkt"
+    },
+    "544": {
+      "kma_code": "WI_GRE",
+      "kma_name": "Green Bay Mkt"
+    },
+    "545": {
+      "kma_code": "MN_DUL",
+      "kma_name": "Duluth Mkt"
+    },
+    "546": {
+      "kma_code": "WI_EAU",
+      "kma_name": "Eau Claire Mkt"
+    },
+    "547": {
+      "kma_code": "WI_EAU",
+      "kma_name": "Eau Claire Mkt"
+    },
+    "548": {
+      "kma_code": "MN_DUL",
+      "kma_name": "Duluth Mkt"
+    },
+    "549": {
+      "kma_code": "WI_GRE",
+      "kma_name": "Green Bay Mkt"
+    },
+    "550": {
+      "kma_code": "MN_MIN",
+      "kma_name": "Minneapolis Mkt"
+    },
+    "551": {
+      "kma_code": "MN_MIN",
+      "kma_name": "Minneapolis Mkt"
+    },
+    "553": {
+      "kma_code": "MN_MIN",
+      "kma_name": "Minneapolis Mkt"
+    },
+    "554": {
+      "kma_code": "MN_MIN",
+      "kma_name": "Minneapolis Mkt"
+    },
+    "555": {
+      "kma_code": "MN_MIN",
+      "kma_name": "Minneapolis Mkt"
+    },
+    "556": {
+      "kma_code": "MN_DUL",
+      "kma_name": "Duluth Mkt"
+    },
+    "557": {
+      "kma_code": "MN_DUL",
+      "kma_name": "Duluth Mkt"
+    },
+    "558": {
+      "kma_code": "MN_DUL",
+      "kma_name": "Duluth Mkt"
+    },
+    "559": {
+      "kma_code": "WI_EAU",
+      "kma_name": "Eau Claire Mkt"
+    },
+    "560": {
+      "kma_code": "MN_MIN",
+      "kma_name": "Minneapolis Mkt"
+    },
+    "561": {
+      "kma_code": "SD_SXF",
+      "kma_name": "Sioux Falls Mkt"
+    },
+    "562": {
+      "kma_code": "SD_SXF",
+      "kma_name": "Sioux Falls Mkt"
+    },
+    "563": {
+      "kma_code": "MN_STC",
+      "kma_name": "St Cloud Mkt"
+    },
+    "564": {
+      "kma_code": "MN_STC",
+      "kma_name": "St Cloud Mkt"
+    },
+    "565": {
+      "kma_code": "ND_FAR",
+      "kma_name": "Fargo Mkt"
+    },
+    "566": {
+      "kma_code": "ND_FAR",
+      "kma_name": "Fargo Mkt"
+    },
+    "567": {
+      "kma_code": "ND_FAR",
+      "kma_name": "Fargo Mkt"
+    },
+    "569": {
+      "kma_code": "VA_ALE",
+      "kma_name": "Alexandria Mkt"
+    },
+    "570": {
+      "kma_code": "SD_SXF",
+      "kma_name": "Sioux Falls Mkt"
+    },
+    "571": {
+      "kma_code": "SD_SXF",
+      "kma_name": "Sioux Falls Mkt"
+    },
+    "572": {
+      "kma_code": "SD_SXF",
+      "kma_name": "Sioux Falls Mkt"
+    },
+    "573": {
+      "kma_code": "SD_SXF",
+      "kma_name": "Sioux Falls Mkt"
+    },
+    "574": {
+      "kma_code": "SD_SXF",
+      "kma_name": "Sioux Falls Mkt"
+    },
+    "575": {
+      "kma_code": "SD_RAP",
+      "kma_name": "Rapid City Mkt"
+    },
+    "576": {
+      "kma_code": "SD_RAP",
+      "kma_name": "Rapid City Mkt"
+    },
+    "577": {
+      "kma_code": "SD_RAP",
+      "kma_name": "Rapid City Mkt"
+    },
+    "580": {
+      "kma_code": "ND_FAR",
+      "kma_name": "Fargo Mkt"
+    },
+    "581": {
+      "kma_code": "ND_FAR",
+      "kma_name": "Fargo Mkt"
+    },
+    "582": {
+      "kma_code": "ND_FAR",
+      "kma_name": "Fargo Mkt"
+    },
+    "583": {
+      "kma_code": "ND_BIS",
+      "kma_name": "Bismarck Mkt"
+    },
+    "584": {
+      "kma_code": "ND_BIS",
+      "kma_name": "Bismarck Mkt"
+    },
+    "585": {
+      "kma_code": "ND_BIS",
+      "kma_name": "Bismarck Mkt"
+    },
+    "586": {
+      "kma_code": "ND_BIS",
+      "kma_name": "Bismarck Mkt"
+    },
+    "587": {
+      "kma_code": "ND_BIS",
+      "kma_name": "Bismarck Mkt"
+    },
+    "588": {
+      "kma_code": "ND_BIS",
+      "kma_name": "Bismarck Mkt"
+    },
+    "590": {
+      "kma_code": "MT_BIL",
+      "kma_name": "Billings Mkt"
+    },
+    "591": {
+      "kma_code": "MT_BIL",
+      "kma_name": "Billings Mkt"
+    },
+    "592": {
+      "kma_code": "MT_BIL",
+      "kma_name": "Billings Mkt"
+    },
+    "593": {
+      "kma_code": "MT_BIL",
+      "kma_name": "Billings Mkt"
+    },
+    "594": {
+      "kma_code": "MT_MIS",
+      "kma_name": "Missoula Mkt"
+    },
+    "595": {
+      "kma_code": "MT_MIS",
+      "kma_name": "Missoula Mkt"
+    },
+    "596": {
+      "kma_code": "MT_MIS",
+      "kma_name": "Missoula Mkt"
+    },
+    "597": {
+      "kma_code": "MT_MIS",
+      "kma_name": "Missoula Mkt"
+    },
+    "598": {
+      "kma_code": "MT_MIS",
+      "kma_name": "Missoula Mkt"
+    },
+    "599": {
+      "kma_code": "MT_MIS",
+      "kma_name": "Missoula Mkt"
+    },
+    "600": {
+      "kma_code": "IL_CHI",
+      "kma_name": "Chicago Mkt"
+    },
+    "601": {
+      "kma_code": "IL_CHI",
+      "kma_name": "Chicago Mkt"
+    },
+    "602": {
+      "kma_code": "IL_CHI",
+      "kma_name": "Chicago Mkt"
+    },
+    "603": {
+      "kma_code": "IL_CHI",
+      "kma_name": "Chicago Mkt"
+    },
+    "604": {
+      "kma_code": "IL_JOL",
+      "kma_name": "Joliet Mkt"
+    },
+    "605": {
+      "kma_code": "IL_JOL",
+      "kma_name": "Joliet Mkt"
+    },
+    "606": {
+      "kma_code": "IL_CHI",
+      "kma_name": "Chicago Mkt"
+    },
+    "607": {
+      "kma_code": "IL_CHI",
+      "kma_name": "Chicago Mkt"
+    },
+    "608": {
+      "kma_code": "IL_CHI",
+      "kma_name": "Chicago Mkt"
+    },
+    "609": {
+      "kma_code": "IL_BLO",
+      "kma_name": "Bloomington Mkt"
+    },
+    "610": {
+      "kma_code": "IL_RFD",
+      "kma_name": "Rockford Mkt"
+    },
+    "611": {
+      "kma_code": "IL_RFD",
+      "kma_name": "Rockford Mkt"
+    },
+    "612": {
+      "kma_code": "IL_ROC",
+      "kma_name": "Rock Island Mkt"
+    },
+    "613": {
+      "kma_code": "IL_ROC",
+      "kma_name": "Rock Island Mkt"
+    },
+    "614": {
+      "kma_code": "IL_ROC",
+      "kma_name": "Rock Island Mkt"
+    },
+    "615": {
+      "kma_code": "IL_BLO",
+      "kma_name": "Bloomington Mkt"
+    },
+    "616": {
+      "kma_code": "IL_BLO",
+      "kma_name": "Bloomington Mkt"
+    },
+    "617": {
+      "kma_code": "IL_BLO",
+      "kma_name": "Bloomington Mkt"
+    },
+    "618": {
+      "kma_code": "IL_BLO",
+      "kma_name": "Bloomington Mkt"
+    },
+    "619": {
+      "kma_code": "IN_TER",
+      "kma_name": "Terre Haute Mkt"
+    },
+    "620": {
+      "kma_code": "MO_STL",
+      "kma_name": "St Louis Mkt"
+    },
+    "622": {
+      "kma_code": "MO_STL",
+      "kma_name": "St Louis Mkt"
+    },
+    "623": {
+      "kma_code": "IL_QUI",
+      "kma_name": "Quincy Mkt"
+    },
+    "624": {
+      "kma_code": "IN_TER",
+      "kma_name": "Terre Haute Mkt"
+    },
+    "625": {
+      "kma_code": "IL_TAY",
+      "kma_name": "Taylorville Mkt"
+    },
+    "626": {
+      "kma_code": "IL_TAY",
+      "kma_name": "Taylorville Mkt"
+    },
+    "627": {
+      "kma_code": "IL_TAY",
+      "kma_name": "Taylorville Mkt"
+    },
+    "628": {
+      "kma_code": "IN_EVA",
+      "kma_name": "Evansville Mkt"
+    },
+    "629": {
+      "kma_code": "MO_GIR",
+      "kma_name": "Cape Girardeau Mkt"
+    },
+    "630": {
+      "kma_code": "MO_STL",
+      "kma_name": "St Louis Mkt"
+    },
+    "631": {
+      "kma_code": "MO_STL",
+      "kma_name": "St Louis Mkt"
+    },
+    "633": {
+      "kma_code": "MO_STL",
+      "kma_name": "St Louis Mkt"
+    },
+    "634": {
+      "kma_code": "IL_QUI",
+      "kma_name": "Quincy Mkt"
+    },
+    "635": {
+      "kma_code": "IL_QUI",
+      "kma_name": "Quincy Mkt"
+    },
+    "636": {
+      "kma_code": "MO_GIR",
+      "kma_name": "Cape Girardeau Mkt"
+    },
+    "637": {
+      "kma_code": "MO_GIR",
+      "kma_name": "Cape Girardeau Mkt"
+    },
+    "638": {
+      "kma_code": "MO_GIR",
+      "kma_name": "Cape Girardeau Mkt"
+    },
+    "639": {
+      "kma_code": "MO_GIR",
+      "kma_name": "Cape Girardeau Mkt"
+    },
+    "640": {
+      "kma_code": "MO_KAN",
+      "kma_name": "Kansas City Mkt"
+    },
+    "641": {
+      "kma_code": "MO_KAN",
+      "kma_name": "Kansas City Mkt"
+    },
+    "644": {
+      "kma_code": "MO_KAN",
+      "kma_name": "Kansas City Mkt"
+    },
+    "645": {
+      "kma_code": "MO_KAN",
+      "kma_name": "Kansas City Mkt"
+    },
+    "646": {
+      "kma_code": "MO_KAN",
+      "kma_name": "Kansas City Mkt"
+    },
+    "647": {
+      "kma_code": "MO_JOP",
+      "kma_name": "Joplin Mkt"
+    },
+    "648": {
+      "kma_code": "MO_JOP",
+      "kma_name": "Joplin Mkt"
+    },
+    "649": {
+      "kma_code": "MO_KAN",
+      "kma_name": "Kansas City Mkt"
+    },
+    "650": {
+      "kma_code": "MO_JEF",
+      "kma_name": "Jefferson City Mkt"
+    },
+    "651": {
+      "kma_code": "MO_JEF",
+      "kma_name": "Jefferson City Mkt"
+    },
+    "652": {
+      "kma_code": "MO_JEF",
+      "kma_name": "Jefferson City Mkt"
+    },
+    "653": {
+      "kma_code": "MO_JEF",
+      "kma_name": "Jefferson City Mkt"
+    },
+    "654": {
+      "kma_code": "MO_JOP",
+      "kma_name": "Joplin Mkt"
+    },
+    "655": {
+      "kma_code": "MO_JOP",
+      "kma_name": "Joplin Mkt"
+    },
+    "656": {
+      "kma_code": "MO_JOP",
+      "kma_name": "Joplin Mkt"
+    },
+    "657": {
+      "kma_code": "MO_JOP",
+      "kma_name": "Joplin Mkt"
+    },
+    "658": {
+      "kma_code": "MO_JOP",
+      "kma_name": "Joplin Mkt"
+    },
+    "660": {
+      "kma_code": "MO_KAN",
+      "kma_name": "Kansas City Mkt"
+    },
+    "661": {
+      "kma_code": "MO_KAN",
+      "kma_name": "Kansas City Mkt"
+    },
+    "662": {
+      "kma_code": "MO_KAN",
+      "kma_name": "Kansas City Mkt"
+    },
+    "664": {
+      "kma_code": "MO_KAN",
+      "kma_name": "Kansas City Mkt"
+    },
+    "665": {
+      "kma_code": "MO_KAN",
+      "kma_name": "Kansas City Mkt"
+    },
+    "666": {
+      "kma_code": "MO_KAN",
+      "kma_name": "Kansas City Mkt"
+    },
+    "667": {
+      "kma_code": "MO_JOP",
+      "kma_name": "Joplin Mkt"
+    },
+    "668": {
+      "kma_code": "KS_HUT",
+      "kma_name": "Hutchinson Mkt"
+    },
+    "669": {
+      "kma_code": "KS_HUT",
+      "kma_name": "Hutchinson Mkt"
+    },
+    "670": {
+      "kma_code": "KS_HUT",
+      "kma_name": "Hutchinson Mkt"
+    },
+    "671": {
+      "kma_code": "KS_HUT",
+      "kma_name": "Hutchinson Mkt"
+    },
+    "672": {
+      "kma_code": "KS_HUT",
+      "kma_name": "Hutchinson Mkt"
+    },
+    "673": {
+      "kma_code": "KS_HUT",
+      "kma_name": "Hutchinson Mkt"
+    },
+    "674": {
+      "kma_code": "KS_HUT",
+      "kma_name": "Hutchinson Mkt"
+    },
+    "675": {
+      "kma_code": "KS_HUT",
+      "kma_name": "Hutchinson Mkt"
+    },
+    "676": {
+      "kma_code": "KS_HUT",
+      "kma_name": "Hutchinson Mkt"
+    },
+    "677": {
+      "kma_code": "KS_HUT",
+      "kma_name": "Hutchinson Mkt"
+    },
+    "678": {
+      "kma_code": "KS_HUT",
+      "kma_name": "Hutchinson Mkt"
+    },
+    "679": {
+      "kma_code": "KS_HUT",
+      "kma_name": "Hutchinson Mkt"
+    },
+    "680": {
+      "kma_code": "NE_OMA",
+      "kma_name": "Omaha Mkt"
+    },
+    "681": {
+      "kma_code": "NE_OMA",
+      "kma_name": "Omaha Mkt"
+    },
+    "683": {
+      "kma_code": "NE_OMA",
+      "kma_name": "Omaha Mkt"
+    },
+    "684": {
+      "kma_code": "NE_OMA",
+      "kma_name": "Omaha Mkt"
+    },
+    "685": {
+      "kma_code": "NE_OMA",
+      "kma_name": "Omaha Mkt"
+    },
+    "686": {
+      "kma_code": "NE_OMA",
+      "kma_name": "Omaha Mkt"
+    },
+    "687": {
+      "kma_code": "NE_OMA",
+      "kma_name": "Omaha Mkt"
+    },
+    "688": {
+      "kma_code": "NE_OMA",
+      "kma_name": "Omaha Mkt"
+    },
+    "689": {
+      "kma_code": "NE_OMA",
+      "kma_name": "Omaha Mkt"
+    },
+    "690": {
+      "kma_code": "NE_NPL",
+      "kma_name": "N Platte Mkt"
+    },
+    "691": {
+      "kma_code": "NE_NPL",
+      "kma_name": "N Platte Mkt"
+    },
+    "692": {
+      "kma_code": "NE_NPL",
+      "kma_name": "N Platte Mkt"
+    },
+    "693": {
+      "kma_code": "NE_NPL",
+      "kma_name": "N Platte Mkt"
+    },
+    "700": {
+      "kma_code": "LA_NEW",
+      "kma_name": "New Orleans Mkt"
+    },
+    "701": {
+      "kma_code": "LA_NEW",
+      "kma_name": "New Orleans Mkt"
+    },
+    "703": {
+      "kma_code": "LA_NEW",
+      "kma_name": "New Orleans Mkt"
+    },
+    "704": {
+      "kma_code": "LA_NEW",
+      "kma_name": "New Orleans Mkt"
+    },
+    "705": {
+      "kma_code": "LA_NEW",
+      "kma_name": "New Orleans Mkt"
+    },
+    "706": {
+      "kma_code": "LA_NEW",
+      "kma_name": "New Orleans Mkt"
+    },
+    "707": {
+      "kma_code": "LA_NEW",
+      "kma_name": "New Orleans Mkt"
+    },
+    "708": {
+      "kma_code": "LA_NEW",
+      "kma_name": "New Orleans Mkt"
+    },
+    "710": {
+      "kma_code": "LA_SHR",
+      "kma_name": "Shreveport Mkt"
+    },
+    "711": {
+      "kma_code": "LA_SHR",
+      "kma_name": "Shreveport Mkt"
+    },
+    "712": {
+      "kma_code": "LA_SHR",
+      "kma_name": "Shreveport Mkt"
+    },
+    "713": {
+      "kma_code": "LA_SHR",
+      "kma_name": "Shreveport Mkt"
+    },
+    "714": {
+      "kma_code": "LA_SHR",
+      "kma_name": "Shreveport Mkt"
+    },
+    "716": {
+      "kma_code": "AR_LIT",
+      "kma_name": "Little Rock Mkt"
+    },
+    "717": {
+      "kma_code": "AR_LIT",
+      "kma_name": "Little Rock Mkt"
+    },
+    "718": {
+      "kma_code": "TX_TEX",
+      "kma_name": "Texarkana Mkt"
+    },
+    "719": {
+      "kma_code": "AR_LIT",
+      "kma_name": "Little Rock Mkt"
+    },
+    "720": {
+      "kma_code": "AR_LIT",
+      "kma_name": "Little Rock Mkt"
+    },
+    "721": {
+      "kma_code": "AR_LIT",
+      "kma_name": "Little Rock Mkt"
+    },
+    "722": {
+      "kma_code": "AR_LIT",
+      "kma_name": "Little Rock Mkt"
+    },
+    "723": {
+      "kma_code": "TN_MEM",
+      "kma_name": "Memphis Mkt"
+    },
+    "724": {
+      "kma_code": "TN_MEM",
+      "kma_name": "Memphis Mkt"
+    },
+    "725": {
+      "kma_code": "AR_LIT",
+      "kma_name": "Little Rock Mkt"
+    },
+    "726": {
+      "kma_code": "AR_FAY",
+      "kma_name": "Fayetteville Mkt"
+    },
+    "727": {
+      "kma_code": "AR_FAY",
+      "kma_name": "Fayetteville Mkt"
+    },
+    "728": {
+      "kma_code": "AR_LIT",
+      "kma_name": "Little Rock Mkt"
+    },
+    "729": {
+      "kma_code": "AR_FAY",
+      "kma_name": "Fayetteville Mkt"
+    },
+    "730": {
+      "kma_code": "OK_OKC",
+      "kma_name": "Oklahoma City Mkt"
+    },
+    "731": {
+      "kma_code": "OK_OKC",
+      "kma_name": "Oklahoma City Mkt"
+    },
+    "733": {
+      "kma_code": "TX_AUS",
+      "kma_name": "Austin Mkt"
+    },
+    "734": {
+      "kma_code": "OK_OKC",
+      "kma_name": "Oklahoma City Mkt"
+    },
+    "735": {
+      "kma_code": "OK_OKC",
+      "kma_name": "Oklahoma City Mkt"
+    },
+    "736": {
+      "kma_code": "OK_OKC",
+      "kma_name": "Oklahoma City Mkt"
+    },
+    "737": {
+      "kma_code": "OK_OKC",
+      "kma_name": "Oklahoma City Mkt"
+    },
+    "738": {
+      "kma_code": "OK_OKC",
+      "kma_name": "Oklahoma City Mkt"
+    },
+    "739": {
+      "kma_code": "TX_AMA",
+      "kma_name": "Amarillo Mkt"
+    },
+    "740": {
+      "kma_code": "OK_TUL",
+      "kma_name": "Tulsa Mkt"
+    },
+    "741": {
+      "kma_code": "OK_TUL",
+      "kma_name": "Tulsa Mkt"
+    },
+    "743": {
+      "kma_code": "OK_TUL",
+      "kma_name": "Tulsa Mkt"
+    },
+    "744": {
+      "kma_code": "OK_TUL",
+      "kma_name": "Tulsa Mkt"
+    },
+    "745": {
+      "kma_code": "OK_OKC",
+      "kma_name": "Oklahoma City Mkt"
+    },
+    "746": {
+      "kma_code": "OK_TUL",
+      "kma_name": "Tulsa Mkt"
+    },
+    "747": {
+      "kma_code": "OK_OKC",
+      "kma_name": "Oklahoma City Mkt"
+    },
+    "748": {
+      "kma_code": "OK_OKC",
+      "kma_name": "Oklahoma City Mkt"
+    },
+    "749": {
+      "kma_code": "AR_FAY",
+      "kma_name": "Fayetteville Mkt"
+    },
+    "750": {
+      "kma_code": "TX_DAL",
+      "kma_name": "Dallas Mkt"
+    },
+    "751": {
+      "kma_code": "TX_DAL",
+      "kma_name": "Dallas Mkt"
+    },
+    "752": {
+      "kma_code": "TX_DAL",
+      "kma_name": "Dallas Mkt"
+    },
+    "753": {
+      "kma_code": "TX_DAL",
+      "kma_name": "Dallas Mkt"
+    },
+    "754": {
+      "kma_code": "TX_DAL",
+      "kma_name": "Dallas Mkt"
+    },
+    "755": {
+      "kma_code": "TX_TEX",
+      "kma_name": "Texarkana Mkt"
+    },
+    "756": {
+      "kma_code": "LA_SHR",
+      "kma_name": "Shreveport Mkt"
+    },
+    "757": {
+      "kma_code": "TX_DAL",
+      "kma_name": "Dallas Mkt"
+    },
+    "758": {
+      "kma_code": "TX_DAL",
+      "kma_name": "Dallas Mkt"
+    },
+    "759": {
+      "kma_code": "LA_SHR",
+      "kma_name": "Shreveport Mkt"
+    },
+    "760": {
+      "kma_code": "TX_FTW",
+      "kma_name": "Ft Worth Mkt"
+    },
+    "761": {
+      "kma_code": "TX_FTW",
+      "kma_name": "Ft Worth Mkt"
+    },
+    "762": {
+      "kma_code": "TX_FTW",
+      "kma_name": "Ft Worth Mkt"
+    },
+    "763": {
+      "kma_code": "TX_FTW",
+      "kma_name": "Ft Worth Mkt"
+    },
+    "764": {
+      "kma_code": "TX_FTW",
+      "kma_name": "Ft Worth Mkt"
+    },
+    "765": {
+      "kma_code": "TX_AUS",
+      "kma_name": "Austin Mkt"
+    },
+    "766": {
+      "kma_code": "TX_FTW",
+      "kma_name": "Ft Worth Mkt"
+    },
+    "767": {
+      "kma_code": "TX_FTW",
+      "kma_name": "Ft Worth Mkt"
+    },
+    "768": {
+      "kma_code": "TX_AUS",
+      "kma_name": "Austin Mkt"
+    },
+    "769": {
+      "kma_code": "TX_LUB",
+      "kma_name": "Lubbock Mkt"
+    },
+    "770": {
+      "kma_code": "TX_HOU",
+      "kma_name": "Houston Mkt"
+    },
+    "772": {
+      "kma_code": "TX_HOU",
+      "kma_name": "Houston Mkt"
+    },
+    "773": {
+      "kma_code": "TX_HOU",
+      "kma_name": "Houston Mkt"
+    },
+    "774": {
+      "kma_code": "TX_HOU",
+      "kma_name": "Houston Mkt"
+    },
+    "775": {
+      "kma_code": "TX_HOU",
+      "kma_name": "Houston Mkt"
+    },
+    "776": {
+      "kma_code": "TX_HOU",
+      "kma_name": "Houston Mkt"
+    },
+    "777": {
+      "kma_code": "TX_HOU",
+      "kma_name": "Houston Mkt"
+    },
+    "778": {
+      "kma_code": "TX_HOU",
+      "kma_name": "Houston Mkt"
+    },
+    "779": {
+      "kma_code": "TX_ANT",
+      "kma_name": "San Antonio Mkt"
+    },
+    "780": {
+      "kma_code": "TX_LAR",
+      "kma_name": "Laredo Mkt"
+    },
+    "781": {
+      "kma_code": "TX_ANT",
+      "kma_name": "San Antonio Mkt"
+    },
+    "782": {
+      "kma_code": "TX_ANT",
+      "kma_name": "San Antonio Mkt"
+    },
+    "783": {
+      "kma_code": "TX_MCA",
+      "kma_name": "McAllen Mkt"
+    },
+    "784": {
+      "kma_code": "TX_MCA",
+      "kma_name": "McAllen Mkt"
+    },
+    "785": {
+      "kma_code": "TX_MCA",
+      "kma_name": "McAllen Mkt"
+    },
+    "786": {
+      "kma_code": "TX_AUS",
+      "kma_name": "Austin Mkt"
+    },
+    "787": {
+      "kma_code": "TX_AUS",
+      "kma_name": "Austin Mkt"
+    },
+    "788": {
+      "kma_code": "TX_LAR",
+      "kma_name": "Laredo Mkt"
+    },
+    "789": {
+      "kma_code": "TX_AUS",
+      "kma_name": "Austin Mkt"
+    },
+    "790": {
+      "kma_code": "TX_AMA",
+      "kma_name": "Amarillo Mkt"
+    },
+    "791": {
+      "kma_code": "TX_AMA",
+      "kma_name": "Amarillo Mkt"
+    },
+    "792": {
+      "kma_code": "TX_LUB",
+      "kma_name": "Lubbock Mkt"
+    },
+    "793": {
+      "kma_code": "TX_LUB",
+      "kma_name": "Lubbock Mkt"
+    },
+    "794": {
+      "kma_code": "TX_LUB",
+      "kma_name": "Lubbock Mkt"
+    },
+    "795": {
+      "kma_code": "TX_LUB",
+      "kma_name": "Lubbock Mkt"
+    },
+    "796": {
+      "kma_code": "TX_LUB",
+      "kma_name": "Lubbock Mkt"
+    },
+    "797": {
+      "kma_code": "TX_LUB",
+      "kma_name": "Lubbock Mkt"
+    },
+    "798": {
+      "kma_code": "TX_ELP",
+      "kma_name": "El Paso Mkt"
+    },
+    "799": {
+      "kma_code": "TX_ELP",
+      "kma_name": "El Paso Mkt"
+    },
+    "800": {
+      "kma_code": "CO_DEN",
+      "kma_name": "Denver Mkt"
+    },
+    "801": {
+      "kma_code": "CO_DEN",
+      "kma_name": "Denver Mkt"
+    },
+    "802": {
+      "kma_code": "CO_DEN",
+      "kma_name": "Denver Mkt"
+    },
+    "803": {
+      "kma_code": "CO_DEN",
+      "kma_name": "Denver Mkt"
+    },
+    "804": {
+      "kma_code": "CO_DEN",
+      "kma_name": "Denver Mkt"
+    },
+    "805": {
+      "kma_code": "CO_DEN",
+      "kma_name": "Denver Mkt"
+    },
+    "806": {
+      "kma_code": "CO_DEN",
+      "kma_name": "Denver Mkt"
+    },
+    "807": {
+      "kma_code": "NE_NPL",
+      "kma_name": "N Platte Mkt"
+    },
+    "808": {
+      "kma_code": "CO_DEN",
+      "kma_name": "Denver Mkt"
+    },
+    "809": {
+      "kma_code": "CO_DEN",
+      "kma_name": "Denver Mkt"
+    },
+    "810": {
+      "kma_code": "CO_DEN",
+      "kma_name": "Denver Mkt"
+    },
+    "811": {
+      "kma_code": "NM_ALB",
+      "kma_name": "Albuquerque Mkt"
+    },
+    "812": {
+      "kma_code": "CO_GRA",
+      "kma_name": "Grand Junction Mkt"
+    },
+    "813": {
+      "kma_code": "CO_GRA",
+      "kma_name": "Grand Junction Mkt"
+    },
+    "814": {
+      "kma_code": "CO_GRA",
+      "kma_name": "Grand Junction Mkt"
+    },
+    "815": {
+      "kma_code": "CO_GRA",
+      "kma_name": "Grand Junction Mkt"
+    },
+    "816": {
+      "kma_code": "CO_GRA",
+      "kma_name": "Grand Junction Mkt"
+    },
+    "820": {
+      "kma_code": "CO_DEN",
+      "kma_name": "Denver Mkt"
+    },
+    "821": {
+      "kma_code": "MT_BIL",
+      "kma_name": "Billings Mkt"
+    },
+    "822": {
+      "kma_code": "NE_NPL",
+      "kma_name": "N Platte Mkt"
+    },
+    "823": {
+      "kma_code": "WY_GRE",
+      "kma_name": "Green River Mkt"
+    },
+    "824": {
+      "kma_code": "MT_BIL",
+      "kma_name": "Billings Mkt"
+    },
+    "825": {
+      "kma_code": "WY_GRE",
+      "kma_name": "Green River Mkt"
+    },
+    "826": {
+      "kma_code": "SD_RAP",
+      "kma_name": "Rapid City Mkt"
+    },
+    "827": {
+      "kma_code": "SD_RAP",
+      "kma_name": "Rapid City Mkt"
+    },
+    "828": {
+      "kma_code": "MT_BIL",
+      "kma_name": "Billings Mkt"
+    },
+    "829": {
+      "kma_code": "WY_GRE",
+      "kma_name": "Green River Mkt"
+    },
+    "830": {
+      "kma_code": "MT_BIL",
+      "kma_name": "Billings Mkt"
+    },
+    "831": {
+      "kma_code": "WY_GRE",
+      "kma_name": "Green River Mkt"
+    },
+    "832": {
+      "kma_code": "ID_TWI",
+      "kma_name": "Twin Falls Mkt"
+    },
+    "833": {
+      "kma_code": "ID_TWI",
+      "kma_name": "Twin Falls Mkt"
+    },
+    "834": {
+      "kma_code": "ID_TWI",
+      "kma_name": "Twin Falls Mkt"
+    },
+    "835": {
+      "kma_code": "WA_SPO",
+      "kma_name": "Spokane Mkt"
+    },
+    "836": {
+      "kma_code": "ID_TWI",
+      "kma_name": "Twin Falls Mkt"
+    },
+    "837": {
+      "kma_code": "ID_TWI",
+      "kma_name": "Twin Falls Mkt"
+    },
+    "838": {
+      "kma_code": "WA_SPO",
+      "kma_name": "Spokane Mkt"
+    },
+    "840": {
+      "kma_code": "UT_SLC",
+      "kma_name": "Salt Lake City Mkt"
+    },
+    "841": {
+      "kma_code": "UT_SLC",
+      "kma_name": "Salt Lake City Mkt"
+    },
+    "842": {
+      "kma_code": "UT_SLC",
+      "kma_name": "Salt Lake City Mkt"
+    },
+    "843": {
+      "kma_code": "UT_SLC",
+      "kma_name": "Salt Lake City Mkt"
+    },
+    "844": {
+      "kma_code": "UT_SLC",
+      "kma_name": "Salt Lake City Mkt"
+    },
+    "845": {
+      "kma_code": "CO_GRA",
+      "kma_name": "Grand Junction Mkt"
+    },
+    "846": {
+      "kma_code": "UT_SLC",
+      "kma_name": "Salt Lake City Mkt"
+    },
+    "847": {
+      "kma_code": "UT_SLC",
+      "kma_name": "Salt Lake City Mkt"
+    },
+    "850": {
+      "kma_code": "AZ_PHO",
+      "kma_name": "Phoenix Mkt"
+    },
+    "851": {
+      "kma_code": "AZ_PHO",
+      "kma_name": "Phoenix Mkt"
+    },
+    "852": {
+      "kma_code": "AZ_PHO",
+      "kma_name": "Phoenix Mkt"
+    },
+    "853": {
+      "kma_code": "AZ_PHO",
+      "kma_name": "Phoenix Mkt"
+    },
+    "855": {
+      "kma_code": "AZ_FLA",
+      "kma_name": "Flagstaff Mkt"
+    },
+    "856": {
+      "kma_code": "AZ_TUC",
+      "kma_name": "Tucson Mkt"
+    },
+    "857": {
+      "kma_code": "AZ_TUC",
+      "kma_name": "Tucson Mkt"
+    },
+    "859": {
+      "kma_code": "AZ_FLA",
+      "kma_name": "Flagstaff Mkt"
+    },
+    "860": {
+      "kma_code": "AZ_FLA",
+      "kma_name": "Flagstaff Mkt"
+    },
+    "863": {
+      "kma_code": "AZ_FLA",
+      "kma_name": "Flagstaff Mkt"
+    },
+    "864": {
+      "kma_code": "AZ_FLA",
+      "kma_name": "Flagstaff Mkt"
+    },
+    "865": {
+      "kma_code": "AZ_FLA",
+      "kma_name": "Flagstaff Mkt"
+    },
+    "870": {
+      "kma_code": "NM_ALB",
+      "kma_name": "Albuquerque Mkt"
+    },
+    "871": {
+      "kma_code": "NM_ALB",
+      "kma_name": "Albuquerque Mkt"
+    },
+    "872": {
+      "kma_code": "NM_ALB",
+      "kma_name": "Albuquerque Mkt"
+    },
+    "873": {
+      "kma_code": "NM_ALB",
+      "kma_name": "Albuquerque Mkt"
+    },
+    "874": {
+      "kma_code": "NM_ALB",
+      "kma_name": "Albuquerque Mkt"
+    },
+    "875": {
+      "kma_code": "NM_ALB",
+      "kma_name": "Albuquerque Mkt"
+    },
+    "877": {
+      "kma_code": "NM_ALB",
+      "kma_name": "Albuquerque Mkt"
+    },
+    "878": {
+      "kma_code": "NM_ALB",
+      "kma_name": "Albuquerque Mkt"
+    },
+    "879": {
+      "kma_code": "NM_ALB",
+      "kma_name": "Albuquerque Mkt"
+    },
+    "880": {
+      "kma_code": "TX_ELP",
+      "kma_name": "El Paso Mkt"
+    },
+    "881": {
+      "kma_code": "TX_LUB",
+      "kma_name": "Lubbock Mkt"
+    },
+    "882": {
+      "kma_code": "TX_LUB",
+      "kma_name": "Lubbock Mkt"
+    },
+    "883": {
+      "kma_code": "NM_ALB",
+      "kma_name": "Albuquerque Mkt"
+    },
+    "884": {
+      "kma_code": "NM_ALB",
+      "kma_name": "Albuquerque Mkt"
+    },
+    "885": {
+      "kma_code": "TX_ELP",
+      "kma_name": "El Paso Mkt"
+    },
+    "889": {
+      "kma_code": "NV_VEG",
+      "kma_name": "Las Vegas Mkt"
+    },
+    "890": {
+      "kma_code": "NV_VEG",
+      "kma_name": "Las Vegas Mkt"
+    },
+    "891": {
+      "kma_code": "NV_VEG",
+      "kma_name": "Las Vegas Mkt"
+    },
+    "893": {
+      "kma_code": "NV_VEG",
+      "kma_name": "Las Vegas Mkt"
+    },
+    "894": {
+      "kma_code": "NV_REN",
+      "kma_name": "Reno Mkt"
+    },
+    "895": {
+      "kma_code": "NV_REN",
+      "kma_name": "Reno Mkt"
+    },
+    "897": {
+      "kma_code": "NV_REN",
+      "kma_name": "Reno Mkt"
+    },
+    "898": {
+      "kma_code": "NV_REN",
+      "kma_name": "Reno Mkt"
+    },
+    "900": {
+      "kma_code": "CA_LAX",
+      "kma_name": "Los Angeles Mkt"
+    },
+    "901": {
+      "kma_code": "CA_LAX",
+      "kma_name": "Los Angeles Mkt"
+    },
+    "902": {
+      "kma_code": "CA_LAX",
+      "kma_name": "Los Angeles Mkt"
+    },
+    "903": {
+      "kma_code": "CA_LAX",
+      "kma_name": "Los Angeles Mkt"
+    },
+    "904": {
+      "kma_code": "CA_LAX",
+      "kma_name": "Los Angeles Mkt"
+    },
+    "905": {
+      "kma_code": "CA_LAX",
+      "kma_name": "Los Angeles Mkt"
+    },
+    "906": {
+      "kma_code": "CA_LAX",
+      "kma_name": "Los Angeles Mkt"
+    },
+    "907": {
+      "kma_code": "CA_LAX",
+      "kma_name": "Los Angeles Mkt"
+    },
+    "908": {
+      "kma_code": "CA_LAX",
+      "kma_name": "Los Angeles Mkt"
+    },
+    "910": {
+      "kma_code": "CA_LAX",
+      "kma_name": "Los Angeles Mkt"
+    },
+    "911": {
+      "kma_code": "CA_LAX",
+      "kma_name": "Los Angeles Mkt"
+    },
+    "912": {
+      "kma_code": "CA_LAX",
+      "kma_name": "Los Angeles Mkt"
+    },
+    "913": {
+      "kma_code": "CA_LAX",
+      "kma_name": "Los Angeles Mkt"
+    },
+    "914": {
+      "kma_code": "CA_LAX",
+      "kma_name": "Los Angeles Mkt"
+    },
+    "915": {
+      "kma_code": "CA_LAX",
+      "kma_name": "Los Angeles Mkt"
+    },
+    "916": {
+      "kma_code": "CA_LAX",
+      "kma_name": "Los Angeles Mkt"
+    },
+    "917": {
+      "kma_code": "CA_ONT",
+      "kma_name": "Ontario Mkt"
+    },
+    "918": {
+      "kma_code": "CA_LAX",
+      "kma_name": "Los Angeles Mkt"
+    },
+    "919": {
+      "kma_code": "CA_SDI",
+      "kma_name": "San Diego Mkt"
+    },
+    "920": {
+      "kma_code": "CA_SDI",
+      "kma_name": "San Diego Mkt"
+    },
+    "921": {
+      "kma_code": "CA_SDI",
+      "kma_name": "San Diego Mkt"
+    },
+    "922": {
+      "kma_code": "CA_ONT",
+      "kma_name": "Ontario Mkt"
+    },
+    "923": {
+      "kma_code": "CA_ONT",
+      "kma_name": "Ontario Mkt"
+    },
+    "924": {
+      "kma_code": "CA_ONT",
+      "kma_name": "Ontario Mkt"
+    },
+    "925": {
+      "kma_code": "CA_ONT",
+      "kma_name": "Ontario Mkt"
+    },
+    "926": {
+      "kma_code": "CA_LAX",
+      "kma_name": "Los Angeles Mkt"
+    },
+    "927": {
+      "kma_code": "CA_LAX",
+      "kma_name": "Los Angeles Mkt"
+    },
+    "928": {
+      "kma_code": "CA_LAX",
+      "kma_name": "Los Angeles Mkt"
+    },
+    "930": {
+      "kma_code": "CA_LAX",
+      "kma_name": "Los Angeles Mkt"
+    },
+    "931": {
+      "kma_code": "CA_FRS",
+      "kma_name": "Fresno Mkt"
+    },
+    "932": {
+      "kma_code": "CA_FRS",
+      "kma_name": "Fresno Mkt"
+    },
+    "933": {
+      "kma_code": "CA_FRS",
+      "kma_name": "Fresno Mkt"
+    },
+    "934": {
+      "kma_code": "CA_FRS",
+      "kma_name": "Fresno Mkt"
+    },
+    "935": {
+      "kma_code": "CA_FRS",
+      "kma_name": "Fresno Mkt"
+    },
+    "936": {
+      "kma_code": "CA_FRS",
+      "kma_name": "Fresno Mkt"
+    },
+    "937": {
+      "kma_code": "CA_FRS",
+      "kma_name": "Fresno Mkt"
+    },
+    "938": {
+      "kma_code": "CA_FRS",
+      "kma_name": "Fresno Mkt"
+    },
+    "939": {
+      "kma_code": "CA_SFR",
+      "kma_name": "San Francisco Mkt"
+    },
+    "940": {
+      "kma_code": "CA_SFR",
+      "kma_name": "San Francisco Mkt"
+    },
+    "941": {
+      "kma_code": "CA_SFR",
+      "kma_name": "San Francisco Mkt"
+    },
+    "942": {
+      "kma_code": "CA_STK",
+      "kma_name": "Stockton Mkt"
+    },
+    "943": {
+      "kma_code": "CA_STK",
+      "kma_name": "Stockton Mkt"
+    },
+    "944": {
+      "kma_code": "CA_STK",
+      "kma_name": "Stockton Mkt"
+    },
+    "945": {
+      "kma_code": "CA_SFR",
+      "kma_name": "San Francisco Mkt"
+    },
+    "946": {
+      "kma_code": "CA_SFR",
+      "kma_name": "San Francisco Mkt"
+    },
+    "947": {
+      "kma_code": "CA_SFR",
+      "kma_name": "San Francisco Mkt"
+    },
+    "948": {
+      "kma_code": "CA_SFR",
+      "kma_name": "San Francisco Mkt"
+    },
+    "949": {
+      "kma_code": "CA_SFR",
+      "kma_name": "San Francisco Mkt"
+    },
+    "950": {
+      "kma_code": "CA_SFR",
+      "kma_name": "San Francisco Mkt"
+    },
+    "951": {
+      "kma_code": "CA_SFR",
+      "kma_name": "San Francisco Mkt"
+    },
+    "952": {
+      "kma_code": "CA_STK",
+      "kma_name": "Stockton Mkt"
+    },
+    "953": {
+      "kma_code": "CA_STK",
+      "kma_name": "Stockton Mkt"
+    },
+    "954": {
+      "kma_code": "CA_SFR",
+      "kma_name": "San Francisco Mkt"
+    },
+    "955": {
+      "kma_code": "OR_MED",
+      "kma_name": "Medford Mkt"
+    },
+    "956": {
+      "kma_code": "CA_STK",
+      "kma_name": "Stockton Mkt"
+    },
+    "957": {
+      "kma_code": "CA_STK",
+      "kma_name": "Stockton Mkt"
+    },
+    "958": {
+      "kma_code": "CA_STK",
+      "kma_name": "Stockton Mkt"
+    },
+    "959": {
+      "kma_code": "CA_STK",
+      "kma_name": "Stockton Mkt"
+    },
+    "960": {
+      "kma_code": "OR_MED",
+      "kma_name": "Medford Mkt"
+    },
+    "961": {
+      "kma_code": "NV_REN",
+      "kma_name": "Reno Mkt"
+    },
+    "970": {
+      "kma_code": "OR_POR",
+      "kma_name": "Portland Mkt"
+    },
+    "971": {
+      "kma_code": "OR_POR",
+      "kma_name": "Portland Mkt"
+    },
+    "972": {
+      "kma_code": "OR_POR",
+      "kma_name": "Portland Mkt"
+    },
+    "973": {
+      "kma_code": "OR_POR",
+      "kma_name": "Portland Mkt"
+    },
+    "974": {
+      "kma_code": "OR_MED",
+      "kma_name": "Medford Mkt"
+    },
+    "975": {
+      "kma_code": "OR_MED",
+      "kma_name": "Medford Mkt"
+    },
+    "976": {
+      "kma_code": "OR_MED",
+      "kma_name": "Medford Mkt"
+    },
+    "977": {
+      "kma_code": "OR_MED",
+      "kma_name": "Medford Mkt"
+    },
+    "978": {
+      "kma_code": "OR_PEN",
+      "kma_name": "Pendleton Mkt"
+    },
+    "979": {
+      "kma_code": "ID_TWI",
+      "kma_name": "Twin Falls Mkt"
+    },
+    "980": {
+      "kma_code": "WA_SEA",
+      "kma_name": "Seattle Mkt"
+    },
+    "981": {
+      "kma_code": "WA_SEA",
+      "kma_name": "Seattle Mkt"
+    },
+    "982": {
+      "kma_code": "WA_SEA",
+      "kma_name": "Seattle Mkt"
+    },
+    "983": {
+      "kma_code": "WA_SEA",
+      "kma_name": "Seattle Mkt"
+    },
+    "984": {
+      "kma_code": "WA_SEA",
+      "kma_name": "Seattle Mkt"
+    },
+    "985": {
+      "kma_code": "WA_SEA",
+      "kma_name": "Seattle Mkt"
+    },
+    "986": {
+      "kma_code": "OR_POR",
+      "kma_name": "Portland Mkt"
+    },
+    "988": {
+      "kma_code": "WA_SPO",
+      "kma_name": "Spokane Mkt"
+    },
+    "989": {
+      "kma_code": "OR_PEN",
+      "kma_name": "Pendleton Mkt"
+    },
+    "990": {
+      "kma_code": "WA_SPO",
+      "kma_name": "Spokane Mkt"
+    },
+    "991": {
+      "kma_code": "WA_SPO",
+      "kma_name": "Spokane Mkt"
+    },
+    "992": {
+      "kma_code": "WA_SPO",
+      "kma_name": "Spokane Mkt"
+    },
+    "993": {
+      "kma_code": "OR_PEN",
+      "kma_name": "Pendleton Mkt"
+    },
+    "994": {
+      "kma_code": "WA_SPO",
+      "kma_name": "Spokane Mkt"
+    },
+    "060": {
+      "kma_code": "CT_HAR",
+      "kma_name": "Hartford Mkt"
+    },
+    "061": {
+      "kma_code": "CT_HAR",
+      "kma_name": "Hartford Mkt"
+    },
+    "062": {
+      "kma_code": "CT_HAR",
+      "kma_name": "Hartford Mkt"
+    },
+    "063": {
+      "kma_code": "CT_HAR",
+      "kma_name": "Hartford Mkt"
+    },
+    "064": {
+      "kma_code": "CT_HAR",
+      "kma_name": "Hartford Mkt"
+    },
+    "065": {
+      "kma_code": "CT_HAR",
+      "kma_name": "Hartford Mkt"
+    },
+    "066": {
+      "kma_code": "CT_HAR",
+      "kma_name": "Hartford Mkt"
+    },
+    "067": {
+      "kma_code": "CT_HAR",
+      "kma_name": "Hartford Mkt"
+    },
+    "068": {
+      "kma_code": "CT_HAR",
+      "kma_name": "Hartford Mkt"
+    },
+    "069": {
+      "kma_code": "CT_HAR",
+      "kma_name": "Hartford Mkt"
+    },
+    "014": {
+      "kma_code": "MA_BOS",
+      "kma_name": "Boston Mkt"
+    },
+    "015": {
+      "kma_code": "MA_BOS",
+      "kma_name": "Boston Mkt"
+    },
+    "016": {
+      "kma_code": "MA_BOS",
+      "kma_name": "Boston Mkt"
+    },
+    "017": {
+      "kma_code": "MA_BOS",
+      "kma_name": "Boston Mkt"
+    },
+    "018": {
+      "kma_code": "MA_BOS",
+      "kma_name": "Boston Mkt"
+    },
+    "019": {
+      "kma_code": "MA_BOS",
+      "kma_name": "Boston Mkt"
+    },
+    "020": {
+      "kma_code": "MA_BOS",
+      "kma_name": "Boston Mkt"
+    },
+    "021": {
+      "kma_code": "MA_BOS",
+      "kma_name": "Boston Mkt"
+    },
+    "022": {
+      "kma_code": "MA_BOS",
+      "kma_name": "Boston Mkt"
+    },
+    "023": {
+      "kma_code": "MA_BOS",
+      "kma_name": "Boston Mkt"
+    },
+    "024": {
+      "kma_code": "MA_BOS",
+      "kma_name": "Boston Mkt"
+    },
+    "025": {
+      "kma_code": "MA_BOS",
+      "kma_name": "Boston Mkt"
+    },
+    "026": {
+      "kma_code": "MA_BOS",
+      "kma_name": "Boston Mkt"
+    },
+    "027": {
+      "kma_code": "MA_BOS",
+      "kma_name": "Boston Mkt"
+    },
+    "028": {
+      "kma_code": "MA_BOS",
+      "kma_name": "Boston Mkt"
+    },
+    "029": {
+      "kma_code": "MA_BOS",
+      "kma_name": "Boston Mkt"
+    },
+    "055": {
+      "kma_code": "MA_BOS",
+      "kma_name": "Boston Mkt"
+    },
+    "010": {
+      "kma_code": "MA_SPR",
+      "kma_name": "Springfield Mkt"
+    },
+    "011": {
+      "kma_code": "MA_SPR",
+      "kma_name": "Springfield Mkt"
+    },
+    "012": {
+      "kma_code": "MA_SPR",
+      "kma_name": "Springfield Mkt"
+    },
+    "013": {
+      "kma_code": "MA_SPR",
+      "kma_name": "Springfield Mkt"
+    },
+    "038": {
+      "kma_code": "ME_AUG",
+      "kma_name": "Augusta Mkt"
+    },
+    "039": {
+      "kma_code": "ME_AUG",
+      "kma_name": "Augusta Mkt"
+    },
+    "040": {
+      "kma_code": "ME_AUG",
+      "kma_name": "Augusta Mkt"
+    },
+    "041": {
+      "kma_code": "ME_AUG",
+      "kma_name": "Augusta Mkt"
+    },
+    "042": {
+      "kma_code": "ME_AUG",
+      "kma_name": "Augusta Mkt"
+    },
+    "043": {
+      "kma_code": "ME_AUG",
+      "kma_name": "Augusta Mkt"
+    },
+    "044": {
+      "kma_code": "ME_AUG",
+      "kma_name": "Augusta Mkt"
+    },
+    "045": {
+      "kma_code": "ME_AUG",
+      "kma_name": "Augusta Mkt"
+    },
+    "046": {
+      "kma_code": "ME_AUG",
+      "kma_name": "Augusta Mkt"
+    },
+    "047": {
+      "kma_code": "ME_AUG",
+      "kma_name": "Augusta Mkt"
+    },
+    "048": {
+      "kma_code": "ME_AUG",
+      "kma_name": "Augusta Mkt"
+    },
+    "049": {
+      "kma_code": "ME_AUG",
+      "kma_name": "Augusta Mkt"
+    },
+    "030": {
+      "kma_code": "NH_BRI",
+      "kma_name": "Bristol Mkt"
+    },
+    "031": {
+      "kma_code": "NH_BRI",
+      "kma_name": "Bristol Mkt"
+    },
+    "032": {
+      "kma_code": "NH_BRI",
+      "kma_name": "Bristol Mkt"
+    },
+    "033": {
+      "kma_code": "NH_BRI",
+      "kma_name": "Bristol Mkt"
+    },
+    "034": {
+      "kma_code": "NH_BRI",
+      "kma_name": "Bristol Mkt"
+    },
+    "035": {
+      "kma_code": "NH_BRI",
+      "kma_name": "Bristol Mkt"
+    },
+    "036": {
+      "kma_code": "NH_BRI",
+      "kma_name": "Bristol Mkt"
+    },
+    "037": {
+      "kma_code": "NH_BRI",
+      "kma_name": "Bristol Mkt"
+    },
+    "050": {
+      "kma_code": "NH_BRI",
+      "kma_name": "Bristol Mkt"
+    },
+    "051": {
+      "kma_code": "NH_BRI",
+      "kma_name": "Bristol Mkt"
+    },
+    "056": {
+      "kma_code": "NH_BRI",
+      "kma_name": "Bristol Mkt"
+    },
+    "057": {
+      "kma_code": "NH_BRI",
+      "kma_name": "Bristol Mkt"
+    },
+    "058": {
+      "kma_code": "NH_BRI",
+      "kma_name": "Bristol Mkt"
+    },
+    "059": {
+      "kma_code": "NH_BRI",
+      "kma_name": "Bristol Mkt"
+    },
+    "070": {
+      "kma_code": "NJ_ELI",
+      "kma_name": "Elizabeth Mkt"
+    },
+    "071": {
+      "kma_code": "NJ_ELI",
+      "kma_name": "Elizabeth Mkt"
+    },
+    "072": {
+      "kma_code": "NJ_ELI",
+      "kma_name": "Elizabeth Mkt"
+    },
+    "073": {
+      "kma_code": "NJ_ELI",
+      "kma_name": "Elizabeth Mkt"
+    },
+    "074": {
+      "kma_code": "NJ_ELI",
+      "kma_name": "Elizabeth Mkt"
+    },
+    "075": {
+      "kma_code": "NJ_ELI",
+      "kma_name": "Elizabeth Mkt"
+    },
+    "076": {
+      "kma_code": "NJ_ELI",
+      "kma_name": "Elizabeth Mkt"
+    },
+    "077": {
+      "kma_code": "NJ_ELI",
+      "kma_name": "Elizabeth Mkt"
+    },
+    "078": {
+      "kma_code": "NJ_ELI",
+      "kma_name": "Elizabeth Mkt"
+    },
+    "079": {
+      "kma_code": "NJ_ELI",
+      "kma_name": "Elizabeth Mkt"
+    },
+    "085": {
+      "kma_code": "NJ_ELI",
+      "kma_name": "Elizabeth Mkt"
+    },
+    "086": {
+      "kma_code": "NJ_ELI",
+      "kma_name": "Elizabeth Mkt"
+    },
+    "087": {
+      "kma_code": "NJ_ELI",
+      "kma_name": "Elizabeth Mkt"
+    },
+    "088": {
+      "kma_code": "NJ_ELI",
+      "kma_name": "Elizabeth Mkt"
+    },
+    "089": {
+      "kma_code": "NJ_ELI",
+      "kma_name": "Elizabeth Mkt"
+    },
+    "052": {
+      "kma_code": "NY_ALB",
+      "kma_name": "Albany Mkt"
+    },
+    "053": {
+      "kma_code": "NY_ALB",
+      "kma_name": "Albany Mkt"
+    },
+    "054": {
+      "kma_code": "NY_ALB",
+      "kma_name": "Albany Mkt"
+    },
+    "005": {
+      "kma_code": "NY_BRN",
+      "kma_name": "Brooklyn Mkt"
+    },
+    "080": {
+      "kma_code": "PA_PHI",
+      "kma_name": "Philadelphia Mkt"
+    },
+    "081": {
+      "kma_code": "PA_PHI",
+      "kma_name": "Philadelphia Mkt"
+    },
+    "082": {
+      "kma_code": "PA_PHI",
+      "kma_name": "Philadelphia Mkt"
+    },
+    "083": {
+      "kma_code": "PA_PHI",
+      "kma_name": "Philadelphia Mkt"
+    },
+    "084": {
+      "kma_code": "PA_PHI",
+      "kma_name": "Philadelphia Mkt"
+    }
+  },
+  "sourceSheet": "Market zip definitions",
+  "generatedAt": "2025-09-27T22:02:23.357Z",
+  "entries": 905
+}

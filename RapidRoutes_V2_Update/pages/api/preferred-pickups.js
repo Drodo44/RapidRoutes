@@ -1,0 +1,116 @@
+// pages/api/preferred-pickups.js
+// API for managing user's personal preferred pickup locations
+
+import supabase from '../../utils/supabaseClient';
+import { getUserOrganizationId } from '@/lib/organizationHelper';
+
+export default async function handler(req, res) {
+  let supabaseAdmin;
+  try {
+    supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      // Return empty list instead of 401 to prevent console spam
+      return res.status(200).json({ pickups: [] });
+    }
+
+    const userId = user.id;
+
+    if (req.method === 'GET') {
+      // Get user's preferred pickups only
+      const { data, error } = await supabaseAdmin
+        .from('preferred_pickups')
+        .select('*')
+        .eq('user_id', userId)
+        .order('frequency_score', { ascending: false });
+      
+      if (error) throw error;
+      
+      res.status(200).json(data);
+      
+    } else if (req.method === 'POST') {
+      // Add new preferred pickup for current user
+      const { city, state, zip, frequency_score, equipment_preference, notes } = req.body;
+      
+      // Get user's organization_id
+      const organizationId = await getUserOrganizationId(userId);
+      if (!organizationId) {
+        return res.status(500).json({ error: 'User profile not properly configured' });
+      }
+      
+      // Look up KMA info from cities table
+      const { data: cityData } = await supabaseAdmin
+        .from('cities')
+        .select('kma_code, kma_name')
+        .ilike('city', city)
+        .ilike('state_or_province', state)
+        .limit(1);
+      
+      const kma_code = cityData?.[0]?.kma_code || null;
+      const kma_name = cityData?.[0]?.kma_name || null;
+      
+      const { data, error } = await supabaseAdmin
+        .from('preferred_pickups')
+        .insert([{
+          user_id: userId,
+          created_by: userId,
+          organization_id: organizationId,
+          city,
+          state_or_province: state,
+          zip,
+          kma_code,
+          kma_name,
+          frequency_score: frequency_score || 1,
+          equipment_preference: equipment_preference || [],
+          notes: notes || ''
+        }])
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      res.status(201).json(data);
+      
+    } else if (req.method === 'PUT') {
+      // Update user's preferred pickup
+      const { id, ...updates } = req.body;
+      
+      // Ensure user can only update their own pickups
+      const { data, error } = await supabaseAdmin
+        .from('preferred_pickups')
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .eq('user_id', userId)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      res.status(200).json(data);
+      
+    } else if (req.method === 'DELETE') {
+      // Delete user's preferred pickup
+      const { id } = req.query;
+      
+      // Ensure user can only delete their own pickups
+      const { error } = await supabaseAdmin
+        .from('preferred_pickups')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', userId);
+      
+      if (error) throw error;
+      
+      res.status(200).json({ message: 'Preferred pickup deleted' });
+      
+    } else {
+      res.setHeader('Allow', ['GET', 'POST', 'PUT', 'DELETE']);
+      res.status(405).json({ error: 'Method not allowed' });
+    }
+    
+  } catch (error) {
+    console.error('Preferred pickups API error:', error);
+    res.status(500).json({ error: error.message });
+  }
+}

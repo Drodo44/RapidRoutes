@@ -1,0 +1,167 @@
+{
+  "success": true,
+  "pairs": [
+    {
+      "origin_city": "Chicago",
+      "origin_state": "IL",
+      "origin_zip": "60601",
+      "origin_kma": "CHI",
+      "dest_city": "Atlanta",
+      "dest_state": "GA",
+      "dest_zip": "30303",
+      "dest_kma": "ATL",
+      "distance_miles": 717
+    },
+    {
+      "origin_city": "Chicago",
+      "origin_state": "IL",
+      "origin_zip": "60601",
+      "origin_kma": "CHI",
+      "dest_city": "Marietta",
+      "dest_state": "GA",
+      "dest_zip": "30060",
+      "dest_kma": "ATL",
+      "distance_miles": 724
+    },
+    {
+      "origin_city": "Chicago",
+      "origin_state": "IL",
+      "origin_zip": "60601",
+      "origin_kma": "CHI",
+      "dest_city": "Alpharetta",
+      "dest_state": "GA",
+      "dest_zip": "30004",
+      "dest_kma": "ATL",
+      "distance_miles": 731
+    },
+    {
+      "origin_city": "Chicago",
+      "origin_state": "IL",
+      "origin_zip": "60601",
+      "origin_kma": "CHI",
+      "dest_city": "Rome",
+      "dest_state": "GA",
+      "dest_zip": "30161",
+      "dest_kma": "ROM",
+      "distance_miles": 668
+    },
+    {
+      "origin_city": "Chicago",
+      "origin_state": "IL",
+      "origin_zip": "60601",
+      "origin_kma": "CHI",
+      "dest_city": "Chattanooga",
+      "dest_state": "TN",
+      "dest_zip": "37402",
+      "dest_kma": "CHA",
+      "distance_miles": 602
+    },
+    {
+      "origin_city": "Chicago",
+      "origin_state": "IL",
+      "origin_zip": "60601",
+      "origin_kma": "CHI",
+      "dest_city": "Birmingham",
+      "dest_state": "AL",
+      "dest_zip": "35203",
+      "dest_kma": "BHM",
+      "distance_miles": 659
+    },
+    {
+      "origin_city": "Aurora",
+      "origin_state": "IL",
+      "origin_zip": "60502",
+      "origin_kma": "CHI",
+      "dest_city": "Atlanta",
+      "dest_state": "GA",
+      "dest_zip": "30303",
+      "dest_kma": "ATL",
+      "distance_miles": 729
+    },
+    {
+      "origin_city": "Aurora",
+      "origin_state": "IL",
+      "origin_zip": "60502",
+      "origin_kma": "CHI",
+      "dest_city": "Marietta",
+      "dest_state": "GA",
+      "dest_zip": "30060",
+      "dest_kma": "ATL",
+      "distance_miles": 736
+    },
+    {
+      "origin_city": "Aurora",
+      "origin_state": "IL",
+      "origin_zip": "60502",
+      "origin_kma": "CHI",
+      "dest_city": "Alpharetta",
+      "dest_state": "GA",
+      "dest_zip": "30004",
+      "dest_kma": "ATL",
+      "distance_miles": 743
+    },
+    {
+      "origin_city": "Joliet",
+      "origin_state": "IL",
+      "origin_zip": "60431",
+      "origin_kma": "CHI",
+      "dest_city": "Atlanta",
+      "dest_state": "GA",
+      "dest_zip": "30303",
+      "dest_kma": "ATL",
+      "distance_miles": 724
+    },
+    {
+      "origin_city": "Milwaukee",
+      "origin_state": "WI",
+      "origin_zip": "53202",
+      "origin_kma": "MKE",
+      "dest_city": "Atlanta",
+      "dest_state": "GA",
+      "dest_zip": "30303",
+      "dest_kma": "ATL",
+      "distance_miles": 770
+    },
+    {
+      "origin_city": "Racine",
+      "origin_state": "WI",
+      "origin_zip": "53403",
+      "origin_kma": "MKE",
+      "dest_city": "Atlanta",
+      "dest_state": "GA",
+      "dest_zip": "30303",
+      "dest_kma": "ATL",
+      "distance_miles": 759
+    },
+    {
+      "origin_city": "South Bend",
+      "origin_state": "IN",
+      "origin_zip": "46601",
+      "origin_kma": "SBN",
+      "dest_city": "Atlanta",
+      "dest_state": "GA",
+      "dest_zip": "30303",
+      "dest_kma": "ATL",
+      "distance_miles": 652
+    },
+    {
+      "origin_city": "Grand Rapids",
+      "origin_state": "MI",
+      "origin_zip": "49503",
+      "origin_kma": "GRR",
+      "dest_city": "Atlanta",
+      "dest_state": "GA",
+      "dest_zip": "30303",
+      "dest_kma": "ATL",
+      "distance_miles": 779
+    }
+  ],
+  "meta": {
+    "source": "intelligence_pairing_api",
+    "origin_kma_count": 4,
+    "dest_kma_count": 4,
+    "total_pairs": 48,
+    "version": "3.5.2",
+    "timestamp": "2025-09-21T04:30:15Z"
+  }
+}
