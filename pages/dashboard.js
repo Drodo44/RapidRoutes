@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Head from 'next/head';
-import Image from 'next/image';
+// Image import removed - using text logo instead
 import supabase from '../utils/supabaseClient';
 
 // ============================================
@@ -635,14 +635,15 @@ export default function Dashboard() {
         {/* Sidebar */}
         <aside className="dashboard-sidebar">
           <div className="sidebar-logo">
-            <Image
-              src="/logo.png"
-              alt="RapidRoutes"
-              width={180}
-              height={80}
-              style={{ objectFit: 'contain' }}
-              priority
-            />
+            <span style={{
+              fontSize: '24px',
+              fontWeight: 'bold',
+              color: '#38bdf8',
+              letterSpacing: '1px'
+            }}>
+              Rapid<span style={{ color: '#f8fafc' }}>Routes</span>
+              <span style={{ color: '#38bdf8' }}>»</span>
+            </span>
           </div>
 
           <nav className="sidebar-nav">
