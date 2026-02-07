@@ -654,8 +654,8 @@ export default function Dashboard() {
               <Link href="/lanes" className="nav-item">
                 <LanesIcon />
                 <span>Lanes</span>
-                {stats.postedLanes > 0 && (
-                  <span className="nav-badge">{stats.postedLanes}</span>
+                {(stats?.postedLanes ?? 0) > 0 && (
+                  <span className="nav-badge">{stats?.postedLanes ?? 0}</span>
                 )}
               </Link>
               <Link href="/prompts/library" className="nav-item">
@@ -681,15 +681,15 @@ export default function Dashboard() {
           <div className="sidebar-quick-stats">
             <div className="quick-stat">
               <span className="quick-stat-label">Posted</span>
-              <span className="quick-stat-value">{stats.postedLanes}</span>
+              <span className="quick-stat-value">{stats?.postedLanes ?? 0}</span>
             </div>
             <div className="quick-stat warning">
               <span className="quick-stat-label">Failed</span>
-              <span className="quick-stat-value">{stats.failedLanes}</span>
+              <span className="quick-stat-value">{stats?.failedLanes ?? 0}</span>
             </div>
             <div className="quick-stat success">
               <span className="quick-stat-label">Covered</span>
-              <span className="quick-stat-value">{stats.coveredLanes}</span>
+              <span className="quick-stat-value">{stats?.coveredLanes ?? 0}</span>
             </div>
           </div>
         </aside>
@@ -713,29 +713,29 @@ export default function Dashboard() {
           <div className="stats-row">
             <StatCard
               label="Posted Lanes"
-              value={stats.postedLanes}
+              value={stats?.postedLanes ?? 0}
               trend={{ positive: true, text: 'Active' }}
               type="default"
               icon="📤"
             />
             <StatCard
               label="Failed Lanes"
-              value={stats.failedLanes}
-              type={stats.failedLanes > 0 ? "warning" : "default"}
+              value={stats?.failedLanes ?? 0}
+              type={(stats?.failedLanes ?? 0) > 0 ? "warning" : "default"}
               icon="⚠️"
             />
             <StatCard
               label="Covered"
-              value={stats.coveredLanes}
+              value={stats?.coveredLanes ?? 0}
               trend={{ positive: true, text: 'This week' }}
               type="success"
               icon="✅"
             />
             <StatCard
               label="Avg Margin"
-              value={`$${stats.avgMargin.toLocaleString()}`}
-              trend={stats.avgMargin > 0 ? { positive: true, text: 'Per load' } : null}
-              type={stats.avgMargin > 0 ? "success" : "default"}
+              value={`$${(stats?.avgMargin ?? 0).toLocaleString()}`}
+              trend={(stats?.avgMargin ?? 0) > 0 ? { positive: true, text: 'Per load' } : null}
+              type={(stats?.avgMargin ?? 0) > 0 ? "success" : "default"}
               icon="💰"
             />
           </div>
