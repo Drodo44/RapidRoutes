@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
-import { supabase } from '../lib/supabaseClient';
+import supabase from '../utils/supabaseClient';
 
 export default function TeamManagementPage() {
   const { profile, loading } = useAuth();
@@ -77,9 +77,9 @@ export default function TeamManagementPage() {
       const response = await fetch('/api/teams/update-name', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           userId: profile.id,
-          teamName: teamName.trim() 
+          teamName: teamName.trim()
         })
       });
 
@@ -134,9 +134,9 @@ export default function TeamManagementPage() {
       const response = await fetch('/api/teams/remove-member', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           userId: profile.id,
-          memberId 
+          memberId
         })
       });
 
@@ -173,9 +173,9 @@ export default function TeamManagementPage() {
       <div className="container" style={{ padding: 'var(--space-8)', maxWidth: '1200px' }}>
         {/* Header */}
         <div style={{ marginBottom: 'var(--space-8)' }}>
-          <h1 style={{ 
-            fontSize: '28px', 
-            fontWeight: 700, 
+          <h1 style={{
+            fontSize: '28px',
+            fontWeight: 700,
             marginBottom: 'var(--space-2)',
             color: 'var(--text-primary)'
           }}>

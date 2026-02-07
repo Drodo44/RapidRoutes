@@ -6,7 +6,7 @@ import CityAutocomplete from '../components/CityAutocomplete.jsx';
 import EquipmentPicker from '../components/EquipmentPicker.jsx';
 import IntermodalNudge from '../components/IntermodalNudge.jsx';
 import IntermodalEmailModal from '../components/IntermodalEmailModal.jsx';
-import { supabase } from '../lib/supabaseClient';
+import supabase from '../utils/supabaseClient';
 import { getMyLanesOnlyPreference, setMyLanesOnlyPreference } from '../lib/laneFilterPreferences.js';
 // Removed direct import - now using API call for server-side intelligence generation
 import { useAuth } from '../contexts/AuthContext';
@@ -49,13 +49,13 @@ function LanesPage() {
     try {
       const [oc, os] = origin.split(',').map(s => s.trim());
       const [dc, ds] = dest.split(',').map(s => s.trim());
-      
+
       // Debug weight randomization values
       // Weight validation for debugging if needed
       if (randomize && (!randMin || !randMax)) {
         console.warn('Weight randomization enabled but min/max not set');
       }
-      
+
       // First check intermodal eligibility - include ALL required form data
       const laneData = {
         origin_city: oc,
@@ -93,9 +93,9 @@ function LanesPage() {
       console.log('🚛 Direct lane creation completed, reloading lists...');
       await loadLists();
       console.log('🚛 Lists reloaded after direct lane creation');
-      
+
       // Clear form for next entry
-      setOrigin(''); 
+      setOrigin('');
       setDest('');
       setWeight('');
       setRate('');
@@ -109,7 +109,7 @@ function LanesPage() {
   }
   const router = useRouter();
   const { loading, isAuthenticated, session, profile, isAdmin } = useAuth();
-  
+
   // Form state
   const [origin, setOrigin] = useState('');
   const [originZip, setOriginZip] = useState('');
@@ -200,10 +200,10 @@ function LanesPage() {
 
   async function saveEditedLane() {
     if (!editingLane) return;
-    
+
     setBusy(true);
     setMsg('');
-    
+
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
@@ -268,7 +268,7 @@ function LanesPage() {
   async function loadLists() {
     try {
       console.log('Loading lane lists...');
-      
+
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       if (sessionError) throw sessionError;
 
@@ -279,15 +279,15 @@ function LanesPage() {
           throw new Error('Failed to authenticate. Please log in again.');
         }
       }
-      
+
       // Build query parameters
       const params = new URLSearchParams({ limit: '200' });
-      
+
       // If Admin user has "My Lanes Only" toggle enabled, filter by their organization_id
       if (showMyLanesOnly && profile?.organization_id) {
         params.append('organizationId', profile.organization_id);
       }
-      
+
       // Pull from real lanes API so actions (archive/delete/edit) operate on valid IDs
       const [currentRes, archivedRes] = await Promise.all([
         fetch(`/api/lanes?status=current&${params.toString()}`, {
@@ -303,17 +303,17 @@ function LanesPage() {
         archivedRes.json().catch(() => ({ ok: false, data: [] })),
       ]);
 
-  // /api/lanes returns a raw array of lane rows
-  const currentLanes = currentRes.ok && Array.isArray(currentJson) ? currentJson : [];
-  const archivedLanes = archivedRes.ok && Array.isArray(archivedJson) ? archivedJson : [];
+      // /api/lanes returns a raw array of lane rows
+      const currentLanes = currentRes.ok && Array.isArray(currentJson) ? currentJson : [];
+      const archivedLanes = archivedRes.ok && Array.isArray(archivedJson) ? archivedJson : [];
 
       console.log('Lists loaded successfully - Current:', currentLanes.length, 'Archive:', archivedLanes.length);
 
-  setCurrent(currentLanes);
-  setArchive(archivedLanes);
+      setCurrent(currentLanes);
+      setArchive(archivedLanes);
     } catch (error) {
       console.error('Failed to load lanes:', error);
-      setCurrent([]); 
+      setCurrent([]);
       setArchive([]);
       setMsg(`❌ Failed to load lanes: ${String(error.message || error)}`);
     }
@@ -340,10 +340,10 @@ function LanesPage() {
       setMsg('❌ Pickup Earliest date is required');
       return;
     }
-    
+
     setBusy(true);
     setMsg('');
-    
+
     try {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       if (sessionError) throw sessionError;
@@ -379,7 +379,7 @@ function LanesPage() {
       setMasterEarliest('');
       setMasterLatest('');
       setMasterScope('all');
-      
+
       // Reload lanes to show updated dates
       await loadLists();
     } catch (error) {
@@ -427,23 +427,23 @@ function LanesPage() {
       console.log('🚛 authSession:', authSession);
       console.log('🚛 authSession.user:', authSession?.user);
       console.log('🚛 authSession.user.id:', authSession?.user?.id);
-      
+
       // Validate authSession early
       if (!authSession?.user?.id) {
         alert('⚠️ Authentication error: No user ID found');
         throw new Error('Authentication error: No user ID found');
       }
-      
+
       const payload = {
         origin_city: laneData.origin_city,
         origin_state: laneData.origin_state,
         // Store both ZIP5 and ZIP3 variants for market logic + accuracy
         origin_zip5: laneData.origin_zip,
-        origin_zip: laneData.origin_zip ? laneData.origin_zip.slice(0,3) : null,
+        origin_zip: laneData.origin_zip ? laneData.origin_zip.slice(0, 3) : null,
         dest_city: laneData.dest_city,
         dest_state: laneData.dest_state,
         dest_zip5: laneData.dest_zip,
-        dest_zip: laneData.dest_zip ? laneData.dest_zip.slice(0,3) : null,
+        dest_zip: laneData.dest_zip ? laneData.dest_zip.slice(0, 3) : null,
         equipment_code: laneData.equipment_code,
         length_ft: laneData.length_ft,
         full_partial: laneData.full_partial,
@@ -459,14 +459,14 @@ function LanesPage() {
         rate_max: laneData.rate_max,
         comment: laneData.comment,
         commodity: laneData.commodity,
-  // Use new lane_status column; do not set deprecated status
-  lane_status: 'current',
+        // Use new lane_status column; do not set deprecated status
+        lane_status: 'current',
         user_id: authSession.user.id,
         created_by: authSession.user.id
       };
-      
+
       console.log('🚛 Payload built successfully');
-      
+
       console.log('🚛 Final payload:', payload);
 
       try {
@@ -486,7 +486,7 @@ function LanesPage() {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${authSession.access_token?.substring(0, 20)}...`
       });
-      
+
       const response = await fetch('/api/lanes', {
         method: 'POST',
         headers: {
@@ -509,15 +509,15 @@ function LanesPage() {
       console.log('🚛 Response ok, getting lane data...');
       const newLane = await response.json();
       console.log('🚛 New lane created:', newLane);
-      
+
       console.log('🚛 Setting success message...');
       setMsg('✅ Lane added successfully');
       console.log('🚛 Success message set');
-      
+
       console.log('🚛 Lane creation completed successfully!');
       // Return the new lane for further processing
       return newLane;
-      
+
     } catch (error) {
       console.error('🚛 createLaneFromData FAILED:', error);
       console.error('🚛 Error details:', error.message);
@@ -532,7 +532,7 @@ function LanesPage() {
   // This belongs back in submitLane after the destination parsing
   async function continueSubmitLane(oc, os, authSession) {
     const [dc, ds] = dest.split(',').map(s => s.trim());
-    
+
     // First check intermodal eligibility
     const laneData = {
       origin_city: oc,
@@ -543,7 +543,7 @@ function LanesPage() {
       length_ft: Number(lengthFt),
       weight_lbs: randomize ? null : Number(weight)
     };
-    
+
     const eligibilityCheck = await checkIntermodalEligibility(laneData);
     if (eligibilityCheck?.eligible) {
       setIntermodalLane(laneData);
@@ -552,11 +552,11 @@ function LanesPage() {
       setBusy(false);
       return;
     }
-    
+
     try {
       // If not intermodal eligible, continue with regular lane creation
       const newLane = await createLaneFromData(laneData, authSession);
-      
+
       // After successful creation, reload the lists
       await loadLists();
     } catch (error) {
@@ -578,11 +578,11 @@ function LanesPage() {
       origin_state: lane.origin_state,
       // Preserve original 5-digit zip if present; fallback to legacy origin_zip
       origin_zip5: lane.origin_zip5 ?? lane.origin_zip ?? null,
-      origin_zip: (lane.origin_zip5 ?? lane.origin_zip) ? (lane.origin_zip5 ?? lane.origin_zip).slice(0,3) : null,
+      origin_zip: (lane.origin_zip5 ?? lane.origin_zip) ? (lane.origin_zip5 ?? lane.origin_zip).slice(0, 3) : null,
       dest_city: lane.dest_city,
       dest_state: lane.dest_state,
       dest_zip5: lane.dest_zip5 ?? lane.dest_zip ?? null,
-      dest_zip: (lane.dest_zip5 ?? lane.dest_zip) ? (lane.dest_zip5 ?? lane.dest_zip).slice(0,3) : null,
+      dest_zip: (lane.dest_zip5 ?? lane.dest_zip) ? (lane.dest_zip5 ?? lane.dest_zip).slice(0, 3) : null,
       equipment_code: lane.equipment_code,
       length_ft: lane.length_ft,
       full_partial: lane.full_partial || 'full',
@@ -592,19 +592,19 @@ function LanesPage() {
       weight_lbs: lane.weight_lbs || null,
       weight_min: lane.weight_min || null,
       weight_max: lane.weight_max || null,
-  comment: lane.comment || null,
-  commodity: lane.commodity || null,
-  // Use new lane_status column for reposted lanes
-  lane_status: 'current',
+      comment: lane.comment || null,
+      commodity: lane.commodity || null,
+      // Use new lane_status column for reposted lanes
+      lane_status: 'current',
       reference_id: generateNewReferenceId(),
       user_id: session.user.id,
       created_by: session.user.id
     };
 
     console.log('🚀 Making POST request to /api/lanes');
-  console.log('🚀 Payload lane_status:', payload.lane_status || payload.status);
+    console.log('🚀 Payload lane_status:', payload.lane_status || payload.status);
     console.log('🚀 Payload:', payload);
-    
+
     const response = await fetch('/api/lanes', {
       method: 'POST',
       headers: {
@@ -640,10 +640,10 @@ function LanesPage() {
 
     // Optimistically update UI so new lane appears immediately (works around list fetch timing/RLS delays)
     try {
-  console.log('🔄 Updating UI - New lane lane_status:', newLane.lane_status || newLane.status);
-  const laneStatus = newLane.lane_status || newLane.status;
-  // All new lanes go to current list (simplified status system)
-  if (laneStatus === 'current' || !laneStatus) {
+      console.log('🔄 Updating UI - New lane lane_status:', newLane.lane_status || newLane.status);
+      const laneStatus = newLane.lane_status || newLane.status;
+      // All new lanes go to current list (simplified status system)
+      if (laneStatus === 'current' || !laneStatus) {
         console.log('✅ Adding to Current list');
         setCurrent((prev) => [newLane, ...(prev || [])]);
       } else if (laneStatus === 'archive') {
@@ -696,7 +696,7 @@ function LanesPage() {
   async function postAgain(lane) {
     try {
       setMsg('Creating new lane based on successful posting...');
-      
+
       // First check intermodal eligibility
       const eligibilityCheck = await checkIntermodalEligibility({
         origin_city: lane.origin_city,
@@ -707,21 +707,21 @@ function LanesPage() {
         length_ft: lane.length_ft,
         weight_lbs: lane.weight_lbs || null
       });
-      
+
       if (eligibilityCheck?.eligible) {
         setIntermodalLane(lane);
         setPendingAction({ type: 'postAgain', lane: lane });
         setShowIntermodalNudge(true);
         return null; // Return null to indicate we didn't create a new lane
       }
-      
+
       // Get auth session first  
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
         setMsg('Authentication required. Please log in again.');
         return null;
       }
-      
+
       // If not intermodal eligible, continue with post again
       return await createPostAgainLane(lane, session);
     } catch (error) {
@@ -730,27 +730,27 @@ function LanesPage() {
     }
   }
 
-  async function delLane(lane) { 
+  async function delLane(lane) {
     if (!confirm('Delete this lane?')) return;
-    
+
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
         throw new Error('Authentication required. Please log in again.');
       }
-      
+
       const response = await fetch(`/api/lanes?id=${lane.id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
         },
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to delete lane');
       }
-      
+
       await loadLists();
     } catch (error) {
       alert(error.message);
@@ -763,7 +763,7 @@ function LanesPage() {
       if (!session?.access_token) {
         throw new Error('Authentication required');
       }
-      
+
       // In development, allow a safe auth bypass header to simplify local testing
       const devBypass = process.env.NODE_ENV !== 'production';
 
@@ -774,10 +774,10 @@ function LanesPage() {
           'Authorization': `Bearer ${session.access_token}`,
           ...(devBypass ? { 'x-test-auth-bypass': 'true' } : {})
         },
-  // API now expects { id, lane_status }
-  body: JSON.stringify({ id: lane.id, lane_status: status }),
+        // API now expects { id, lane_status }
+        body: JSON.stringify({ id: lane.id, lane_status: status }),
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         // Provide a clearer message if blocked by authorization checks
@@ -789,7 +789,7 @@ function LanesPage() {
         }
         throw new Error(errorData.error || 'Failed to update status');
       }
-      
+
       await loadLists();
     } catch (error) {
       alert(error.message);
@@ -799,14 +799,14 @@ function LanesPage() {
   async function searchByRR(e) {
     e.preventDefault();
     if (!searchRR.trim()) return;
-    
+
     setSearchLoading(true);
     setSearchResult(null);
-    
+
     try {
       const response = await fetch(`/api/searchByReference?referenceId=${encodeURIComponent(searchRR.trim())}`);
       const data = await response.json();
-      
+
       if (response.ok) {
         setSearchResult(data);
       } else {
@@ -823,7 +823,7 @@ function LanesPage() {
   async function generateCSV() {
     try {
       setBusy(true);
-      
+
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
         throw new Error('Authentication required');
@@ -831,7 +831,7 @@ function LanesPage() {
 
       // Get only current lanes with city choices saved for CSV generation
       const lanesWithChoices = current.filter(l => l.saved_origin_cities?.length > 0 || l.saved_dest_cities?.length > 0);
-      
+
       if (lanesWithChoices.length === 0) {
         alert('No lanes with city choices saved. Go to Post Options to select cities first.');
         return;
@@ -859,12 +859,12 @@ function LanesPage() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      
+
       // Generate filename with date
       const today = new Date();
       const dateStr = today.toISOString().split('T')[0];
       link.download = `DAT_Export_${dateStr}.csv`;
-      
+
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -872,7 +872,7 @@ function LanesPage() {
 
       // Show success message with RR number info
       alert(`CSV generated successfully! File contains ${lanesWithChoices.length} lane(s) with RR numbers for tracking and sourcing. Use the RR# search to find generated lanes later.`);
-      
+
     } catch (error) {
       console.error('CSV Generation Error:', error);
       alert(`Failed to generate CSV: ${error.message}`);
@@ -885,16 +885,16 @@ function LanesPage() {
   async function generateSingleLaneCSV(lane) {
     try {
       console.log('[lanes.js] Generating single-lane CSV for:', lane.id);
-      
+
       // Get auth token
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
         throw new Error('Authentication required. Please log in again.');
       }
-      
+
       const response = await fetch('/api/generate-single-lane-csv', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
@@ -911,7 +911,7 @@ function LanesPage() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      
+
       // Get filename from Content-Disposition header if available
       const disposition = response.headers.get('Content-Disposition');
       let filename = `Lane_${lane.reference_id || lane.id}.csv`;
@@ -919,7 +919,7 @@ function LanesPage() {
         const matches = /filename="?([^"]+)"?/.exec(disposition);
         if (matches && matches[1]) filename = matches[1];
       }
-      
+
       link.download = filename;
       document.body.appendChild(link);
       link.click();
@@ -965,10 +965,10 @@ function LanesPage() {
                     Found Lane: {searchResult.lane.origin_city || '?'}, {searchResult.lane.origin_state || '?'} → {searchResult.lane.dest_city || '?'}, {searchResult.lane.dest_state || '?'}
                   </h3>
                   <span className="badge" style={{
-                    backgroundColor: 
+                    backgroundColor:
                       (searchResult.lane.lane_status || searchResult.lane.status) === 'current' ? 'var(--success)' :
-                      (searchResult.lane.lane_status || searchResult.lane.status) === 'archive' ? 'var(--muted)' :
-                      'var(--primary)',
+                        (searchResult.lane.lane_status || searchResult.lane.status) === 'archive' ? 'var(--muted)' :
+                          'var(--primary)',
                     color: 'white'
                   }}>
                     {searchResult.lane.lane_status || searchResult.lane.status}
@@ -1037,14 +1037,14 @@ function LanesPage() {
       <Head>
         <title>Lane Management | RapidRoutes</title>
       </Head>
-      
+
       <div style={{ maxWidth: '1600px', margin: '0 auto', padding: '16px' }}>
         {/* Page Header */}
-        <div style={{ 
-          marginBottom: '20px', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'space-between' 
+        <div style={{
+          marginBottom: '20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between'
         }}>
           <div>
             <h1 style={{ fontSize: '20px', fontWeight: 600, margin: 0, marginBottom: '4px', color: 'var(--text-primary)' }}>
@@ -1061,9 +1061,9 @@ function LanesPage() {
                 type="button"
                 onClick={() => setShowMyLanesOnly(!showMyLanesOnly)}
                 className="btn"
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
                   gap: '6px',
                   whiteSpace: 'nowrap',
                   backgroundColor: showMyLanesOnly ? 'var(--color-blue-600)' : 'var(--surface)',
@@ -1072,8 +1072,8 @@ function LanesPage() {
                 }}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M9 11l3 3L22 4"/>
-                  <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+                  <path d="M9 11l3 3L22 4" />
+                  <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
                 </svg>
                 {showMyLanesOnly ? 'My Team\'s Lanes' : 'All RapidRoutes Lanes'}
               </button>
@@ -1082,18 +1082,18 @@ function LanesPage() {
               type="button"
               onClick={() => setShowMasterDateModal(true)}
               className="btn btn-primary"
-              style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
+              style={{
+                display: 'flex',
+                alignItems: 'center',
                 gap: '6px',
                 whiteSpace: 'nowrap'
               }}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                <line x1="16" y1="2" x2="16" y2="6"/>
-                <line x1="8" y1="2" x2="8" y2="6"/>
-                <line x1="3" y1="10" x2="21" y2="10"/>
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
               </svg>
               Set Dates for All Lanes
             </button>
@@ -1101,8 +1101,8 @@ function LanesPage() {
         </div>
 
         {/* RR# Search Section */}
-        <div style={{ 
-          backgroundColor: 'var(--surface)', 
+        <div style={{
+          backgroundColor: 'var(--surface)',
           border: '1px solid var(--surface-border)',
           borderRadius: '6px',
           marginBottom: '16px',
@@ -1124,8 +1124,8 @@ function LanesPage() {
           </div>
         </div>
 
-        <div style={{ 
-          backgroundColor: 'var(--surface)', 
+        <div style={{
+          backgroundColor: 'var(--surface)',
           border: '1px solid var(--surface-border)',
           borderRadius: '6px',
           marginBottom: '16px',
@@ -1133,112 +1133,112 @@ function LanesPage() {
         }}>
           <h2 style={{ fontSize: '13px', fontWeight: 600, marginBottom: '12px', color: 'var(--text-primary)' }}>New Lane</h2>
           <form onSubmit={submitLane} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
-              <CityAutocomplete id="origin" label="Origin (City, ST)" value={origin} onChange={setOrigin} onPick={onPickOrigin} />
-              <CityAutocomplete id="dest" label="Destination (City, ST)" value={dest} onChange={setDest} onPick={onPickDest} />
-              <EquipmentPicker code={equipment} onChange={setEquipment} />
+            <CityAutocomplete id="origin" label="Origin (City, ST)" value={origin} onChange={setOrigin} onPick={onPickOrigin} />
+            <CityAutocomplete id="dest" label="Destination (City, ST)" value={dest} onChange={setDest} onPick={onPickDest} />
+            <EquipmentPicker code={equipment} onChange={setEquipment} />
 
-              <div>
-                <label className="form-label">Full / Partial</label>
-                <select value={fullPartial} onChange={(e) => setFullPartial(e.target.value)} className="form-input">
-                  <option value="full">Full</option>
-                  <option value="partial">Partial</option>
-                </select>
-              </div>
+            <div>
+              <label className="form-label">Full / Partial</label>
+              <select value={fullPartial} onChange={(e) => setFullPartial(e.target.value)} className="form-input">
+                <option value="full">Full</option>
+                <option value="partial">Partial</option>
+              </select>
+            </div>
 
-              <div>
-                <label className="form-label">Length (ft)</label>
-                <input type="number" min={1} value={lengthFt} onChange={(e) => setLengthFt(e.target.value)} className="form-input" />
-              </div>
+            <div>
+              <label className="form-label">Length (ft)</label>
+              <input type="number" min={1} value={lengthFt} onChange={(e) => setLengthFt(e.target.value)} className="form-input" />
+            </div>
 
-              <div>
-                <label className="form-label">Pickup Earliest</label>
-                <input type="date" value={pickupEarliest} onChange={(e) => setPickupEarliest(e.target.value)} className="form-input" />
-              </div>
-              <div>
-                <label className="form-label">Pickup Latest</label>
-                <input type="date" value={pickupLatest} onChange={(e) => setPickupLatest(e.target.value)} className="form-input" />
-              </div>
+            <div>
+              <label className="form-label">Pickup Earliest</label>
+              <input type="date" value={pickupEarliest} onChange={(e) => setPickupEarliest(e.target.value)} className="form-input" />
+            </div>
+            <div>
+              <label className="form-label">Pickup Latest</label>
+              <input type="date" value={pickupLatest} onChange={(e) => setPickupLatest(e.target.value)} className="form-input" />
+            </div>
 
-              {!randomize && (
+            {!randomize && (
+              <div>
+                <label className="form-label">Weight (lbs)</label>
+                <input type="number" min={1} value={weight} onChange={(e) => setWeight(e.target.value)} className="form-input" />
+              </div>
+            )}
+            {!randomizeRate && (
+              <div>
+                <label className="form-label">Rate ($)</label>
+                <input type="number" min={0} step="0.01" value={rate} onChange={(e) => setRate(e.target.value)} className="form-input" placeholder="Optional" />
+              </div>
+            )}
+            {randomizeRate && (
+              <div style={{ gridColumn: 'span 2', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div>
-                  <label className="form-label">Weight (lbs)</label>
-                  <input type="number" min={1} value={weight} onChange={(e) => setWeight(e.target.value)} className="form-input" />
+                  <label className="form-label">Min Rate ($)</label>
+                  <input type="number" min={0} value={randRateMin} onChange={(e) => setRandRateMin(e.target.value)} className="form-input" />
                 </div>
-              )}
-              {!randomizeRate && (
                 <div>
-                  <label className="form-label">Rate ($)</label>
-                  <input type="number" min={0} step="0.01" value={rate} onChange={(e) => setRate(e.target.value)} className="form-input" placeholder="Optional" />
+                  <label className="form-label">Max Rate ($)</label>
+                  <input type="number" min={0} value={randRateMax} onChange={(e) => setRandRateMax(e.target.value)} className="form-input" />
                 </div>
-              )}
-              {randomizeRate && (
-                <div style={{ gridColumn: 'span 2', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                  <div>
-                    <label className="form-label">Min Rate ($)</label>
-                    <input type="number" min={0} value={randRateMin} onChange={(e) => setRandRateMin(e.target.value)} className="form-input" />
-                  </div>
-                  <div>
-                    <label className="form-label">Max Rate ($)</label>
-                    <input type="number" min={0} value={randRateMax} onChange={(e) => setRandRateMax(e.target.value)} className="form-input" />
-                  </div>
+              </div>
+            )}
+
+            <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
+                <input type="checkbox" checked={randomizeRate} onChange={(e) => setRandomizeRate(e.target.checked)} />
+                Randomize Rate
+              </label>
+            </div>
+            {randomize && (
+              <div style={{ gridColumn: 'span 2', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div>
+                  <label className="form-label">Random Min (lbs)</label>
+                  <input type="number" min={1} value={randMin} onChange={(e) => setRandMin(e.target.value)} className="form-input" />
                 </div>
-              )}
-
-              <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
-                   <input type="checkbox" checked={randomizeRate} onChange={(e) => setRandomizeRate(e.target.checked)} />
-                   Randomize Rate
-                </label>
-              </div>
-              {randomize && (
-                <div style={{ gridColumn: 'span 2', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                  <div>
-                    <label className="form-label">Random Min (lbs)</label>
-                    <input type="number" min={1} value={randMin} onChange={(e) => setRandMin(e.target.value)} className="form-input" />
-                  </div>
-                  <div>
-                    <label className="form-label">Random Max (lbs)</label>
-                    <input type="number" min={1} value={randMax} onChange={(e) => setRandMax(e.target.value)} className="form-input" />
-                  </div>
+                <div>
+                  <label className="form-label">Random Max (lbs)</label>
+                  <input type="number" min={1} value={randMax} onChange={(e) => setRandMax(e.target.value)} className="form-input" />
                 </div>
-              )}
-
-              <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
-                  <input type="checkbox" checked={randomize} onChange={(e) => setRandomize(e.target.checked)} />
-                  Randomize Weight
-                </label>
               </div>
+            )}
 
-              <div style={{ gridColumn: '1 / -1' }}>
-                <label className="form-label">Comment (optional)</label>
-                <input type="text" value={comment} onChange={(e) => setComment(e.target.value)} className="form-input" />
-              </div>
-              <div>
-                <label className="form-label">Commodity (optional)</label>
-                <input type="text" value={commodity} onChange={(e) => setCommodity(e.target.value)} className="form-input" />
-              </div>
+            <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer' }}>
+                <input type="checkbox" checked={randomize} onChange={(e) => setRandomize(e.target.checked)} />
+                Randomize Weight
+              </label>
+            </div>
 
-              {msg && <div style={{ gridColumn: '1 / -1', fontSize: '13px', color: 'var(--danger)' }}>{String(msg)}</div>}
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label className="form-label">Comment (optional)</label>
+              <input type="text" value={comment} onChange={(e) => setComment(e.target.value)} className="form-input" />
+            </div>
+            <div>
+              <label className="form-label">Commodity (optional)</label>
+              <input type="text" value={commodity} onChange={(e) => setCommodity(e.target.value)} className="form-input" />
+            </div>
 
-              <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <button type="submit" disabled={busy} className="btn btn-primary" style={{ fontSize: '12px', padding: '8px 16px' }}>
-                  {busy ? 'Saving…' : 'Add Lane'}
-                </button>
-              </div>
-            </form>
+            {msg && <div style={{ gridColumn: '1 / -1', fontSize: '13px', color: 'var(--danger)' }}>{String(msg)}</div>}
+
+            <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <button type="submit" disabled={busy} className="btn btn-primary" style={{ fontSize: '12px', padding: '8px 16px' }}>
+                {busy ? 'Saving…' : 'Add Lane'}
+              </button>
+            </div>
+          </form>
         </div>
 
         {/* Lanes Section */}
-        <div style={{ 
-          backgroundColor: 'var(--surface)', 
+        <div style={{
+          backgroundColor: 'var(--surface)',
           border: '1px solid var(--surface-border)',
           borderRadius: '6px',
           padding: '12px'
         }}>
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
             justifyContent: 'space-between',
             marginBottom: '12px',
             flexWrap: 'wrap',
@@ -1256,7 +1256,7 @@ function LanesPage() {
               >
                 Post Options
               </Link>
-              <button 
+              <button
                 type="button"
                 onClick={(e) => {
                   e.preventDefault();
@@ -1271,7 +1271,7 @@ function LanesPage() {
               >
                 🎯 Generate Pairings ({current.length})
               </button>
-              <button 
+              <button
                 onClick={generateCSV}
                 disabled={busy || current.length === 0}
                 className="btn btn-success"
@@ -1281,14 +1281,14 @@ function LanesPage() {
                 {busy ? 'Generating...' : `📊 Generate CSV (${current.length})`}
               </button>
               <div style={{ display: 'flex', gap: '4px' }}>
-                <button 
-                  className={tab === 'current' ? 'btn btn-primary' : 'btn btn-secondary'} 
+                <button
+                  className={tab === 'current' ? 'btn btn-primary' : 'btn btn-secondary'}
                   style={{ fontSize: '12px', padding: '6px 12px' }}
                   onClick={() => setTab('current')}
                 >
                   Current ({current.length})
                 </button>
-                <button 
+                <button
                   className={tab === 'archive' ? 'btn btn-primary' : 'btn btn-secondary'}
                   style={{ fontSize: '12px', padding: '6px 12px' }}
                   onClick={() => setTab('archive')}
@@ -1314,11 +1314,11 @@ function LanesPage() {
                     <span style={{ opacity: 0.6 }}>{l.equipment_code || '?'} • {l.length_ft || '?'}ft</span>
                   </div>
                   <div style={{ fontSize: '12px', opacity: 0.6 }}>
-                    {l.randomize_weight 
-                      ? `${l.weight_min || 0}-${l.weight_max || 0} lbs` 
+                    {l.randomize_weight
+                      ? `${l.weight_min || 0}-${l.weight_max || 0} lbs`
                       : `${l.weight_lbs || '—'} lbs`}
-                    {l.randomize_rate 
-                      ? <span style={{ marginLeft: '12px' }}>💰 ${l.rate_min}-${l.rate_max}</span> 
+                    {l.randomize_rate
+                      ? <span style={{ marginLeft: '12px' }}>💰 ${l.rate_min}-${l.rate_max}</span>
                       : (l.rate && <span style={{ marginLeft: '12px' }}>💰 ${l.rate}</span>)}
                     <span style={{ marginLeft: '12px' }}>📅 {l.pickup_earliest || '—'} → {l.pickup_latest || '—'}</span>
                     {l.comment && <span style={{ marginLeft: '12px' }}>💬 {String(l.comment)}</span>}
@@ -1380,7 +1380,7 @@ function LanesPage() {
             lane={intermodalLane}
             onClose={async () => {
               setShowIntermodalNudge(false);
-              
+
               // Continue with the pending action if user chose "Continue with Truck"
               console.log('🚛 Continue with Truck clicked, pendingAction:', pendingAction);
               if (pendingAction) {
@@ -1455,7 +1455,7 @@ function LanesPage() {
               <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 'var(--space-4)' }}>
                 Edit Lane: {editingLane.origin_city}, {editingLane.origin_state} → {editingLane.dest_city}, {editingLane.dest_state}
               </h3>
-              
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
                 {/* Origin */}
                 <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 'var(--space-4)' }}>
@@ -1464,7 +1464,7 @@ function LanesPage() {
                     <input
                       type="text"
                       value={editingLane.origin_city || ''}
-                      onChange={(e) => setEditingLane({...editingLane, origin_city: e.target.value})}
+                      onChange={(e) => setEditingLane({ ...editingLane, origin_city: e.target.value })}
                       className="form-input"
                     />
                   </div>
@@ -1473,7 +1473,7 @@ function LanesPage() {
                     <input
                       type="text"
                       value={editingLane.origin_state || ''}
-                      onChange={(e) => setEditingLane({...editingLane, origin_state: e.target.value})}
+                      onChange={(e) => setEditingLane({ ...editingLane, origin_state: e.target.value })}
                       className="form-input"
                       maxLength={2}
                     />
@@ -1483,7 +1483,7 @@ function LanesPage() {
                     <input
                       type="text"
                       value={editingLane.origin_zip || ''}
-                      onChange={(e) => setEditingLane({...editingLane, origin_zip: e.target.value})}
+                      onChange={(e) => setEditingLane({ ...editingLane, origin_zip: e.target.value })}
                       className="form-input"
                     />
                   </div>
@@ -1496,7 +1496,7 @@ function LanesPage() {
                     <input
                       type="text"
                       value={editingLane.dest_city || editingLane.destination_city || ''}
-                      onChange={(e) => setEditingLane({...editingLane, dest_city: e.target.value, destination_city: e.target.value})}
+                      onChange={(e) => setEditingLane({ ...editingLane, dest_city: e.target.value, destination_city: e.target.value })}
                       className="form-input"
                     />
                   </div>
@@ -1505,7 +1505,7 @@ function LanesPage() {
                     <input
                       type="text"
                       value={editingLane.dest_state || editingLane.destination_state || ''}
-                      onChange={(e) => setEditingLane({...editingLane, dest_state: e.target.value, destination_state: e.target.value})}
+                      onChange={(e) => setEditingLane({ ...editingLane, dest_state: e.target.value, destination_state: e.target.value })}
                       className="form-input"
                       maxLength={2}
                     />
@@ -1515,7 +1515,7 @@ function LanesPage() {
                     <input
                       type="text"
                       value={editingLane.dest_zip || ''}
-                      onChange={(e) => setEditingLane({...editingLane, dest_zip: e.target.value})}
+                      onChange={(e) => setEditingLane({ ...editingLane, dest_zip: e.target.value })}
                       className="form-input"
                     />
                   </div>
@@ -1527,7 +1527,7 @@ function LanesPage() {
                     <label className="form-label">Equipment</label>
                     <select
                       value={editingLane.equipment_code || ''}
-                      onChange={(e) => setEditingLane({...editingLane, equipment_code: e.target.value})}
+                      onChange={(e) => setEditingLane({ ...editingLane, equipment_code: e.target.value })}
                       className="form-input"
                     >
                       <option value="">Select Equipment...</option>
@@ -1543,7 +1543,7 @@ function LanesPage() {
                     <input
                       type="number"
                       value={editingLane.length_ft || ''}
-                      onChange={(e) => setEditingLane({...editingLane, length_ft: e.target.value ? parseInt(e.target.value) : null})}
+                      onChange={(e) => setEditingLane({ ...editingLane, length_ft: e.target.value ? parseInt(e.target.value) : null })}
                       className="form-input"
                     />
                   </div>
@@ -1551,7 +1551,7 @@ function LanesPage() {
                     <label className="form-label">Type</label>
                     <select
                       value={editingLane.full_partial || 'full'}
-                      onChange={(e) => setEditingLane({...editingLane, full_partial: e.target.value})}
+                      onChange={(e) => setEditingLane({ ...editingLane, full_partial: e.target.value })}
                       className="form-input"
                     >
                       <option value="full">Full</option>
@@ -1567,7 +1567,7 @@ function LanesPage() {
                     <input
                       type="date"
                       value={editingLane.pickup_earliest || ''}
-                      onChange={(e) => setEditingLane({...editingLane, pickup_earliest: e.target.value})}
+                      onChange={(e) => setEditingLane({ ...editingLane, pickup_earliest: e.target.value })}
                       className="form-input"
                     />
                   </div>
@@ -1576,7 +1576,7 @@ function LanesPage() {
                     <input
                       type="date"
                       value={editingLane.pickup_latest || ''}
-                      onChange={(e) => setEditingLane({...editingLane, pickup_latest: e.target.value})}
+                      onChange={(e) => setEditingLane({ ...editingLane, pickup_latest: e.target.value })}
                       className="form-input"
                     />
                   </div>
@@ -1586,13 +1586,13 @@ function LanesPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
                     <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--gray-300)' }}>
-                        <input 
-                            type="checkbox" 
-                            checked={!!editingLane.randomize_weight} 
-                            onChange={(e) => setEditingLane({...editingLane, randomize_weight: e.target.checked})} 
-                            className="rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-blue-500"
-                        />
-                        Randomize Weight
+                      <input
+                        type="checkbox"
+                        checked={!!editingLane.randomize_weight}
+                        onChange={(e) => setEditingLane({ ...editingLane, randomize_weight: e.target.checked })}
+                        className="rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-blue-500"
+                      />
+                      Randomize Weight
                     </label>
                   </div>
 
@@ -1603,7 +1603,7 @@ function LanesPage() {
                         <input
                           type="number"
                           value={editingLane.weight_lbs || ''}
-                          onChange={(e) => setEditingLane({...editingLane, weight_lbs: e.target.value ? parseInt(e.target.value) : null})}
+                          onChange={(e) => setEditingLane({ ...editingLane, weight_lbs: e.target.value ? parseInt(e.target.value) : null })}
                           className="form-input"
                           placeholder="Exact weight"
                         />
@@ -1615,7 +1615,7 @@ function LanesPage() {
                           <input
                             type="number"
                             value={editingLane.weight_min || ''}
-                            onChange={(e) => setEditingLane({...editingLane, weight_min: e.target.value ? parseInt(e.target.value) : null})}
+                            onChange={(e) => setEditingLane({ ...editingLane, weight_min: e.target.value ? parseInt(e.target.value) : null })}
                             className="form-input"
                             placeholder="Min weight"
                           />
@@ -1625,7 +1625,7 @@ function LanesPage() {
                           <input
                             type="number"
                             value={editingLane.weight_max || ''}
-                            onChange={(e) => setEditingLane({...editingLane, weight_max: e.target.value ? parseInt(e.target.value) : null})}
+                            onChange={(e) => setEditingLane({ ...editingLane, weight_max: e.target.value ? parseInt(e.target.value) : null })}
                             className="form-input"
                             placeholder="Max weight"
                           />
@@ -1637,75 +1637,75 @@ function LanesPage() {
 
                 {/* Rate and Commodity */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
                     <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <input 
-                            type="checkbox" 
-                            checked={!!editingLane.randomize_rate} 
-                            onChange={(e) => setEditingLane({...editingLane, randomize_rate: e.target.checked})} 
-                        />
-                        Randomize Rate
+                      <input
+                        type="checkbox"
+                        checked={!!editingLane.randomize_rate}
+                        onChange={(e) => setEditingLane({ ...editingLane, randomize_rate: e.target.checked })}
+                      />
+                      Randomize Rate
                     </label>
                   </div>
 
                   {!editingLane.randomize_rate ? (
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 'var(--space-4)' }}>
-                    <div>
+                      <div>
                         <label className="form-label">Rate ($)</label>
                         <input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        value={editingLane.rate || ''}
-                        onChange={(e) => setEditingLane({...editingLane, rate: e.target.value})}
-                        className="form-input"
-                        placeholder="Optional rate"
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          value={editingLane.rate || ''}
+                          onChange={(e) => setEditingLane({ ...editingLane, rate: e.target.value })}
+                          className="form-input"
+                          placeholder="Optional rate"
                         />
-                    </div>
-                    <div>
+                      </div>
+                      <div>
                         <label className="form-label">Commodity</label>
                         <input
-                        type="text"
-                        value={editingLane.commodity || ''}
-                        onChange={(e) => setEditingLane({...editingLane, commodity: e.target.value})}
-                        className="form-input"
-                        placeholder="Optional commodity..."
+                          type="text"
+                          value={editingLane.commodity || ''}
+                          onChange={(e) => setEditingLane({ ...editingLane, commodity: e.target.value })}
+                          className="form-input"
+                          placeholder="Optional commodity..."
                         />
-                    </div>
+                      </div>
                     </div>
                   ) : (
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 2fr', gap: 'var(--space-4)' }}>
-                        <div>
-                            <label className="form-label">Min Rate ($)</label>
-                            <input
-                            type="number"
-                            min={0}
-                            value={editingLane.rate_min || ''}
-                            onChange={(e) => setEditingLane({...editingLane, rate_min: e.target.value})}
-                            className="form-input"
-                            />
-                        </div>
-                         <div>
-                            <label className="form-label">Max Rate ($)</label>
-                            <input
-                            type="number"
-                            min={0}
-                            value={editingLane.rate_max || ''}
-                            onChange={(e) => setEditingLane({...editingLane, rate_max: e.target.value})}
-                            className="form-input"
-                            />
-                        </div>
-                        <div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 2fr', gap: 'var(--space-4)' }}>
+                      <div>
+                        <label className="form-label">Min Rate ($)</label>
+                        <input
+                          type="number"
+                          min={0}
+                          value={editingLane.rate_min || ''}
+                          onChange={(e) => setEditingLane({ ...editingLane, rate_min: e.target.value })}
+                          className="form-input"
+                        />
+                      </div>
+                      <div>
+                        <label className="form-label">Max Rate ($)</label>
+                        <input
+                          type="number"
+                          min={0}
+                          value={editingLane.rate_max || ''}
+                          onChange={(e) => setEditingLane({ ...editingLane, rate_max: e.target.value })}
+                          className="form-input"
+                        />
+                      </div>
+                      <div>
                         <label className="form-label">Commodity</label>
                         <input
-                        type="text"
-                        value={editingLane.commodity || ''}
-                        onChange={(e) => setEditingLane({...editingLane, commodity: e.target.value})}
-                        className="form-input"
-                        placeholder="Optional commodity..."
+                          type="text"
+                          value={editingLane.commodity || ''}
+                          onChange={(e) => setEditingLane({ ...editingLane, commodity: e.target.value })}
+                          className="form-input"
+                          placeholder="Optional commodity..."
                         />
-                    </div>
                       </div>
+                    </div>
                   )}
                 </div>
 
@@ -1714,7 +1714,7 @@ function LanesPage() {
                   <label className="form-label">Comment</label>
                   <textarea
                     value={editingLane.comment || ''}
-                    onChange={(e) => setEditingLane({...editingLane, comment: e.target.value})}
+                    onChange={(e) => setEditingLane({ ...editingLane, comment: e.target.value })}
                     rows={3}
                     className="form-input"
                     placeholder="Optional comment..."
@@ -1770,22 +1770,22 @@ function LanesPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-4)', marginBottom: 'var(--space-4)' }}>
                 <div>
                   <label className="form-label">Min Weight (lbs)</label>
-                  <input 
-                    type="number" 
-                    min={1} 
-                    value={randMin} 
-                    onChange={(e) => setRandMin(e.target.value)} 
+                  <input
+                    type="number"
+                    min={1}
+                    value={randMin}
+                    onChange={(e) => setRandMin(e.target.value)}
                     className="form-input"
                     placeholder="e.g., 20000"
                   />
                 </div>
                 <div>
                   <label className="form-label">Max Weight (lbs)</label>
-                  <input 
-                    type="number" 
-                    min={1} 
-                    value={randMax} 
-                    onChange={(e) => setRandMax(e.target.value)} 
+                  <input
+                    type="number"
+                    min={1}
+                    value={randMax}
+                    onChange={(e) => setRandMax(e.target.value)}
                     className="form-input"
                     placeholder="e.g., 40000"
                   />
@@ -1793,9 +1793,9 @@ function LanesPage() {
               </div>
               <div style={{ marginBottom: 'var(--space-4)' }}>
                 <label style={{ display: 'flex', alignItems: 'center', fontSize: '12px', color: 'var(--text-secondary)', cursor: 'pointer' }}>
-                  <input 
-                    type="checkbox" 
-                    checked={rememberSession} 
+                  <input
+                    type="checkbox"
+                    checked={rememberSession}
                     onChange={(e) => setRememberSession(e.target.checked)}
                     style={{ marginRight: 'var(--space-2)' }}
                   />
@@ -1803,7 +1803,7 @@ function LanesPage() {
                 </label>
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-3)' }}>
-                <button 
+                <button
                   onClick={() => {
                     setRandomize(false);
                     setRandOpen(false);
@@ -1812,7 +1812,7 @@ function LanesPage() {
                 >
                   Cancel
                 </button>
-                <button 
+                <button
                   onClick={() => setRandOpen(false)}
                   className="btn btn-primary"
                 >
@@ -1860,9 +1860,9 @@ function LanesPage() {
                 alignItems: 'center',
                 justifyContent: 'space-between'
               }}>
-                <h3 style={{ 
-                  margin: 0, 
-                  fontSize: '16px', 
+                <h3 style={{
+                  margin: 0,
+                  fontSize: '16px',
                   fontWeight: 600,
                   color: 'var(--text-primary)'
                 }}>
@@ -1892,9 +1892,9 @@ function LanesPage() {
 
               {/* Modal Body */}
               <div style={{ padding: '20px' }}>
-                <p style={{ 
-                  fontSize: '13px', 
-                  color: 'var(--text-secondary)', 
+                <p style={{
+                  fontSize: '13px',
+                  color: 'var(--text-secondary)',
                   marginBottom: '20px',
                   lineHeight: 1.5
                 }}>
@@ -1926,10 +1926,10 @@ function LanesPage() {
                     className="form-input"
                     placeholder="Optional - defaults to earliest date"
                   />
-                  <p style={{ 
-                    fontSize: '11px', 
-                    color: 'var(--text-secondary)', 
-                    marginTop: '4px' 
+                  <p style={{
+                    fontSize: '11px',
+                    color: 'var(--text-secondary)',
+                    marginTop: '4px'
                   }}>
                     If left blank, will use the same date as Pickup Earliest
                   </p>
@@ -1941,9 +1941,9 @@ function LanesPage() {
                     Apply to:
                   </label>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <label style={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
+                    <label style={{
+                      display: 'flex',
+                      alignItems: 'center',
                       cursor: 'pointer',
                       padding: '12px',
                       backgroundColor: masterScope === 'all' ? 'var(--primary-alpha)' : 'transparent',
@@ -1970,9 +1970,9 @@ function LanesPage() {
                       </div>
                     </label>
 
-                    <label style={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
+                    <label style={{
+                      display: 'flex',
+                      alignItems: 'center',
                       cursor: 'pointer',
                       padding: '12px',
                       backgroundColor: masterScope === 'pending' ? 'var(--primary-alpha)' : 'transparent',
@@ -1999,9 +1999,9 @@ function LanesPage() {
                       </div>
                     </label>
 
-                    <label style={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
+                    <label style={{
+                      display: 'flex',
+                      alignItems: 'center',
                       cursor: 'pointer',
                       padding: '12px',
                       backgroundColor: masterScope === 'active' ? 'var(--primary-alpha)' : 'transparent',
@@ -2085,7 +2085,7 @@ function LanesPage() {
                   ) : (
                     <>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <polyline points="20 6 9 17 4 12"/>
+                        <polyline points="20 6 9 17 4 12" />
                       </svg>
                       Apply Dates
                     </>

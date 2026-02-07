@@ -2,7 +2,8 @@
 import { useState, useEffect } from "react";
 import Head from "next/head";
 import { Card, Button, Spinner } from "../components/EnterpriseUI";
-import { supabase } from '../lib/supabaseClient';
+import DatMarketMaps from "../components/DatMarketMaps";
+import supabase from '../utils/supabaseClient';
 
 export default function Settings() {
   const [notification, setNotification] = useState(false);
@@ -13,12 +14,12 @@ export default function Settings() {
   const [adding, setAdding] = useState(false);
   const [addingCorrection, setAddingCorrection] = useState(false);
   const [newCity, setNewCity] = useState({ city: '', state: '', reason: '' });
-  const [newCorrection, setNewCorrection] = useState({ 
-    incorrect_city: '', 
-    incorrect_state: '', 
-    correct_city: '', 
-    correct_state: '', 
-    notes: '' 
+  const [newCorrection, setNewCorrection] = useState({
+    incorrect_city: '',
+    incorrect_state: '',
+    correct_city: '',
+    correct_state: '',
+    notes: ''
   });
   const [message, setMessage] = useState(null);
 
@@ -112,15 +113,15 @@ export default function Settings() {
 
   const handleAddCorrection = async (e) => {
     e.preventDefault();
-    if (!newCorrection.incorrect_city.trim() || !newCorrection.incorrect_state.trim() || 
-        !newCorrection.correct_city.trim() || !newCorrection.correct_state.trim()) {
+    if (!newCorrection.incorrect_city.trim() || !newCorrection.incorrect_state.trim() ||
+      !newCorrection.correct_city.trim() || !newCorrection.correct_state.trim()) {
       showMessage('All city and state fields are required', 'error');
       return;
     }
 
     try {
       setAddingCorrection(true);
-      
+
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) {
         throw new Error('You must be logged in to add corrections');
@@ -142,12 +143,12 @@ export default function Settings() {
       }
 
       showMessage('City correction added successfully', 'success');
-      setNewCorrection({ 
-        incorrect_city: '', 
-        incorrect_state: '', 
-        correct_city: '', 
-        correct_state: '', 
-        notes: '' 
+      setNewCorrection({
+        incorrect_city: '',
+        incorrect_state: '',
+        correct_city: '',
+        correct_state: '',
+        notes: ''
       });
       fetchCorrections();
     } catch (error) {
@@ -181,7 +182,7 @@ export default function Settings() {
       <Head>
         <title>Settings | RapidRoutes</title>
       </Head>
-      
+
       <div className="min-h-screen bg-slate-950 text-gray-100 p-6">
         <div className="max-w-5xl mx-auto space-y-6">
           <div className="page-header">
@@ -190,11 +191,10 @@ export default function Settings() {
           </div>
 
           {message && (
-            <div className={`p-4 rounded-lg border ${
-              message.type === 'error' 
-                ? 'bg-red-900/20 border-red-700 text-red-200' 
-                : 'bg-green-900/20 border-green-700 text-green-200'
-            }`}>
+            <div className={`p-4 rounded-lg border ${message.type === 'error'
+              ? 'bg-red-900/20 border-red-700 text-red-200'
+              : 'bg-green-900/20 border-green-700 text-green-200'
+              }`}>
               {message.text}
             </div>
           )}
@@ -442,6 +442,17 @@ export default function Settings() {
             )}
           </Card>
 
+          {/* Weekly Market Data Upload */}
+          <Card className="p-6">
+            <div className="border-b border-gray-700 pb-4 mb-6">
+              <h2 className="text-xl font-semibold text-gray-100">📊 Weekly Market Data</h2>
+              <p className="text-sm text-gray-400 mt-1">
+                Upload DAT heat maps for Van, Reefer, and Flatbed to display on the Dashboard
+              </p>
+            </div>
+            <DatMarketMaps />
+          </Card>
+
           {/* Notification Settings */}
           <Card className="p-6">
             <div className="border-b border-gray-700 pb-4 mb-6">
@@ -462,7 +473,7 @@ export default function Settings() {
                 </div>
               </div>
             </label>
-            
+
             <div className="border-t border-gray-700 pt-6 mt-6">
               <Button
                 onClick={() => showMessage('Settings saved!')}

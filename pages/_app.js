@@ -1,6 +1,6 @@
 // pages/_app.js
-import '../styles/enterprise.css';  // Load FIRST for CSS variables
-import '../styles/globals.css';   // Load AFTER so Tailwind respects variables
+import '../styles/globals.css';
+import '../styles/dashboard.css';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
@@ -8,7 +8,7 @@ import NavBar from '../components/NavBar.jsx';
 import useKeyboardShortcuts from '../hooks/useKeyboardShortcuts';
 import Head from 'next/head';
 import ErrorBoundary from '../components/ErrorBoundary';
-import { supabase } from '../lib/supabaseClient';
+import supabase from '../utils/supabaseClient';
 import { Toaster } from 'react-hot-toast';
 
 const PUBLIC_ROUTES = new Set(['/login', '/signup', '/']);
@@ -26,14 +26,6 @@ function AppContent({ Component, pageProps }) {
     console.log("✅ Supabase initialized:", !!supabase);
     console.log("✅ Supabase URL configured:", !!process.env.NEXT_PUBLIC_SUPABASE_URL);
   }, []);
-
-  useEffect(() => {
-    console.log('AppContent loading state:', {
-      loading,
-      isAuthenticated,
-      hasSession: !!session
-    });
-  }, [loading, isAuthenticated, session]);
 
   // Global auth redirect for protected routes
   useEffect(() => {
@@ -68,58 +60,83 @@ function AppContent({ Component, pageProps }) {
     <>
       <Head>
         <title>RapidRoutes | Freight Brokerage Automation</title>
-        <meta name="description" content="Production-grade freight brokerage automation platform for TQL brokers" />
+        <meta name="description" content="Premium freight brokerage automation platform" />
         <link rel="icon" href="/favicon.ico" />
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
       </Head>
 
-      <div className="min-h-screen flex flex-col">
-        {!loading && !isAuthPage && <NavBar />}
+      {/* Animated gradient background from mockup */}
+      <div className="background"></div>
 
-        {/* Loading indicator */}
+      <div style={{ position: 'relative', zIndex: 1, minHeight: '100vh' }}>
+        {/* Loading bar */}
         {(loading || routeLoading) && (
-          <div className="fixed top-0 left-0 right-0 h-1 z-50" style={{ background: 'var(--primary)' }}>
-            <div className="h-full animate-pulse" style={{ background: 'var(--primary-hover)' }}></div>
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '2px',
+            background: 'var(--primary)',
+            zIndex: 9999
+          }}>
+            <div style={{
+              height: '100%',
+              width: '30%',
+              background: 'linear-gradient(90deg, transparent, var(--primary), transparent)',
+              animation: 'loading 1s ease-in-out infinite'
+            }}></div>
           </div>
         )}
 
         {loading ? (
-          <div className="flex-grow flex items-center justify-center">
-            <div className="text-center">
-              <div
-                className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin mx-auto mb-4"
-                style={{ borderColor: 'var(--primary)', borderTopColor: 'transparent' }}
-              ></div>
-              <div className="text-lg" style={{ color: 'var(--text-secondary)' }}>Loading RapidRoutes...</div>
+          <div style={{
+            minHeight: '100vh',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <div style={{ textAlign: 'center' }}>
+              <div className="spinner" style={{ margin: '0 auto 16px' }}></div>
+              <div style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>Loading RapidRoutes...</div>
             </div>
           </div>
         ) : (
-          <main className={`flex-grow ${isAuthPage ? '' : 'pt-20 pb-12'}`}>
-            <ErrorBoundary componentName={Component.displayName || Component.name || 'Page'}>
-              <Component {...pageProps} />
-            </ErrorBoundary>
-          </main>
-        )}
-
-        {!isAuthPage && (
-          <footer className="py-4" style={{
-            borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-            background: 'rgba(0, 0, 0, 0.3)'
-          }}>
-            <div className="container mx-auto px-4 text-center text-xs" style={{ color: 'var(--text-tertiary)' }}>
-              © 2025 RapidRoutes | Created by Andrew Connellan - Logistics Account Executive at Total Quality Logistics
-            </div>
-          </footer>
+          <ErrorBoundary componentName={Component.displayName || Component.name || 'Page'}>
+            <Component {...pageProps} />
+          </ErrorBoundary>
         )}
       </div>
-      <Toaster position="bottom-right" toastOptions={{
-        style: {
-          background: 'rgba(255, 255, 255, 0.1)',
-          backdropFilter: 'blur(10px)',
-          color: '#F1F5F9',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-        },
-      }} />
+
+      <Toaster
+        position="bottom-right"
+        toastOptions={{
+          style: {
+            background: 'linear-gradient(135deg, rgba(10, 10, 10, 0.95) 0%, rgba(20, 20, 20, 0.9) 100%)',
+            backdropFilter: 'blur(20px)',
+            color: 'var(--text-primary)',
+            border: '1px solid var(--border)',
+            borderRadius: '10px',
+            fontSize: '14px',
+            fontWeight: '500',
+          },
+          success: {
+            iconTheme: {
+              primary: '#10B981',
+              secondary: '#FFFFFF',
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: '#EF4444',
+              secondary: '#FFFFFF',
+            },
+          },
+        }}
+      />
     </>
   );
 }
@@ -127,12 +144,8 @@ function AppContent({ Component, pageProps }) {
 export default function App({ Component, pageProps }) {
   const [mounted, setMounted] = useState(false);
 
-  // Force dark mode on document
   useEffect(() => {
     setMounted(true);
-    // Force dark theme - no toggle
-    document.documentElement.setAttribute('data-theme', 'dark');
-    document.documentElement.classList.add('dark');
   }, []);
 
   return (
