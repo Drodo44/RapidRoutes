@@ -56,7 +56,7 @@ function useDashboardStats() {
 
   useEffect(() => {
     const fetchStats = async () => {
-      if (!session || !user) return;
+      if (!session || !user || !supabase) return;
 
       try {
         // Fetch user's lanes
@@ -101,7 +101,7 @@ function useRecentLanes() {
 
   useEffect(() => {
     const fetchLanes = async () => {
-      if (!session || !user) return;
+      if (!session || !user || !supabase) return;
 
       try {
         const { data, error } = await supabase
@@ -130,7 +130,7 @@ function useTopCarriers() {
 
   useEffect(() => {
     const fetchCarriers = async () => {
-      if (!session || !user) return;
+      if (!session || !user || !supabase) return;
 
       try {
         // Get covered lanes with carrier info
@@ -189,6 +189,7 @@ function useMarketData() {
   useEffect(() => {
     // This would fetch from settings/storage where admin uploaded heatmaps
     const fetchHeatmaps = async () => {
+      if (!supabase) return;
       try {
         const { data, error } = await supabase
           .from('market_data')
