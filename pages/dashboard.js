@@ -5,8 +5,27 @@ import { useAuth } from '../contexts/AuthContext';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Head from 'next/head';
+import dynamic from 'next/dynamic';
 // Image import removed - using text logo instead
 import supabase from '../utils/supabaseClient';
+
+const MarketMap = dynamic(() => import('../components/MarketMap'), {
+  ssr: false,
+  loading: () => (
+    <div style={{
+      height: '400px',
+      width: '100%',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'rgba(30, 41, 59, 0.4)',
+      borderRadius: '12px',
+      color: '#94a3b8'
+    }}>
+      Loading Market Intelligence...
+    </div>
+  )
+});
 
 // ============================================
 // SVG ICONS - Navigation
@@ -525,17 +544,8 @@ function HeatmapPanel({ heatmaps }) {
           ))}
         </div>
       </div>
-      <div className="heatmap-content">
-        {currentUrl ? (
-          <img src={currentUrl} alt={`${activeTab} heatmap`} className="heatmap-image" />
-        ) : (
-          <div className="heatmap-placeholder">
-            <div className="heatmap-placeholder-icon">🗺️</div>
-            <div className="heatmap-placeholder-text">
-              Upload heatmap in Settings
-            </div>
-          </div>
-        )}
+      <div className="heatmap-content" style={{ padding: 0, height: '500px' }}>
+        <MarketMap type={activeTab} />
       </div>
       {lastUpdated && (
         <div className="heatmap-footer">

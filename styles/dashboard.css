@@ -108,7 +108,7 @@
     box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
 }
 
-/* Sidebar Quick Stats */
+/* Sidebar Quick Stats - PREMIUM */
 .sidebar-quick-stats {
     padding: 20px 0;
     border-top: 1px solid rgba(255, 255, 255, 0.06);
@@ -121,30 +121,40 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px 14px;
-    background: rgba(255, 255, 255, 0.03);
-    border-radius: 10px;
+    padding: 14px 16px;
+    background: rgba(30, 41, 59, 0.4);
+    border-radius: 12px;
     border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all 0.2s ease;
+}
+
+.quick-stat:hover {
+    background: rgba(30, 41, 59, 0.7);
+    border-color: rgba(56, 189, 248, 0.3);
+    transform: translateX(2px);
 }
 
 .quick-stat-label {
     font-size: 13px;
-    color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.6);
     font-weight: 500;
 }
 
 .quick-stat-value {
-    font-size: 20px;
+    font-size: 18px;
     font-weight: 700;
     color: #fff;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
 }
 
 .quick-stat.warning .quick-stat-value {
     color: #F59E0B;
+    text-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
 }
 
 .quick-stat.success .quick-stat-value {
     color: #10B981;
+    text-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
 }
 
 /* Dashboard Main */
@@ -189,16 +199,21 @@
     margin-bottom: 32px;
 }
 
-/* Dashboard Stat Card */
+/* Dashboard Stat Card - PREMIUM GLASSMORPHISM */
 .dashboard-stat-card {
     padding: 24px;
-    background: linear-gradient(135deg, rgba(15, 15, 20, 0.9) 0%, rgba(20, 20, 28, 0.8) 100%);
-    backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: linear-gradient(135deg, rgba(20, 28, 40, 0.85) 0%, rgba(15, 20, 30, 0.75) 100%);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(56, 189, 248, 0.15);
+    border-top: 2px solid rgba(56, 189, 248, 0.6);
     border-radius: 16px;
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
+    box-shadow:
+        0 4px 24px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .dashboard-stat-card::before {
@@ -207,20 +222,21 @@
     top: 0;
     left: 0;
     right: 0;
-    height: 2px;
-    background: linear-gradient(90deg, #3B82F6, #10B981);
-    opacity: 0;
-    transition: opacity 0.3s ease;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.5), transparent);
 }
 
 .dashboard-stat-card:hover {
     transform: translateY(-4px);
-    border-color: rgba(59, 130, 246, 0.2);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4), 0 0 30px rgba(59, 130, 246, 0.1);
+    border-color: rgba(56, 189, 248, 0.35);
+    box-shadow:
+        0 16px 48px rgba(0, 0, 0, 0.4),
+        0 0 40px rgba(56, 189, 248, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .dashboard-stat-card:hover::before {
-    opacity: 1;
+    background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.8), transparent);
 }
 
 .dashboard-stat-card.stat-card-success {
@@ -300,13 +316,21 @@
     gap: 20px;
 }
 
-/* Heatmap Panel */
+/* Heatmap Panel - PREMIUM GLASSMORPHISM */
 .heatmap-panel {
-    background: linear-gradient(135deg, rgba(15, 15, 20, 0.95) 0%, rgba(20, 20, 28, 0.9) 100%);
-    backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: linear-gradient(135deg, rgba(20, 28, 40, 0.6) 0%, rgba(15, 20, 30, 0.4) 100%);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 20px;
     overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+}
+
+.heatmap-panel:hover {
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4);
 }
 
 .heatmap-header {
@@ -321,6 +345,7 @@
     font-size: 18px;
     font-weight: 700;
     color: #fff;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 }
 
 .heatmap-tabs {
@@ -394,13 +419,22 @@
     text-align: center;
 }
 
-/* Calculator Cards */
+/* Calculator Cards - PREMIUM GLASSMORPHISM */
 .calculator-card {
-    background: linear-gradient(135deg, rgba(15, 15, 20, 0.95) 0%, rgba(20, 20, 28, 0.9) 100%);
-    backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: linear-gradient(135deg, rgba(20, 28, 40, 0.6) 0%, rgba(15, 20, 30, 0.4) 100%);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 16px;
     overflow: hidden;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+}
+
+.calculator-card:hover {
+    border-color: rgba(255, 255, 255, 0.12);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
 .calculator-header {
