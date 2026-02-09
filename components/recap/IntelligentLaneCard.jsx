@@ -4,6 +4,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import { WeatherBadge } from '../weather/WeatherCard';
+import EmailTemplateModal from '../EmailTemplateModal';
 
 // City coordinates for weather lookup
 const CITY_COORDS = {
@@ -57,6 +58,7 @@ export default function IntelligentLaneCard({
     const [showCarrierOfferForm, setShowCarrierOfferForm] = useState(false);
     const [carrierOfferMC, setCarrierOfferMC] = useState('');
     const [carrierOfferRate, setCarrierOfferRate] = useState('');
+    const [showEmailModal, setShowEmailModal] = useState(false);
     const [showArchiveModal, setShowArchiveModal] = useState(false);
     const [showGaveBackModal, setShowGaveBackModal] = useState(false);
     const [gaveBackReason, setGaveBackReason] = useState('');
@@ -264,6 +266,12 @@ export default function IntelligentLaneCard({
                             >
                                 Log Offer
                             </button>
+                            <button
+                                onClick={() => setShowEmailModal(true)}
+                                className="col-span-2 py-1.5 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 hover:text-purple-300 border border-purple-500/20 text-[10px] font-bold rounded transition-colors flex items-center justify-center gap-2"
+                            >
+                                ✉️ Create Email
+                            </button>
                             <button onClick={() => setShowArchiveModal(true)} className="py-1.5 border border-white/10 hover:bg-white/5 text-gray-400 hover:text-white text-[10px] font-bold rounded transition-colors">
                                 Archive
                             </button>
@@ -460,6 +468,13 @@ export default function IntelligentLaneCard({
                     </div>
                 </div>
             )}
+
+            {/* Email Template Modal */}
+            <EmailTemplateModal
+                isOpen={showEmailModal}
+                onClose={() => setShowEmailModal(false)}
+                lanes={[lane]}
+            />
         </div>
     );
 }
