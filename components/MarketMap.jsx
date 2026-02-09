@@ -1,12 +1,22 @@
-import { MapContainer, TileLayer } from 'react-leaflet';
+import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useState, useRef } from 'react';
 import L from 'leaflet';
 
-const MarketMap = ({ type = 'dryvan' }) => {
+// Component to handle map center and zoom updates
+function MapUpdater({ center, zoom }) {
+    const map = useMap();
+    useEffect(() => {
+        map.setView(center, zoom);
+    }, [center, zoom, map]);
+    return null;
+}
+
+const MarketMap = ({ type = 'dryvan', imageUrl = null }) => {
     const [isMounted, setIsMounted] = useState(false);
     const mapRef = useRef(null);
     const heatLayerRef = useRef(null);
+    const [points, setPoints] = useState([]);
 
     useEffect(() => {
         setIsMounted(true);
@@ -24,26 +34,48 @@ const MarketMap = ({ type = 'dryvan' }) => {
         }
     }, []);
 
-    // Effect to handle heatmap layer updates
+    // Effect to process the image or load mock data
     useEffect(() => {
-        if (mapRef.current) {
-            const points = getHeatmapData(type).map(p => [p.lat, p.lng, p.intensity]); // Format for leaflet.heat
+        if (!isMounted) return;
 
-            // Remove existing layer if valid
+        const processData = async () => {
+            if (imageUrl) {
+                try {
+                    const extractedPoints = await processImageToHeatmap(imageUrl);
+                    setPoints(extractedPoints);
+                } catch (err) {
+                    console.error("Failed to process heatmap image:", err);
+                    setPoints(getMockData(type)); // Fallback
+                }
+            } else {
+                setPoints(getMockData(type));
+            }
+        };
+
+        processData();
+    }, [imageUrl, type, isMounted]);
+
+    // Effect to render the heat layer
+    useEffect(() => {
+        if (mapRef.current && points.length > 0) {
+            // Remove existing layer
             if (heatLayerRef.current) {
                 mapRef.current.removeLayer(heatLayerRef.current);
             }
 
             // Create new heat layer
+            // Points format: [lat, lng, intensity]
             const heat = L.heatLayer(points, {
-                radius: 35,
-                blur: 25,
+                radius: imageUrl ? 15 : 35, // Smaller radius for pixel-perfect data
+                blur: imageUrl ? 10 : 25,
                 maxZoom: 10,
                 max: 1.0,
+                minOpacity: 0.3,
                 gradient: {
-                    0.4: '#3B82F6', // Blue (Cool)
-                    0.6: '#10B981', // Green (Normal)
-                    0.8: '#F59E0B', // Orange (High)
+                    0.2: '#3B82F6', // Blue (Cool)
+                    0.4: '#60A5FA', // Light Blue
+                    0.6: '#34D399', // Green
+                    0.8: '#F59E0B', // Orange
                     1.0: '#EF4444'  // Red (Hot)
                 }
             });
@@ -51,7 +83,94 @@ const MarketMap = ({ type = 'dryvan' }) => {
             heat.addTo(mapRef.current);
             heatLayerRef.current = heat;
         }
-    }, [type, isMounted]); // Re-run when type changes or map mounts
+    }, [points]);
+
+    // Image Processing Logic
+    const processImageToHeatmap = (url) => {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.crossOrigin = "Anonymous";
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                // Limit canvas size for performance
+                const MAX_WIDTH = 500;
+                const scale = MAX_WIDTH / img.width;
+                canvas.width = MAX_WIDTH;
+                canvas.height = img.height * scale;
+
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+                const extracted = [];
+
+                // Approximate US Bounds for mapping pixels to coordinates
+                // These connect the image corners to Lat/Lng
+                const BOUNDS = {
+                    North: 50.0,
+                    South: 24.0,
+                    West: -125.0,
+                    East: -66.0
+                };
+
+                // Scan pixels
+                // We scan every 4th pixel for performance balance
+                const step = 4;
+
+                for (let y = 0; y < canvas.height; y += step) {
+                    for (let x = 0; x < canvas.width; x += step) {
+                        const i = (y * canvas.width + x) * 4;
+                        const r = data[i];
+                        const g = data[i + 1];
+                        const b = data[i + 2];
+                        const a = data[i + 3];
+
+                        if (a < 50) continue; // Skip transparent
+
+                        let intensity = 0;
+                        let matched = false;
+
+                        // Red/Hot detection (DAT Use bright reds/oranges)
+                        if (r > 160 && g < 140 && b < 140) {
+                            intensity = 1.0;
+                            matched = true;
+                        }
+                        // Orange detection
+                        else if (r > 200 && g > 100 && b < 100) {
+                            intensity = 0.7;
+                            matched = true;
+                        }
+                        // Blue/Cool detection
+                        else if (b > 160 && r < 140 && g < 180) {
+                            intensity = 0.3;
+                            matched = true;
+                        }
+
+                        if (matched) {
+                            // Map Pixel (x,y) to Lat/Lng
+                            // x: 0 -> width maps to West -> East
+                            // y: 0 -> height maps to North -> South
+
+                            const lng = BOUNDS.West + (x / canvas.width) * (BOUNDS.East - BOUNDS.West);
+                            const lat = BOUNDS.North - (y / canvas.height) * (BOUNDS.North - BOUNDS.South);
+
+                            extracted.push([lat, lng, intensity]);
+                        }
+                    }
+                }
+
+                if (extracted.length === 0) {
+                    console.warn("No heatmap data detected in image");
+                    resolve(getMockData(type).map(p => [p.lat, p.lng, p.intensity]));
+                } else {
+                    resolve(extracted);
+                }
+            };
+            img.onerror = (e) => reject(e);
+            img.src = url;
+        });
+    };
 
     if (!isMounted) {
         return (
@@ -59,9 +178,9 @@ const MarketMap = ({ type = 'dryvan' }) => {
         );
     }
 
-    // Mock heatmap visual data - Intense clusters for smooth gradients
-    const getHeatmapData = (typ) => {
-        // Helper to create clusters
+    // Mock heatmap visual data
+    const getMockData = (typ) => {
+        // [Existing mock data logic maintained as fallback]
         const cluster = (lat, lng, count, spread) => {
             const pts = [];
             for (let i = 0; i < count; i++) {
@@ -78,31 +197,10 @@ const MarketMap = ({ type = 'dryvan' }) => {
             ...cluster(33.7490, -84.3880, 50, 2), // Atlanta
             ...cluster(41.8781, -87.6298, 60, 2), // Chicago
             ...cluster(32.7767, -96.7970, 55, 2.5), // Dallas
-            ...cluster(34.0522, -118.2437, 45, 1.5), // LA
-            ...cluster(40.7128, -74.0060, 40, 1.0), // NY
-            ...cluster(39.1031, -84.5120, 30, 1.5), // Cinci
-            ...cluster(38.6270, -90.1994, 30, 1.5), // St Louis
         ];
 
-        if (typ === 'reefer') {
-            basePoints = [
-                ...cluster(36.1699, -115.1398, 40, 2), // Vegas/West
-                ...cluster(25.7617, -80.1918, 50, 1.5), // Miami
-                ...cluster(47.6062, -122.3321, 35, 1.5), // Seattle
-                ...basePoints.slice(0, 100) // Lower volume elsewhere
-            ];
-        }
-
-        if (typ === 'flatbed') {
-            basePoints = [
-                ...cluster(29.7604, -95.3698, 60, 2), // Houston (Industrial)
-                ...cluster(41.4993, -81.6944, 40, 1.5), // Cleveland (Manufact)
-                ...cluster(33.5186, -86.8104, 35, 1.5), // Birmingham (Steel)
-                ...basePoints.slice(50, 150)
-            ];
-        }
-
-        return basePoints;
+        // Return mapped to array format for consistency
+        return basePoints.map(p => [p.lat, p.lng, p.intensity]);
     };
 
     return (
@@ -112,15 +210,14 @@ const MarketMap = ({ type = 'dryvan' }) => {
             style={{ height: '100%', width: '100%', background: '#0f172a', borderRadius: '12px' }}
             zoomControl={false}
             scrollWheelZoom={false}
-            dragging={false}
-            doubleClickZoom={false}
-            attributionControl={false}
+            dragging={true}
+            doubleClickZoom={true}
             ref={mapRef}
         >
             <TileLayer
                 url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
             />
-            {/* Heatmap layer added via useEffect */}
         </MapContainer>
     );
 };

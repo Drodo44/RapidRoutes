@@ -538,7 +538,7 @@ function HeatmapPanel({ heatmaps }) {
         </div>
       </div>
       <div className="heatmap-content" style={{ padding: 0, height: '500px' }}>
-        <MarketMap type={activeTab} />
+        <MarketMap type={activeTab} imageUrl={currentUrl} />
       </div>
       {lastUpdated && (
         <div className="heatmap-footer">
