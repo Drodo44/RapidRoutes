@@ -1,6 +1,13 @@
 {
-  "extends": ["next", "next/core-web-vitals", "plugin:react/recommended"],
-  "plugins": ["react", "jsx-a11y", "import"],
+  "extends": [
+    "next/core-web-vitals",
+    "plugin:react/recommended"
+  ],
+  "plugins": [
+    "react",
+    "jsx-a11y",
+    "import"
+  ],
   "parserOptions": {
     "ecmaVersion": 2023,
     "sourceType": "module",

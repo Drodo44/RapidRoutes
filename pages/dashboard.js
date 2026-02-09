@@ -27,6 +27,8 @@ const MarketMap = dynamic(() => import('../components/MarketMap'), {
   )
 });
 
+import TrailerVisual from '../components/TrailerVisual';
+
 // ============================================
 // SVG ICONS - Navigation
 // ============================================
@@ -263,93 +265,84 @@ function StatCard({ label, value, trend, type = 'default', icon }) {
 }
 
 function FloorSpaceCalculator() {
-  const [dimensions, setDimensions] = useState({ length: '', width: '', height: '' });
-  const [stackable, setStackable] = useState(false);
+  const [dims, setDims] = useState({ length: '', width: '', count: 1 });
   const [result, setResult] = useState(null);
 
-  const calculate = () => {
-    const l = parseFloat(dimensions.length) || 0;
-    const w = parseFloat(dimensions.width) || 0;
-    const h = parseFloat(dimensions.height) || 0;
-
-    if (l === 0 || w === 0 || h === 0) {
-      setResult(null);
-      return;
-    }
-
-    // Trailer dimensions (interior)
-    const boxTruck = { length: 26, width: 8, height: 8 };
-    const dryVan = { length: 53, width: 8.5, height: 9 };
-    const hotshot = { length: 40, width: 8.5, height: 8 };
-    const flatbed = { length: 48, width: 8.5, height: 8.5 };
-
-    const effectiveHeight = stackable ? h * 2 : h;
-
-    // Check fits - simplified logic
-    if (l <= boxTruck.length && w <= boxTruck.width && effectiveHeight <= boxTruck.height) {
-      setResult({ fits: true, type: "Box Truck (26')", color: 'success' });
-    } else if (l <= dryVan.length && w <= dryVan.width && effectiveHeight <= dryVan.height) {
-      setResult({ fits: true, type: "53' Dry Van", color: 'success' });
-    } else if (l <= hotshot.length && w <= hotshot.width) {
-      setResult({ fits: true, type: "40' HotShot", color: 'success' });
-    } else if (l <= flatbed.length && w <= flatbed.width) {
-      setResult({ fits: true, type: "48' Flatbed", color: 'success' });
-    } else {
-      setResult({ fits: false, type: "2+ Trucks Required", color: 'warning' });
-    }
-  };
-
   useEffect(() => {
-    calculate();
-  }, [dimensions, stackable]);
+    if (dims.length && dims.width) {
+      const l = parseFloat(dims.length);
+      const w = parseFloat(dims.width);
+      const c = parseInt(dims.count) || 1;
+
+      const totalL = l * c;
+      const percent = (totalL / 53) * 100; // 53' Standard Trailer
+
+      setResult({
+        percent: Math.min(percent, 100).toFixed(1),
+        feetUsed: totalL.toFixed(1),
+        remaining: Math.max(0, 53 - totalL).toFixed(1),
+        status: totalL > 53 ? 'OVERFLOW' : totalL > 45 ? 'TIGHT' : 'GOOD'
+      });
+    } else {
+      setResult(null);
+    }
+  }, [dims]);
 
   return (
     <div className="calculator-card">
       <div className="calculator-header">
-        <span className="calculator-icon">📦</span>
+        <span className="calculator-icon">🚛</span>
         <h4>Floor Space Calculator</h4>
       </div>
+
+      <div style={{ padding: '0 20px' }}>
+        <TrailerVisual
+          length={dims.length ? parseFloat(dims.length) * (parseInt(dims.count) || 1) : 0}
+          overflow={result?.status === 'OVERFLOW'}
+        />
+      </div>
+
       <div className="calculator-body">
         <div className="calc-input-row">
           <div className="calc-input-group">
             <label>Length (ft)</label>
             <input
               type="number"
-              value={dimensions.length}
-              onChange={(e) => setDimensions(prev => ({ ...prev, length: e.target.value }))}
-              placeholder="L"
+              value={dims.length}
+              onChange={(e) => setDims(prev => ({ ...prev, length: e.target.value }))}
+              placeholder="48"
             />
           </div>
           <div className="calc-input-group">
-            <label>Width (ft)</label>
+            <label>Width (in)</label>
             <input
               type="number"
-              value={dimensions.width}
-              onChange={(e) => setDimensions(prev => ({ ...prev, width: e.target.value }))}
-              placeholder="W"
+              value={dims.width}
+              onChange={(e) => setDims(prev => ({ ...prev, width: e.target.value }))}
+              placeholder="40"
             />
           </div>
           <div className="calc-input-group">
-            <label>Height (ft)</label>
+            <label>Count</label>
             <input
               type="number"
-              value={dimensions.height}
-              onChange={(e) => setDimensions(prev => ({ ...prev, height: e.target.value }))}
-              placeholder="H"
+              value={dims.count}
+              onChange={(e) => setDims(prev => ({ ...prev, count: e.target.value }))}
+              placeholder="1"
             />
           </div>
         </div>
-        <label className="calc-checkbox">
-          <input
-            type="checkbox"
-            checked={stackable}
-            onChange={(e) => setStackable(e.target.checked)}
-          />
-          <span>Stackable?</span>
-        </label>
+
         {result && (
-          <div className={`calc-result calc-result-${result.color}`}>
-            {result.fits ? '✓' : '⚠'} {result.type}
+          <div className="calc-result-row" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginTop: '10px', paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+            <div>
+              <span style={{ color: '#94a3b8' }}>Used:</span>
+              <strong style={{ color: '#fff', marginLeft: '4px' }}>{result.feetUsed} ft</strong>
+            </div>
+            <div>
+              <span style={{ color: '#94a3b8' }}>Rem:</span>
+              <strong style={{ color: result.remaining < 5 ? '#F59E0B' : '#10B981', marginLeft: '4px' }}>{result.remaining} ft</strong>
+            </div>
           </div>
         )}
       </div>

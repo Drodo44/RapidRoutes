@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* RapidRoutes Premium Design System */
 /* Extracted EXACTLY from rapidroutes-full-mockup.html */
 
@@ -18,13 +22,14 @@
   --error: #EF4444;
   --error-glow: rgba(239, 68, 68, 0.3);
 
-  /* Backgrounds - EXACT from mockup */
-  --bg: #000000;
-  --surface: #0A0A0A;
-  --surface-elevated: #141414;
+  /* Backgrounds - EXACT from mockup - LIGHTENED for usability */
+  --bg: #050505;
+  --surface: #121212;
+  --surface-elevated: #1E1E1E;
 
   /* Text Colors - EXACT from mockup */
   --text-primary: #FFFFFF;
+
   --text-secondary: #A3A3A3;
   --text-tertiary: #525252;
 
@@ -797,6 +802,21 @@ tbody tr:last-child td {
   margin-bottom: 8px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+/* Fix for dark mode date inputs - make calendar icon white and prominent */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(100);
+  cursor: pointer;
+  opacity: 1;
+  width: 24px;
+  height: 24px;
+  margin-left: 8px;
+  transition: transform 0.2s;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  transform: scale(1.1);
 }
 
 .form-input {

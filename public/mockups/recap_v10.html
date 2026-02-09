@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lane Recap - Enterprise</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background: radial-gradient(ellipse at 50% 0%, rgba(6, 182, 212, 0.06) 0%, transparent 50%),
+                linear-gradient(180deg, #030712 0%, #0a1628 50%, #030712 100%);
+            color: white;
+            min-height: 100vh;
+        }
+
+        .glass-card {
+            background: linear-gradient(180deg, rgba(15, 23, 42, 0.9) 0%, rgba(8, 12, 24, 0.95) 100%);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 12px;
+            backdrop-filter: blur(20px);
+            box-shadow:
+                0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+                0 0 25px rgba(6, 182, 212, 0.08),
+                0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .stat-label {
+            font-size: 9px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: rgba(148, 163, 184, 0.8);
+        }
+
+        .gradient-btn {
+            background: linear-gradient(135deg, #0891b2 0%, #06b6d4 50%, #22d3ee 100%);
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.3);
+        }
+
+        .lane-row {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            transition: all 0.15s ease;
+        }
+
+        .lane-row:hover {
+            background: rgba(6, 182, 212, 0.06);
+            border-color: rgba(6, 182, 212, 0.15);
+        }
+
+        .contact-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-size: 9px;
+            font-weight: 600;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+
+<body class="p-5">
+
+    <!-- Page Header -->
+    <div class="flex justify-between items-center mb-5">
+        <div>
+            <h1 class="text-xl font-bold text-white">
+                Lane <span class="text-cyan-400">Recap</span>
+            </h1>
+            <p class="text-gray-500 text-xs mt-0.5">Active postings with route intelligence</p>
+        </div>
+        <div class="flex gap-2">
+            <button
+                class="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs font-medium text-gray-300 hover:bg-white/10">
+                Export All
+            </button>
+            <button class="gradient-btn px-4 py-1.5 rounded-lg text-xs font-bold text-white">
+                + New Lane
+            </button>
+        </div>
+    </div>
+
+    <!-- Lane Card -->
+    <div class="glass-card overflow-hidden">
+        <div class="flex h-[420px]">
+
+            <!-- LEFT: Lane Identity -->
+            <div class="w-[200px] p-4 border-r border-white/5 flex flex-col">
+
+                <div class="mb-4">
+                    <div class="stat-label text-cyan-400 mb-0.5">Origin</div>
+                    <div class="text-lg font-bold text-white">Chicago, IL</div>
+                    <div class="flex items-center gap-1.5 mt-1">
+                        <span
+                            class="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-blue-500/15 border border-blue-500/25 rounded text-[9px] text-blue-300">🌧️
+                            Rain</span>
+                        <span class="text-gray-400 text-[11px]">45°F</span>
+                    </div>
+                </div>
+
+                <div class="mb-4 pb-4 border-b border-white/5">
+                    <div class="stat-label text-cyan-400 mb-0.5">Destination</div>
+                    <div class="text-lg font-bold text-white">Dallas, TX</div>
+                    <div class="flex items-center gap-1.5 mt-1">
+                        <span
+                            class="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-amber-500/15 border border-amber-500/25 rounded text-[9px] text-amber-300">☀️
+                            Clear</span>
+                        <span class="text-gray-400 text-[11px]">72°F</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2 mb-4">
+                    <div class="text-center">
+                        <div class="stat-label">Equip</div>
+                        <div class="text-sm font-bold text-white">V53</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="stat-label">Weight</div>
+                        <div class="text-sm font-bold text-white">42k</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="stat-label">Miles</div>
+                        <div class="text-sm font-bold text-white">917</div>
+                    </div>
+                </div>
+
+                <div class="flex-1"></div>
+
+                <div class="pt-3 border-t border-white/5">
+                    <div class="stat-label mb-1">Target Rate</div>
+                    <div class="flex items-baseline gap-1.5">
+                        <span class="text-2xl font-extrabold text-emerald-400">$2,450</span>
+                        <span class="text-[11px] text-gray-500">$2.67/mi</span>
+                    </div>
+                    <button class="mt-3 w-full py-2 gradient-btn text-xs font-bold text-white rounded-lg">Edit
+                        Lane</button>
+                </div>
+            </div>
+
+            <!-- CENTER: Interactive Google Maps with Deadhead Markers -->
+            <div class="flex-1 relative">
+                <div id="map"></div>
+
+                <!-- Route Info Overlay -->
+                <div
+                    class="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-slate-900/95 via-slate-900/80 to-transparent z-10">
+                    <div class="flex gap-6">
+                        <div>
+                            <div class="stat-label text-gray-400">Traffic</div>
+                            <div class="flex items-center gap-1 mt-0.5">
+                                <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                                <span class="text-xs font-medium text-white">Clear</span>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="stat-label text-gray-400">ETA</div>
+                            <span class="text-xs font-medium text-white" id="route-eta">14h 20m</span>
+                        </div>
+                        <div>
+                            <div class="stat-label text-gray-400">Route</div>
+                            <span class="text-xs font-medium text-white">I-55 → I-44 → I-35</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Legend -->
+                <div
+                    class="absolute top-3 right-3 bg-slate-900/90 backdrop-blur-sm rounded-lg p-2 text-[10px] z-10 border border-white/10">
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="w-3 h-3 rounded-full bg-emerald-500 border border-white"></span>
+                        <span class="text-gray-300">Origin</span>
+                    </div>
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="w-3 h-3 rounded-full bg-cyan-500 border border-white"></span>
+                        <span class="text-gray-300">Destination</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-amber-500 border border-white"></span>
+                        <span class="text-gray-300">Deadhead City</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT: Posted Lanes -->
+            <div class="w-[260px] p-3 border-l border-white/5 flex flex-col">
+                <div class="flex justify-between items-center mb-2">
+                    <div class="stat-label text-cyan-400">Posted Lanes</div>
+                    <span
+                        class="text-[10px] font-bold text-cyan-300 bg-cyan-500/15 border border-cyan-500/25 px-1.5 py-0.5 rounded">8
+                        Active</span>
+                </div>
+
+                <div class="space-y-1 flex-1 overflow-hidden">
+
+                    <div class="lane-row px-2 py-1.5 rounded flex items-center justify-between cursor-pointer"
+                        data-city="aurora">
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[11px] font-semibold text-white truncate">Aurora, IL → Dallas, TX</div>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="text-[9px] text-gray-500">32mi</span>
+                                <span class="contact-badge bg-cyan-500/15 text-cyan-300">📞2</span>
+                                <span class="contact-badge bg-purple-500/15 text-purple-300">📧1</span>
+                            </div>
+                        </div>
+                        <span class="text-[11px] font-bold text-emerald-400">$2,480</span>
+                    </div>
+
+                    <div class="lane-row px-2 py-1.5 rounded flex items-center justify-between cursor-pointer"
+                        data-city="gary">
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[11px] font-semibold text-white truncate">Gary, IN → Dallas, TX</div>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="text-[9px] text-gray-500">28mi</span>
+                                <span class="contact-badge bg-cyan-500/15 text-cyan-300">📞1</span>
+                            </div>
+                        </div>
+                        <span class="text-[11px] font-bold text-emerald-400">$2,510</span>
+                    </div>
+
+                    <div class="lane-row px-2 py-1.5 rounded flex items-center justify-between cursor-pointer"
+                        data-city="joliet">
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[11px] font-semibold text-white truncate">Joliet, IL → Dallas, TX</div>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="text-[9px] text-gray-500">45mi</span>
+                            </div>
+                        </div>
+                        <span class="text-[11px] font-bold text-emerald-400">$2,420</span>
+                    </div>
+
+                    <div class="lane-row px-2 py-1.5 rounded flex items-center justify-between cursor-pointer"
+                        data-city="naperville">
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[11px] font-semibold text-white truncate">Naperville, IL → Dallas, TX</div>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="text-[9px] text-gray-500">35mi</span>
+                                <span class="contact-badge bg-purple-500/15 text-purple-300">📧3</span>
+                            </div>
+                        </div>
+                        <span class="text-[11px] font-bold text-emerald-400">$2,460</span>
+                    </div>
+
+                    <div class="lane-row px-2 py-1.5 rounded flex items-center justify-between cursor-pointer"
+                        data-city="elgin">
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[11px] font-semibold text-white truncate">Elgin, IL → Dallas, TX</div>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="text-[9px] text-gray-500">48mi</span>
+                            </div>
+                        </div>
+                        <span class="text-[11px] font-bold text-emerald-400">$2,400</span>
+                    </div>
+
+                    <div class="lane-row px-2 py-1.5 rounded flex items-center justify-between cursor-pointer"
+                        data-city="hammond">
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[11px] font-semibold text-white truncate">Hammond, IN → Ft Worth, TX</div>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="text-[9px] text-gray-500">22mi</span>
+                                <span class="contact-badge bg-cyan-500/15 text-cyan-300">📞4</span>
+                                <span class="contact-badge bg-purple-500/15 text-purple-300">📧2</span>
+                            </div>
+                        </div>
+                        <span class="text-[11px] font-bold text-emerald-400">$2,540</span>
+                    </div>
+
+                    <div class="lane-row px-2 py-1.5 rounded flex items-center justify-between cursor-pointer"
+                        data-city="kenosha">
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[11px] font-semibold text-white truncate">Kenosha, WI → Arlington, TX</div>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="text-[9px] text-gray-500">65mi</span>
+                            </div>
+                        </div>
+                        <span class="text-[11px] font-bold text-emerald-400">$2,380</span>
+                    </div>
+
+                    <div class="lane-row px-2 py-1.5 rounded flex items-center justify-between cursor-pointer"
+                        data-city="rockford">
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[11px] font-semibold text-white truncate">Rockford, IL → Plano, TX</div>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="text-[9px] text-gray-500">88mi</span>
+                                <span class="contact-badge bg-cyan-500/15 text-cyan-300">📞1</span>
+                            </div>
+                        </div>
+                        <span class="text-[11px] font-bold text-emerald-400">$2,320</span>
+                    </div>
+
+                </div>
+
+                <div class="mt-2 pt-2 border-t border-white/5 grid grid-cols-2 gap-2">
+                    <div class="bg-white/5 rounded p-2 text-center">
+                        <div class="stat-label">Avg DH</div>
+                        <div class="text-sm font-bold text-white">45mi</div>
+                    </div>
+                    <div class="bg-white/5 rounded p-2 text-center">
+                        <div class="stat-label">Contacts</div>
+                        <div class="text-sm font-bold text-cyan-400">14</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Google Maps JavaScript API -->
+    <script>
+        // City coordinates
+        const cities = {
+            chicago: { lat: 41.8781, lng: -87.6298, name: 'Chicago, IL', type: 'origin' },
+            dallas: { lat: 32.7767, lng: -96.7970, name: 'Dallas, TX', type: 'destination' },
+            aurora: { lat: 41.7606, lng: -88.3201, name: 'Aurora, IL', deadhead: 32 },
+            gary: { lat: 41.5934, lng: -87.3465, name: 'Gary, IN', deadhead: 28 },
+            joliet: { lat: 41.5250, lng: -88.0817, name: 'Joliet, IL', deadhead: 45 },
+            naperville: { lat: 41.7508, lng: -88.1535, name: 'Naperville, IL', deadhead: 35 },
+            elgin: { lat: 42.0354, lng: -88.2825, name: 'Elgin, IL', deadhead: 48 },
+            hammond: { lat: 41.5833, lng: -87.5000, name: 'Hammond, IN', deadhead: 22 },
+            kenosha: { lat: 42.5847, lng: -87.8212, name: 'Kenosha, WI', deadhead: 65 },
+            rockford: { lat: 42.2711, lng: -89.0940, name: 'Rockford, IL', deadhead: 88 }
+        };
+
+        let map;
+        let markers = {};
+        let deadheadLines = [];
+
+        function initMap() {
+            // Create map centered between Chicago and Dallas
+            map = new google.maps.Map(document.getElementById('map'), {
+                zoom: 5,
+                center: { lat: 37.5, lng: -92 },
+                mapTypeControl: false,
+                streetViewControl: false,
+                fullscreenControl: true,
+                zoomControl: true,
+                styles: [] // Use default Google Maps styling
+            });
+
+            // Origin marker (Chicago) - Green
+            markers.chicago = new google.maps.Marker({
+                position: cities.chicago,
+                map: map,
+                title: cities.chicago.name,
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: 12,
+                    fillColor: '#10b981',
+                    fillOpacity: 1,
+                    strokeColor: '#ffffff',
+                    strokeWeight: 3
+                },
+                zIndex: 100
+            });
+
+            // Destination marker (Dallas) - Cyan
+            markers.dallas = new google.maps.Marker({
+                position: cities.dallas,
+                map: map,
+                title: cities.dallas.name,
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: 12,
+                    fillColor: '#0891b2',
+                    fillOpacity: 1,
+                    strokeColor: '#ffffff',
+                    strokeWeight: 3
+                },
+                zIndex: 100
+            });
+
+            // Deadhead city markers (Amber)
+            const deadheadCities = ['aurora', 'gary', 'joliet', 'naperville', 'elgin', 'hammond', 'kenosha', 'rockford'];
+
+            deadheadCities.forEach(cityKey => {
+                const city = cities[cityKey];
+
+                // Create marker
+                markers[cityKey] = new google.maps.Marker({
+                    position: city,
+                    map: map,
+                    title: `${city.name} (${city.deadhead}mi deadhead)`,
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 8,
+                        fillColor: '#f59e0b',
+                        fillOpacity: 1,
+                        strokeColor: '#ffffff',
+                        strokeWeight: 2
+                    },
+                    zIndex: 50
+                });
+
+                // Draw dashed line from deadhead city to Chicago
+                const line = new google.maps.Polyline({
+                    path: [city, cities.chicago],
+                    strokeColor: '#94a3b8',
+                    strokeOpacity: 0.7,
+                    strokeWeight: 2,
+                    icons: [{
+                        icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 3 },
+                        offset: '0',
+                        repeat: '15px'
+                    }],
+                    map: map
+                });
+                deadheadLines.push(line);
+
+                // Add info window on click
+                const infoWindow = new google.maps.InfoWindow({
+                    content: `<div style="color:#000;font-weight:600;">${city.name}</div><div style="color:#666;">Deadhead: ${city.deadhead} miles</div>`
+                });
+                markers[cityKey].addListener('click', () => {
+                    infoWindow.open(map, markers[cityKey]);
+                });
+            });
+
+            // Draw main route using Directions API
+            const directionsService = new google.maps.DirectionsService();
+            const directionsRenderer = new google.maps.DirectionsRenderer({
+                map: map,
+                suppressMarkers: true, // We have custom markers
+                polylineOptions: {
+                    strokeColor: '#0891b2',
+                    strokeWeight: 5,
+                    strokeOpacity: 1
+                }
+            });
+
+            directionsService.route({
+                origin: cities.chicago,
+                destination: cities.dallas,
+                travelMode: 'DRIVING'
+            }, (result, status) => {
+                if (status === 'OK') {
+                    directionsRenderer.setDirections(result);
+
+                    // Update ETA from actual route
+                    const leg = result.routes[0].legs[0];
+                    document.getElementById('route-eta').textContent = leg.duration.text;
+                }
+            });
+
+            // Add interaction: hover on lane row highlights marker
+            document.querySelectorAll('.lane-row').forEach(row => {
+                const cityKey = row.dataset.city;
+                if (cityKey && markers[cityKey]) {
+                    row.addEventListener('mouseenter', () => {
+                        markers[cityKey].setAnimation(google.maps.Animation.BOUNCE);
+                    });
+                    row.addEventListener('mouseleave', () => {
+                        markers[cityKey].setAnimation(null);
+                    });
+                }
+            });
+        }
+    </script>
+
+    <!-- Load Google Maps API - Replace YOUR_API_KEY with actual key -->
+    <script async defer
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDemoKeyForMockup&callback=initMap"></script>
+
+</body>
+
+</html>

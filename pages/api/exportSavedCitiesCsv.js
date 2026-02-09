@@ -9,12 +9,12 @@ import { format } from 'date-fns';
 // Normalize state to 2-letter code (DAT requires exact 2-letter state codes)
 function normalizeStateCode(state) {
   if (!state) return '';
-  
+
   const stateStr = String(state).trim().toUpperCase();
-  
+
   // If already 2 letters, return as-is
   if (stateStr.length === 2) return stateStr;
-  
+
   // Map full state names to codes
   const stateMap = {
     'ALABAMA': 'AL', 'ALASKA': 'AK', 'ARIZONA': 'AZ', 'ARKANSAS': 'AR',
@@ -31,7 +31,7 @@ function normalizeStateCode(state) {
     'VERMONT': 'VT', 'VIRGINIA': 'VA', 'WASHINGTON': 'WA', 'WEST VIRGINIA': 'WV',
     'WISCONSIN': 'WI', 'WYOMING': 'WY', 'DISTRICT OF COLUMBIA': 'DC'
   };
-  
+
   return stateMap[stateStr] || stateStr;
 }
 
@@ -42,7 +42,10 @@ export default async function handler(req, res) {
 
   // Get contact method parameter (both, email, or phone)
   const contactMethod = req.query.contactMethod || 'both';
-  
+
+  // Get optional laneIds for selective export
+  const laneIds = req.query.laneIds ? req.query.laneIds.split(',').filter(id => id.trim()) : [];
+
   let supabaseAdmin;
   try {
     supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
@@ -53,22 +56,22 @@ export default async function handler(req, res) {
 
   try {
     console.log(`[exportSavedCitiesCsv] Contact method: ${contactMethod}`);
-    
+
     // Authenticate user and determine organization filtering
     const auth = await getAuthFromRequest(req, res);
-    
+
     // SECURITY: Require authentication for CSV exports
     if (!auth || !auth.user) {
       console.error('[exportSavedCitiesCsv] Unauthorized: No valid auth token');
       return res.status(401).json({ error: 'Authentication required' });
     }
-    
+
     const userId = auth.user?.id || auth.userId || auth.id;
     const userOrgId = await getUserOrganizationId(userId);
     const isAdmin = auth.profile?.role === 'Admin' || auth.user?.role === 'Admin';
-    
+
     let organizationId = req.query.organizationId ? String(req.query.organizationId) : undefined;
-    
+
     console.log('[exportSavedCitiesCsv] Auth check:', {
       userId,
       userRole: auth.profile?.role,
@@ -77,10 +80,10 @@ export default async function handler(req, res) {
       requestedOrgId: organizationId,
       userEmail: auth.user?.email || auth.profile?.email
     });
-    
+
     // SECURITY: Default behavior - EVERYONE gets filtered to their org
     // UNLESS admin explicitly requests all orgs with exportAll=true
-    
+
     if (!isAdmin) {
       // Non-admins: ALWAYS filter to their org
       if (!userOrgId) {
@@ -89,7 +92,7 @@ export default async function handler(req, res) {
       }
       organizationId = userOrgId;
       console.log('[exportSavedCitiesCsv] Non-Admin: ENFORCING filter to user org:', organizationId);
-    } 
+    }
     else if (isAdmin) {
       // Admins: Check if they want ALL orgs or just their own
       if (req.query.exportAll === 'true') {
@@ -106,7 +109,7 @@ export default async function handler(req, res) {
         console.log('[exportSavedCitiesCsv] Admin: Defaulting to user org (use exportAll=true for all):', organizationId);
       }
     }
-    
+
     // FINAL SAFETY CHECK: Never export without org filter unless explicitly allowed
     if (!organizationId && req.query.exportAll !== 'true') {
       console.error('[exportSavedCitiesCsv] CRITICAL: No organization filter set!', {
@@ -117,7 +120,7 @@ export default async function handler(req, res) {
       });
       return res.status(500).json({ error: 'Server security error: Organization filter missing' });
     }
-    
+
     // Fetch all current lanes with saved city selections
     let query = supabaseAdmin
       .from('lanes')
@@ -125,13 +128,19 @@ export default async function handler(req, res) {
       .eq('lane_status', 'current')
       .not('saved_origin_cities', 'is', null)
       .not('saved_dest_cities', 'is', null);
-    
+
     // Apply organization filter if needed
     if (organizationId) {
       query = query.eq('organization_id', organizationId);
       console.log('[exportSavedCitiesCsv] Filtering by organization:', organizationId);
     }
-    
+
+    // Apply lane ID filter if specified (for selective export)
+    if (laneIds.length > 0) {
+      query = query.in('id', laneIds);
+      console.log('[exportSavedCitiesCsv] Filtering to specific lanes:', laneIds.length);
+    }
+
     const { data: lanes, error } = await query.order('created_at', { ascending: false });
 
     if (error) {
@@ -151,23 +160,23 @@ export default async function handler(req, res) {
 
     // Generate CSV rows
     const rows = [];
-    
+
     for (const lane of lanes) {
       const originCities = lane.saved_origin_cities || [];
       const destCities = lane.saved_dest_cities || [];
-      
+
       if (originCities.length === 0 || destCities.length === 0) continue;
 
       // Rate Randomization Logic - Calculated PER ROW now
       // (Removed outer scope calculation)
-      
+
       // One-to-one pairing
       const numPairs = Math.min(originCities.length, destCities.length);
-      
+
       for (let i = 0; i < numPairs; i++) {
         const originCity = originCities[i];
         const destCity = destCities[i];
-        
+
         // Determine which contact methods to use based on parameter
         let contactMethods;
         if (contactMethod === 'email') {
@@ -177,22 +186,22 @@ export default async function handler(req, res) {
         } else {
           contactMethods = ['Email', 'Primary Phone'];
         }
-        
+
         for (let contactIdx = 0; contactIdx < contactMethods.length; contactIdx++) {
           const currentContactMethod = contactMethods[contactIdx];
 
           // Calculate Rate for this specific row/posting
           let currentRate = '';
           if (lane.randomize_rate && lane.rate_min && lane.rate_max) {
-             const min = Number(lane.rate_min);
-             const max = Number(lane.rate_max);
-             if (!isNaN(min) && !isNaN(max) && max >= min) {
-                 currentRate = String(Math.floor(Math.random() * (max - min + 1)) + min);
-             }
+            const min = Number(lane.rate_min);
+            const max = Number(lane.rate_max);
+            if (!isNaN(min) && !isNaN(max) && max >= min) {
+              currentRate = String(Math.floor(Math.random() * (max - min + 1)) + min);
+            }
           } else if (lane.rate) {
-             currentRate = String(lane.rate);
+            currentRate = String(lane.rate);
           }
-          
+
           const row = {
             'Pickup Earliest*': lane.pickup_earliest ? format(new Date(lane.pickup_earliest), 'MM/dd/yyyy') : '',
             'Pickup Latest': lane.pickup_latest ? format(new Date(lane.pickup_latest), 'MM/dd/yyyy') : '',
@@ -221,7 +230,7 @@ export default async function handler(req, res) {
             'Commodity': lane.commodity || '',
             'Reference ID': '' // FORCE BLANK per user requirement
           };
-          
+
           rows.push(row);
         }
       }
@@ -236,7 +245,7 @@ export default async function handler(req, res) {
     // Convert to CSV format
     const csvLines = [];
     csvLines.push(DAT_HEADERS.join(','));
-    
+
     for (const row of rows) {
       const values = DAT_HEADERS.map(header => {
         const val = row[header] || '';

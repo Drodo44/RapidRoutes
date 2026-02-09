@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lane Recap - Enterprise</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background: radial-gradient(ellipse at 50% 0%, rgba(6, 182, 212, 0.06) 0%, transparent 50%),
+                linear-gradient(180deg, #030712 0%, #0a1628 50%, #030712 100%);
+            color: white;
+            min-height: 100vh;
+        }
+
+        .glass-card {
+            background: linear-gradient(180deg, rgba(15, 23, 42, 0.9) 0%, rgba(8, 12, 24, 0.95) 100%);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 12px;
+            backdrop-filter: blur(20px);
+            box-shadow:
+                0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+                0 0 25px rgba(6, 182, 212, 0.08),
+                0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .stat-label {
+            font-size: 9px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: rgba(148, 163, 184, 0.8);
+        }
+
+        .gradient-btn {
+            background: linear-gradient(135deg, #0891b2 0%, #06b6d4 50%, #22d3ee 100%);
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.3);
+        }
+
+        .lane-row {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            transition: all 0.15s ease;
+        }
+
+        .lane-row:hover {
+            background: rgba(6, 182, 212, 0.06);
+            border-color: rgba(6, 182, 212, 0.15);
+        }
+
+        .contact-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-size: 9px;
+            font-weight: 600;
+        }
+
+        /* Real Map Container */
+        .map-container {
+            position: relative;
+            background: #e5e7eb;
+        }
+
+        .map-container iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+    </style>
+</head>
+
+<body class="p-5">
+
+    <!-- Page Header -->
+    <div class="flex justify-between items-center mb-5">
+        <div>
+            <h1 class="text-xl font-bold text-white">
+                Lane <span class="text-cyan-400">Recap</span>
+            </h1>
+            <p class="text-gray-500 text-xs mt-0.5">Active postings with route intelligence</p>
+        </div>
+        <div class="flex gap-2">
+            <button
+                class="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs font-medium text-gray-300 hover:bg-white/10">
+                Export All
+            </button>
+            <button class="gradient-btn px-4 py-1.5 rounded-lg text-xs font-bold text-white">
+                + New Lane
+            </button>
+        </div>
+    </div>
+
+    <!-- Lane Card -->
+    <div class="glass-card overflow-hidden">
+        <div class="flex h-[420px]">
+
+            <!-- LEFT: Lane Identity -->
+            <div class="w-[200px] p-4 border-r border-white/5 flex flex-col">
+
+                <div class="mb-4">
+                    <div class="stat-label text-cyan-400 mb-0.5">Origin</div>
+                    <div class="text-lg font-bold text-white">Chicago, IL</div>
+                    <div class="flex items-center gap-1.5 mt-1">
+                        <span
+                            class="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-blue-500/15 border border-blue-500/25 rounded text-[9px] text-blue-300">🌧️
+                            Rain</span>
+                        <span class="text-gray-400 text-[11px]">45°F</span>
+                    </div>
+                </div>
+
+                <div class="mb-4 pb-4 border-b border-white/5">
+                    <div class="stat-label text-cyan-400 mb-0.5">Destination</div>
+                    <div class="text-lg font-bold text-white">Dallas, TX</div>
+                    <div class="flex items-center gap-1.5 mt-1">
+                        <span
+                            class="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-amber-500/15 border border-amber-500/25 rounded text-[9px] text-amber-300">☀️
+                            Clear</span>
+                        <span class="text-gray-400 text-[11px]">72°F</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2 mb-4">
+                    <div class="text-center">
+                        <div class="stat-label">Equip</div>
+                        <div class="text-sm font-bold text-white">V53</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="stat-label">Weight</div>
+                        <div class="text-sm font-bold text-white">42k</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="stat-label">Miles</div>
+                        <div class="text-sm font-bold text-white">917</div>
+                    </div>
+                </div>
+
+                <div class="flex-1"></div>
+
+                <div class="pt-3 border-t border-white/5">
+                    <div class="stat-label mb-1">Target Rate</div>
+                    <div class="flex items-baseline gap-1.5">
+                        <span class="text-2xl font-extrabold text-emerald-400">$2,450</span>
+                        <span class="text-[11px] text-gray-500">$2.67/mi</span>
+                    </div>
+                    <button class="mt-3 w-full py-2 gradient-btn text-xs font-bold text-white rounded-lg">Edit
+                        Lane</button>
+                </div>
+            </div>
+
+            <!-- CENTER: REAL GOOGLE MAPS EMBED -->
+            <div class="flex-1 map-container relative">
+                <!-- Google Maps Embed showing Chicago to Dallas route -->
+                <iframe
+                    src="https://www.google.com/maps/embed?pb=!1m28!1m12!1m3!1d3338073.9744893196!2d-95.89144372499998!3d37.37695455!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!4m13!3e0!4m5!1s0x880e2c3cd0f4cbed%3A0xafe0a6ad09c0c000!2sChicago%2C%20IL!3m2!1d41.8781136!2d-87.6297982!4m5!1s0x864c19f77b45974b%3A0xb9ec9ba4f647571f!2sDallas%2C%20TX!3m2!1d32.7766642!2d-96.79698789999999!5e0!3m2!1sen!2sus!4v1707400000000!5m2!1sen!2sus"
+                    allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
+                    style="filter: saturate(0.9) contrast(1.05);">
+                </iframe>
+
+                <!-- Route Info Overlay (bottom) -->
+                <div
+                    class="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-slate-900/95 via-slate-900/80 to-transparent">
+                    <div class="flex gap-6">
+                        <div>
+                            <div class="stat-label text-gray-400">Traffic</div>
+                            <div class="flex items-center gap-1 mt-0.5">
+                                <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                                <span class="text-xs font-medium text-white">Clear</span>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="stat-label text-gray-400">ETA</div>
+                            <span class="text-xs font-medium text-white">14h 20m</span>
+                        </div>
+                        <div>
+                            <div class="stat-label text-gray-400">Route</div>
+                            <span class="text-xs font-medium text-white">I-55 → I-44 → I-35</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT: Posted Lanes -->
+            <div class="w-[260px] p-3 border-l border-white/5 flex flex-col">
+                <div class="flex justify-between items-center mb-2">
+                    <div class="stat-label text-cyan-400">Posted Lanes</div>
+                    <span
+                        class="text-[10px] font-bold text-cyan-300 bg-cyan-500/15 border border-cyan-500/25 px-1.5 py-0.5 rounded">8
+                        Active</span>
+                </div>
+
+                <div class="space-y-1 flex-1 overflow-hidden">
+
+                    <div class="lane-row px-2 py-1.5 rounded flex items-center justify-between cursor-pointer">
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[11px] font-semibold text-white truncate">Aurora, IL → Dallas, TX</div>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="text-[9px] text-gray-500">32mi</span>
+                                <span class="contact-badge bg-cyan-500/15 text-cyan-300">📞2</span>
+                                <span class="contact-badge bg-purple-500/15 text-purple-300">📧1</span>
+                            </div>
+                        </div>
+                        <span class="text-[11px] font-bold text-emerald-400">$2,480</span>
+                    </div>
+
+                    <div class="lane-row px-2 py-1.5 rounded flex items-center justify-between cursor-pointer">
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[11px] font-semibold text-white truncate">Gary, IN → Dallas, TX</div>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="text-[9px] text-gray-500">28mi</span>
+                                <span class="contact-badge bg-cyan-500/15 text-cyan-300">📞1</span>
+                            </div>
+                        </div>
+                        <span class="text-[11px] font-bold text-emerald-400">$2,510</span>
+                    </div>
+
+                    <div class="lane-row px-2 py-1.5 rounded flex items-center justify-between cursor-pointer">
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[11px] font-semibold text-white truncate">Joliet, IL → Dallas, TX</div>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="text-[9px] text-gray-500">45mi</span>
+                            </div>
+                        </div>
+                        <span class="text-[11px] font-bold text-emerald-400">$2,420</span>
+                    </div>
+
+                    <div class="lane-row px-2 py-1.5 rounded flex items-center justify-between cursor-pointer">
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[11px] font-semibold text-white truncate">Naperville, IL → Dallas, TX</div>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="text-[9px] text-gray-500">35mi</span>
+                                <span class="contact-badge bg-purple-500/15 text-purple-300">📧3</span>
+                            </div>
+                        </div>
+                        <span class="text-[11px] font-bold text-emerald-400">$2,460</span>
+                    </div>
+
+                    <div class="lane-row px-2 py-1.5 rounded flex items-center justify-between cursor-pointer">
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[11px] font-semibold text-white truncate">Elgin, IL → Dallas, TX</div>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="text-[9px] text-gray-500">48mi</span>
+                            </div>
+                        </div>
+                        <span class="text-[11px] font-bold text-emerald-400">$2,400</span>
+                    </div>
+
+                    <div class="lane-row px-2 py-1.5 rounded flex items-center justify-between cursor-pointer">
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[11px] font-semibold text-white truncate">Hammond, IN → Ft Worth, TX</div>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="text-[9px] text-gray-500">22mi</span>
+                                <span class="contact-badge bg-cyan-500/15 text-cyan-300">📞4</span>
+                                <span class="contact-badge bg-purple-500/15 text-purple-300">📧2</span>
+                            </div>
+                        </div>
+                        <span class="text-[11px] font-bold text-emerald-400">$2,540</span>
+                    </div>
+
+                    <div class="lane-row px-2 py-1.5 rounded flex items-center justify-between cursor-pointer">
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[11px] font-semibold text-white truncate">Kenosha, WI → Arlington, TX</div>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="text-[9px] text-gray-500">65mi</span>
+                            </div>
+                        </div>
+                        <span class="text-[11px] font-bold text-emerald-400">$2,380</span>
+                    </div>
+
+                    <div class="lane-row px-2 py-1.5 rounded flex items-center justify-between cursor-pointer">
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[11px] font-semibold text-white truncate">Rockford, IL → Plano, TX</div>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="text-[9px] text-gray-500">88mi</span>
+                                <span class="contact-badge bg-cyan-500/15 text-cyan-300">📞1</span>
+                            </div>
+                        </div>
+                        <span class="text-[11px] font-bold text-emerald-400">$2,320</span>
+                    </div>
+
+                </div>
+
+                <div class="mt-2 pt-2 border-t border-white/5 grid grid-cols-2 gap-2">
+                    <div class="bg-white/5 rounded p-2 text-center">
+                        <div class="stat-label">Avg DH</div>
+                        <div class="text-sm font-bold text-white">45mi</div>
+                    </div>
+                    <div class="bg-white/5 rounded p-2 text-center">
+                        <div class="stat-label">Contacts</div>
+                        <div class="text-sm font-bold text-cyan-400">14</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+
+</html>

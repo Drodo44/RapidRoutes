@@ -1,6 +1,4 @@
-// pages/api/email-template/available-loads.js
 import { adminSupabase } from '@/lib/supabaseAdmin';
-import { createClient } from '@supabase/supabase-js';
 import { getUserOrganizationId } from '@/lib/organizationHelper';
 
 export default async function handler(req, res) {
@@ -16,13 +14,9 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: 'Missing authorization header' });
     }
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    );
-
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    // Reuse adminSupabase for token verification
+    const { data: { user }, error: authError } = await adminSupabase.auth.getUser(token);
 
     if (authError || !user) {
       return res.status(401).json({ error: 'Unauthorized' });

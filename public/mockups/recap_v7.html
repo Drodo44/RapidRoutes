@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lane Recap - Enterprise</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background: radial-gradient(ellipse at 50% 0%, rgba(6, 182, 212, 0.06) 0%, transparent 50%),
+                linear-gradient(180deg, #030712 0%, #0a1628 50%, #030712 100%);
+            color: white;
+            min-height: 100vh;
+        }
+
+        .glass-card {
+            background: linear-gradient(180deg, rgba(15, 23, 42, 0.9) 0%, rgba(8, 12, 24, 0.95) 100%);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 12px;
+            backdrop-filter: blur(20px);
+            box-shadow:
+                0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+                0 0 25px rgba(6, 182, 212, 0.08),
+                0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .stat-label {
+            font-size: 9px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: rgba(148, 163, 184, 0.8);
+        }
+
+        .gradient-btn {
+            background: linear-gradient(135deg, #0891b2 0%, #06b6d4 50%, #22d3ee 100%);
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.3);
+        }
+
+        /* REAL Geographic Map - Dark satellite style */
+        .map-real {
+            background:
+                linear-gradient(to bottom, rgba(3, 7, 18, 0.3) 0%, transparent 15%, transparent 85%, rgba(3, 7, 18, 0.5) 100%),
+                url('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/4/6/3');
+            background-size: cover;
+            background-position: center 30%;
+            filter: saturate(0.7) brightness(0.55) contrast(1.2);
+        }
+
+        .lane-row {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            transition: all 0.15s ease;
+        }
+
+        .lane-row:hover {
+            background: rgba(6, 182, 212, 0.06);
+            border-color: rgba(6, 182, 212, 0.15);
+        }
+
+        .contact-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-size: 9px;
+            font-weight: 600;
+        }
+
+        @keyframes pulse-glow {
+
+            0%,
+            100% {
+                box-shadow: 0 0 10px rgba(16, 185, 129, 0.6);
+            }
+
+            50% {
+                box-shadow: 0 0 20px rgba(16, 185, 129, 0.9);
+            }
+        }
+
+        .marker-pulse {
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+    </style>
+</head>
+
+<body class="p-5">
+
+    <!-- Page Header -->
+    <div class="flex justify-between items-center mb-5">
+        <div>
+            <h1 class="text-xl font-bold text-white">
+                Lane <span class="text-cyan-400">Recap</span>
+            </h1>
+            <p class="text-gray-500 text-xs mt-0.5">Active postings with route intelligence</p>
+        </div>
+        <div class="flex gap-2">
+            <button
+                class="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs font-medium text-gray-300 hover:bg-white/10">
+                Export All
+            </button>
+            <button class="gradient-btn px-4 py-1.5 rounded-lg text-xs font-bold text-white">
+                + New Lane
+            </button>
+        </div>
+    </div>
+
+    <!-- SYMMETRICAL Lane Card -->
+    <div class="glass-card overflow-hidden">
+        <div class="flex h-[420px]">
+
+            <!-- LEFT: Lane Identity (Fixed Width) -->
+            <div class="w-[200px] p-4 border-r border-white/5 flex flex-col">
+
+                <!-- Origin -->
+                <div class="mb-4">
+                    <div class="stat-label text-cyan-400 mb-0.5">Origin</div>
+                    <div class="text-lg font-bold text-white">Chicago, IL</div>
+                    <div class="flex items-center gap-1.5 mt-1">
+                        <span
+                            class="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-blue-500/15 border border-blue-500/25 rounded text-[9px] text-blue-300">
+                            🌧️ Rain
+                        </span>
+                        <span class="text-gray-400 text-[11px]">45°F</span>
+                    </div>
+                </div>
+
+                <!-- Destination -->
+                <div class="mb-4 pb-4 border-b border-white/5">
+                    <div class="stat-label text-cyan-400 mb-0.5">Destination</div>
+                    <div class="text-lg font-bold text-white">Dallas, TX</div>
+                    <div class="flex items-center gap-1.5 mt-1">
+                        <span
+                            class="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-amber-500/15 border border-amber-500/25 rounded text-[9px] text-amber-300">
+                            ☀️ Clear
+                        </span>
+                        <span class="text-gray-400 text-[11px]">72°F</span>
+                    </div>
+                </div>
+
+                <!-- Quick Stats -->
+                <div class="grid grid-cols-3 gap-2 mb-4">
+                    <div class="text-center">
+                        <div class="stat-label">Equip</div>
+                        <div class="text-sm font-bold text-white">V53</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="stat-label">Weight</div>
+                        <div class="text-sm font-bold text-white">42k</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="stat-label">Miles</div>
+                        <div class="text-sm font-bold text-white">917</div>
+                    </div>
+                </div>
+
+                <!-- Spacer -->
+                <div class="flex-1"></div>
+
+                <!-- Rate & Action -->
+                <div class="pt-3 border-t border-white/5">
+                    <div class="stat-label mb-1">Target Rate</div>
+                    <div class="flex items-baseline gap-1.5">
+                        <span class="text-2xl font-extrabold text-emerald-400">$2,450</span>
+                        <span class="text-[11px] text-gray-500">$2.67/mi</span>
+                    </div>
+                    <button class="mt-3 w-full py-2 gradient-btn text-xs font-bold text-white rounded-lg">
+                        Edit Lane
+                    </button>
+                </div>
+            </div>
+
+            <!-- CENTER: Real Geographic Map (Square) -->
+            <div class="flex-1 map-real relative">
+
+                <!-- State Labels -->
+                <div class="absolute top-[12%] left-[22%] text-[10px] text-white/40 font-semibold tracking-wider">
+                    WISCONSIN</div>
+                <div class="absolute top-[22%] left-[35%] text-[10px] text-white/40 font-semibold tracking-wider">
+                    ILLINOIS</div>
+                <div class="absolute top-[30%] left-[18%] text-[10px] text-white/40 font-semibold tracking-wider">IOWA
+                </div>
+                <div class="absolute top-[42%] left-[30%] text-[10px] text-white/40 font-semibold tracking-wider">
+                    MISSOURI</div>
+                <div class="absolute top-[55%] left-[22%] text-[10px] text-white/40 font-semibold tracking-wider">KANSAS
+                </div>
+                <div class="absolute top-[62%] left-[35%] text-[10px] text-white/40 font-semibold tracking-wider">
+                    OKLAHOMA</div>
+                <div class="absolute top-[78%] left-[40%] text-[10px] text-white/40 font-semibold tracking-wider">TEXAS
+                </div>
+
+                <!-- Highway Markers -->
+                <div
+                    class="absolute top-[28%] left-[42%] px-1 py-0.5 bg-red-600/90 text-white text-[8px] font-bold rounded shadow">
+                    I-55</div>
+                <div
+                    class="absolute top-[48%] left-[32%] px-1 py-0.5 bg-red-600/90 text-white text-[8px] font-bold rounded shadow">
+                    I-44</div>
+                <div
+                    class="absolute top-[70%] left-[45%] px-1 py-0.5 bg-red-600/90 text-white text-[8px] font-bold rounded shadow">
+                    I-35</div>
+
+                <!-- SVG Route -->
+                <svg class="absolute inset-0 w-full h-full" viewBox="0 0 400 420" preserveAspectRatio="xMidYMid slice">
+                    <defs>
+                        <filter id="routeGlow">
+                            <feGaussianBlur stdDeviation="3" result="blur" />
+                            <feMerge>
+                                <feMergeNode in="blur" />
+                                <feMergeNode in="SourceGraphic" />
+                            </feMerge>
+                        </filter>
+                    </defs>
+
+                    <!-- Main Route: Chicago to Dallas -->
+                    <path d="M200 80 C 210 150, 220 250, 240 370" stroke="#06b6d4" stroke-width="3" fill="none"
+                        stroke-linecap="round" filter="url(#routeGlow)" />
+
+                    <!-- Deadhead Routes from posted cities -->
+                    <g stroke="#64748b" stroke-width="1" stroke-dasharray="4 3" fill="none" opacity="0.7">
+                        <path d="M165 60 L 200 80" />
+                        <path d="M235 55 L 200 80" />
+                        <path d="M155 90 L 200 80" />
+                        <path d="M230 100 L 200 80" />
+                        <path d="M170 110 L 200 80" />
+                        <path d="M245 75 L 200 80" />
+                        <path d="M180 45 L 200 80" />
+                        <path d="M220 115 L 200 80" />
+                    </g>
+                </svg>
+
+                <!-- Origin Marker -->
+                <div class="absolute top-[16%] left-[48%] flex flex-col items-center z-20">
+                    <div class="marker-pulse w-4 h-4 rounded-full bg-emerald-500 border-2 border-white"></div>
+                    <div class="mt-1 px-2 py-0.5 bg-emerald-500/95 text-white text-[9px] font-bold rounded shadow-lg">
+                        Chicago
+                    </div>
+                </div>
+
+                <!-- Destination Marker -->
+                <div class="absolute top-[86%] left-[58%] flex flex-col items-center z-20">
+                    <div
+                        class="w-4 h-4 rounded-full bg-cyan-500 border-2 border-white shadow-[0_0_12px_rgba(6,182,212,0.8)]">
+                    </div>
+                    <div class="mt-1 px-2 py-0.5 bg-cyan-500/95 text-white text-[9px] font-bold rounded shadow-lg">
+                        Dallas
+                    </div>
+                </div>
+
+                <!-- Deadhead City Markers -->
+                <div class="absolute top-[12%] left-[39%] w-2.5 h-2.5 rounded-full bg-white/80 border border-white shadow cursor-pointer hover:scale-150 hover:bg-cyan-400 transition-all z-10"
+                    title="Aurora, IL"></div>
+                <div class="absolute top-[10%] left-[57%] w-2.5 h-2.5 rounded-full bg-white/80 border border-white shadow cursor-pointer hover:scale-150 hover:bg-cyan-400 transition-all z-10"
+                    title="Gary, IN"></div>
+                <div class="absolute top-[19%] left-[36%] w-2.5 h-2.5 rounded-full bg-white/80 border border-white shadow cursor-pointer hover:scale-150 hover:bg-cyan-400 transition-all z-10"
+                    title="Joliet, IL"></div>
+                <div class="absolute top-[21%] left-[55%] w-2.5 h-2.5 rounded-full bg-white/80 border border-white shadow cursor-pointer hover:scale-150 hover:bg-cyan-400 transition-all z-10"
+                    title="Naperville, IL"></div>
+                <div class="absolute top-[23%] left-[40%] w-2.5 h-2.5 rounded-full bg-white/80 border border-white shadow cursor-pointer hover:scale-150 hover:bg-cyan-400 transition-all z-10"
+                    title="Elgin, IL"></div>
+                <div class="absolute top-[15%] left-[60%] w-2.5 h-2.5 rounded-full bg-white/80 border border-white shadow cursor-pointer hover:scale-150 hover:bg-cyan-400 transition-all z-10"
+                    title="Hammond, IN"></div>
+                <div class="absolute top-[8%] left-[43%] w-2.5 h-2.5 rounded-full bg-white/80 border border-white shadow cursor-pointer hover:scale-150 hover:bg-cyan-400 transition-all z-10"
+                    title="Kenosha, WI"></div>
+                <div class="absolute top-[25%] left-[52%] w-2.5 h-2.5 rounded-full bg-white/80 border border-white shadow cursor-pointer hover:scale-150 hover:bg-cyan-400 transition-all z-10"
+                    title="Rockford, IL"></div>
+
+                <!-- Route Intel Footer -->
+                <div class="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
+                    <div class="flex gap-6">
+                        <div>
+                            <div class="stat-label">Traffic</div>
+                            <div class="flex items-center gap-1 mt-0.5">
+                                <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                                <span class="text-xs font-medium text-white">Clear</span>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="stat-label">ETA</div>
+                            <span class="text-xs font-medium text-white">14h 20m</span>
+                        </div>
+                        <div>
+                            <div class="stat-label">Route</div>
+                            <span class="text-xs font-medium text-white">I-55 → I-44 → I-35</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT: Posted Lanes (Compact) -->
+            <div class="w-[260px] p-3 border-l border-white/5 flex flex-col">
+                <div class="flex justify-between items-center mb-2">
+                    <div class="stat-label text-cyan-400">Posted Lanes</div>
+                    <span
+                        class="text-[10px] font-bold text-cyan-300 bg-cyan-500/15 border border-cyan-500/25 px-1.5 py-0.5 rounded">8
+                        Active</span>
+                </div>
+
+                <!-- Compact Lane List -->
+                <div class="space-y-1 flex-1 overflow-hidden">
+
+                    <div class="lane-row px-2 py-1.5 rounded flex items-center justify-between cursor-pointer">
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[11px] font-semibold text-white truncate">Aurora, IL → Dallas, TX</div>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="text-[9px] text-gray-500">32mi</span>
+                                <span class="contact-badge bg-cyan-500/15 text-cyan-300">📞2</span>
+                                <span class="contact-badge bg-purple-500/15 text-purple-300">📧1</span>
+                            </div>
+                        </div>
+                        <span class="text-[11px] font-bold text-emerald-400">$2,480</span>
+                    </div>
+
+                    <div class="lane-row px-2 py-1.5 rounded flex items-center justify-between cursor-pointer">
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[11px] font-semibold text-white truncate">Gary, IN → Dallas, TX</div>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="text-[9px] text-gray-500">28mi</span>
+                                <span class="contact-badge bg-cyan-500/15 text-cyan-300">📞1</span>
+                            </div>
+                        </div>
+                        <span class="text-[11px] font-bold text-emerald-400">$2,510</span>
+                    </div>
+
+                    <div class="lane-row px-2 py-1.5 rounded flex items-center justify-between cursor-pointer">
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[11px] font-semibold text-white truncate">Joliet, IL → Dallas, TX</div>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="text-[9px] text-gray-500">45mi</span>
+                            </div>
+                        </div>
+                        <span class="text-[11px] font-bold text-emerald-400">$2,420</span>
+                    </div>
+
+                    <div class="lane-row px-2 py-1.5 rounded flex items-center justify-between cursor-pointer">
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[11px] font-semibold text-white truncate">Naperville, IL → Dallas, TX</div>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="text-[9px] text-gray-500">35mi</span>
+                                <span class="contact-badge bg-purple-500/15 text-purple-300">📧3</span>
+                            </div>
+                        </div>
+                        <span class="text-[11px] font-bold text-emerald-400">$2,460</span>
+                    </div>
+
+                    <div class="lane-row px-2 py-1.5 rounded flex items-center justify-between cursor-pointer">
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[11px] font-semibold text-white truncate">Elgin, IL → Dallas, TX</div>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="text-[9px] text-gray-500">48mi</span>
+                            </div>
+                        </div>
+                        <span class="text-[11px] font-bold text-emerald-400">$2,400</span>
+                    </div>
+
+                    <div class="lane-row px-2 py-1.5 rounded flex items-center justify-between cursor-pointer">
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[11px] font-semibold text-white truncate">Hammond, IN → Ft Worth, TX</div>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="text-[9px] text-gray-500">22mi</span>
+                                <span class="contact-badge bg-cyan-500/15 text-cyan-300">📞4</span>
+                                <span class="contact-badge bg-purple-500/15 text-purple-300">📧2</span>
+                            </div>
+                        </div>
+                        <span class="text-[11px] font-bold text-emerald-400">$2,540</span>
+                    </div>
+
+                    <div class="lane-row px-2 py-1.5 rounded flex items-center justify-between cursor-pointer">
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[11px] font-semibold text-white truncate">Kenosha, WI → Arlington, TX</div>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="text-[9px] text-gray-500">65mi</span>
+                            </div>
+                        </div>
+                        <span class="text-[11px] font-bold text-emerald-400">$2,380</span>
+                    </div>
+
+                    <div class="lane-row px-2 py-1.5 rounded flex items-center justify-between cursor-pointer">
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[11px] font-semibold text-white truncate">Rockford, IL → Plano, TX</div>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="text-[9px] text-gray-500">88mi</span>
+                                <span class="contact-badge bg-cyan-500/15 text-cyan-300">📞1</span>
+                            </div>
+                        </div>
+                        <span class="text-[11px] font-bold text-emerald-400">$2,320</span>
+                    </div>
+
+                </div>
+
+                <!-- Summary Footer -->
+                <div class="mt-2 pt-2 border-t border-white/5 grid grid-cols-2 gap-2">
+                    <div class="bg-white/5 rounded p-2 text-center">
+                        <div class="stat-label">Avg DH</div>
+                        <div class="text-sm font-bold text-white">45mi</div>
+                    </div>
+                    <div class="bg-white/5 rounded p-2 text-center">
+                        <div class="stat-label">Contacts</div>
+                        <div class="text-sm font-bold text-cyan-400">14</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+
+</html>

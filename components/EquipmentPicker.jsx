@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState, useRef } from 'react';
 import supabase from '../utils/supabaseClient';
 
-export default function EquipmentPicker({ id = 'equipment', label = 'Equipment Type', code, onChange, required = true }) {
+export default function EquipmentPicker({ id = 'equipment', label = 'Equipment Type', code, onChange, required = true, className = '', inputClassName = '' }) {
   const [list, setList] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
@@ -181,7 +181,7 @@ export default function EquipmentPicker({ id = 'equipment', label = 'Equipment T
   };
 
   return (
-    <div style={{ width: '100%', position: 'relative' }}>
+    <div style={{ width: '100%', position: 'relative' }} className={className}>
       {label && <label htmlFor={id} className="form-label">{label}</label>}
       <div style={{ position: 'relative' }}>
         <input
@@ -189,7 +189,7 @@ export default function EquipmentPicker({ id = 'equipment', label = 'Equipment T
           id={id}
           type="text"
           placeholder="Type code (V, R, F) or search..."
-          className="form-input"
+          className={`form-input ${inputClassName}`}
           value={inputValue}
           onChange={handleInputChange}
           onFocus={() => setShowDropdown(true)}

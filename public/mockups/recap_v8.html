@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lane Recap - Enterprise</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background: radial-gradient(ellipse at 50% 0%, rgba(6, 182, 212, 0.06) 0%, transparent 50%),
+                linear-gradient(180deg, #030712 0%, #0a1628 50%, #030712 100%);
+            color: white;
+            min-height: 100vh;
+        }
+
+        .glass-card {
+            background: linear-gradient(180deg, rgba(15, 23, 42, 0.9) 0%, rgba(8, 12, 24, 0.95) 100%);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 12px;
+            backdrop-filter: blur(20px);
+            box-shadow:
+                0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+                0 0 25px rgba(6, 182, 212, 0.08),
+                0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .stat-label {
+            font-size: 9px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: rgba(148, 163, 184, 0.8);
+        }
+
+        .gradient-btn {
+            background: linear-gradient(135deg, #0891b2 0%, #06b6d4 50%, #22d3ee 100%);
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.3);
+        }
+
+        .map-gps {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .lane-row {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            transition: all 0.15s ease;
+        }
+
+        .lane-row:hover {
+            background: rgba(6, 182, 212, 0.06);
+            border-color: rgba(6, 182, 212, 0.15);
+        }
+
+        .contact-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-size: 9px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+
+<body class="p-5">
+
+    <!-- Page Header -->
+    <div class="flex justify-between items-center mb-5">
+        <div>
+            <h1 class="text-xl font-bold text-white">
+                Lane <span class="text-cyan-400">Recap</span>
+            </h1>
+            <p class="text-gray-500 text-xs mt-0.5">Active postings with route intelligence</p>
+        </div>
+        <div class="flex gap-2">
+            <button
+                class="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs font-medium text-gray-300 hover:bg-white/10">
+                Export All
+            </button>
+            <button class="gradient-btn px-4 py-1.5 rounded-lg text-xs font-bold text-white">
+                + New Lane
+            </button>
+        </div>
+    </div>
+
+    <!-- Lane Card -->
+    <div class="glass-card overflow-hidden">
+        <div class="flex h-[420px]">
+
+            <!-- LEFT: Lane Identity -->
+            <div class="w-[200px] p-4 border-r border-white/5 flex flex-col">
+
+                <div class="mb-4">
+                    <div class="stat-label text-cyan-400 mb-0.5">Origin</div>
+                    <div class="text-lg font-bold text-white">Chicago, IL</div>
+                    <div class="flex items-center gap-1.5 mt-1">
+                        <span
+                            class="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-blue-500/15 border border-blue-500/25 rounded text-[9px] text-blue-300">🌧️
+                            Rain</span>
+                        <span class="text-gray-400 text-[11px]">45°F</span>
+                    </div>
+                </div>
+
+                <div class="mb-4 pb-4 border-b border-white/5">
+                    <div class="stat-label text-cyan-400 mb-0.5">Destination</div>
+                    <div class="text-lg font-bold text-white">Dallas, TX</div>
+                    <div class="flex items-center gap-1.5 mt-1">
+                        <span
+                            class="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-amber-500/15 border border-amber-500/25 rounded text-[9px] text-amber-300">☀️
+                            Clear</span>
+                        <span class="text-gray-400 text-[11px]">72°F</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2 mb-4">
+                    <div class="text-center">
+                        <div class="stat-label">Equip</div>
+                        <div class="text-sm font-bold text-white">V53</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="stat-label">Weight</div>
+                        <div class="text-sm font-bold text-white">42k</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="stat-label">Miles</div>
+                        <div class="text-sm font-bold text-white">917</div>
+                    </div>
+                </div>
+
+                <div class="flex-1"></div>
+
+                <div class="pt-3 border-t border-white/5">
+                    <div class="stat-label mb-1">Target Rate</div>
+                    <div class="flex items-baseline gap-1.5">
+                        <span class="text-2xl font-extrabold text-emerald-400">$2,450</span>
+                        <span class="text-[11px] text-gray-500">$2.67/mi</span>
+                    </div>
+                    <button class="mt-3 w-full py-2 gradient-btn text-xs font-bold text-white rounded-lg">Edit
+                        Lane</button>
+                </div>
+            </div>
+
+            <!-- CENTER: FULL ROUTE GPS MAP -->
+            <div class="flex-1 map-gps relative">
+
+                <svg class="absolute inset-0 w-full h-full" viewBox="0 0 600 420" preserveAspectRatio="xMidYMid meet">
+
+                    <!-- Subtle grid -->
+                    <defs>
+                        <pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
+                            <path d="M 30 0 L 0 0 0 30" fill="none" stroke="#cbd5e1" stroke-width="0.3" opacity="0.5" />
+                        </pattern>
+                    </defs>
+                    <rect width="100%" height="100%" fill="url(#grid)" />
+
+                    <!-- State boundaries -->
+                    <g stroke="#94a3b8" stroke-width="0.8" fill="none" opacity="0.4">
+                        <path d="M0 70 L600 70" />
+                        <path d="M0 140 L600 140" />
+                        <path d="M0 210 L600 210" />
+                        <path d="M0 280 L600 280" />
+                        <path d="M0 350 L600 350" />
+                        <path d="M200 0 L200 420" />
+                        <path d="M400 0 L400 420" />
+                    </g>
+
+                    <!-- State labels -->
+                    <g fill="#94a3b8" font-size="10" font-weight="500" opacity="0.7">
+                        <text x="280" y="35">WISCONSIN</text>
+                        <text x="430" y="60">MICHIGAN</text>
+                        <text x="350" y="105">ILLINOIS</text>
+                        <text x="480" y="105">INDIANA</text>
+                        <text x="120" y="105">IOWA</text>
+                        <text x="350" y="175">MISSOURI</text>
+                        <text x="120" y="175">KANSAS</text>
+                        <text x="220" y="245">ARKANSAS</text>
+                        <text x="350" y="315">TEXAS</text>
+                        <text x="120" y="245">OKLAHOMA</text>
+                    </g>
+
+                    <!-- Major cities (dots) -->
+                    <g fill="#64748b">
+                        <circle cx="420" cy="175" r="4" /> <!-- St. Louis -->
+                        <circle cx="380" cy="200" r="3" /> <!-- Springfield MO -->
+                        <circle cx="280" cy="260" r="3" /> <!-- OKC -->
+                        <circle cx="350" cy="380" r="4" /> <!-- Dallas -->
+                    </g>
+
+                    <!-- City labels -->
+                    <g fill="#475569" font-size="9" font-weight="500">
+                        <text x="428" y="178">St. Louis</text>
+                        <text x="388" y="203">Springfield</text>
+                        <text x="248" y="263">OKC</text>
+                    </g>
+
+                    <!-- Highway lines (gray, background roads) -->
+                    <g stroke="#cbd5e1" stroke-width="3" fill="none" stroke-linecap="round">
+                        <path d="M390 55 L420 175 L380 200 L280 260 L350 380" />
+                    </g>
+
+                    <!-- MAIN ROUTE: Chicago → Dallas (bright cyan) -->
+                    <path d="M390 55 L420 175 L380 200 L280 260 L350 380" stroke="#0891b2" stroke-width="4" fill="none"
+                        stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="0" />
+
+                    <!-- Highway shields along route -->
+                    <g>
+                        <rect x="395" y="110" width="24" height="16" rx="2" fill="#dc2626" />
+                        <text x="407" y="121" fill="white" font-size="8" font-weight="700"
+                            text-anchor="middle">55</text>
+
+                        <rect x="385" y="230" width="24" height="16" rx="2" fill="#dc2626" />
+                        <text x="397" y="241" fill="white" font-size="8" font-weight="700"
+                            text-anchor="middle">44</text>
+
+                        <rect x="305" y="310" width="24" height="16" rx="2" fill="#dc2626" />
+                        <text x="317" y="321" fill="white" font-size="8" font-weight="700"
+                            text-anchor="middle">35</text>
+                    </g>
+
+                    <!-- Deadhead routes (dashed from nearby cities to Chicago) -->
+                    <g stroke="#94a3b8" stroke-width="1" stroke-dasharray="4 2" fill="none" opacity="0.6">
+                        <path d="M360 40 L390 55" />
+                        <path d="M420 45 L390 55" />
+                        <path d="M365 70 L390 55" />
+                        <path d="M415 70 L390 55" />
+                        <path d="M375 85 L390 55" />
+                        <path d="M430 60 L390 55" />
+                        <path d="M350 55 L390 55" />
+                        <path d="M400 80 L390 55" />
+                    </g>
+
+                    <!-- Deadhead city dots (around Chicago) -->
+                    <g fill="#94a3b8">
+                        <circle cx="360" cy="40" r="3" />
+                        <circle cx="420" cy="45" r="3" />
+                        <circle cx="365" cy="70" r="3" />
+                        <circle cx="415" cy="70" r="3" />
+                        <circle cx="375" cy="85" r="3" />
+                        <circle cx="430" cy="60" r="3" />
+                        <circle cx="350" cy="55" r="3" />
+                        <circle cx="400" cy="80" r="3" />
+                    </g>
+
+                    <!-- ORIGIN: Chicago (green marker) -->
+                    <circle cx="390" cy="55" r="8" fill="#10b981" stroke="white" stroke-width="2" />
+                    <rect x="360" y="20" width="60" height="20" rx="4" fill="#10b981" />
+                    <text x="390" y="34" fill="white" font-size="10" font-weight="700" text-anchor="middle">Chicago,
+                        IL</text>
+
+                    <!-- DESTINATION: Dallas (cyan marker) -->
+                    <circle cx="350" cy="380" r="8" fill="#0891b2" stroke="white" stroke-width="2" />
+                    <rect x="325" y="395" width="50" height="18" rx="4" fill="#0891b2" />
+                    <text x="350" y="407" fill="white" font-size="9" font-weight="700" text-anchor="middle">Dallas,
+                        TX</text>
+
+                </svg>
+
+                <!-- Route Info Footer -->
+                <div
+                    class="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-slate-900/95 via-slate-900/80 to-transparent">
+                    <div class="flex gap-6">
+                        <div>
+                            <div class="stat-label text-gray-400">Traffic</div>
+                            <div class="flex items-center gap-1 mt-0.5">
+                                <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                                <span class="text-xs font-medium text-white">Clear</span>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="stat-label text-gray-400">ETA</div>
+                            <span class="text-xs font-medium text-white">14h 20m</span>
+                        </div>
+                        <div>
+                            <div class="stat-label text-gray-400">Route</div>
+                            <span class="text-xs font-medium text-white">I-55 → I-44 → I-35</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT: Posted Lanes -->
+            <div class="w-[260px] p-3 border-l border-white/5 flex flex-col">
+                <div class="flex justify-between items-center mb-2">
+                    <div class="stat-label text-cyan-400">Posted Lanes</div>
+                    <span
+                        class="text-[10px] font-bold text-cyan-300 bg-cyan-500/15 border border-cyan-500/25 px-1.5 py-0.5 rounded">8
+                        Active</span>
+                </div>
+
+                <div class="space-y-1 flex-1 overflow-hidden">
+
+                    <div class="lane-row px-2 py-1.5 rounded flex items-center justify-between cursor-pointer">
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[11px] font-semibold text-white truncate">Aurora, IL → Dallas, TX</div>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="text-[9px] text-gray-500">32mi</span>
+                                <span class="contact-badge bg-cyan-500/15 text-cyan-300">📞2</span>
+                                <span class="contact-badge bg-purple-500/15 text-purple-300">📧1</span>
+                            </div>
+                        </div>
+                        <span class="text-[11px] font-bold text-emerald-400">$2,480</span>
+                    </div>
+
+                    <div class="lane-row px-2 py-1.5 rounded flex items-center justify-between cursor-pointer">
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[11px] font-semibold text-white truncate">Gary, IN → Dallas, TX</div>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="text-[9px] text-gray-500">28mi</span>
+                                <span class="contact-badge bg-cyan-500/15 text-cyan-300">📞1</span>
+                            </div>
+                        </div>
+                        <span class="text-[11px] font-bold text-emerald-400">$2,510</span>
+                    </div>
+
+                    <div class="lane-row px-2 py-1.5 rounded flex items-center justify-between cursor-pointer">
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[11px] font-semibold text-white truncate">Joliet, IL → Dallas, TX</div>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="text-[9px] text-gray-500">45mi</span>
+                            </div>
+                        </div>
+                        <span class="text-[11px] font-bold text-emerald-400">$2,420</span>
+                    </div>
+
+                    <div class="lane-row px-2 py-1.5 rounded flex items-center justify-between cursor-pointer">
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[11px] font-semibold text-white truncate">Naperville, IL → Dallas, TX</div>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="text-[9px] text-gray-500">35mi</span>
+                                <span class="contact-badge bg-purple-500/15 text-purple-300">📧3</span>
+                            </div>
+                        </div>
+                        <span class="text-[11px] font-bold text-emerald-400">$2,460</span>
+                    </div>
+
+                    <div class="lane-row px-2 py-1.5 rounded flex items-center justify-between cursor-pointer">
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[11px] font-semibold text-white truncate">Elgin, IL → Dallas, TX</div>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="text-[9px] text-gray-500">48mi</span>
+                            </div>
+                        </div>
+                        <span class="text-[11px] font-bold text-emerald-400">$2,400</span>
+                    </div>
+
+                    <div class="lane-row px-2 py-1.5 rounded flex items-center justify-between cursor-pointer">
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[11px] font-semibold text-white truncate">Hammond, IN → Ft Worth, TX</div>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="text-[9px] text-gray-500">22mi</span>
+                                <span class="contact-badge bg-cyan-500/15 text-cyan-300">📞4</span>
+                                <span class="contact-badge bg-purple-500/15 text-purple-300">📧2</span>
+                            </div>
+                        </div>
+                        <span class="text-[11px] font-bold text-emerald-400">$2,540</span>
+                    </div>
+
+                    <div class="lane-row px-2 py-1.5 rounded flex items-center justify-between cursor-pointer">
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[11px] font-semibold text-white truncate">Kenosha, WI → Arlington, TX</div>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="text-[9px] text-gray-500">65mi</span>
+                            </div>
+                        </div>
+                        <span class="text-[11px] font-bold text-emerald-400">$2,380</span>
+                    </div>
+
+                    <div class="lane-row px-2 py-1.5 rounded flex items-center justify-between cursor-pointer">
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[11px] font-semibold text-white truncate">Rockford, IL → Plano, TX</div>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="text-[9px] text-gray-500">88mi</span>
+                                <span class="contact-badge bg-cyan-500/15 text-cyan-300">📞1</span>
+                            </div>
+                        </div>
+                        <span class="text-[11px] font-bold text-emerald-400">$2,320</span>
+                    </div>
+
+                </div>
+
+                <div class="mt-2 pt-2 border-t border-white/5 grid grid-cols-2 gap-2">
+                    <div class="bg-white/5 rounded p-2 text-center">
+                        <div class="stat-label">Avg DH</div>
+                        <div class="text-sm font-bold text-white">45mi</div>
+                    </div>
+                    <div class="bg-white/5 rounded p-2 text-center">
+                        <div class="stat-label">Contacts</div>
+                        <div class="text-sm font-bold text-cyan-400">14</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+
+</html>

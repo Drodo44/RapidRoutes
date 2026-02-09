@@ -6,11 +6,20 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { getDisplayReferenceId, matchesReferenceId, cleanReferenceId } from '../lib/referenceIdUtils';
-// Avoid importing server-only services on the client; use API instead
 import RecapDynamic from '../components/RecapDynamic.jsx';
 import { fetchLaneRecords as fetchLaneRecordsBrowser } from '@/services/browserLaneService';
 import LogContactModal from '../components/LogContactModal.jsx';
 import EmailTemplateModal from '../components/EmailTemplateModal.jsx';
+import DashboardLayout from '../components/DashboardLayout.jsx';
+import CSVExportModal from '../components/recap/CSVExportModal.jsx';
+import IntelligentLaneCard from '../components/recap/IntelligentLaneCard.jsx';
+import {
+  archiveLaneCovered,
+  markLaneGaveBack,
+  boostLaneRate,
+  addCarrierOffer,
+  toggleLanePriority,
+} from '../lib/laneIntelligenceService';
 
 // Generate reference ID for generated pairs (same logic as CSV)
 function generatePairReferenceId(baseRefId, pairIndex) {
@@ -75,7 +84,7 @@ function matches(q, l) {
   return cityStateMatch;
 }
 
-function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs = [] }) {
+function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs = [], setContactModal }) {
   const router = useRouter();
 
   // Check if lane has saved city choices (check if arrays exist and have data)
@@ -89,144 +98,90 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
 
   const isCurrent = (lane.lane_status || lane.status) === 'current';
 
-  // Generate individual RR# for each city pair (one-to-one pairing)
-  const generatePairRRs = () => {
-    if (!hasSavedChoices) return [];
-
-    const baseRefId = getDisplayReferenceId(lane);
-    const pairs = [];
-
-    // One-to-one pairing: pickup[0] with delivery[0], pickup[1] with delivery[1], etc.
-    const numPairs = Math.min(lane.saved_origin_cities.length, lane.saved_dest_cities.length);
-
-    for (let i = 0; i < numPairs; i++) {
-      const originCity = lane.saved_origin_cities[i];
-      const destCity = lane.saved_dest_cities[i];
-      const pairRR = generatePairReferenceId(baseRefId, i);
-
-      pairs.push({
-        originCity,
-        destCity,
-        referenceId: pairRR,
-        pairNumber: i + 1
-      });
-    }
-
-    return pairs;
-  };
-
-  const pairRRs = generatePairRRs();
-
   return (
-    <div className="card" id={`lane-${lane.id}`} style={{ overflow: 'hidden' }}>
-      {/* Compact Header: Main Lane Information */}
-      <div className="card-header" style={{ padding: '16px', background: 'var(--bg-secondary)' }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
-          <div style={{ flex: 1 }}>
-            {/* RR# Badge */}
-            <div style={{ marginBottom: '8px' }}>
-              <span style={{
-                fontFamily: 'Monaco, Consolas, monospace',
-                fontSize: '16px',
-                fontWeight: 700,
-                color: 'var(--primary)',
-                background: 'var(--primary-light)',
-                padding: '6px 12px',
-                borderRadius: '6px',
-                display: 'inline-block'
-              }}>
+    <div
+      className="group relative transition-all duration-300 hover:-translate-y-1 mb-6"
+      id={`lane-${lane.id}`}
+      style={{
+        background: 'linear-gradient(135deg, rgba(20, 28, 40, 0.95) 0%, rgba(15, 20, 30, 0.9) 100%)',
+        backdropFilter: 'blur(24px)',
+        border: '1px solid rgba(56, 189, 248, 0.1)',
+        borderRadius: '16px',
+        boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
+        overflow: 'hidden'
+      }}
+    >
+      {/* Top Glow Accent */}
+      <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent opacity-50 group-hover:opacity-100 transition-opacity" />
+
+      {/* Header: Route Visual */}
+      <div className="p-6 border-b border-white/5 bg-black/20">
+        <div className="flex justify-between items-start">
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-2">
+              <span className="text-xl font-bold text-white tracking-tight drop-shadow-md">
+                {lane.origin_city}, {lane.origin_state}
+              </span>
+              <span className="text-cyan-400 text-2xl">→</span>
+              <span className="text-xl font-bold text-white tracking-tight drop-shadow-md">
+                {lane.dest_city || lane.destination_city}, {lane.dest_state || lane.destination_state}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="px-2 py-1 rounded text-xs font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 uppercase tracking-wider font-mono">
                 {getDisplayReferenceId(lane)}
               </span>
-              <span className={`badge badge-${isCurrent ? 'current' : 'archive'}`} style={{ fontSize: '11px', marginLeft: '8px' }}>
-                {isCurrent ? 'Current' : 'Archive'}
+              <span className={`px-2 py-1 rounded text-xs font-bold border uppercase tracking-wider ${isCurrent ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-gray-500/10 text-gray-400 border-gray-500/20'}`}>
+                {isCurrent ? 'Current' : 'Archived'}
               </span>
+              <span className="text-xs text-secondary font-medium px-2 py-1 bg-white/5 rounded border border-white/5">
+                {lane.equipment_code || '?'} • {lane.length_ft || '?'}ft
+              </span>
+              {lane.weight_lbs && (
+                <span className="text-xs text-secondary font-medium px-2 py-1 bg-white/5 rounded border border-white/5">
+                  {(lane.weight_lbs / 1000).toFixed(0)}k lbs
+                </span>
+              )}
             </div>
-
-            {/* Main Lane Route */}
-            <div style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '8px' }}>
-              {lane.origin_city}, {lane.origin_state} → {lane.destination_city || lane.dest_city}, {lane.destination_state || lane.dest_state}
-            </div>
-
-            {/* Lane Details */}
-            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-              <span><strong>Equipment:</strong> {lane.equipment_code || '?'}</span>
-              <span><strong>Length:</strong> {lane.length_ft || '?'}ft</span>
-              <span><strong>Pickup:</strong> {lane.pickup_earliest || '?'}</span>
-              {lane.weight_lbs && <span><strong>Weight:</strong> {lane.weight_lbs.toLocaleString()} lbs</span>}
-            </div>
-
-            {lane.comment && (
-              <div style={{ fontSize: '12px', fontStyle: 'italic', color: 'var(--text-tertiary)', marginTop: '8px', paddingLeft: '12px', borderLeft: '3px solid var(--border)' }}>
-                {`"${lane.comment}"`}
-              </div>
-            )}
           </div>
         </div>
       </div>
 
       {/* Selected Crawl Cities - Compact List */}
       {hasSavedChoices && (
-        <div className="card-body" style={{ padding: '16px', borderTop: '1px solid var(--border)' }}>
-          <h4 style={{
-            fontSize: '14px',
-            fontWeight: 600,
-            margin: '0 0 12px 0',
-            color: 'var(--text-primary)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}>
-            <span style={{ color: 'var(--success)' }}>✓</span>
-            <span>Selected Posting Cities</span>
-            <span style={{ fontSize: '12px', opacity: 0.6, fontWeight: 400 }}>
+        <div className="p-6">
+          <h4 className="flex items-center gap-2 text-sm font-bold text-white uppercase tracking-wider mb-4">
+            <span className="flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 text-xs shadow-lg shadow-emerald-500/20">✓</span>
+            Selected Posting Cities
+            <span className="text-xs font-normal text-secondary normal-case ml-auto">
               ({totalPairs} pairs • {totalPairs * 2} postings with email + phone)
             </span>
           </h4>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Pickup Cities */}
-            <div>
-              <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                Pickup Cities ({lane.saved_origin_cities.length})
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div className="space-y-3">
+              <div className="text-[10px] font-bold text-cyan-400/80 uppercase tracking-widest pl-1">Pickup Cities ({lane.saved_origin_cities.length})</div>
+              <div className="space-y-2">
                 {lane.saved_origin_cities.map((city, idx) => (
                   <div
                     key={idx}
-                    style={{
-                      fontSize: '13px',
-                      padding: '6px 10px',
-                      background: 'var(--bg-tertiary)',
-                      borderRadius: '4px',
-                      border: '1px solid var(--border)',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center'
-                    }}
+                    className="flex justify-between items-center p-3 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 transition-colors group/item"
                   >
                     <div>
-                      <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
+                      <div className="font-medium text-white text-sm">
                         {city.city}, {city.state}
                       </div>
-                      <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
-                        {city.kma_code} • {city.distance ? `${Math.round(city.distance)} mi from origin` : 'Unknown distance'}
+                      <div className="text-[10px] text-secondary mt-0.5 font-mono">
+                        {city.kma_code} • {city.distance ? `${Math.round(city.distance)} mi` : 'N/A'}
                       </div>
                     </div>
                     <button
                       onClick={() => setContactModal({ open: true, lane, city, cityType: 'pickup' })}
-                      style={{
-                        padding: '4px 8px',
-                        fontSize: '11px',
-                        background: 'var(--primary, #3b82f6)',
-                        border: 'none',
-                        borderRadius: '4px',
-                        color: 'white',
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap'
-                      }}
-                      title="Log a contact received from this city"
+                      className="px-2 py-1.5 rounded bg-cyan-500/10 text-cyan-400 text-[10px] font-bold border border-cyan-500/20 hover:bg-cyan-500/20 transition-colors opacity-0 group-hover/item:opacity-100"
                     >
-                      📞 Log Contact
+                      📞 LOG CONTACT
                     </button>
                   </div>
                 ))}
@@ -234,48 +189,27 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
             </div>
 
             {/* Delivery Cities */}
-            <div>
-              <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                Delivery Cities ({lane.saved_dest_cities.length})
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div className="space-y-3">
+              <div className="text-[10px] font-bold text-cyan-400/80 uppercase tracking-widest pl-1">Delivery Cities ({lane.saved_dest_cities.length})</div>
+              <div className="space-y-2">
                 {lane.saved_dest_cities.map((city, idx) => (
                   <div
                     key={idx}
-                    style={{
-                      fontSize: '13px',
-                      padding: '6px 10px',
-                      background: 'var(--bg-tertiary)',
-                      borderRadius: '4px',
-                      border: '1px solid var(--border)',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center'
-                    }}
+                    className="flex justify-between items-center p-3 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 transition-colors group/item"
                   >
                     <div>
-                      <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
+                      <div className="font-medium text-white text-sm">
                         {city.city}, {city.state}
                       </div>
-                      <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '2px' }}>
-                        {city.kma_code} • {city.distance ? `${Math.round(city.distance)} mi from destination` : 'Unknown distance'}
+                      <div className="text-[10px] text-secondary mt-0.5 font-mono">
+                        {city.kma_code} • {city.distance ? `${Math.round(city.distance)} mi` : 'N/A'}
                       </div>
                     </div>
                     <button
                       onClick={() => setContactModal({ open: true, lane, city, cityType: 'delivery' })}
-                      style={{
-                        padding: '4px 8px',
-                        fontSize: '11px',
-                        background: 'var(--primary, #3b82f6)',
-                        border: 'none',
-                        borderRadius: '4px',
-                        color: 'white',
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap'
-                      }}
-                      title="Log a contact received from this city"
+                      className="px-2 py-1.5 rounded bg-cyan-500/10 text-cyan-400 text-[10px] font-bold border border-cyan-500/20 hover:bg-cyan-500/20 transition-colors opacity-0 group-hover/item:opacity-100"
                     >
-                      📞 Log Contact
+                      📞 LOG CONTACT
                     </button>
                   </div>
                 ))}
@@ -287,62 +221,68 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
 
       {/* Legacy AI recap display (only if specifically generated) */}
       {recapData && recapData.bullets && (
-        <div style={{ borderTop: '1px solid var(--border)' }}>
-          <div className="card-body">
-            <div style={{ marginBottom: '12px' }}>
-              <h4 style={{ fontSize: '12px', fontWeight: 600, color: 'var(--primary)', marginBottom: '8px' }}>AI Talking Points</h4>
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {recapData.bullets.map((bullet, i) => (
-                  <li key={i} style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', gap: '8px' }}>
-                    <span style={{ color: 'var(--primary)' }}>•</span>
-                    <span>{bullet}</span>
+        <div className="p-6 border-t border-white/5 bg-cyan-900/5">
+          <div className="mb-4">
+            <h4 className="text-xs font-bold text-cyan-400 uppercase tracking-wider mb-3">AI Talking Points</h4>
+            <ul className="space-y-2">
+              {recapData.bullets.map((bullet, i) => (
+                <li key={i} className="flex gap-2 text-sm text-gray-300">
+                  <span className="text-cyan-500 mt-0.5">•</span>
+                  <span>{bullet}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {recapData.risks && recapData.risks.length > 0 && (
+            <div className="mb-4">
+              <h4 className="text-xs font-bold text-orange-400 uppercase tracking-wider mb-3">Risk Factors</h4>
+              <ul className="space-y-2">
+                {recapData.risks.map((risk, i) => (
+                  <li key={i} className="flex gap-2 text-sm text-gray-300">
+                    <span className="text-orange-500 mt-0.5">•</span>
+                    <span>{risk}</span>
                   </li>
                 ))}
               </ul>
             </div>
+          )}
 
-            {recapData.risks && recapData.risks.length > 0 && (
-              <div style={{ marginBottom: '12px' }}>
-                <h4 style={{ fontSize: '12px', fontWeight: 600, color: 'var(--warning)', marginBottom: '8px' }}>Risk Factors</h4>
-                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  {recapData.risks.map((risk, i) => (
-                    <li key={i} style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', gap: '8px' }}>
-                      <span style={{ color: 'var(--warning)' }}>•</span>
-                      <span>{risk}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {recapData.price_hint && (
-              <div style={{ padding: '12px', background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: '12px' }}>
-                <div style={{ color: 'var(--text-secondary)', marginBottom: '8px' }}>Estimated Rate Range</div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--danger)' }}>${recapData.price_hint.low}/mi</span>
-                  <span style={{ color: 'var(--success)' }}>${recapData.price_hint.mid}/mi</span>
-                  <span style={{ color: 'var(--primary)' }}>${recapData.price_hint.high}/mi</span>
+          {recapData.price_hint && (
+            <div className="p-4 bg-black/20 border border-white/5 rounded-xl">
+              <div className="text-xs text-secondary mb-2 uppercase tracking-wide font-bold">Estimated Rate Market</div>
+              <div className="flex items-center justify-between text-sm font-mono">
+                <span className="text-red-400">${recapData.price_hint.low}/mi</span>
+                <div className="h-0.5 flex-1 bg-white/10 mx-3 rounded-full relative">
+                  <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/50"></div>
                 </div>
-                <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--text-tertiary)' }}>Based on: {recapData.price_hint.basis}</div>
+                <span className="text-emerald-400">${recapData.price_hint.mid}/mi</span>
+                <div className="h-0.5 flex-1 bg-white/10 mx-3 rounded-full"></div>
+                <span className="text-cyan-400">${recapData.price_hint.high}/mi</span>
               </div>
-            )}
-          </div>
+              <div className="mt-2 text-[10px] text-secondary text-right">Based on: {recapData.price_hint.basis}</div>
+            </div>
+          )}
         </div>
       )}
 
       {/* Show generate button only for lanes that need AI insights */}
       {!recapData && (lane.lane_status || lane.status) !== 'archive' && (
-        <div style={{ borderTop: '1px solid var(--border)' }}>
-          <div className="card-body" style={{ display: 'flex', justifyContent: 'center' }}>
-            <button
-              onClick={() => onGenerateRecap(lane.id)}
-              disabled={isGenerating}
-              className="btn btn-secondary"
-              style={{ fontSize: '12px' }}
-            >
-              {isGenerating ? 'Generating...' : 'Generate AI Insights'}
-            </button>
-          </div>
+        <div className="p-4 border-t border-white/5 flex justify-center bg-white/5">
+          <button
+            onClick={() => onGenerateRecap(lane.id)}
+            disabled={isGenerating}
+            className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-bold border border-white/10 transition-all flex items-center gap-2"
+          >
+            {isGenerating ? (
+              <>
+                <span className="animate-spin h-3 w-3 border-2 border-white/30 border-t-white rounded-full"></span>
+                Generating...
+              </>
+            ) : (
+              <>✨ Generate AI Insights</>
+            )}
+          </button>
         </div>
       )}
     </div>
@@ -366,11 +306,14 @@ export default function RecapPage() {
   const [isGeneratingEmail, setIsGeneratingEmail] = useState(false);
   const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [emailLanes, setEmailLanes] = useState([]);
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
+  const [selectedLaneIds, setSelectedLaneIds] = useState([]);
 
-  // Generate CSV for all visible lanes (active or posted)
-  async function generateCSV(contactMethod = 'both') {
+  // Generate CSV for selected lanes or all visible lanes
+  async function generateCSV(laneIds = [], contactMethod = 'both') {
     try {
       setIsGeneratingCSV(true);
+      setCsvModalOpen(false);
 
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
@@ -378,8 +321,13 @@ export default function RecapPage() {
         return;
       }
 
-      // Get filtered lanes that have saved choices (check arrays directly)
-      const lanesWithChoices = filtered.filter(l =>
+      // Get lanes to export - either selected ones or all filtered
+      const lanesToExport = laneIds.length > 0
+        ? filtered.filter(l => laneIds.includes(l.id))
+        : filtered;
+
+      // Filter to only lanes with saved choices
+      const lanesWithChoices = lanesToExport.filter(l =>
         l.saved_origin_cities?.length > 0 &&
         l.saved_dest_cities?.length > 0
       );
@@ -393,17 +341,14 @@ export default function RecapPage() {
         sum + Math.min(lane.saved_origin_cities.length, lane.saved_dest_cities.length), 0
       );
 
-      const multiplier = contactMethod === 'both' ? 2 : 1;
-      const totalPostings = totalPairs * multiplier;
-
-      const contactDesc = contactMethod === 'both' ? 'email + phone' : contactMethod === 'email' ? 'email only' : 'phone only';
-
-      if (!confirm(`Generate DAT CSV for ${lanesWithChoices.length} lane(s) with ${totalPairs} pairs (${totalPostings} total postings with ${contactDesc})?`)) {
-        return;
+      // Build query params with lane IDs if specified
+      let apiUrl = `/api/exportSavedCitiesCsv?contactMethod=${contactMethod}`;
+      if (laneIds.length > 0) {
+        apiUrl += `&laneIds=${laneIds.join(',')}`;
       }
 
       // Call the new CSV export API for saved city selections
-      const response = await fetch(`/api/exportSavedCitiesCsv?contactMethod=${contactMethod}`, {
+      const response = await fetch(apiUrl, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${session.access_token}`
@@ -430,7 +375,7 @@ export default function RecapPage() {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
-      alert(`CSV generated successfully! File contains ${lanesWithChoices.length} lane(s) with ${totalPairs} city pairs and RR# tracking numbers.`);
+      // alert(`CSV generated successfully! File contains ${lanesWithChoices.length} lane(s) with ${totalPairs} city pairs and RR# tracking numbers.`);
 
     } catch (error) {
       console.error('CSV Generation Error:', error);
@@ -481,7 +426,7 @@ export default function RecapPage() {
       element.scrollIntoView({ behavior: 'smooth', block: 'center' });
       // Add highlight effect
       element.style.transition = 'box-shadow 0.3s ease';
-      element.style.boxShadow = '0 0 0 4px var(--primary-light)';
+      element.style.boxShadow = '0 0 0 4px #06b6d4';
       setTimeout(() => {
         element.style.boxShadow = '';
       }, 2000);
@@ -592,372 +537,293 @@ export default function RecapPage() {
     window.open(`/recap-export?ids=${encodeURIComponent(ids)}`, '_blank');
   }
 
-  function handleGenerateAllRecaps() {
-    // Generate for all visible lanes that don't already have recaps
-    const needsGeneration = filtered.filter(lane => !recaps[lane.id]);
+  // === Intelligent Lane Card Handlers ===
 
-    // Process in batches of 3 to avoid overwhelming the server
-    const processBatch = async (index = 0, batchSize = 3) => {
-      const batch = needsGeneration.slice(index, index + batchSize);
-      if (batch.length === 0) return;
+  const handleArchive = async (laneId, archiveData) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('organization_id')
+      .eq('id', session?.user?.id)
+      .single();
 
-      const batchIds = batch.map(lane => lane.id);
-      setGeneratingIds(prev => new Set([...prev, ...batchIds]));
+    const result = await archiveLaneCovered(
+      laneId,
+      archiveData,
+      session?.user?.id,
+      profile?.organization_id
+    );
 
-      try {
-        const response = await fetch('/api/ai/recap', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            laneIds: batchIds
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to generate recaps');
-        }
-
-        const data = await response.json();
-
-        if (data.results?.length) {
-          setRecaps(prev => {
-            const updated = { ...prev };
-            data.results.forEach(result => {
-              updated[result.laneId] = result;
-            });
-            return updated;
-          });
-        }
-      } catch (error) {
-        console.error('Error generating recaps:', error);
-      } finally {
-        setGeneratingIds(prev => {
-          const updated = new Set([...prev]);
-          batchIds.forEach(id => updated.delete(id));
-          return updated;
-        });
-
-        // Process next batch
-        if (index + batchSize < needsGeneration.length) {
-          setTimeout(() => processBatch(index + batchSize, batchSize), 1000);
-        }
-      }
-    };
-
-    processBatch();
-  }
-
-  // Refresh function for dynamic recap
-  const handleRefresh = () => {
-    setLoading(true);
-    fetchLaneRecordsBrowser({ status: 'current', limit: 300, onlyWithSavedCities: true })
-      .then((records) => {
-        const lanesWithChoices = (records || []).filter(
-          (l) => l?.has_saved_choices && Array.isArray(l.saved_origin_cities) && l.saved_origin_cities.length > 0 && Array.isArray(l.saved_dest_cities) && l.saved_dest_cities.length > 0
-        );
-        setLanes(lanesWithChoices);
-      })
-      .catch((err) => {
-        console.error(err);
-      })
-      .finally(() => setLoading(false));
+    if (result.success) {
+      // Refresh lanes
+      setLanes(prev => prev.map(l =>
+        l.id === laneId ? { ...l, lane_status: 'archive' } : l
+      ));
+    } else {
+      alert('Failed to archive lane: ' + result.error);
+    }
   };
 
-  // If Dynamic mode is selected, render the new component
-  if (viewMode === 'dynamic') {
-    return (
-      <>
-        <Head>
-          <title>Recap 2.0 | RapidRoutes</title>
-        </Head>
+  const handleGaveBack = async (laneId, reason) => {
+    const result = await markLaneGaveBack(laneId, reason);
 
-        <div style={{ position: 'fixed', top: '80px', right: '20px', zIndex: 1000 }}>
-          <button
-            onClick={() => setViewMode('classic')}
-            style={{
-              padding: '8px 16px',
-              borderRadius: '6px',
-              border: '2px solid var(--border-color)',
-              backgroundColor: 'var(--input-bg)',
-              color: 'var(--text-primary)',
-              fontSize: '12px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.2s'
-            }}
-          >
-            Switch to Classic View
-          </button>
-        </div>
+    if (result.success) {
+      setLanes(prev => prev.map(l =>
+        l.id === laneId ? {
+          ...l,
+          lane_status: 'archive',
+          gave_back_at: new Date().toISOString(),
+          gave_back_reason: reason
+        } : l
+      ));
+    } else {
+      alert('Failed to mark lane gave back: ' + result.error);
+    }
+  };
 
-        <RecapDynamic lanes={lanes} onRefresh={handleRefresh} />
-      </>
+  const handleBoostRate = async (laneId, percentage) => {
+    const result = await boostLaneRate(laneId, percentage);
+
+    if (result.success) {
+      setLanes(prev => prev.map(l =>
+        l.id === laneId ? { ...l, ...result.newRates } : l
+      ));
+      alert(`Rate boosted by ${percentage}%!`);
+    } else {
+      alert('Failed to boost rate: ' + result.error);
+    }
+  };
+
+  const handleAddCarrierOffer = async (laneId, offerData) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('organization_id')
+      .eq('id', session?.user?.id)
+      .single();
+
+    const result = await addCarrierOffer(
+      laneId,
+      offerData,
+      session?.user?.id,
+      profile?.organization_id
     );
-  }
+
+    if (result.success) {
+      // Add offer to local state
+      setLanes(prev => prev.map(l =>
+        l.id === laneId ? {
+          ...l,
+          carrier_offers: [...(l.carrier_offers || []), offerData]
+        } : l
+      ));
+    } else {
+      alert('Failed to add carrier offer: ' + result.error);
+    }
+  };
+
+  const handleTogglePriority = async (laneId) => {
+    const result = await toggleLanePriority(laneId);
+
+    if (result.success) {
+      setLanes(prev => prev.map(l =>
+        l.id === laneId ? { ...l, is_priority: result.isPriority } : l
+      ));
+    } else {
+      alert('Failed to toggle priority: ' + result.error);
+    }
+  };
+
+  const handleLaneSelect = (laneId, isSelected) => {
+    setSelectedLaneIds(prev =>
+      isSelected
+        ? [...prev, laneId]
+        : prev.filter(id => id !== laneId)
+    );
+  };
+
+  // Stats
+  const stats = {
+    total: filtered.length,
+    active: filtered.filter(l => (l.lane_status || l.status) === 'current').length,
+    archived: filtered.filter(l => (l.lane_status || l.status) === 'archive').length
+  };
 
   return (
-    <>
-      <Head>
-        <title>Recap | RapidRoutes</title>
-      </Head>
+    <DashboardLayout title="Recap | RapidRoutes" stats={stats}>
 
-      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '16px' }}>
-        {/* Page Header */}
-        <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <h1 style={{ fontSize: '20px', fontWeight: 600, margin: 0, marginBottom: '4px', color: 'var(--text-primary)' }}>
-              Active Lane Postings
-            </h1>
-            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
-              View your selected city combinations and reference IDs for DAT posting
-            </p>
-          </div>
-          {/* Recap 2.0 button hidden - doesn't support saved city selections
+      {/* Header Actions */}
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-8">
+        <div>
+          <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
+            Active Lane Postings
+          </h1>
+          <p className="text-secondary mt-1">Manage generated city pairs and export for DAT</p>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex gap-3 flex-wrap">
           <button
-            onClick={() => setViewMode('dynamic')}
-            style={{
-              padding: '8px 16px',
-              borderRadius: '6px',
-              border: '2px solid #06b6d4',
-              backgroundColor: '#0891b2',
-              color: 'white',
-              fontSize: '12px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.2s'
-            }}
+            onClick={() => setCsvModalOpen(true)}
+            className="px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 text-emerald-400 hover:from-emerald-500/30 hover:to-cyan-500/30 border border-emerald-500/20 text-sm font-bold transition-all shadow-lg shadow-emerald-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={filtered.length === 0 || isGeneratingCSV}
           >
-            ✨ Try Recap 2.0
+            {isGeneratingCSV ? '⏳ Generating...' : '📥 Generate DAT Bulk Upload CSV'}
           </button>
-          */}
-        </div>
-
-        {/* Search and Filter Bar */}
-        <div style={{
-          backgroundColor: 'var(--surface)',
-          border: '1px solid var(--surface-border)',
-          borderRadius: '6px',
-          marginBottom: '16px',
-          padding: '12px'
-        }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', gap: '8px', flex: 1, minWidth: '280px', flexWrap: 'wrap' }}>
-              {/* Lane Jump Dropdown */}
-              <select
-                value={selectedLaneId}
-                onChange={(e) => {
-                  setSelectedLaneId(e.target.value);
-                  if (e.target.value) {
-                    scrollToLane(e.target.value);
-                  }
-                }}
-                className="form-input"
-                style={{ width: 'auto', minWidth: '200px', fontSize: '12px', padding: '6px 8px' }}
-              >
-                <option value="">Jump to Lane...</option>
-                {filtered.flatMap(lane => {
-                  const baseRefId = getDisplayReferenceId(lane);
-                  const hasSavedChoices = lane.saved_origin_cities?.length > 0 && lane.saved_dest_cities?.length > 0;
-
-                  if (!hasSavedChoices) {
-                    // No saved choices, show original lane only
-                    return [{
-                      id: lane.id,
-                      laneId: lane.id,
-                      key: lane.id,
-                      refId: baseRefId,
-                      origin: `${lane.origin_city || '?'}, ${lane.origin_state || '?'}`,
-                      dest: `${lane.dest_city || lane.destination_city || '?'}, ${lane.dest_state || lane.destination_state || '?'}`,
-                      sortKey: `${lane.origin_city || '?'}, ${lane.origin_state || '?'} → ${lane.dest_city || lane.destination_city || '?'}, ${lane.dest_state || lane.destination_state || '?'}`
-                    }];
-                  }
-
-                  // Generate all pair options
-                  const numPairs = Math.min(lane.saved_origin_cities.length, lane.saved_dest_cities.length);
-                  const options = [];
-
-                  for (let i = 0; i < numPairs; i++) {
-                    const pairRR = generatePairReferenceId(baseRefId, i);
-                    const originCity = lane.saved_origin_cities[i];
-                    const destCity = lane.saved_dest_cities[i];
-                    const origin = `${originCity.city}, ${originCity.state || originCity.state_or_province}`;
-                    const dest = `${destCity.city}, ${destCity.state || destCity.state_or_province}`;
-
-                    options.push({
-                      id: `${lane.id}-pair-${i}`,
-                      laneId: lane.id,
-                      key: `${lane.id}-pair-${i}`,
-                      refId: pairRR,
-                      origin,
-                      dest,
-                      sortKey: `${origin} → ${dest}`
-                    });
-                  }
-
-                  return options;
-                }).sort((a, b) => a.sortKey.localeCompare(b.sortKey)).map(opt => (
-                  <option key={opt.key} value={opt.laneId}>
-                    {opt.refId} • {opt.origin} → {opt.dest}
-                  </option>
-                ))}
-              </select>
-
-              {/* Search Input */}
-              <div style={{ position: 'relative', flex: 1, maxWidth: '250px' }}>
-                <input
-                  type="text"
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  placeholder="Search RR#, city..."
-                  className="form-input"
-                  style={{ paddingLeft: '32px', width: '100%', fontSize: '12px', padding: '6px 6px 6px 32px' }}
-                />
-                <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }}>
-                  <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
-                  </svg>
-                </span>
-              </div>
-
-              {/* Sort Dropdown */}
-              <select
-                value={sortOrder}
-                onChange={(e) => setSortOrder(e.target.value)}
-                className="form-input"
-                style={{ width: 'auto', minWidth: '130px', fontSize: '12px', padding: '6px 8px' }}
-              >
-                <option value="date">Sort: Newest</option>
-                <option value="origin">Sort: Origin</option>
-                <option value="dest">Sort: Destination</option>
-                <option value="equipment">Sort: Equipment</option>
-              </select>
-            </div>
-
-            {/* Action Buttons */}
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <button
-                onClick={() => generateCSV('both')}
-                className="btn btn-success"
-                style={{ fontSize: '12px', padding: '6px 12px' }}
-                disabled={filtered.length === 0 || isGeneratingCSV}
-              >
-                {isGeneratingCSV ? '⏳ Generating...' : '📊 CSV (Phone + Email)'}
-              </button>
-              <button
-                onClick={() => generateCSV('email')}
-                className="btn btn-primary"
-                style={{ fontSize: '12px', padding: '6px 12px' }}
-                disabled={filtered.length === 0 || isGeneratingCSV}
-              >
-                📧 CSV (Email Only)
-              </button>
-              <button
-                onClick={() => generateCSV('phone')}
-                className="btn btn-primary"
-                style={{ fontSize: '12px', padding: '6px 12px' }}
-                disabled={filtered.length === 0 || isGeneratingCSV}
-              >
-                📞 CSV (Phone Only)
-              </button>
-              <button
-                onClick={openExportView}
-                className="btn btn-primary"
-                style={{ fontSize: '12px', padding: '6px 12px' }}
-                disabled={filtered.length === 0}
-              >
-                📄 Export Recap
-              </button>
-              <button
-                onClick={handleGenerateEmail}
-                className="btn btn-info"
-                style={{ fontSize: '12px', padding: '6px 12px' }}
-                disabled={isGeneratingEmail}
-              >
-                {isGeneratingEmail ? '⏳ Generating...' : '✉️ Generate Load Email'}
-              </button>
-            </div>
-          </div>
-
-          {/* Stats Row */}
-          <div style={{ display: 'flex', gap: '12px', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--surface-border)' }}>
-            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-              <span>Total Lanes:</span>
-              <strong style={{ marginLeft: '4px', color: 'var(--text-primary)' }}>{filtered.length}</strong>
-            </div>
-            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-              <span>Current:</span>
-              <strong style={{ marginLeft: '4px', color: 'var(--success)' }}>
-                {filtered.filter(l => (l.lane_status || l.status) === 'current').length}
-              </strong>
-            </div>
-            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-              <span>Archive:</span>
-              <strong style={{ marginLeft: '4px', color: 'var(--muted)' }}>
-                {filtered.filter(l => (l.lane_status || l.status) === 'archive').length}
-              </strong>
-            </div>
-          </div>
-        </div>
-
-        {/* Lane Cards */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {filtered.length === 0 ? (
-            <div style={{
-              backgroundColor: 'var(--surface)',
-              border: '2px solid var(--border)',
-              borderRadius: '8px',
-              padding: '64px 48px',
-              textAlign: 'center'
-            }}>
-              <div style={{ fontSize: '48px', marginBottom: '16px' }}>�</div>
-              <div style={{ fontSize: '20px', fontWeight: 600, marginBottom: '12px', color: 'var(--text-primary)' }}>
-                No lanes ready for recap
-              </div>
-              <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '24px', lineHeight: '1.6' }}>
-                {q ? 'No lanes match your search criteria.' : 'To see lanes here, you need to select city pairs first.'}
-              </div>
-              {!q && (
-                <div style={{ background: 'var(--bg-secondary)', borderRadius: '8px', padding: '24px', maxWidth: '500px', margin: '0 auto', textAlign: 'left' }}>
-                  <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '12px', color: 'var(--text-primary)' }}>Quick Start Guide:</div>
-                  <ol style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '2', paddingLeft: '20px', margin: 0 }}>
-                    <li>Go to <Link href="/lanes" className="text-blue-400 hover:text-blue-300">Lanes page</Link></li>
-                    <li>Create a new lane (origin → destination)</li>
-                    <li>Click "🎯 Post Options" button</li>
-                    <li>Click "Generate All Pairings"</li>
-                    <li>Check the city pairs you want to use</li>
-                    <li>Click "💾 Save Cities" button</li>
-                    <li>Come back here to see your recap!</li>
-                  </ol>
-                  <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--border)' }}>
-                    <Link
-                      href="/lanes"
-                      className="btn btn-primary"
-                      style={{ display: 'inline-block', fontSize: '14px' }}
-                    >
-                      Go to Lanes Page →
-                    </Link>
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            filtered.map((lane) => (
-              <LaneCard
-                key={lane.id}
-                lane={lane}
-                recapData={recaps[lane.id]}
-                onGenerateRecap={handleGenerateRecap}
-                isGenerating={generatingIds.has(lane.id)}
-                postedPairs={postedPairs}
-              />
-            ))
-          )}
+          <button
+            onClick={openExportView}
+            className="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white border border-white/10 text-sm font-semibold transition-all"
+          >
+            📄 Print Recap
+          </button>
+          <button
+            onClick={handleGenerateEmail}
+            className="px-4 py-2 rounded-lg bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 border border-cyan-500/20 text-sm font-bold transition-all shadow-lg shadow-cyan-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isGeneratingEmail}
+          >
+            {isGeneratingEmail ? '⏳ Generating...' : '✉️ Generate Email'}
+          </button>
         </div>
       </div>
 
-      {/* Contact Logging Modal */}
+      {/* Control Bar - Glass Panel */}
+      <div className="bg-white/5 border border-white/10 rounded-2xl p-4 mb-8 backdrop-blur-md shadow-xl sticky top-4 z-40">
+        <div className="flex flex-col md:flex-row gap-4">
+
+          {/* Jump to Lane */}
+          <div className="relative min-w-[200px]">
+            <select
+              value={selectedLaneId}
+              onChange={(e) => {
+                setSelectedLaneId(e.target.value);
+                if (e.target.value) {
+                  scrollToLane(e.target.value);
+                }
+              }}
+              className="w-full h-10 pl-3 pr-8 bg-black/40 border border-white/10 rounded-xl text-sm text-white focus:ring-1 focus:ring-cyan-500/50 appearance-none"
+            >
+              <option value="">Jump to Lane...</option>
+              {filtered.flatMap(lane => {
+                const baseRefId = getDisplayReferenceId(lane);
+                const hasSavedChoices = lane.saved_origin_cities?.length > 0 && lane.saved_dest_cities?.length > 0;
+
+                if (!hasSavedChoices) {
+                  // No saved choices, show original lane only
+                  return [{
+                    id: lane.id,
+                    laneId: lane.id,
+                    key: lane.id,
+                    refId: baseRefId,
+                    origin: `${lane.origin_city || '?'}, ${lane.origin_state || '?'}`,
+                    dest: `${lane.dest_city || lane.destination_city || '?'}, ${lane.dest_state || lane.destination_state || '?'}`,
+                    sortKey: `${lane.origin_city || '?'}, ${lane.origin_state || '?'} → ${lane.dest_city || lane.destination_city || '?'}, ${lane.dest_state || lane.destination_state || '?'}`
+                  }];
+                }
+
+                // Generate all pair options
+                const numPairs = Math.min(lane.saved_origin_cities.length, lane.saved_dest_cities.length);
+                const options = [];
+
+                for (let i = 0; i < numPairs; i++) {
+                  const pairRR = generatePairReferenceId(baseRefId, i);
+                  const originCity = lane.saved_origin_cities[i];
+                  const destCity = lane.saved_dest_cities[i];
+                  const origin = `${originCity.city}, ${originCity.state || originCity.state_or_province}`;
+                  const dest = `${destCity.city}, ${destCity.state || destCity.state_or_province}`;
+
+                  options.push({
+                    id: `${lane.id}-pair-${i}`,
+                    laneId: lane.id,
+                    key: `${lane.id}-pair-${i}`,
+                    refId: pairRR,
+                    origin,
+                    dest,
+                    sortKey: `${origin} → ${dest}`
+                  });
+                }
+
+                return options;
+              }).sort((a, b) => a.sortKey.localeCompare(b.sortKey)).map(opt => (
+                <option key={opt.key} value={opt.laneId}>
+                  {opt.refId} • {opt.origin} → {opt.dest}
+                </option>
+              ))}
+            </select>
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white/40 text-xs">▼</div>
+          </div>
+
+          {/* Search Bar */}
+          <div className="flex-1 relative">
+            <input
+              type="text"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search RR#, city, generated pair..."
+              className="w-full h-10 pl-10 pr-4 bg-black/40 border border-white/10 rounded-xl text-sm text-white focus:ring-1 focus:ring-cyan-500/50 placeholder:text-white/20"
+            />
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40">
+              🔍
+            </div>
+          </div>
+
+          {/* Sort */}
+          <div className="relative min-w-[140px]">
+            <select
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value)}
+              className="w-full h-10 pl-3 pr-8 bg-black/40 border border-white/10 rounded-xl text-sm text-white focus:ring-1 focus:ring-cyan-500/50 appearance-none"
+            >
+              <option value="date">Newest First</option>
+              <option value="origin">City: Origin</option>
+              <option value="dest">City: Destination</option>
+              <option value="equipment">Equipment</option>
+            </select>
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white/40 text-xs">▼</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Content Grid */}
+      <div className="space-y-6">
+        {filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center p-16 border-2 border-dashed border-white/10 rounded-3xl bg-white/5 text-center">
+            <div className="text-6xl mb-6 opacity-30">📭</div>
+            <h3 className="text-xl font-bold text-white mb-2">No active recaps found</h3>
+            <p className="text-secondary max-w-md mx-auto mb-8">
+              {q ? 'Try adjusting your search filters.' : 'Lanes appear here after you select "Posting Cities" in the Lane Constructor.'}
+            </p>
+            {!q && (
+              <Link href="/lanes" className="px-6 py-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold shadow-lg shadow-cyan-900/40 transition-all">
+                Create New Lane
+              </Link>
+            )}
+          </div>
+        ) : (
+          filtered.map((lane) => (
+            <IntelligentLaneCard
+              key={lane.id}
+              lane={lane}
+              recapData={recaps[lane.id]}
+              isSelected={selectedLaneIds.includes(lane.id)}
+              onSelect={handleLaneSelect}
+              onGenerateRecap={handleGenerateRecap}
+              isGenerating={generatingIds.has(lane.id)}
+              postedPairs={postedPairs}
+              setContactModal={setContactModal}
+              onArchive={handleArchive}
+              onGaveBack={handleGaveBack}
+              onBoostRate={handleBoostRate}
+              onAddCarrierOffer={handleAddCarrierOffer}
+              onTogglePriority={handleTogglePriority}
+              onExportCSV={(ids) => {
+                setSelectedLaneIds(ids);
+                setCsvModalOpen(true);
+              }}
+            />
+          ))
+        )}
+      </div>
+
       <LogContactModal
         isOpen={contactModal.open}
         onClose={() => setContactModal({ open: false, lane: null, city: null, cityType: null })}
@@ -971,6 +837,15 @@ export default function RecapPage() {
         onClose={() => setEmailModalOpen(false)}
         lanes={emailLanes}
       />
-    </>
+
+      <CSVExportModal
+        isOpen={csvModalOpen}
+        onClose={() => setCsvModalOpen(false)}
+        lanes={filtered}
+        selectedLaneIds={selectedLaneIds}
+        onExport={(laneIds, contactMethod) => generateCSV(laneIds, contactMethod)}
+      />
+
+    </DashboardLayout>
   );
 }

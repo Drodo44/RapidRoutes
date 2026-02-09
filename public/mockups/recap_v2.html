@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recap Page Mockup</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f141e;
+            color: white;
+        }
+
+        .glass-row {
+            background: linear-gradient(135deg, rgba(20, 28, 40, 0.95) 0%, rgba(15, 20, 30, 0.9) 100%);
+            backdrop-filter: blur(24px);
+            border: 1px solid rgba(56, 189, 248, 0.1);
+            border-left: 2px solid #06b6d4;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+        }
+
+        .map-placeholder {
+            background-image: url('https://upload.wikimedia.org/wikipedia/commons/e/ec/USA_location_map.svg');
+            background-size: cover;
+            background-position: center;
+            filter: invert(1) hue-rotate(180deg) brightness(0.6) contrast(1.2);
+            position: relative;
+        }
+    </style>
+</head>
+
+<body class="p-10 flex flex-col gap-6 bg-[#0f141e]">
+
+    <!-- Header -->
+    <div class="mb-4">
+        <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">Recap <span
+                class="text-cyan-400">Enterprise v3</span></h1>
+        <p class="text-gray-400 text-sm mt-1">High-fidelity lane intelligence with ambient context.</p>
+    </div>
+
+    <!-- Smart Row v3 (Expanded Height) -->
+    <div
+        class="glass-row rounded-2xl flex overflow-hidden h-64 relative group border border-cyan-900/30 shadow-2xl shadow-black/50">
+
+        <!-- 1. Lane Identity Panel (Left - 20%) -->
+        <div
+            class="w-1/5 p-6 border-r border-white/5 flex flex-col justify-between bg-black/40 backdrop-blur-xl z-10 relative">
+            <div>
+                <div class="mb-6">
+                    <div class="text-xs font-bold text-cyan-400 uppercase tracking-widest mb-1">Origin</div>
+                    <div class="text-2xl font-bold text-white tracking-tight">Chicago, IL</div>
+                    <div class="flex items-center gap-2 mt-2 text-sm text-gray-300">
+                        <span>🌧️ Rain</span>
+                        <span class="text-white/20">|</span>
+                        <span>45°F</span>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="text-xs font-bold text-cyan-400 uppercase tracking-widest mb-1">Destination</div>
+                    <div class="text-2xl font-bold text-white tracking-tight">Dallas, TX</div>
+                    <div class="flex items-center gap-2 mt-2 text-sm text-gray-300">
+                        <span>☀️ Clear</span>
+                        <span class="text-white/20">|</span>
+                        <span>72°F</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex gap-2 text-[11px] font-mono text-gray-400">
+                <span class="bg-white/5 border border-white/10 px-2 py-1 rounded">V53</span>
+                <span class="bg-white/5 border border-white/10 px-2 py-1 rounded">42k</span>
+            </div>
+        </div>
+
+        <!-- 2. The 'Stunning' Map (Center - 60%) -->
+        <!-- Lighter map style, more visible context -->
+        <div class="w-3/5 h-full relative bg-[#1a202c]">
+            <!-- Map Background Image (Placeholder for Google Maps Dark Mode but lighter) -->
+            <div
+                class="absolute inset-0 opacity-40 bg-[url('https://upload.wikimedia.org/wikipedia/commons/e/ec/USA_location_map.svg')] bg-cover bg-center invert hue-rotate-180 brightness-75 contrast-125">
+            </div>
+
+            <!-- Traffic Layer Hint -->
+            <div class="absolute inset-0 bg-gradient-to-r from-black/80 via-transparent to-black/80"></div>
+
+            <!-- Route Visualization -->
+            <svg class="absolute inset-0 w-full h-full pointer-events-none drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]">
+                <!-- Main Route -->
+                <path d="M250 80 Q 300 150 280 200" stroke="#06b6d4" stroke-width="3" fill="none"
+                    stroke-linecap="round" />
+                <!-- Deadhead Connections -->
+                <path d="M250 80 L 230 90" stroke="#94a3b8" stroke-width="1" stroke-dasharray="4 4" fill="none"
+                    opacity="0.6" />
+                <path d="M250 80 L 260 70" stroke="#94a3b8" stroke-width="1" stroke-dasharray="4 4" fill="none"
+                    opacity="0.6" />
+                <path d="M250 80 L 240 60" stroke="#94a3b8" stroke-width="1" stroke-dasharray="4 4" fill="none"
+                    opacity="0.6" />
+            </svg>
+
+            <!-- Markers -->
+            <!-- Origin -->
+            <div
+                class="absolute top-[30%] left-[32%] transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
+                <div
+                    class="w-4 h-4 bg-emerald-500 rounded-full border-2 border-white shadow-[0_0_15px_rgba(16,185,129,0.8)] z-20">
+                </div>
+                <div
+                    class="mt-1 bg-black/80 text-white text-[10px] px-2 py-0.5 rounded backdrop-blur-md border border-white/10">
+                    Chicago</div>
+            </div>
+            <!-- Dest -->
+            <div
+                class="absolute top-[75%] left-[35%] transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
+                <div
+                    class="w-4 h-4 bg-cyan-500 rounded-full border-2 border-white shadow-[0_0_15px_rgba(6,182,212,0.8)] z-20">
+                </div>
+                <div
+                    class="mt-1 bg-black/80 text-white text-[10px] px-2 py-0.5 rounded backdrop-blur-md border border-white/10">
+                    Dallas</div>
+            </div>
+
+            <!-- Posted Lanes (The Context) -->
+            <div class="absolute top-[35%] left-[29%] w-2 h-2 bg-gray-400 rounded-full border border-black/50 hover:scale-150 transition-transform cursor-help z-10"
+                title="Aurora, IL"></div>
+            <div class="absolute top-[28%] left-[34%] w-2 h-2 bg-gray-400 rounded-full border border-black/50 hover:scale-150 transition-transform cursor-help z-10"
+                title="Gary, IN"></div>
+            <div class="absolute top-[25%] left-[31%] w-2 h-2 bg-gray-400 rounded-full border border-black/50 hover:scale-150 transition-transform cursor-help z-10"
+                title="Joliet, IL"></div>
+
+            <!-- Traffic Info Floating Badge -->
+            <div
+                class="absolute bottom-4 left-4 bg-black/70 backdrop-blur-md border border-white/10 rounded-lg p-2 flex items-center gap-3">
+                <div class="flex flex-col">
+                    <span class="text-[10px] uppercase text-gray-400 font-bold">Traffic</span>
+                    <span class="text-xs text-white font-medium flex items-center gap-1"><span
+                            class="w-2 h-2 rounded-full bg-green-500"></span> Flowing</span>
+                </div>
+                <div class="w-px h-6 bg-white/10"></div>
+                <div class="flex flex-col">
+                    <span class="text-[10px] uppercase text-gray-400 font-bold">Transit</span>
+                    <span class="text-xs text-white font-medium">14h 20m</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. Intelligence & Action (Right - 20%) -->
+        <div class="w-1/5 p-6 border-l border-white/5 flex flex-col justify-between bg-black/40 backdrop-blur-xl z-10">
+
+            <div class="space-y-4">
+                <div>
+                    <div class="text-[10px] uppercase text-secondary font-bold mb-1">Posted Coverage</div>
+                    <div class="text-xl font-bold text-white">8 <span
+                            class="text-sm font-normal text-gray-400">Postings</span></div>
+                    <div class="w-full bg-white/10 h-1 mt-2 rounded-full overflow-hidden">
+                        <div class="bg-cyan-500 w-3/4 h-full"></div>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="text-[10px] uppercase text-secondary font-bold mb-1">Avg Deadhead</div>
+                    <div class="text-xl font-bold text-white">28 <span
+                            class="text-sm font-normal text-gray-400">miles</span></div>
+                </div>
+
+                <div>
+                    <div class="text-[10px] uppercase text-secondary font-bold mb-1">Rate Target</div>
+                    <div class="text-xl font-bold text-emerald-400">$2,450</div>
+                    <div class="text-xs text-gray-400">$2.85/mi</div>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-2">
+                <button
+                    class="w-full py-2 bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 text-white text-xs font-bold rounded shadow-lg shadow-cyan-900/30 border border-cyan-400/20 transition-all">
+                    View Postings
+                </button>
+                <button
+                    class="w-full py-2 bg-white/5 hover:bg-white/10 text-gray-300 text-xs font-bold rounded border border-white/5 transition-all">
+                    Actions ▼
+                </button>
+            </div>
+
+        </div>
+
+    </div>
+
+</body>
+
+</html>
