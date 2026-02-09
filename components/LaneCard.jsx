@@ -86,7 +86,7 @@ export default function LaneCard({ lane, onEdit, onDelete, onArchive, onRestore,
               </span>
               <span className="text-cyan-400 text-xl">→</span>
               <span className="text-lg font-bold text-white tracking-tight drop-shadow-md">
-                {lane.dest_city}, {lane.dest_state}
+                {lane.dest_city || lane.destination_city}, {lane.dest_state || lane.destination_state}
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -180,7 +180,7 @@ export default function LaneCard({ lane, onEdit, onDelete, onArchive, onRestore,
                   <span className="animate-spin h-4 w-4 border-2 border-white/30 border-t-white rounded-full" />
                 ) : (
                   <>
-                    <span className="text-sm">🚀</span> {isPosting ? 'Configure Post' : 'Post Lane'}
+                    <span className="text-sm">🚀</span> {isPosting ? 'Configure Post' : 'Post / Options'}
                   </>
                 )}
               </button>
