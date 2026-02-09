@@ -1,391 +1,226 @@
-// components/HeavyHaulChecker.js
+// components/HeavyHaulCalculator.js (formerly HeavyHaulChecker)
 import { useState, useEffect } from "react";
-import { STATE_PERMIT_REQUIREMENTS, getRoutePermitRequirements } from "../lib/comprehensiveStatePermits";
 
-export default function HeavyHaulChecker() {
-  const [originState, setOriginState] = useState("");
-  const [destState, setDestState] = useState("");
-  const [dimensions, setDimensions] = useState({ length: "", width: "", height: "" });
+export default function HeavyHaulCalculator() {
+  // State for inputs
+  const [lengthFt, setLengthFt] = useState("");
+  const [lengthIn, setLengthIn] = useState("");
+  const [widthFt, setWidthFt] = useState("");
+  const [widthIn, setWidthIn] = useState("");
+  const [heightFt, setHeightFt] = useState("");
+  const [heightIn, setHeightIn] = useState("");
   const [weight, setWeight] = useState("");
-  const [commodity, setCommodity] = useState("");
-  const [value, setValue] = useState("");
-  const [pickup, setPickup] = useState("");
-  const [delivery, setDelivery] = useState("");
-  const [carrier, setCarrier] = useState("");
-  const [showResults, setShowResults] = useState(false);
-  const [routeAnalysis, setRouteAnalysis] = useState(null);
-  const [isOversize, setIsOversize] = useState(false);
-  const [isOverweight, setIsOverweight] = useState(false);
+  const [overhangFront, setOverhangFront] = useState("");
+  const [overhangRear, setOverhangRear] = useState("");
+  const [divisible, setDivisible] = useState(false);
+  const [westCoast, setWestCoast] = useState(false);
 
-  // Check for oversize/overweight conditions
+  const [status, setStatus] = useState(null); // 'legal', 'warning', 'illegal'
+  const [message, setMessage] = useState("");
+  const [equipment, setEquipment] = useState("");
+
   useEffect(() => {
-    const standardLimits = {
-      width: 102, // 8'6" in inches
-      height: 162, // 13'6" in inches
-      length: 636, // 53' in inches
-      weight: 80000 // 80,000 lbs
-    };
+    calculateStatus();
+  }, [lengthFt, lengthIn, widthFt, widthIn, heightFt, heightIn, weight, overhangFront, overhangRear, divisible, westCoast]);
 
-    setIsOversize(
-      (dimensions.width && Number(dimensions.width) > standardLimits.width) ||
-      (dimensions.height && Number(dimensions.height) > standardLimits.height) ||
-      (dimensions.length && Number(dimensions.length) > standardLimits.length)
-    );
+  const calculateStatus = () => {
+    // 1. Convert everything to common units (Inches for dims, lbs for weight)
+    const l = (parseInt(lengthFt) || 0) * 12 + (parseInt(lengthIn) || 0);
+    const w = (parseInt(widthFt) || 0) * 12 + (parseInt(widthIn) || 0);
+    const h = (parseInt(heightFt) || 0) * 12 + (parseInt(heightIn) || 0);
+    const wt = parseInt(weight) || 0;
+    const ohF = parseInt(overhangFront) || 0; // Feet
+    const ohR = parseInt(overhangRear) || 0; // Feet
 
-    setIsOverweight(weight && Number(weight) > standardLimits.weight);
-  }, [dimensions, weight]);
-
-  const analyzeRoute = () => {
-    if (!originState || !destState) {
-      alert("Please select both origin and destination states");
+    if (l === 0 && w === 0 && h === 0 && wt === 0) {
+      setStatus(null);
+      setMessage("");
+      setEquipment("");
       return;
     }
 
-    const analysis = getRoutePermitRequirements(
-      originState,
-      destState,
-      {
-        width: Number(dimensions.width) || 0,
-        height: Number(dimensions.height) || 0,
-        length: Number(dimensions.length) || 0
-      },
-      Number(weight) || 0
-    );
+    // 2. Define Limits
+    const MAX_WIDTH = 102; // 8'6"
+    const MAX_HEIGHT = westCoast ? 168 : 162; // 14' vs 13'6"
+    const MAX_LENGTH = 636; // 53'
+    const MAX_WEIGHT_PAYLOAD = 48000; // Typical max payload for standard legal load (approx)
+    // Note: Gross is 80k. We assume user inputs payload weight.
 
-    setRouteAnalysis(analysis);
-    setShowResults(true);
+    // Overhang Limits (Standard allow without permit usually limited, but let's check flagrant violations)
+    // Most states allow 3' front, 4' rear without permit or with simple marking.
+    const MAX_OH_F = 3;
+    const MAX_OH_R = 4;
+
+    // 3. Check for Over-Limit Conditions
+    let isOverDim = false;
+    let isOverWeight = false;
+    let reasons = [];
+
+    if (w > MAX_WIDTH) { isOverDim = true; reasons.push(`Width (${(w / 12).toFixed(1)}') > 8'6"`); }
+    if (h > MAX_HEIGHT) { isOverDim = true; reasons.push(`Height (${(h / 12).toFixed(1)}') > ${westCoast ? "14'" : "13'6\""}`); }
+    if (l > MAX_LENGTH) { isOverDim = true; reasons.push(`Length (${(l / 12).toFixed(1)}') > 53'`); }
+    if (wt > MAX_WEIGHT_PAYLOAD) { isOverWeight = true; reasons.push(`Weight (${wt} lbs) > 48,000 lbs`); }
+    if (ohF > MAX_OH_F) { isOverDim = true; reasons.push(`Front Overhang (${ohF}') > 3'`); }
+    if (ohR > MAX_OH_R) { isOverDim = true; reasons.push(`Rear Overhang (${ohR}') > 4'`); }
+
+    // 4. Equipment Logic
+    // Platform height assumptions:
+    // Flatbed: ~60" (5') high. Load H + 60" <= 13'6" (162") => Load H <= 102" (8'6")
+    // Stepdeck: ~40" (3'4") high. Load H + 40" <= 13'6" => Load H <= 122" (10'2")
+    // Lowboy/RGN: ~18-24" (1.5-2') high. Load H + 24" <= 13'6" => Load H <= 138" (11'6")
+
+    // Suggest equipment based on Height primarily
+    let suggEquip = "Standard Flatbed";
+    if (h > 102) suggEquip = "Stepdeck / Dropdeck";
+    if (h > 122) suggEquip = "RGN / Lowboy";
+    if (h > 138 && !westCoast) suggEquip = "Specialized RGN (Oversize Height)";
+
+    // 5. Determine Status
+    if (!isOverDim && !isOverWeight) {
+      setStatus("legal");
+      setMessage("✅ LEGAL LOAD");
+      setEquipment(suggEquip);
+    } else {
+      // It IS Over something.
+      if (divisible) {
+        // Red Flag: Divisible loads cannot be Overweight or Overdimension usually (must be broken down).
+        setStatus("illegal");
+        setMessage("⛔ ILLEGAL LOAD (Must Break Down)");
+        setEquipment(suggEquip + " (But Load is Illegal)");
+      } else {
+        // Not divisible, so it's a Permit Load.
+        setStatus("warning");
+        setMessage("⚠️ OVERSIZE/PERMIT REQUIRED");
+        setEquipment(suggEquip);
+      }
+    }
+
+    // Add reasons to message if not legal
+    if (reasons.length > 0) {
+      setMessage(prev => prev + " (" + reasons.join(", ") + ")");
+    }
   };
-
-  const generateComprehensiveEmail = (stateInfo) => {
-    return `Subject: Oversize/Overweight Load Permit Request - ${stateInfo.name}
-
-Dear ${stateInfo.office},
-
-I am requesting permit information for an oversize/overweight load traveling through ${stateInfo.name}.
-
-LOAD DETAILS:
-• Commodity: ${commodity || 'Not specified'}
-• Dimensions: ${dimensions.length || '0'}"L x ${dimensions.width || '0'}"W x ${dimensions.height || '0'}"H
-• Weight: ${weight || '0'} lbs
-• Load Value: $${value || 'Not specified'}
-• Carrier: ${carrier || 'Not specified'}
-
-TRAVEL DATES:
-• Pickup Date: ${pickup || 'TBD'}
-• Delivery Date: ${delivery || 'TBD'}
-
-PERMIT REQUIREMENTS NEEDED:
-${stateInfo.permitNeeded?.required ? 
-  `• Permit required due to: ${stateInfo.permitNeeded.reasons.join(', ')}` : 
-  '• Standard permit may not be required, but confirming compliance'}
-
-SPECIFIC QUESTIONS:
-1. What permits are required for this load?
-2. What are the permit fees?
-3. Are escort vehicles required?
-4. What are the travel time restrictions?
-5. Are there specific route requirements?
-6. What is the processing time for permits?
-
-Please provide routing guidance and any special requirements for this shipment.
-
-Contact Information:
-[Your Name]
-[Your Company]
-[Phone Number]
-[Email Address]
-
-Thank you for your assistance.
-
-Best regards,
-[Your Signature]`;
-  };
-
-  const stateOptions = Object.keys(STATE_PERMIT_REQUIREMENTS).sort();
 
   return (
-    <div className="bg-[#1a2236] p-6 rounded-2xl shadow-xl max-w-5xl mx-auto mt-10 text-white">
-      <h2 className="text-3xl font-bold text-cyan-400 mb-6">Professional Heavy Haul Route Analyzer</h2>
-      
-      <div className="mb-6 p-4 bg-blue-900/20 border border-blue-800 rounded-lg">
-        <p className="text-sm">Comprehensive permit analysis for oversize/overweight loads across state lines. Get detailed permit requirements, contact information, and professional email templates.</p>
-      </div>
-      
-      {/* Route Selection */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <div className="bg-gray-800/50 p-4 rounded-lg">
-          <h3 className="text-lg font-semibold mb-3 text-green-400">Route Information</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs mb-1 text-gray-300">Origin State</label>
-              <select
-                value={originState}
-                onChange={(e) => setOriginState(e.target.value)}
-                className="p-2 rounded bg-gray-800 border border-gray-600 w-full"
-              >
-                <option value="">Select State</option>
-                {stateOptions.map(state => (
-                  <option key={state} value={state}>{state} - {STATE_PERMIT_REQUIREMENTS[state].name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs mb-1 text-gray-300">Destination State</label>
-              <select
-                value={destState}
-                onChange={(e) => setDestState(e.target.value)}
-                className="p-2 rounded bg-gray-800 border border-gray-600 w-full"
-              >
-                <option value="">Select State</option>
-                {stateOptions.map(state => (
-                  <option key={state} value={state}>{state} - {STATE_PERMIT_REQUIREMENTS[state].name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-gray-800/50 p-4 rounded-lg">
-          <h3 className="text-lg font-semibold mb-3 text-orange-400">Load Details</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs mb-1 text-gray-300">Weight (lbs)</label>
-              <input
-                type="number"
-                value={weight}
-                onChange={(e) => setWeight(e.target.value)}
-                className="p-2 rounded bg-gray-800 border border-gray-600 w-full"
-                placeholder="80000"
-              />
-            </div>
-            <div>
-              <label className="block text-xs mb-1 text-gray-300">Commodity</label>
-              <input
-                type="text"
-                value={commodity}
-                onChange={(e) => setCommodity(e.target.value)}
-                className="p-2 rounded bg-gray-800 border border-gray-600 w-full"
-                placeholder="Construction Equipment"
-              />
-            </div>
+    <div className="p-6 rounded-2xl shadow-xl border border-gray-700 bg-gray-900/50 backdrop-blur-md max-w-4xl mx-auto mb-10">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-orange-400 to-red-400">
+          Heavy Haul & Oversize Calculator
+        </h2>
+        <div className="flex gap-2">
+          <div className="bg-gray-800 px-3 py-1 rounded-full text-xs text-gray-400 border border-gray-700">
+            L/W/H in Feet + Inches
           </div>
         </div>
       </div>
 
-      {/* Dimensions */}
-      <div className="bg-gray-800/50 p-4 rounded-lg mb-6">
-        <h3 className="text-lg font-semibold mb-3 text-purple-400">Dimensions (inches)</h3>
-        <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+        {/* Dimensions */}
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider border-b border-gray-700 pb-1">Dimensions</h3>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-xs text-gray-500">Length (ft)</label>
+              <input type="number" value={lengthFt} onChange={e => setLengthFt(e.target.value)} className="w-full bg-gray-800 border-gray-600 rounded p-2 text-white" placeholder="53" />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500">(in)</label>
+              <input type="number" value={lengthIn} onChange={e => setLengthIn(e.target.value)} className="w-full bg-gray-800 border-gray-600 rounded p-2 text-white" placeholder="0" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-xs text-gray-500">Width (ft)</label>
+              <input type="number" value={widthFt} onChange={e => setWidthFt(e.target.value)} className="w-full bg-gray-800 border-gray-600 rounded p-2 text-white" placeholder="8" />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500">(in)</label>
+              <input type="number" value={widthIn} onChange={e => setWidthIn(e.target.value)} className="w-full bg-gray-800 border-gray-600 rounded p-2 text-white" placeholder="6" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-xs text-gray-500">Height (ft)</label>
+              <input type="number" value={heightFt} onChange={e => setHeightFt(e.target.value)} className="w-full bg-gray-800 border-gray-600 rounded p-2 text-white" placeholder="8" />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500">(in)</label>
+              <input type="number" value={heightIn} onChange={e => setHeightIn(e.target.value)} className="w-full bg-gray-800 border-gray-600 rounded p-2 text-white" placeholder="6" />
+            </div>
+          </div>
+        </div>
+
+        {/* Weight & Overhang */}
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider border-b border-gray-700 pb-1">Load Details</h3>
           <div>
-            <label className="block text-xs mb-1 text-gray-300">Length</label>
-            <input
-              type="number"
-              value={dimensions.length}
-              onChange={(e) => setDimensions({...dimensions, length: e.target.value})}
-              className="p-2 rounded bg-gray-800 border border-gray-600 w-full"
-              placeholder="636 (53 ft)"
-            />
+            <label className="text-xs text-gray-500 block mb-1">Weight (lbs)</label>
+            <input type="number" value={weight} onChange={e => setWeight(e.target.value)} className="w-full bg-gray-800 border-gray-600 rounded p-2 text-white" placeholder="45000" />
           </div>
-          <div>
-            <label className="block text-xs mb-1 text-gray-300">Width</label>
-            <input
-              type="number"
-              value={dimensions.width}
-              onChange={(e) => setDimensions({...dimensions, width: e.target.value})}
-              className="p-2 rounded bg-gray-800 border border-gray-600 w-full"
-              placeholder="102 (8'6&quot;)"
-            />
-          </div>
-          <div>
-            <label className="block text-xs mb-1 text-gray-300">Height</label>
-            <input
-              type="number"
-              value={dimensions.height}
-              onChange={(e) => setDimensions({...dimensions, height: e.target.value})}
-              className="p-2 rounded bg-gray-800 border border-gray-600 w-full"
-              placeholder="162 (13'6&quot;)"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Additional Details */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <div className="bg-gray-800/50 p-4 rounded-lg">
-          <h3 className="text-lg font-semibold mb-3 text-yellow-400">Shipment Details</h3>
-          <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="block text-xs mb-1 text-gray-300">Load Value ($)</label>
-              <input
-                type="number"
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                className="p-2 rounded bg-gray-800 border border-gray-600 w-full"
-                placeholder="250000"
-              />
+              <label className="text-xs text-gray-500 block mb-1">Front Overhang (ft)</label>
+              <input type="number" value={overhangFront} onChange={e => setOverhangFront(e.target.value)} className="w-full bg-gray-800 border-gray-600 rounded p-2 text-white" placeholder="0" />
             </div>
             <div>
-              <label className="block text-xs mb-1 text-gray-300">Carrier/Company</label>
-              <input
-                type="text"
-                value={carrier}
-                onChange={(e) => setCarrier(e.target.value)}
-                className="p-2 rounded bg-gray-800 border border-gray-600 w-full"
-                placeholder="ABC Transport Inc."
-              />
+              <label className="text-xs text-gray-500 block mb-1">Rear Overhang (ft)</label>
+              <input type="number" value={overhangRear} onChange={e => setOverhangRear(e.target.value)} className="w-full bg-gray-800 border-gray-600 rounded p-2 text-white" placeholder="0" />
             </div>
           </div>
         </div>
 
-        <div className="bg-gray-800/50 p-4 rounded-lg">
-          <h3 className="text-lg font-semibold mb-3 text-cyan-400">Travel Dates</h3>
-          <div className="space-y-3">
+        {/* Toggles */}
+        <div className="space-y-4 col-span-1 md:col-span-2 lg:col-span-1">
+          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider border-b border-gray-700 pb-1">Configuration</h3>
+
+          <label className="flex items-start gap-3 p-3 rounded-lg border border-gray-700 bg-gray-800/30 cursor-pointer hover:border-gray-500 transition-colors">
+            <input type="checkbox" checked={divisible} onChange={e => setDivisible(e.target.checked)} className="mt-1 w-4 h-4 rounded bg-gray-700 border-gray-500 text-orange-500 focus:ring-orange-500" />
             <div>
-              <label className="block text-xs mb-1 text-gray-300">Pickup Date</label>
-              <input
-                type="date"
-                value={pickup}
-                onChange={(e) => setPickup(e.target.value)}
-                className="p-2 rounded bg-gray-800 border border-gray-600 w-full"
-              />
+              <div className="text-sm font-medium text-gray-200">Divisible Load?</div>
+              <div className="text-xs text-gray-500">Can the item be broken down or separated?</div>
             </div>
+          </label>
+
+          <label className="flex items-start gap-3 p-3 rounded-lg border border-gray-700 bg-gray-800/30 cursor-pointer hover:border-gray-500 transition-colors">
+            <input type="checkbox" checked={westCoast} onChange={e => setWestCoast(e.target.checked)} className="mt-1 w-4 h-4 rounded bg-gray-700 border-gray-500 text-blue-500 focus:ring-blue-500" />
             <div>
-              <label className="block text-xs mb-1 text-gray-300">Delivery Date</label>
-              <input
-                type="date"
-                value={delivery}
-                onChange={(e) => setDelivery(e.target.value)}
-                className="p-2 rounded bg-gray-800 border border-gray-600 w-full"
-              />
+              <div className="text-sm font-medium text-gray-200">West Coast Route?</div>
+              <div className="text-xs text-gray-500">Apply higher height limits (14' vs 13'6")</div>
             </div>
-          </div>
+          </label>
         </div>
-      </div>
 
-      {/* Status Indicators */}
-      <div className="mb-6 flex flex-wrap gap-2">
-        {isOversize && (
-          <span className="px-3 py-1 bg-amber-900/50 border border-amber-700 rounded-full text-amber-300 text-sm">
-            ⚠️ Oversize Load
-          </span>
-        )}
-        {isOverweight && (
-          <span className="px-3 py-1 bg-red-900/50 border border-red-700 rounded-full text-red-300 text-sm">
-            🚨 Overweight Load
-          </span>
-        )}
-        {!isOversize && !isOverweight && (dimensions.width || dimensions.height || dimensions.length || weight) && (
-          <span className="px-3 py-1 bg-green-900/50 border border-green-700 rounded-full text-green-300 text-sm">
-            ✅ Within Standard Limits
-          </span>
-        )}
-      </div>
-      
-      <button
-        onClick={analyzeRoute}
-        className="w-full bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 py-3 px-6 rounded-xl font-semibold text-lg transition-all duration-200"
-      >
-        Analyze Route & Generate Permit Requirements
-      </button>
-
-      {/* Results Section */}
-      {showResults && routeAnalysis && (
-        <div className="mt-8 space-y-6">
-          <h3 className="text-2xl font-bold text-cyan-400">Route Analysis Results</h3>
-          
-          {routeAnalysis.requirements.map((stateInfo, index) => (
-            <div key={stateInfo.state} className="bg-gray-800/70 p-6 rounded-lg">
-              <h4 className="text-xl font-semibold mb-4 text-green-400">
-                {stateInfo.name} ({stateInfo.state}) Requirements
-              </h4>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h5 className="font-semibold mb-2 text-gray-300">Contact Information</h5>
-                  <div className="space-y-1 text-sm">
-                    <p><span className="text-gray-400">Office:</span> {stateInfo.office}</p>
-                    <p><span className="text-gray-400">Phone:</span> {stateInfo.phone}</p>
-                    <p><span className="text-gray-400">Email:</span> {stateInfo.email}</p>
-                    <p><span className="text-gray-400">Website:</span> {stateInfo.website}</p>
-                  </div>
-                </div>
-
-                <div>
-                  <h5 className="font-semibold mb-2 text-gray-300">Permit Status</h5>
-                  {stateInfo.permitNeeded?.required ? (
-                    <div className="space-y-2">
-                      <p className="text-red-300 font-semibold">🚨 PERMIT REQUIRED</p>
-                      <div className="text-sm">
-                        <p className="text-gray-400">Reasons:</p>
-                        <ul className="list-disc list-inside ml-2">
-                          {stateInfo.permitNeeded.reasons.map((reason, i) => (
-                            <li key={i} className="text-red-300">{reason}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-green-300 font-semibold">✅ Standard limits compliant</p>
-                  )}
-                </div>
+        {/* Results */}
+        <div className="space-y-4 col-span-1 md:col-span-2 lg:col-span-1 bg-gray-800/50 p-4 rounded-xl border border-gray-700 flex flex-col justify-center text-center">
+          {!status ? (
+            <div className="text-gray-500">
+              <div className="text-3xl mb-2">⚖️</div>
+              <div>Enter details to check calculation</div>
+            </div>
+          ) : (
+            <div className={`space-y-3 animate-in fade-in zoom-in duration-300`}>
+              <div className={`text-xl font-bold p-3 rounded-lg border ${status === 'legal' ? 'bg-green-900/30 border-green-500 text-green-400' :
+                  status === 'warning' ? 'bg-yellow-900/30 border-yellow-500 text-yellow-500' :
+                    'bg-red-900/40 border-red-500 text-red-500'
+                }`}>
+                {status === 'legal' && '✅ LEGAL'}
+                {status === 'warning' && '⚠️ PERMIT REQUIRED'}
+                {status === 'illegal' && '⛔ ILLEGAL'}
               </div>
 
-              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h5 className="font-semibold mb-2 text-gray-300">Special Requirements</h5>
-                  <div className="space-y-1 text-sm">
-                    <p><span className="text-gray-400">Escorts:</span> {stateInfo.specialRequirements.escortRequired}</p>
-                    <p><span className="text-gray-400">Time Restrictions:</span> {stateInfo.specialRequirements.timeRestrictions}</p>
-                    <p><span className="text-gray-400">Route Restrictions:</span> {stateInfo.specialRequirements.routeRestrictions}</p>
-                    <p><span className="text-gray-400">Fees:</span> {stateInfo.specialRequirements.fees}</p>
-                  </div>
-                </div>
-
-                <div>
-                  <h5 className="font-semibold mb-2 text-gray-300">Processing Info</h5>
-                  <div className="space-y-1 text-sm">
-                    <p><span className="text-gray-400">Processing Time:</span> {stateInfo.processingTime}</p>
-                    <p><span className="text-gray-400">Notes:</span> {stateInfo.notes}</p>
-                  </div>
-                </div>
+              <div className="text-xs font-mono text-left text-gray-300 bg-gray-900 p-2 rounded border border-gray-700 h-32 overflow-y-auto">
+                <div className="font-bold text-gray-400 mb-1">ANALYSIS:</div>
+                {message}
               </div>
 
-              <div className="mt-4">
-                <button
-                  onClick={() => {
-                    const emailContent = generateComprehensiveEmail(stateInfo);
-                    navigator.clipboard.writeText(emailContent);
-                    alert(`Email template for ${stateInfo.name} copied to clipboard!`);
-                  }}
-                  className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded text-sm font-semibold"
-                >
-                  📧 Generate & Copy Email Template
-                </button>
-              </div>
-            </div>
-          ))}
-
-          {routeAnalysis.multiStateConsiderations && (
-            <div className="bg-purple-900/30 border border-purple-700 p-6 rounded-lg">
-              <h4 className="text-xl font-semibold mb-4 text-purple-400">
-                Multi-State Corridor: {routeAnalysis.multiStateConsiderations.name}
-              </h4>
-              <div className="space-y-2">
-                <p><span className="text-gray-400">Coordinator:</span> {routeAnalysis.multiStateConsiderations.coordinator}</p>
-                <p><span className="text-gray-400">Phone:</span> {routeAnalysis.multiStateConsiderations.phone}</p>
-                <div>
-                  <p className="text-gray-400 mb-2">Special Considerations:</p>
-                  <ul className="list-disc list-inside ml-4 space-y-1">
-                    {routeAnalysis.multiStateConsiderations.specialConsiderations.map((consideration, i) => (
-                      <li key={i} className="text-yellow-300">{consideration}</li>
-                    ))}
-                  </ul>
-                </div>
+              <div className="text-sm">
+                <div className="text-gray-400 text-xs uppercase mb-1">Recommended Equipment</div>
+                <div className="font-bold text-blue-300">{equipment}</div>
               </div>
             </div>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
