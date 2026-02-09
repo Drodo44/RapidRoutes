@@ -132,20 +132,22 @@ const MarketMap = ({ type = 'dryvan', imageUrl = null }) => {
                         let matched = false;
 
                         // Red/Hot detection (DAT Use bright reds/oranges)
-                        if (r > 160 && g < 140 && b < 140) {
+                        // Expanded logic: If Red is dominant and high
+                        if (r > 130 && r > g && r > b) {
                             intensity = 1.0;
                             matched = true;
                         }
-                        // Orange detection
-                        else if (r > 200 && g > 100 && b < 100) {
-                            intensity = 0.7;
+                        // Orange detection (High Red + High Green, low Blue)
+                        else if (r > 180 && g > 80 && b < 100) {
+                            intensity = 0.8;
                             matched = true;
                         }
-                        // Blue/Cool detection
-                        else if (b > 160 && r < 140 && g < 180) {
+                        // Blue/Cool detection (Dominant Blue)
+                        else if (b > 130 && b > r && b > g) {
                             intensity = 0.3;
                             matched = true;
                         }
+
 
                         if (matched) {
                             // Map Pixel (x,y) to Lat/Lng
