@@ -368,7 +368,7 @@ export default function RecapPage() {
 
       const today = new Date();
       const dateStr = today.toISOString().split('T')[0];
-      link.download = `DAT_Export_${dateStr}.csv`;
+      link.download = `RapidRoutes Posts.csv`;
 
       document.body.appendChild(link);
       link.click();
@@ -752,19 +752,7 @@ export default function RecapPage() {
             <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white/40 text-xs">▼</div>
           </div>
 
-          {/* Search Bar */}
-          <div className="flex-1 relative">
-            <input
-              type="text"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search RR#, city, generated pair..."
-              className="w-full h-10 pl-10 pr-4 bg-black/40 border border-white/10 rounded-xl text-sm text-white focus:ring-1 focus:ring-cyan-500/50 placeholder:text-white/20"
-            />
-            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40">
-              🔍
-            </div>
-          </div>
+
 
           {/* Sort */}
           <div className="relative min-w-[140px]">

@@ -391,6 +391,73 @@ export default function IntelligentLaneCard({
                     <button onClick={handleSubmitCarrierOffer} className="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs font-bold">
                         Save
                     </button>
+                    <button onClick={() => setShowCarrierOfferForm(false)} className="px-2 py-1 bg-transparent hover:bg-white/10 text-gray-400 rounded text-xs">
+                        ✕
+                    </button>
+                </div>
+            )}
+
+            {/* Archive Modal Overlay */}
+            {showArchiveModal && (
+                <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 rounded-2xl">
+                    <div className="bg-slate-900 border border-white/10 p-5 rounded-xl w-full max-w-sm shadow-2xl">
+                        <h4 className="text-sm font-bold text-white mb-3">Archive Lane (Covered)</h4>
+                        <div className="space-y-3">
+                            <div>
+                                <label className="text-[10px] text-gray-400 uppercase font-bold">Carrier MC</label>
+                                <input
+                                    value={archiveData.mc}
+                                    onChange={e => setArchiveData({ ...archiveData, mc: e.target.value })}
+                                    className="w-full bg-black/40 border border-white/10 rounded px-2 py-1.5 text-sm text-white focus:border-cyan-500/50 outline-none"
+                                    placeholder="e.g. 123456"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[10px] text-gray-400 uppercase font-bold">Rate Covered</label>
+                                <input
+                                    value={archiveData.rate}
+                                    onChange={e => setArchiveData({ ...archiveData, rate: e.target.value })}
+                                    type="number"
+                                    className="w-full bg-black/40 border border-white/10 rounded px-2 py-1.5 text-sm text-white focus:border-cyan-500/50 outline-none"
+                                    placeholder="$0.00"
+                                />
+                            </div>
+                            <div className="flex gap-2 mt-4">
+                                <button onClick={() => setShowArchiveModal(false)} className="flex-1 py-2 bg-white/5 hover:bg-white/10 text-gray-300 text-xs font-bold rounded">Cancel</button>
+                                <button onClick={handleArchive} className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded shadow-lg shadow-emerald-900/20">Archive</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Gave Back Modal Overlay */}
+            {showGaveBackModal && (
+                <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 rounded-2xl">
+                    <div className="bg-slate-900 border border-white/10 p-5 rounded-xl w-full max-w-sm shadow-2xl">
+                        <h4 className="text-sm font-bold text-white mb-3">Mark as Gave Back</h4>
+                        <div className="space-y-3">
+                            <div>
+                                <label className="text-[10px] text-gray-400 uppercase font-bold">Reason</label>
+                                <select
+                                    value={gaveBackReason}
+                                    onChange={e => setGaveBackReason(e.target.value)}
+                                    className="w-full bg-black/40 border border-white/10 rounded px-2 py-1.5 text-sm text-white focus:border-red-500/50 outline-none appearance-none"
+                                >
+                                    <option value="">Select Reason...</option>
+                                    <option value="Customer Cancelled">Customer Cancelled</option>
+                                    <option value="Rate Too High">Rate Too High</option>
+                                    <option value="No Capacity">No Capacity</option>
+                                    <option value="Missed Pickup">Missed Pickup</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div className="flex gap-2 mt-4">
+                                <button onClick={() => setShowGaveBackModal(false)} className="flex-1 py-2 bg-white/5 hover:bg-white/10 text-gray-300 text-xs font-bold rounded">Cancel</button>
+                                <button onClick={handleGaveBack} className="flex-1 py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded shadow-lg shadow-red-900/20">Confirm</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>
