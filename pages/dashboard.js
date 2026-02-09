@@ -505,7 +505,7 @@ export default function Dashboard() {
           {/* Header */}
           <header className="dashboard-header">
             <div>
-              <h1>Welcome back, {userName}!</h1>
+              <h1 className="text-3xl font-bold tracking-tight text-white mb-2">Redefine the game. Outsmart the lane.</h1>
               <p className="header-subtitle">Your freight command center</p>
             </div>
             <div className="header-actions">

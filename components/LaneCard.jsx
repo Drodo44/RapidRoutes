@@ -3,7 +3,18 @@ import { distanceInMiles } from '../utils/haversine';
 import { generateOptions } from './post-options/OptionsGenerator'; // Import Generator
 import OptionsDisplay from './post-options/OptionsDisplay'; // Import Display
 
-export default function LaneCard({ lane, onEdit, onDelete, onArchive, onRestore, onViewRoute, onPost, isArchived }) {
+export default function LaneCard({
+  lane,
+  onEdit,
+  onDelete,
+  onArchive,
+  onRestore,
+  onViewRoute,
+  onPost,
+  isArchived,
+  isSelected,
+  onToggleSelect
+}) {
   const [isPosting, setIsPosting] = useState(false);
   const [postOptions, setPostOptions] = useState(null);
   const [loadingOptions, setLoadingOptions] = useState(false);
@@ -73,6 +84,19 @@ export default function LaneCard({ lane, onEdit, onDelete, onArchive, onRestore,
     >
       {/* Top Glow Accent */}
       <div className={`absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent transition-opacity ${isPosting ? 'opacity-100' : 'opacity-50 group-hover:opacity-100'}`} />
+
+      {/* Selection Checkbox */}
+      {!isArchived && (
+        <div className="absolute top-4 right-4 z-20">
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={() => onToggleSelect(lane.id)}
+            className="w-5 h-5 rounded border-white/20 bg-black/40 text-cyan-500 focus:ring-offset-0 focus:ring-0 cursor-pointer"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
 
       {/* Content Container */}
       <div className="p-5">

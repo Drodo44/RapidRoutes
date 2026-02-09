@@ -21,7 +21,6 @@ import { generateOptions } from '../components/post-options/OptionsGenerator';
 function EditLaneModal({ lane, isOpen, onClose, onSave }) {
   if (!isOpen || !lane) return null;
 
-  // Local state for edit form - just the basics for now
   const [localLane, setLocalLane] = useState({ ...lane });
 
   const handleChange = (field, value) => {
@@ -29,56 +28,129 @@ function EditLaneModal({ lane, isOpen, onClose, onSave }) {
   };
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 100,
-      background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(5px)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center'
-    }}>
-      <div className="glass-card" style={{ width: '500px', maxWidth: '90vw', maxHeight: '90vh', overflowY: 'auto' }}>
-        <div className="card-header flex justify-between items-center">
-          <h3>Edit Lane</h3>
-          <button onClick={onClose} className="text-secondary hover:text-white">✕</button>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+      <div className="glass-card w-full max-w-2xl max-h-[90vh] overflow-y-auto" style={{
+        background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(10, 10, 14, 0.98) 100%)',
+        border: '1px solid rgba(6, 182, 212, 0.2)'
+      }}>
+        <div className="p-6 border-b border-white/10 flex justify-between items-center">
+          <h3 className="text-xl font-bold text-white">Edit Lane: {lane.origin_city} → {lane.dest_city || lane.destination_city}</h3>
+          <button onClick={onClose} className="text-secondary hover:text-white text-xl">✕</button>
         </div>
-        <div className="card-body">
-          <div className="grid grid-2 gap-4 mb-4">
-            <div>
-              <label className="form-label">Pickup Earliest</label>
+
+        <div className="p-6 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-cyan-400 uppercase tracking-wider">Pickup Earliest</label>
               <input
-                type="date" className="form-input"
+                type="date"
+                className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white focus:border-cyan-500/50 outline-none"
                 value={localLane.pickup_earliest?.split('T')[0] || ''}
                 onChange={e => handleChange('pickup_earliest', e.target.value)}
               />
             </div>
-            <div>
-              <label className="form-label">Pickup Latest</label>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-cyan-400 uppercase tracking-wider">Pickup Latest</label>
               <input
-                type="date" className="form-input"
+                type="date"
+                className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white focus:border-cyan-500/50 outline-none"
                 value={localLane.pickup_latest?.split('T')[0] || ''}
                 onChange={e => handleChange('pickup_latest', e.target.value)}
               />
             </div>
           </div>
-          <div className="grid grid-2 gap-4 mb-4">
-            <div>
-              <label className="form-label">Weight</label>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Equipment</label>
               <input
-                type="number" className="form-input"
-                value={localLane.weight_lbs || ''}
-                onChange={e => handleChange('weight_lbs', e.target.value)}
+                type="text"
+                className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white focus:border-cyan-500/50 outline-none"
+                value={localLane.equipment_code || ''}
+                onChange={e => handleChange('equipment_code', e.target.value.toUpperCase())}
               />
             </div>
-            <div>
-              <label className="form-label">Rate</label>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Length</label>
               <input
-                type="number" className="form-input"
+                type="number"
+                className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white focus:border-cyan-500/50 outline-none"
+                value={localLane.length_ft || ''}
+                onChange={e => handleChange('length_ft', e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Rate</label>
+              <input
+                type="number"
+                className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white focus:border-emerald-500/50 outline-none font-mono"
                 value={localLane.rate || ''}
                 onChange={e => handleChange('rate', e.target.value)}
               />
             </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-cyan-400 uppercase tracking-wider">Weight</label>
+              <input
+                type="number"
+                className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white focus:border-cyan-500/50 outline-none font-mono"
+                value={localLane.weight_lbs || ''}
+                onChange={e => handleChange('weight_lbs', e.target.value)}
+              />
+            </div>
           </div>
-          <div className="flex gap-2 justify-end mt-6">
-            <button onClick={onClose} className="btn btn-ghost">Cancel</button>
-            <button onClick={() => onSave(localLane)} className="btn btn-primary">Save Changes</button>
+
+          <div className="p-4 rounded-xl bg-white/5 border border-white/10 space-y-4">
+            <h4 className="text-xs font-bold text-purple-400 uppercase tracking-widest border-b border-white/5 pb-2">Email-Only Details</h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-1">
+                <label className="text-[10px] text-gray-500 uppercase">Pickup/Del Time</label>
+                <input
+                  type="text"
+                  placeholder="08:00 - 16:00"
+                  className="w-full bg-black/20 border border-white/5 rounded-lg p-2 text-xs text-white"
+                  value={localLane.pickup_time || ''}
+                  onChange={e => handleChange('pickup_time', e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] text-gray-500 uppercase">Temperature</label>
+                <input
+                  type="text"
+                  placeholder="Maintain 34F"
+                  className="w-full bg-black/20 border border-white/5 rounded-lg p-2 text-xs text-white"
+                  value={localLane.temp || ''}
+                  onChange={e => handleChange('temp', e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] text-gray-500 uppercase">Commodity</label>
+                <input
+                  type="text"
+                  className="w-full bg-black/20 border border-white/5 rounded-lg p-2 text-xs text-white"
+                  value={localLane.commodity || ''}
+                  onChange={e => handleChange('commodity', e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] text-gray-500 uppercase">Email Notes</label>
+              <textarea
+                rows={2}
+                className="w-full bg-black/20 border border-white/5 rounded-lg p-2 text-xs text-white resize-none"
+                value={localLane.email_notes || ''}
+                onChange={e => handleChange('email_notes', e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-4 justify-end pt-4 border-t border-white/10">
+            <button onClick={onClose} className="px-6 py-2 rounded-xl border border-white/10 text-white hover:bg-white/5 transition-all font-semibold">Cancel</button>
+            <button
+              onClick={() => onSave(localLane)}
+              className="px-8 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold shadow-lg shadow-cyan-900/20 transition-all"
+            >
+              Save Changes
+            </button>
           </div>
         </div>
       </div>
@@ -103,6 +175,14 @@ export default function LanesPage() {
   const [pickupLatest, setPickupLatest] = useState('');
   const [comment, setComment] = useState('');
   const [commodity, setCommodity] = useState('');
+  const [pickupTime, setPickupTime] = useState('');
+  const [deliveryTime, setDeliveryTime] = useState('');
+  const [temp, setTemp] = useState('');
+  const [emailNotes, setEmailNotes] = useState('');
+
+  // Selection
+  const [selectedLanes, setSelectedLanes] = useState([]);
+  const [bulkDate, setBulkDate] = useState('');
 
   // Weight
   const [randomize, setRandomize] = useState(false);
@@ -233,7 +313,11 @@ export default function LanesPage() {
         rate_min: randomizeRate ? Number(randRateMin) || null : null,
         rate_max: randomizeRate ? Number(randRateMax) || null : null,
         comment: comment || null,
-        commodity: commodity || null
+        commodity: commodity || null,
+        pickup_time: pickupTime || null,
+        delivery_time: deliveryTime || null,
+        temp: temp || null,
+        email_notes: emailNotes || null
       };
 
       // Create lane directly (no intermodal check)
@@ -284,6 +368,10 @@ export default function LanesPage() {
       rate_max: laneData.rate_max,
       comment: laneData.comment,
       commodity: laneData.commodity,
+      pickup_time: laneData.pickup_time,
+      delivery_time: laneData.delivery_time,
+      temp: laneData.temp,
+      email_notes: laneData.email_notes,
       lane_status: 'current',
       user_id: authSession.user.id,
       created_by: authSession.user.id
@@ -352,12 +440,17 @@ export default function LanesPage() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
 
-      // Prepare update payload
       const payload = {
         pickup_earliest: updatedLane.pickup_earliest,
         pickup_latest: updatedLane.pickup_latest,
         weight_lbs: updatedLane.weight_lbs,
-        rate: updatedLane.rate
+        rate: updatedLane.rate,
+        equipment_code: updatedLane.equipment_code,
+        length_ft: updatedLane.length_ft,
+        commodity: updatedLane.commodity,
+        pickup_time: updatedLane.pickup_time,
+        temp: updatedLane.temp,
+        email_notes: updatedLane.email_notes
       };
 
       const response = await fetch(`/api/lanes/${updatedLane.id}`, {
@@ -377,6 +470,47 @@ export default function LanesPage() {
       await loadLists();
     } catch (err) {
       toast.error('Failed to update lane');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function toggleLaneSelection(laneId) {
+    setSelectedLanes(prev =>
+      prev.includes(laneId) ? prev.filter(id => id !== laneId) : [...prev, laneId]
+    );
+  }
+
+  async function handleBulkDateUpdate() {
+    if (!bulkDate) {
+      toast.error('Please select a date');
+      return;
+    }
+    if (selectedLanes.length === 0) return;
+
+    setBusy(true);
+    const loadingToast = toast.loading(`Updating ${selectedLanes.length} lanes...`);
+    try {
+      const { data: { session: authSession } } = await supabase.auth.getSession();
+
+      const updates = selectedLanes.map(id =>
+        fetch(`/api/lanes/${id}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authSession.access_token}`
+          },
+          body: JSON.stringify({ pickup_earliest: bulkDate, pickup_latest: bulkDate })
+        })
+      );
+
+      await Promise.all(updates);
+      toast.success(`Updated ${selectedLanes.length} lanes`, { id: loadingToast });
+      setSelectedLanes([]);
+      setBulkDate('');
+      await loadLists();
+    } catch (err) {
+      toast.error('Bulk update failed', { id: loadingToast });
     } finally {
       setBusy(false);
     }
@@ -547,14 +681,50 @@ export default function LanesPage() {
                     </div>
                   </div>
 
+                  <div className="p-5 rounded-xl bg-purple-500/5 border border-purple-500/20 space-y-6">
+                    <h4 className="text-xs font-bold text-purple-400 uppercase tracking-widest border-b border-purple-500/10 pb-2">Email-Only Details</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-secondary uppercase tracking-wider ml-1">Pickup/Delivery Time</label>
+                        <input
+                          type="text"
+                          value={pickupTime}
+                          onChange={(e) => setPickupTime(e.target.value)}
+                          placeholder="e.g. 08:00 - 16:00"
+                          className="w-full h-[45px] bg-black/30 rounded-xl border border-white/10 text-white px-4 focus:border-purple-500/50 focus:ring-0 placeholder:text-white/10"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-secondary uppercase tracking-wider ml-1">Temperature</label>
+                        <input
+                          type="text"
+                          value={temp}
+                          onChange={(e) => setTemp(e.target.value)}
+                          placeholder="e.g. Maintain 34F"
+                          className="w-full h-[45px] bg-black/30 rounded-xl border border-white/10 text-white px-4 focus:border-purple-500/50 focus:ring-0 placeholder:text-white/10"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-secondary uppercase tracking-wider ml-1">Email Notes (Public)</label>
+                      <textarea
+                        value={emailNotes}
+                        onChange={(e) => setEmailNotes(e.target.value)}
+                        placeholder="Additional details for emails only..."
+                        rows={2}
+                        className="w-full bg-black/30 rounded-xl border border-white/10 text-white px-4 py-3 focus:border-purple-500/50 focus:ring-0 placeholder:text-white/10 resize-none text-sm"
+                      />
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-secondary uppercase tracking-wider ml-1">Internal Notes</label>
+                    <label className="text-xs font-bold text-secondary uppercase tracking-wider ml-1">Internal Notes (Private)</label>
                     <textarea
                       value={comment}
                       onChange={(e) => setComment(e.target.value)}
                       placeholder="Add notes about this lane..."
                       rows={2}
-                      className="w-full bg-black/30 rounded-xl border border-white/10 text-white px-4 py-3 focus:border-cyan-500/50 focus:ring-0 placeholder:text-white/10 resize-none"
+                      className="w-full bg-black/30 rounded-xl border border-white/10 text-white px-4 py-3 focus:border-cyan-500/50 focus:ring-0 placeholder:text-white/10 resize-none text-sm"
                     />
                   </div>
                 </div>
@@ -637,6 +807,42 @@ export default function LanesPage() {
         </div>
       </div>
 
+      {/* Bulk Actions Bar */}
+      {selectedLanes.length > 0 && (
+        <div className="sticky top-4 z-[60] mb-8 p-4 rounded-2xl bg-cyan-600 shadow-2xl flex flex-wrap items-center justify-between gap-4 animate-in slide-in-from-top-4 duration-300">
+          <div className="flex items-center gap-4">
+            <span className="bg-white/20 px-3 py-1 rounded-full text-white text-sm font-bold">
+              {selectedLanes.length} Lanes Selected
+            </span>
+            <button
+              onClick={() => setSelectedLanes([])}
+              className="text-white/80 hover:text-white text-xs font-semibold underline"
+            >
+              Clear Selection
+            </button>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 bg-black/20 p-1.5 rounded-xl border border-white/10">
+              <label className="text-[10px] font-bold text-white/70 uppercase ml-2">Change Date For All:</label>
+              <input
+                type="date"
+                className="bg-transparent border-none text-white text-sm focus:ring-0 cursor-pointer"
+                value={bulkDate}
+                onChange={(e) => setBulkDate(e.target.value)}
+              />
+              <button
+                onClick={handleBulkDateUpdate}
+                disabled={busy || !bulkDate}
+                className="px-4 py-1.5 rounded-lg bg-white text-cyan-700 text-xs font-bold hover:bg-cyan-50 transition-all disabled:opacity-50"
+              >
+                Apply
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Lanes Grid */}
       <div className="mb-6">
         <div className="flex gap-6 border-b border-white/10 mb-6">
@@ -660,13 +866,15 @@ export default function LanesPage() {
               <LaneCard
                 key={lane.id}
                 lane={lane}
-                onEdit={(l) => { setEditingLane(l); setShowEditModal(true); }} // Reverted to original edit logic
-                onDelete={(l) => handleLaneAction(l, 'delete')} // Reverted to original delete logic
-                onArchive={(l) => handleLaneAction(l, 'archive')} // Reverted to original archive logic
-                onRestore={(l) => handleLaneAction(l, 'restore')} // Added restore logic
-                onViewRoute={(l) => { setSelectedLaneForMap(l); setIsMapModalOpen(true); }} // Reverted to original view route logic
-                onPost={handlePostLane} // Reverted to original post logic
-                isArchived={false} // Assuming this is for current lanes
+                isSelected={selectedLanes.includes(lane.id)}
+                onToggleSelect={toggleLaneSelection}
+                onEdit={(l) => { setEditingLane(l); setShowEditModal(true); }}
+                onDelete={(l) => handleLaneAction(l, 'delete')}
+                onArchive={(l) => handleLaneAction(l, 'archive')}
+                onRestore={(l) => handleLaneAction(l, 'restore')}
+                onViewRoute={(l) => { setSelectedLaneForMap(l); setIsMapModalOpen(true); }}
+                onPost={handlePostLane}
+                isArchived={false}
               />
             ))
           )}

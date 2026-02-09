@@ -1,119 +1,112 @@
 import { useState, useEffect } from "react";
-import TrailerVisual from "./TrailerVisual";
 
 export default function FloorSpaceCalculator() {
-  const [length, setLength] = useState("");
-  const [width, setWidth] = useState("");
-  const [height, setHeight] = useState("");
+  const [length, setLength] = useState("48");
+  const [width, setWidth] = useState("40");
+  const [height, setHeight] = useState("48");
+  const [count, setCount] = useState("1");
+  const [weight, setWeight] = useState("");
   const [stackable, setStackable] = useState(false);
-  const [count, setCount] = useState(1);
   const [capacities, setCapacities] = useState(null);
-  const [visualLength, setVisualLength] = useState(0);
+  const [suggestion, setSuggestion] = useState("");
 
-  // Standard truck dimensions in inches
-  const truckSpecs = {
-    small: { name: "26' Box Truck", length: 312, width: 96, height: 96 },
-    medium: { name: "48' Dry Van", length: 576, width: 100, height: 110 },
-    large: { name: "53' Dry Van", length: 636, width: 102, height: 110 }
-  };
+  const truckSpecs = [
+    { id: 'sprinter', name: "Sprinter Van", maxPallets: 3, maxWeight: 3000, emoji: "🚐" },
+    { id: 'straight', name: "26' Straight Truck", maxPallets: 12, maxWeight: 10000, emoji: "🚚" },
+    { id: 'dv48', name: "48' Dry Van", maxPallets: 24, maxWeight: 45000, emoji: "🚛" },
+    { id: 'dv53', name: "53' Dry Van", maxPallets: 26, maxWeight: 45000, emoji: "🚛" }
+  ];
 
   useEffect(() => {
-    if (length && width && height) {
-      calculateCapacities();
-    } else {
-      setCapacities(null);
-      setVisualLength(0);
-    }
-  }, [length, width, height, stackable, count]);
+    calculateCapacities();
+  }, [length, width, height, count, weight, stackable]);
 
   const calculateCapacities = () => {
-    const l = parseFloat(length);
-    const w = parseFloat(width);
-    const h = parseFloat(height);
-    const c = parseInt(count) || 1;
+    const l = parseFloat(length) || 0;
+    const w_dim = parseFloat(width) || 0;
+    const h = parseFloat(height) || 0;
+    const c = parseInt(count) || 0;
+    const w_total = parseFloat(weight) || 0;
 
-    if (!l || !w || !h) return;
-
-    // Linear Foot Calculation for Visual
-    // Assume standard loading (width-wise unless too wide)
-    // If width > 48, must load lengthwise. Standard pallet 48x40 usually loads 40" side along length (2 wide).
-
-    // simplified visual logic:
-    // 1. Calculate base area needed: (l * w * c)
-    // 2. Divide by truck width (approx 100") to get linear inches if packed perfectly?
-    // 3. OR use standard "pallet spots" logic.
-    // Let's stick to the linear loading logic which is common in freight.
-    // If width <= 50, we can fit 2 wide.
-    let widthFactor = 1;
-    if (w <= 52) { // 52 allows for some wiggle room, standard is 48-50
-      widthFactor = 0.5; // Fits 2 wide
+    if (c === 0 && w_total === 0) {
+      setCapacities(null);
+      setSuggestion("");
+      return;
     }
 
-    let totalLinearInches = l * c * widthFactor;
+    // Calculate how many "Standard Pallet Spaces" (48x40) this takes
+    // We'll use floor space area as a simple approximation, but also consider width.
+    // Standard pallet is 48L x 40W.
+    const standardPalletArea = 48 * 40;
+    const itemArea = l * w_dim;
+    let palletEquivalentPerItem = itemArea / standardPalletArea;
 
-    if (stackable) {
-      // If stackable, we divide by layers.
-      const stackLayers = Math.max(1, Math.floor(110 / h));
-      totalLinearInches = totalLinearInches / stackLayers;
+    // If width > 48, it likely takes a full row (2 standard pallet spaces)
+    if (w_dim > 48) {
+      palletEquivalentPerItem = Math.max(palletEquivalentPerItem, (l / 48) * 2);
     }
 
-    setVisualLength(totalLinearInches / 12); // Convert to feet for visual trailer
+    const totalPalletSpaces = palletEquivalentPerItem * c;
+    const effectivePalletSpaces = stackable ? totalPalletSpaces / 2 : totalPalletSpaces;
 
-    const calculateForTruck = (truck) => {
-      // Logic: Max pallets via straight loading or rotated loading
-      // Case 1: Straight (L along Truck L)
-      const rowsStraight = Math.floor(truck.length / l);
-      const colsStraight = Math.floor(truck.width / w);
-      const totalStraight = rowsStraight * colsStraight;
+    const results = truckSpecs.map(truck => {
+      const fitsPallets = effectivePalletSpaces <= truck.maxPallets;
+      const fitsWeight = w_total <= truck.maxWeight;
 
-      // Case 2: Rotated (W along Truck L)
-      const rowsRotated = Math.floor(truck.length / w);
-      const colsRotated = Math.floor(truck.width / l);
-      const totalRotated = rowsRotated * colsRotated;
+      let reason = "";
+      if (!fitsPallets) reason = "Over pallet limit";
+      if (!fitsWeight) reason = reason ? reason + " & weight limit" : "Over weight limit";
 
-      // Case 3: Pinwheel / Combination (Simplified: Just take max of Straight vs Rotated)
-      let floorCapacity = Math.max(totalStraight, totalRotated);
-
-      // Stackability
-      let stackLayers = 1;
-      if (stackable) {
-        stackLayers = Math.floor(truck.height / h);
-        if (stackLayers < 1) stackLayers = 1;
-      }
-
-      // Check if item is too tall for truck even once
-      if (h > truck.height) return 0;
-
-      return floorCapacity * stackLayers;
-    };
-
-    setCapacities({
-      small: calculateForTruck(truckSpecs.small),
-      medium: calculateForTruck(truckSpecs.medium),
-      large: calculateForTruck(truckSpecs.large)
+      return {
+        ...truck,
+        fits: fitsPallets && fitsWeight,
+        palletCapacity: truck.maxPallets,
+        actualNeeded: effectivePalletSpaces.toFixed(1),
+        reason
+      };
     });
+
+    setCapacities(results);
+
+    // Suggestion logic
+    if (w_total > 45000) {
+      setSuggestion("Suggest using TWO TRUCKS. Weight exceeds maximum single truck capacity (45,000 lbs).");
+    } else if (effectivePalletSpaces > 26) {
+      setSuggestion("Suggest using TWO TRUCKS. Load exceeds maximum single truck floor space (26 pallets).");
+    } else {
+      const bestFit = results.find(r => r.fits);
+      if (!bestFit) {
+        setSuggestion("Suggest using TWO TRUCKS. Requirement exceeds maximum truck capacity.");
+      } else {
+        const index = results.indexOf(bestFit);
+        if (index > 0) {
+          const previous = results[index - 1];
+          // If it didn't fit in the previous one, explain why
+          if (effectivePalletSpaces > previous.maxPallets || w_total > previous.maxWeight) {
+            const limitReason = w_total > previous.maxWeight ? "weight" : "floor space";
+            setSuggestion(`The load exceeds ${previous.name} ${limitReason} limits. Suggested: ${bestFit.name}.`);
+          } else {
+            setSuggestion("");
+          }
+        } else {
+          setSuggestion("");
+        }
+      }
+    }
   };
 
   return (
     <div className="p-6 rounded-2xl shadow-xl border border-gray-700 bg-gray-900/50 backdrop-blur-md h-full flex flex-col">
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-cyan-300">
           Floor Space Calculator
         </h2>
         <div className="bg-gray-800 px-2 py-0.5 rounded text-[10px] text-gray-400 border border-gray-700">
-          DYNAMIC
+          ENTERPRISE
         </div>
       </div>
 
-      {/* Visual Component */}
-      <div className="mb-6 bg-gray-800/30 rounded-xl p-2 border border-blue-900/30">
-        <TrailerVisual length={visualLength} overflow={visualLength > 53} />
-        <div className="text-center text-xs text-gray-400 mt-[-10px]">
-          {visualLength > 0 ? `${visualLength.toFixed(1)} linear feet used (est)` : 'Enter dimensions to see truck fill'}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-4 gap-3 mb-4">
+      <div className="grid grid-cols-3 gap-3 mb-4">
         <div>
           <label className="block text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Length (in)</label>
           <input
@@ -121,7 +114,6 @@ export default function FloorSpaceCalculator() {
             value={length}
             onChange={(e) => setLength(e.target.value)}
             className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:ring-1 focus:ring-blue-500 font-mono text-sm"
-            placeholder="48"
           />
         </div>
         <div>
@@ -131,7 +123,6 @@ export default function FloorSpaceCalculator() {
             value={width}
             onChange={(e) => setWidth(e.target.value)}
             className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:ring-1 focus:ring-blue-500 font-mono text-sm"
-            placeholder="40"
           />
         </div>
         <div>
@@ -141,17 +132,29 @@ export default function FloorSpaceCalculator() {
             value={height}
             onChange={(e) => setHeight(e.target.value)}
             className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:ring-1 focus:ring-blue-500 font-mono text-sm"
-            placeholder="48"
           />
         </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 mb-4">
         <div>
-          <label className="block text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Count</label>
+          <label className="block text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Pallet Count</label>
           <input
             type="number"
             value={count}
             onChange={(e) => setCount(e.target.value)}
             className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:ring-1 focus:ring-blue-500 font-mono text-sm"
-            placeholder="1"
+            placeholder="0"
+          />
+        </div>
+        <div>
+          <label className="block text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Total Weight (lbs)</label>
+          <input
+            type="number"
+            value={weight}
+            onChange={(e) => setWeight(e.target.value)}
+            className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-white focus:ring-1 focus:ring-blue-500 font-mono text-sm"
+            placeholder="0"
           />
         </div>
       </div>
@@ -170,50 +173,44 @@ export default function FloorSpaceCalculator() {
         </label>
       </div>
 
+      {suggestion && (
+        <div className="mb-4 p-3 bg-blue-900/20 border border-blue-500/30 rounded-lg text-xs text-blue-300 animate-in fade-in slide-in-from-top-1">
+          {suggestion}
+        </div>
+      )}
+
       {capacities ? (
-        <div className="flex-1 overflow-y-auto pr-1 space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
-          {/* 26' Box Truck */}
-          <div className="bg-gray-800/40 p-3 rounded-lg border border-gray-700 flex justify-between items-center group hover:border-blue-500/30 transition-all">
-            <div className="flex items-center">
-              <div className="text-xl mr-3 opacity-70">🚚</div>
-              <div>
-                <div className="font-bold text-gray-300 text-sm">26' Box Truck</div>
+        <div className="flex-1 overflow-y-auto pr-1 space-y-2">
+          {capacities.map(truck => (
+            <div
+              key={truck.id}
+              className={`p-3 rounded-lg border flex justify-between items-center transition-all ${
+                truck.fits
+                  ? 'bg-emerald-900/10 border-emerald-500/30 group hover:border-emerald-500/50'
+                  : 'bg-red-900/10 border-red-500/20 opacity-60'
+              }`}
+            >
+              <div className="flex items-center">
+                <div className="text-xl mr-3 opacity-80">{truck.emoji}</div>
+                <div>
+                  <div className={`font-bold text-sm ${truck.fits ? 'text-emerald-400' : 'text-gray-400'}`}>{truck.name}</div>
+                  {!truck.fits && <div className="text-[10px] text-red-400 font-medium">{truck.reason}</div>}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className={`font-bold ${truck.fits ? 'text-emerald-400' : 'text-gray-500'}`}>
+                   {truck.palletCapacity} <span className="text-xs font-normal opacity-60">plts max</span>
+                </div>
+                <div className="text-[10px] text-gray-500 font-mono">
+                  {truck.maxWeight.toLocaleString()} lbs limit
+                </div>
               </div>
             </div>
-            <div className="text-right">
-              <div className="font-bold text-cyan-400">{capacities.small} <span className="text-xs font-normal text-gray-500">plts</span></div>
-            </div>
-          </div>
-
-          {/* 48' Dry Van */}
-          <div className="bg-gray-800/40 p-3 rounded-lg border border-gray-700 flex justify-between items-center group hover:border-blue-500/30 transition-all">
-            <div className="flex items-center">
-              <div className="text-xl mr-3 opacity-70">🚛</div>
-              <div>
-                <div className="font-bold text-gray-300 text-sm">48' Dry Van</div>
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="font-bold text-cyan-400">{capacities.medium} <span className="text-xs font-normal text-gray-500">plts</span></div>
-            </div>
-          </div>
-
-          {/* 53' Dry Van */}
-          <div className="bg-gray-800/40 p-3 rounded-lg border border-gray-700 flex justify-between items-center group hover:border-blue-500/30 transition-all">
-            <div className="flex items-center">
-              <div className="text-xl mr-3 opacity-70">🚛</div>
-              <div>
-                <div className="font-bold text-gray-300 text-sm">53' Dry Van</div>
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="font-bold text-cyan-400">{capacities.large} <span className="text-xs font-normal text-gray-500">plts</span></div>
-            </div>
-          </div>
+          ))}
         </div>
       ) : (
         <div className="flex-1 flex items-center justify-center text-gray-600 bg-gray-800/10 rounded-xl border border-dashed border-gray-800">
-          <p className="text-xs">Capacity Est.</p>
+          <p className="text-xs">Enter details to see fit</p>
         </div>
       )}
     </div>

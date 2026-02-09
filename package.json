@@ -31,6 +31,7 @@
     "diagnose:csv": "node ./phase9-csv-diagnostics.js"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@supabase/supabase-js": "^2.45.0",
     "axios": "^1.12.2",
     "body-parser": "^2.2.0",
