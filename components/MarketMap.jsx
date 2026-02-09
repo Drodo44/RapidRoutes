@@ -116,7 +116,7 @@ const MarketMap = ({ type = 'dryvan', imageUrl = null }) => {
 
                 // Scan pixels
                 // We scan every 4th pixel for performance balance
-                const step = 4;
+                const step = 2; // High resolution scanning
 
                 for (let y = 0; y < canvas.height; y += step) {
                     for (let x = 0; x < canvas.width; x += step) {
@@ -126,24 +126,28 @@ const MarketMap = ({ type = 'dryvan', imageUrl = null }) => {
                         const b = data[i + 2];
                         const a = data[i + 3];
 
-                        if (a < 50) continue; // Skip transparent
+                        if (a < 50) continue;
 
                         let intensity = 0;
                         let matched = false;
 
-                        // Red/Hot detection (DAT Use bright reds/oranges)
-                        // Expanded logic: If Red is dominant and high
-                        if (r > 130 && r > g && r > b) {
-                            intensity = 1.0;
-                            matched = true;
+                        // AGGRESSIVE Red/Hot Detection
+                        // If pixel is generally "warm" (Red component is significant)
+                        // DAT map uses pinks/light reds which might be R=255, G=150, B=150
+                        if (r > 100 && r > b) {
+                            if (r > 160) {
+                                // High heat
+                                intensity = 1.0;
+                                matched = true;
+                            } else if (r > 120) {
+                                // Medium heat
+                                intensity = 0.7;
+                                matched = true;
+                            }
                         }
-                        // Orange detection (High Red + High Green, low Blue)
-                        else if (r > 180 && g > 80 && b < 100) {
-                            intensity = 0.8;
-                            matched = true;
-                        }
-                        // Blue/Cool detection (Dominant Blue)
-                        else if (b > 130 && b > r && b > g) {
+
+                        // Blue/Cold Detection
+                        if (!matched && b > 120 && b > r) {
                             intensity = 0.3;
                             matched = true;
                         }

@@ -548,16 +548,16 @@ export default function Dashboard() {
 
           {/* Main Content Grid */}
           <div className="dashboard-grid">
-            {/* Left: Heatmap */}
-            <div className="dashboard-left">
+            {/* Left Col: Heatmap & Top Carriers */}
+            <div className="dashboard-left space-y-6">
               <HeatmapPanel heatmaps={heatmaps} />
+              <TopCarriersPanel carriers={topCarriers} />
             </div>
 
-            {/* Right: Calculators & Carriers */}
-            <div className="dashboard-right">
+            {/* Right Col: Calculators */}
+            <div className="dashboard-right space-y-6">
               <FloorSpaceCalculator />
               <HeavyHaulCalculator />
-              <TopCarriersPanel carriers={topCarriers} />
             </div>
           </div>
         </main>

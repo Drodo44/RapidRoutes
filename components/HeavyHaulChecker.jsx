@@ -102,124 +102,85 @@ export default function HeavyHaulCalculator() {
   };
 
   return (
-    <div className="p-6 rounded-2xl shadow-xl border border-gray-700 bg-gray-900/50 backdrop-blur-md max-w-4xl mx-auto mb-10">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-orange-400 to-red-400">
-          Heavy Haul & Oversize Calculator
+    <div className="p-6 rounded-2xl shadow-xl border border-gray-700 bg-gray-900/50 backdrop-blur-md h-full flex flex-col">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-orange-400 to-red-400">
+          Heavy Haul Calculator
         </h2>
-        <div className="flex gap-2">
-          <div className="bg-gray-800 px-3 py-1 rounded-full text-xs text-gray-400 border border-gray-700">
-            L/W/H in Feet + Inches
-          </div>
+        <div className="bg-gray-800 px-2 py-0.5 rounded text-[10px] text-gray-400 border border-gray-700">
+          Feet + Inches
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-        {/* Dimensions */}
-        <div className="space-y-4">
-          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider border-b border-gray-700 pb-1">Dimensions</h3>
-          <div className="grid grid-cols-2 gap-2">
+      <div className="space-y-4 flex-1">
+        {/* Row 1: Dimensions */}
+        <div className="bg-gray-800/30 p-3 rounded-lg border border-gray-700/50">
+          <h3 className="text-[10px] uppercase font-bold text-gray-500 mb-2">Dimensions</h3>
+          <div className="grid grid-cols-3 gap-2">
             <div>
-              <label className="text-xs text-gray-500">Length (ft)</label>
-              <input type="number" value={lengthFt} onChange={e => setLengthFt(e.target.value)} className="w-full bg-gray-800 border-gray-600 rounded p-2 text-white" placeholder="53" />
+              <label className="text-[10px] text-gray-400">Length</label>
+              <div className="flex gap-1">
+                <input type="number" value={lengthFt} onChange={e => setLengthFt(e.target.value)} className="w-full bg-gray-900 border border-gray-600 rounded p-1 text-sm text-white" placeholder="ft" />
+                <input type="number" value={lengthIn} onChange={e => setLengthIn(e.target.value)} className="w-full bg-gray-900 border border-gray-600 rounded p-1 text-sm text-white" placeholder="in" />
+              </div>
             </div>
             <div>
-              <label className="text-xs text-gray-500">(in)</label>
-              <input type="number" value={lengthIn} onChange={e => setLengthIn(e.target.value)} className="w-full bg-gray-800 border-gray-600 rounded p-2 text-white" placeholder="0" />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-xs text-gray-500">Width (ft)</label>
-              <input type="number" value={widthFt} onChange={e => setWidthFt(e.target.value)} className="w-full bg-gray-800 border-gray-600 rounded p-2 text-white" placeholder="8" />
+              <label className="text-[10px] text-gray-400">Width</label>
+              <div className="flex gap-1">
+                <input type="number" value={widthFt} onChange={e => setWidthFt(e.target.value)} className="w-full bg-gray-900 border border-gray-600 rounded p-1 text-sm text-white" placeholder="ft" />
+                <input type="number" value={widthIn} onChange={e => setWidthIn(e.target.value)} className="w-full bg-gray-900 border border-gray-600 rounded p-1 text-sm text-white" placeholder="in" />
+              </div>
             </div>
             <div>
-              <label className="text-xs text-gray-500">(in)</label>
-              <input type="number" value={widthIn} onChange={e => setWidthIn(e.target.value)} className="w-full bg-gray-800 border-gray-600 rounded p-2 text-white" placeholder="6" />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-xs text-gray-500">Height (ft)</label>
-              <input type="number" value={heightFt} onChange={e => setHeightFt(e.target.value)} className="w-full bg-gray-800 border-gray-600 rounded p-2 text-white" placeholder="8" />
-            </div>
-            <div>
-              <label className="text-xs text-gray-500">(in)</label>
-              <input type="number" value={heightIn} onChange={e => setHeightIn(e.target.value)} className="w-full bg-gray-800 border-gray-600 rounded p-2 text-white" placeholder="6" />
+              <label className="text-[10px] text-gray-400">Height</label>
+              <div className="flex gap-1">
+                <input type="number" value={heightFt} onChange={e => setHeightFt(e.target.value)} className="w-full bg-gray-900 border border-gray-600 rounded p-1 text-sm text-white" placeholder="ft" />
+                <input type="number" value={heightIn} onChange={e => setHeightIn(e.target.value)} className="w-full bg-gray-900 border border-gray-600 rounded p-1 text-sm text-white" placeholder="in" />
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Weight & Overhang */}
-        <div className="space-y-4">
-          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider border-b border-gray-700 pb-1">Load Details</h3>
+        {/* Row 2: Weight & Overhang */}
+        <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="text-xs text-gray-500 block mb-1">Weight (lbs)</label>
-            <input type="number" value={weight} onChange={e => setWeight(e.target.value)} className="w-full bg-gray-800 border-gray-600 rounded p-2 text-white" placeholder="45000" />
+            <label className="text-[10px] text-gray-400">Weight (lbs)</label>
+            <input type="number" value={weight} onChange={e => setWeight(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded p-1.5 text-sm text-white" placeholder="45000" />
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-xs text-gray-500 block mb-1">Front Overhang (ft)</label>
-              <input type="number" value={overhangFront} onChange={e => setOverhangFront(e.target.value)} className="w-full bg-gray-800 border-gray-600 rounded p-2 text-white" placeholder="0" />
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 block mb-1">Rear Overhang (ft)</label>
-              <input type="number" value={overhangRear} onChange={e => setOverhangRear(e.target.value)} className="w-full bg-gray-800 border-gray-600 rounded p-2 text-white" placeholder="0" />
-            </div>
+          <div>
+            <label className="text-[10px] text-gray-400">F. Overhang (ft)</label>
+            <input type="number" value={overhangFront} onChange={e => setOverhangFront(e.target.value)} className="w-full bg-gray-800 border border-gray-600 rounded p-1.5 text-sm text-white" placeholder="0" />
           </div>
         </div>
 
-        {/* Toggles */}
-        <div className="space-y-4 col-span-1 md:col-span-2 lg:col-span-1">
-          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider border-b border-gray-700 pb-1">Configuration</h3>
-
-          <label className="flex items-start gap-3 p-3 rounded-lg border border-gray-700 bg-gray-800/30 cursor-pointer hover:border-gray-500 transition-colors">
-            <input type="checkbox" checked={divisible} onChange={e => setDivisible(e.target.checked)} className="mt-1 w-4 h-4 rounded bg-gray-700 border-gray-500 text-orange-500 focus:ring-orange-500" />
-            <div>
-              <div className="text-sm font-medium text-gray-200">Divisible Load?</div>
-              <div className="text-xs text-gray-500">Can the item be broken down or separated?</div>
-            </div>
+        {/* Row 3: Config */}
+        <div className="grid grid-cols-2 gap-2">
+          <label className="flex items-center gap-2 p-2 rounded border border-gray-700 bg-gray-800/50 cursor-pointer hover:border-orange-500/50">
+            <input type="checkbox" checked={divisible} onChange={e => setDivisible(e.target.checked)} className="rounded bg-gray-900 border-gray-600 text-orange-500" />
+            <span className="text-xs text-gray-300">Divisible Load</span>
           </label>
-
-          <label className="flex items-start gap-3 p-3 rounded-lg border border-gray-700 bg-gray-800/30 cursor-pointer hover:border-gray-500 transition-colors">
-            <input type="checkbox" checked={westCoast} onChange={e => setWestCoast(e.target.checked)} className="mt-1 w-4 h-4 rounded bg-gray-700 border-gray-500 text-blue-500 focus:ring-blue-500" />
-            <div>
-              <div className="text-sm font-medium text-gray-200">West Coast Route?</div>
-              <div className="text-xs text-gray-500">Apply higher height limits (14' vs 13'6")</div>
-            </div>
+          <label className="flex items-center gap-2 p-2 rounded border border-gray-700 bg-gray-800/50 cursor-pointer hover:border-blue-500/50">
+            <input type="checkbox" checked={westCoast} onChange={e => setWestCoast(e.target.checked)} className="rounded bg-gray-900 border-gray-600 text-blue-500" />
+            <span className="text-xs text-gray-300">West Coast</span>
           </label>
         </div>
 
-        {/* Results */}
-        <div className="space-y-4 col-span-1 md:col-span-2 lg:col-span-1 bg-gray-800/50 p-4 rounded-xl border border-gray-700 flex flex-col justify-center text-center">
-          {!status ? (
-            <div className="text-gray-500">
-              <div className="text-3xl mb-2">⚖️</div>
-              <div>Enter details to check calculation</div>
+        {/* Results Area */}
+        {status ? (
+          <div className={`mt-2 p-3 rounded-xl border ${status === 'legal' ? 'bg-green-900/20 border-green-500/30' : status === 'warning' ? 'bg-yellow-900/20 border-yellow-500/30' : 'bg-red-900/20 border-red-500/30'}`}>
+            <div className={`text-lg font-bold mb-1 ${status === 'legal' ? 'text-green-400' : status === 'warning' ? 'text-yellow-400' : 'text-red-400'}`}>
+              {status === 'legal' ? '✅ LEGAL' : status === 'warning' ? '⚠️ PERMIT REQ' : '⛔ ILLEGAL'}
             </div>
-          ) : (
-            <div className={`space-y-3 animate-in fade-in zoom-in duration-300`}>
-              <div className={`text-xl font-bold p-3 rounded-lg border ${status === 'legal' ? 'bg-green-900/30 border-green-500 text-green-400' :
-                  status === 'warning' ? 'bg-yellow-900/30 border-yellow-500 text-yellow-500' :
-                    'bg-red-900/40 border-red-500 text-red-500'
-                }`}>
-                {status === 'legal' && '✅ LEGAL'}
-                {status === 'warning' && '⚠️ PERMIT REQUIRED'}
-                {status === 'illegal' && '⛔ ILLEGAL'}
-              </div>
-
-              <div className="text-xs font-mono text-left text-gray-300 bg-gray-900 p-2 rounded border border-gray-700 h-32 overflow-y-auto">
-                <div className="font-bold text-gray-400 mb-1">ANALYSIS:</div>
-                {message}
-              </div>
-
-              <div className="text-sm">
-                <div className="text-gray-400 text-xs uppercase mb-1">Recommended Equipment</div>
-                <div className="font-bold text-blue-300">{equipment}</div>
-              </div>
+            <div className="text-xs text-gray-400 mb-2">{message}</div>
+            <div className="text-xs font-bold text-blue-300 bg-blue-900/20 p-2 rounded">
+              Rec: {equipment}
             </div>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="mt-2 p-6 rounded-xl border border-dashed border-gray-700 text-center text-gray-600">
+            Enter details to check
+          </div>
+        )}
       </div>
     </div>
   );
