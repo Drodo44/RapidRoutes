@@ -419,6 +419,28 @@ export default function LanesPage() {
           </h1>
           <p className="text-secondary mt-1">Create and manage your freight lanes</p>
         </div>
+
+        {/* Admin Lane Filter Toggle */}
+        <div className="bg-white/5 p-1 rounded-lg border border-white/5 flex gap-1">
+          <button
+            onClick={() => setShowMyLanesOnly(true)}
+            className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${showMyLanesOnly
+                ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 shadow-[0_0_10px_rgba(6,182,212,0.15)]'
+                : 'text-gray-400 hover:text-white hover:bg-white/5'
+              }`}
+          >
+            My Lanes
+          </button>
+          <button
+            onClick={() => setShowMyLanesOnly(false)}
+            className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${!showMyLanesOnly
+                ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 shadow-[0_0_10px_rgba(6,182,212,0.15)]'
+                : 'text-gray-400 hover:text-white hover:bg-white/5'
+              }`}
+          >
+            All RapidRoutes User Lanes
+          </button>
+        </div>
       </div>
 
       {/* Lane Constructor Panel - Premium Enterprise Interface */}

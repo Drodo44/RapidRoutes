@@ -280,7 +280,7 @@ export default function IntelligentLaneCard({
                         src={mapSrc}
                         width="100%"
                         height="100%"
-                        style={{ border: 0, filter: 'invert(90%) hue-rotate(180deg) contrast(85%) grayscale(20%)' }}
+                        style={{ border: 0 }}
                         allowFullScreen=""
                         loading="lazy"
                         referrerPolicy="no-referrer-when-downgrade"
