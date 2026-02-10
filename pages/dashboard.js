@@ -73,7 +73,7 @@ function useDashboardStats() {
     postedLanes: 0,
     failedLanes: 0,
     coveredLanes: 0,
-    avgMargin: 0
+    avgMargin: null
   });
 
   useEffect(() => {
@@ -81,28 +81,57 @@ function useDashboardStats() {
       if (!session || !user || !supabase) return;
 
       try {
-        // Fetch user's lanes
+        // Fetch lane statuses for posted/failed counts
         const { data: lanes, error } = await supabase
           .from('lanes')
-          .select('id, lane_status, rate, covered_rate')
+          .select('id, lane_status')
           .eq('user_id', user.id);
 
         if (error) throw error;
 
         const posted = lanes?.filter(l => l.lane_status === 'current' || l.lane_status === 'posted').length || 0;
         const failed = lanes?.filter(l => l.lane_status === 'failed').length || 0;
-        const covered = lanes?.filter(l => l.lane_status === 'covered').length || 0;
+        
+        // Covered (This week): canonical source is carrier_coverage.
+        const currentOrgId =
+          user?.organization_id ||
+          user?.user_metadata?.organization_id ||
+          user?.app_metadata?.organization_id ||
+          null;
+        const orgId = typeof currentOrgId === 'string' ? currentOrgId : currentOrgId?.id;
 
-        // Calculate average margin from covered lanes
-        const coveredLanes = lanes?.filter(l => l.lane_status === 'covered' && l.rate && l.covered_rate) || [];
-        const totalMargin = coveredLanes.reduce((sum, l) => sum + (l.rate - l.covered_rate), 0);
-        const avgMargin = coveredLanes.length > 0 ? Math.round(totalMargin / coveredLanes.length) : 0;
+        // Equivalent to: covered_at >= date_trunc('week', now())
+        const weekStart = new Date();
+        const daysSinceMonday = (weekStart.getUTCDay() + 6) % 7;
+        weekStart.setUTCDate(weekStart.getUTCDate() - daysSinceMonday);
+        weekStart.setUTCHours(0, 0, 0, 0);
+
+        const { data: coverageRows, error: coverageError } = orgId
+          ? await supabase
+              .from('carrier_coverage')
+              .select('lane_id')
+              .gte('covered_at', weekStart.toISOString())
+              .not('lane_id', 'is', null)
+              .eq('organization_id', orgId)
+          : { data: [], error: null };
+
+        if (coverageError) throw coverageError;
+
+        const coveredThisWeek = new Set((coverageRows || []).map(r => r.lane_id).filter(Boolean)).size;
+
+        if (process.env.NODE_ENV !== 'production') {
+          const unexpectedStatuses = [...new Set((lanes || []).map((l) => l.lane_status).filter(Boolean))]
+            .filter((status) => !['current', 'posted', 'failed', 'covered', 'archive'].includes(String(status)));
+          if (unexpectedStatuses.length > 0) {
+            console.warn('Unexpected lane_status values encountered in dashboard stats:', unexpectedStatuses);
+          }
+        }
 
         setStats({
           postedLanes: posted,
           failedLanes: failed,
-          coveredLanes: covered,
-          avgMargin: avgMargin
+          coveredLanes: coveredThisWeek,
+          avgMargin: null
         });
       } catch (error) {
         console.error('Error fetching stats:', error);
@@ -151,37 +180,81 @@ function useTopCarriers() {
   const [carriers, setCarriers] = useState([]);
 
   useEffect(() => {
+    const isMissingColumnError = (error) => {
+      const message = String(error?.message || error?.details || '').toLowerCase();
+      return message.includes('column') && message.includes('does not exist');
+    };
+
     const fetchCarriers = async () => {
       if (!session || !user || !supabase) return;
 
       try {
-        // Get covered lanes with carrier info
-        const { data, error } = await supabase
-          .from('lanes')
-          .select('covered_by_mc, covered_by_email, covered_rate, rate')
-          .eq('user_id', user.id)
-          .eq('lane_status', 'covered')
-          .not('covered_by_mc', 'is', null)
-          .limit(20);
-
-        if (error) throw error;
-
-        // Aggregate carriers
         const carrierMap = {};
-        (data || []).forEach(lane => {
-          const mc = lane.covered_by_mc;
+        const upsertCarrier = (mc, email = '') => {
+          if (!mc) return null;
           if (!carrierMap[mc]) {
             carrierMap[mc] = {
-              mc: mc,
-              email: lane.covered_by_email || '',
+              mc,
+              email: email || '',
               loads: 0,
-              totalMargin: 0
+              totalMargin: null
             };
+          } else if (!carrierMap[mc].email && email) {
+            carrierMap[mc].email = email;
           }
-          carrierMap[mc].loads++;
-          if (lane.rate && lane.covered_rate) {
-            carrierMap[mc].totalMargin += (lane.rate - lane.covered_rate);
+          return carrierMap[mc];
+        };
+
+        // Preferred source: carrier_coverage (canonical)
+        const { data: coverageData, error: coverageError } = await supabase
+          .from('carrier_coverage')
+          .select('lane_id, mc_number, carrier_email, rate_covered')
+          .eq('user_id', user.id)
+          .order('covered_at', { ascending: false })
+          .limit(250);
+
+        let usableCoverage = [];
+        if (coverageError) {
+          if (!coverageError.message?.includes('does not exist')) {
+            throw coverageError;
           }
+        } else {
+          usableCoverage = coverageData || [];
+        }
+
+        usableCoverage.forEach((entry) => {
+          const carrier = upsertCarrier(entry.mc_number, entry.carrier_email || '');
+          if (!carrier) return;
+          carrier.loads += 1;
+        });
+
+        // Offer activity feeds Top Carriers analytics (best effort for mixed schemas)
+        let offers = [];
+        let { data: offersWithEmail, error: offersError } = await supabase
+          .from('carrier_offers')
+          .select('mc_number, carrier_email')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(250);
+
+        if (offersError && isMissingColumnError(offersError)) {
+          ({ data: offersWithEmail, error: offersError } = await supabase
+            .from('carrier_offers')
+            .select('mc_number')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(250));
+        }
+
+        if (offersError && !offersError.message?.includes('does not exist')) {
+          throw offersError;
+        }
+
+        offers = offersWithEmail || [];
+        offers.forEach((offer) => {
+          const carrier = upsertCarrier(offer.mc_number, offer.carrier_email || '');
+          if (!carrier) return;
+          carrier.loads += 1;
         });
 
         const carrierList = Object.values(carrierMap)
@@ -298,7 +371,11 @@ function TopCarriersPanel({ carriers }) {
             </div>
             <div className="carrier-stats">
               <div className="carrier-loads">{carrier.loads} loads</div>
-              <div className="carrier-margin">${carrier.totalMargin.toLocaleString()}</div>
+              <div className="carrier-margin">
+                {typeof carrier.totalMargin === 'number'
+                  ? `$${carrier.totalMargin.toLocaleString()}`
+                  : 'N/A'}
+              </div>
             </div>
           </div>
         ))}
@@ -370,7 +447,7 @@ function LaneTicker({ lanes }) {
               <span className="ticker-rate">${lane.rate?.toLocaleString() || '---'}</span>
               <span className="ticker-separator">|</span>
               <span className={`ticker-status ticker-status-${lane.lane_status || 'posted'}`}>
-                {lane.lane_status === 'covered' ? 'Covered' : lane.lane_status === 'failed' ? 'Failed' : 'Posted'}
+                {lane.lane_status === 'covered' || lane.lane_status === 'archive' ? 'Covered' : lane.lane_status === 'failed' ? 'Failed' : 'Posted'}
               </span>
             </span>
           ))}
@@ -387,7 +464,7 @@ function LaneTicker({ lanes }) {
               <span className="ticker-rate">${lane.rate?.toLocaleString() || '---'}</span>
               <span className="ticker-separator">|</span>
               <span className={`ticker-status ticker-status-${lane.lane_status || 'posted'}`}>
-                {lane.lane_status === 'covered' ? 'Covered' : lane.lane_status === 'failed' ? 'Failed' : 'Posted'}
+                {lane.lane_status === 'covered' || lane.lane_status === 'archive' ? 'Covered' : lane.lane_status === 'failed' ? 'Failed' : 'Posted'}
               </span>
             </span>
           ))}
@@ -539,9 +616,9 @@ export default function Dashboard() {
             />
             <StatCard
               label="Avg Margin"
-              value={`$${(stats?.avgMargin ?? 0).toLocaleString()}`}
-              trend={(stats?.avgMargin ?? 0) > 0 ? { positive: true, text: 'Per load' } : null}
-              type={(stats?.avgMargin ?? 0) > 0 ? "success" : "default"}
+              value={typeof stats?.avgMargin === 'number' ? `$${stats.avgMargin.toLocaleString()}` : 'N/A'}
+              trend={typeof stats?.avgMargin === 'number' && stats.avgMargin > 0 ? { positive: true, text: 'Per load' } : null}
+              type={typeof stats?.avgMargin === 'number' && stats.avgMargin > 0 ? "success" : "default"}
               icon="💰"
             />
           </div>

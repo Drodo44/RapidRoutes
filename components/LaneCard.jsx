@@ -32,6 +32,9 @@ export default function LaneCard({ lane, onEdit, onDelete, onArchive, onRestore,
   };
 
   const estRPM = calculateRPM();
+  const pickupDisplay = lane.pickup_latest && lane.pickup_latest !== lane.pickup_earliest
+    ? `${formatDate(lane.pickup_earliest)} - ${formatDate(lane.pickup_latest)}`
+    : formatDate(lane.pickup_earliest);
 
   const handlePostClick = async (e) => {
     e.stopPropagation();
@@ -114,7 +117,7 @@ export default function LaneCard({ lane, onEdit, onDelete, onArchive, onRestore,
             <div className="text-[10px] uppercase tracking-wider text-secondary font-semibold mb-1">Pickup Date</div>
             <div className="text-sm font-medium text-white flex items-center gap-2">
               <span className="text-cyan-400/70">📅</span>
-              {formatDate(lane.pickup_earliest)}
+              {pickupDisplay}
             </div>
           </div>
           <div>

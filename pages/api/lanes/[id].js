@@ -2,6 +2,71 @@
 import { validateApiAuth } from '../../../middleware/auth.unified';
 import { fetchLaneById } from '../../../services/laneService.js';
 
+function parseRequestBody(body) {
+  if (!body) return {};
+  if (typeof body === 'string') {
+    try {
+      return JSON.parse(body);
+    } catch {
+      return { __parseError: true };
+    }
+  }
+  if (typeof body === 'object') return body;
+  return {};
+}
+
+function extractMissingLaneColumn(error) {
+  const message = String(error?.message || '');
+  const match =
+    message.match(/column ["']?([a-zA-Z0-9_]+)["']? of relation ["']?lanes["']? does not exist/i) ||
+    message.match(/column ["']?([a-zA-Z0-9_]+)["']? does not exist/i);
+  return match ? match[1] : null;
+}
+
+async function updateLaneWithFallback(supabaseAdmin, laneId, initialPayload) {
+  let payload = { ...initialPayload };
+  let attempts = 0;
+
+  while (attempts < 6) {
+    const result = await supabaseAdmin
+      .from('lanes')
+      .update(payload)
+      .eq('id', laneId)
+      .select('*');
+
+    if (!result.error) return result;
+
+    const message = String(result.error?.message || '');
+    let changed = false;
+
+    if ((message.includes('destination_city') || message.includes('destination_state')) &&
+      (payload.destination_city !== undefined || payload.destination_state !== undefined)) {
+      payload.dest_city = payload.destination_city;
+      payload.dest_state = payload.destination_state;
+      delete payload.destination_city;
+      delete payload.destination_state;
+      changed = true;
+    }
+
+    if (message.includes('lane_status') && payload.lane_status !== undefined) {
+      payload.status = payload.lane_status;
+      delete payload.lane_status;
+      changed = true;
+    }
+
+    const missingColumn = extractMissingLaneColumn(result.error);
+    if (missingColumn && Object.prototype.hasOwnProperty.call(payload, missingColumn)) {
+      delete payload[missingColumn];
+      changed = true;
+    }
+
+    if (!changed) return result;
+    attempts += 1;
+  }
+
+  return { data: null, error: { message: 'Failed to update lane after fallback attempts' } };
+}
+
 export default async function handler(req, res) {
   let supabaseAdmin;
   try {
@@ -40,7 +105,10 @@ export default async function handler(req, res) {
 
     // PUT/PATCH - Update lane
     if (req.method === 'PUT' || req.method === 'PATCH') {
-      const updates = req.body;
+      const updates = parseRequestBody(req.body);
+      if (updates.__parseError) {
+        return res.status(400).json({ error: 'Invalid JSON body' });
+      }
       
       if (!updates || Object.keys(updates).length === 0) {
         return res.status(400).json({ error: 'Update data required' });
@@ -122,15 +190,11 @@ export default async function handler(req, res) {
         filteredUpdates
       });
 
-      const { data, error } = await supabaseAdmin
-        .from('lanes')
-        .update(filteredUpdates)
-        .eq('id', id)
-        .select('*');
+      const { data, error } = await updateLaneWithFallback(supabaseAdmin, id, filteredUpdates);
 
       if (error) {
         console.error('Failed to update lane', error);
-        return res.status(500).json({ error: 'Failed to update lane', details: error.message });
+        return res.status(Number(error?.status) || 500).json({ error: error?.message || 'Failed to update lane' });
       }
       if (!data || data.length === 0) {
         return res.status(404).json({ error: 'Lane not found after update' });
@@ -169,6 +233,6 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (error) {
     console.error('Lane API error:', error);
-    return res.status(500).json({ error: error.message || 'Internal server error' });
+    return res.status(Number(error?.status) || 500).json({ error: error?.message || 'Internal server error' });
   }
 }

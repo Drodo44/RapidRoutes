@@ -1,9 +1,17 @@
 // components/EquipmentPicker.jsx - Premium Design System
 import { useEffect, useMemo, useState, useRef } from 'react';
 import supabase from '../utils/supabaseClient';
+import { equipmentOptions } from '../utils/equipmentOptions';
 
 export default function EquipmentPicker({ id = 'equipment', label = 'Equipment Type', code, onChange, required = true, className = '', inputClassName = '' }) {
-  const [list, setList] = useState([]);
+  const fallbackList = useMemo(
+    () => (equipmentOptions || []).map((option) => ({
+      code: String(option.value || '').toUpperCase(),
+      label: option.label || String(option.value || '').toUpperCase()
+    })).filter((item) => item.code),
+    []
+  );
+  const [list, setList] = useState(fallbackList);
   const [inputValue, setInputValue] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -42,13 +50,31 @@ export default function EquipmentPicker({ id = 'equipment', label = 'Equipment T
         .select('code,label')
         .order('label', { ascending: true });
       if (!mounted) return;
-      if (error) { console.error(error); setList([]); }
-      else setList(data || []);
+      if (error) {
+        console.error(error);
+        setList(fallbackList);
+        return;
+      }
+
+      const merged = new Map();
+      for (const item of fallbackList) {
+        merged.set(item.code, item);
+      }
+      for (const item of data || []) {
+        const normalizedCode = String(item?.code || '').toUpperCase();
+        if (!normalizedCode) continue;
+        merged.set(normalizedCode, {
+          code: normalizedCode,
+          label: item?.label || merged.get(normalizedCode)?.label || normalizedCode
+        });
+      }
+
+      setList(Array.from(merged.values()).sort((a, b) => a.label.localeCompare(b.label)));
     }
 
     ensureSeedAndLoad();
     return () => { mounted = false; };
-  }, []);
+  }, [fallbackList]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -66,7 +92,7 @@ export default function EquipmentPicker({ id = 'equipment', label = 'Equipment T
   // Filter equipment list - supports abbreviations
   const filtered = useMemo(() => {
     const s = inputValue.trim().toLowerCase();
-    if (!s) return list.slice(0, 12);
+    if (!s) return list;
 
     // Prioritize exact code matches first
     const exactCodeMatches = list.filter(r =>
@@ -94,7 +120,7 @@ export default function EquipmentPicker({ id = 'equipment', label = 'Equipment T
       !labelMatches.includes(r)
     );
 
-    return [...exactCodeMatches, ...codeStartsWithMatches, ...labelMatches, ...otherCodeMatches].slice(0, 12);
+    return [...exactCodeMatches, ...codeStartsWithMatches, ...labelMatches, ...otherCodeMatches];
   }, [list, inputValue]);
 
   // Keyboard navigation handler

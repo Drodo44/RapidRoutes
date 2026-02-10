@@ -5,6 +5,139 @@ import { getLanes } from '@/lib/laneService';
 import { assertApiAuth, isInternalBypass } from '@/lib/auth';
 import { getUserOrganizationId } from '@/lib/organizationHelper';
 
+const ALLOWED_LANE_COLUMNS = new Set([
+  'origin_city', 'origin_state', 'origin_zip', 'origin_zip5',
+  'destination_city', 'destination_state', 'dest_city', 'dest_state', 'dest_zip', 'dest_zip5',
+  'equipment_code', 'length_ft', 'full_partial',
+  'pickup_earliest', 'pickup_latest',
+  'randomize_weight', 'weight_lbs', 'weight_min', 'weight_max',
+  'rate', 'randomize_rate', 'rate_min', 'rate_max',
+  'comment', 'commodity',
+  'lane_status', 'status', 'reference_id',
+  'created_at', 'created_by', 'user_id', 'organization_id',
+  'origin_latitude', 'origin_longitude', 'dest_latitude', 'dest_longitude'
+]);
+
+function parseRequestBody(body) {
+  if (!body) return {};
+  if (typeof body === 'string') {
+    try {
+      return JSON.parse(body);
+    } catch {
+      return { __parseError: true };
+    }
+  }
+  if (typeof body === 'object') return body;
+  return {};
+}
+
+function toNumberOrNull(value) {
+  if (value === '' || value === null || value === undefined) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function sanitizeLanePayload(payload = {}) {
+  const sanitized = {};
+  for (const [key, value] of Object.entries(payload)) {
+    if (!ALLOWED_LANE_COLUMNS.has(key)) continue;
+    if (value === undefined) continue;
+    sanitized[key] = value;
+  }
+  return sanitized;
+}
+
+function extractMissingLaneColumn(error) {
+  const message = String(error?.message || '');
+  const match =
+    message.match(/column ["']?([a-zA-Z0-9_]+)["']? of relation ["']?lanes["']? does not exist/i) ||
+    message.match(/column ["']?([a-zA-Z0-9_]+)["']? does not exist/i);
+  return match ? match[1] : null;
+}
+
+async function insertLaneWithFallback(supabaseAdmin, initialPayload) {
+  let payload = sanitizeLanePayload(initialPayload);
+  let attempts = 0;
+
+  while (attempts < 6) {
+    const result = await supabaseAdmin.from('lanes').insert([payload]).select();
+    if (!result.error) return { ...result, payload };
+
+    const message = String(result.error?.message || '');
+    let changed = false;
+
+    if ((message.includes('destination_city') || message.includes('destination_state')) &&
+      (payload.destination_city !== undefined || payload.destination_state !== undefined)) {
+      payload.dest_city = payload.destination_city;
+      payload.dest_state = payload.destination_state;
+      delete payload.destination_city;
+      delete payload.destination_state;
+      changed = true;
+    }
+
+    if (message.includes('lane_status') && payload.lane_status !== undefined) {
+      payload.status = payload.lane_status;
+      delete payload.lane_status;
+      changed = true;
+    }
+
+    const missingColumn = extractMissingLaneColumn(result.error);
+    if (missingColumn && Object.prototype.hasOwnProperty.call(payload, missingColumn)) {
+      delete payload[missingColumn];
+      changed = true;
+    }
+
+    if (!changed) return { ...result, payload };
+    attempts += 1;
+  }
+
+  return { data: null, error: { message: 'Failed to insert lane after fallback attempts' }, payload };
+}
+
+async function updateLaneWithFallback(supabaseAdmin, laneId, initialPayload) {
+  let payload = sanitizeLanePayload(initialPayload);
+  let attempts = 0;
+
+  while (attempts < 6) {
+    const result = await supabaseAdmin
+      .from('lanes')
+      .update(payload)
+      .eq('id', laneId)
+      .select('*');
+
+    if (!result.error) return { ...result, payload };
+
+    const message = String(result.error?.message || '');
+    let changed = false;
+
+    if ((message.includes('destination_city') || message.includes('destination_state')) &&
+      (payload.destination_city !== undefined || payload.destination_state !== undefined)) {
+      payload.dest_city = payload.destination_city;
+      payload.dest_state = payload.destination_state;
+      delete payload.destination_city;
+      delete payload.destination_state;
+      changed = true;
+    }
+
+    if (message.includes('lane_status') && payload.lane_status !== undefined) {
+      payload.status = payload.lane_status;
+      delete payload.lane_status;
+      changed = true;
+    }
+
+    const missingColumn = extractMissingLaneColumn(result.error);
+    if (missingColumn && Object.prototype.hasOwnProperty.call(payload, missingColumn)) {
+      delete payload[missingColumn];
+      changed = true;
+    }
+
+    if (!changed) return { ...result, payload };
+    attempts += 1;
+  }
+
+  return { data: null, error: { message: 'Failed to update lane after fallback attempts' }, payload };
+}
+
 export default async function handler(req, res) {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -90,7 +223,19 @@ export default async function handler(req, res) {
       }
 
       console.log('POST request received for lane creation');
-      const payload = req.body;
+      const payload = parseRequestBody(req.body);
+      if (payload.__parseError) {
+        return res.status(400).json({ error: 'Invalid JSON body' });
+      }
+
+      const randomizeWeight = payload.randomize_weight === true || payload.randomize_weight === 'true' || payload.randomize_weight === 1 || payload.randomize_weight === '1';
+      const weightLbs = toNumberOrNull(payload.weight_lbs);
+      const weightMin = toNumberOrNull(payload.weight_min);
+      const weightMax = toNumberOrNull(payload.weight_max);
+      const randomizeRate = payload.randomize_rate === true || payload.randomize_rate === 'true' || payload.randomize_rate === 1 || payload.randomize_rate === '1';
+      const rate = toNumberOrNull(payload.rate);
+      const rateMin = toNumberOrNull(payload.rate_min);
+      const rateMax = toNumberOrNull(payload.rate_max);
 
       // Check for destination data across all possible field variants
       const hasDestinationData = 
@@ -104,36 +249,27 @@ export default async function handler(req, res) {
       // Validate required fields: origin + equipment + pickup date + at least one destination field
       if (!payload.origin_city || !payload.origin_state || !hasDestinationData || 
           !payload.equipment_code || !payload.pickup_earliest) {
-        return res.status(400).json({ 
-          error: 'Missing required fields',
-          details: {
-            has_origin: !!payload.origin_city && !!payload.origin_state,
-            has_destination: !!hasDestinationData,
-            has_equipment: !!payload.equipment_code,
-            has_pickup_date: !!payload.pickup_earliest,
-            // Include detailed field presence information for debugging
-            field_status: {
-              origin_city: !!payload.origin_city,
-              origin_state: !!payload.origin_state,
-              destination_city: !!payload.destination_city,
-              destination_state: !!payload.destination_state,
-              dest_city: !!payload.dest_city,
-              dest_state: !!payload.dest_state,
-              destCity: !!payload.destCity,
-              destState: !!payload.destState
-            }
-          }
-        });
+        return res.status(400).json({ error: 'Missing required fields: origin, destination, equipment, and pickup date are required' });
       }
 
-      // Validate weight requirement
-      if (!payload.randomize_weight && (!payload.weight_lbs || payload.weight_lbs <= 0)) {
-        return res.status(400).json({ error: 'Weight is required when randomize is OFF' });
+      // Optional-field tolerant validation: only reject malformed values.
+      if (!randomizeWeight && weightLbs !== null && weightLbs <= 0) {
+        return res.status(400).json({ error: 'weight_lbs must be greater than 0 when provided' });
       }
 
-      if (payload.randomize_weight) {
-        if (!payload.weight_min || !payload.weight_max || payload.weight_min <= 0 || payload.weight_max <= 0 || payload.weight_min > payload.weight_max) {
+      if (randomizeWeight && (weightMin !== null || weightMax !== null)) {
+        if (weightMin === null || weightMax === null || weightMin <= 0 || weightMax <= 0 || weightMin > weightMax) {
           return res.status(400).json({ error: 'Invalid weight range for randomization' });
+        }
+      }
+
+      if (!randomizeRate && rate !== null && rate < 0) {
+        return res.status(400).json({ error: 'rate must be 0 or greater when provided' });
+      }
+
+      if (randomizeRate && (rateMin !== null || rateMax !== null)) {
+        if (rateMin === null || rateMax === null || rateMin < 0 || rateMax < 0 || rateMin > rateMax) {
+          return res.status(400).json({ error: 'Invalid rate range for randomization' });
         }
       }
 
@@ -171,8 +307,7 @@ export default async function handler(req, res) {
         destCity, 
         destState, 
         destination_city: payloadDestinationCity, 
-        destination_state: payloadDestinationState,
-        ...payloadWithoutDestFields 
+        destination_state: payloadDestinationState
       } = payload;
       
       // Map all destination variations to the canonical destination_* fields
@@ -305,14 +440,28 @@ export default async function handler(req, res) {
       
       // Get user's organization_id for team-based data isolation
       const organizationId = await getUserOrganizationId(auth.user.id);
+      const effectiveOrganizationId = organizationId || auth.user.id;
       if (!organizationId) {
-        console.error('[API] User has no organization_id:', auth.user.id);
-        return res.status(500).json({ error: 'User profile not properly configured' });
+        console.warn('[API] User has no organization_id, using user.id fallback for lane scope:', auth.user.id);
       }
       
       // Create the final lane object with standardized fields only
-      const lane = {
-        ...payloadWithoutDestFields, // Base fields excluding any dest_* variants
+      const lane = sanitizeLanePayload({
+        equipment_code: String(payload.equipment_code || '').toUpperCase(),
+        length_ft: toNumberOrNull(payload.length_ft),
+        full_partial: payload.full_partial === 'partial' ? 'partial' : 'full',
+        randomize_weight: randomizeWeight,
+        weight_lbs: weightLbs,
+        weight_min: randomizeWeight ? weightMin : null,
+        weight_max: randomizeWeight ? weightMax : null,
+        randomize_rate: randomizeRate,
+        rate,
+        rate_min: randomizeRate ? rateMin : null,
+        rate_max: randomizeRate ? rateMax : null,
+        pickup_earliest: payload.pickup_earliest || null,
+        pickup_latest: payload.pickup_latest || null,
+        comment: payload.comment || null,
+        commodity: payload.commodity || null,
         
         // Ensure ZIP codes are populated from DB lookup if missing in payload
         // This prevents constraint violations when frontend sends null but DB has the data
@@ -326,7 +475,7 @@ export default async function handler(req, res) {
         created_at: new Date().toISOString(),
         created_by: auth.user.id,
         user_id: auth.user.id,
-        organization_id: organizationId, // Team ownership
+        organization_id: effectiveOrganizationId, // Team ownership
         // Store the CORRECTED city names in the database
         origin_city: originCityToLookup,
         origin_state: originStateToLookup,
@@ -337,7 +486,7 @@ export default async function handler(req, res) {
         origin_longitude: originLon,
         dest_latitude: destLat,
         dest_longitude: destLon
-      };
+      });
       
       // Detailed logging of the mapping process
       console.log('[API] Destination field mapping:', {
@@ -356,11 +505,10 @@ export default async function handler(req, res) {
       });
       console.log('[API] Auth user id:', auth.user.id, 'Inserting lane:', lane);
 
-      // Insert with admin client and get inserted row
-      const { data: insertedLanes, error: insertError } = await supabaseAdmin
-        .from('lanes')
-        .insert([lane])
-        .select();
+      // Insert with schema-safe fallback (drops unknown columns when needed)
+      const insertResult = await insertLaneWithFallback(supabaseAdmin, lane);
+      const insertedLanes = insertResult.data;
+      const insertError = insertResult.error;
 
       if (insertError) {
         console.error('❌ Lane creation error:', insertError);
@@ -370,11 +518,8 @@ export default async function handler(req, res) {
           hint: insertError.hint,
           code: insertError.code
         });
-        return res.status(500).json({ 
-          error: 'Failed to create lane',
-          details: insertError.message,
-          hint: insertError.hint
-        });
+        const insertStatus = Number(insertError?.status) || (insertError?.code === '42703' ? 400 : 500);
+        return res.status(insertStatus).json({ error: insertError.message || 'Failed to create lane' });
       }
       const insertedLane = Array.isArray(insertedLanes) ? insertedLanes[0] : insertedLanes;
       console.log('[API] Inserted lane:', insertedLane);
@@ -405,6 +550,11 @@ export default async function handler(req, res) {
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
+      const parsedBody = parseRequestBody(req.body);
+      if (parsedBody.__parseError) {
+        return res.status(400).json({ error: 'Invalid JSON body' });
+      }
+
       const { 
         id, 
         dest_city, 
@@ -414,16 +564,16 @@ export default async function handler(req, res) {
         destination_city: updatesDestinationCity, 
         destination_state: updatesDestinationState, 
         ...updatesWithoutDestFields 
-      } = req.body;
+      } = parsedBody;
       
       if (!id) {
         return res.status(400).json({ error: 'Lane ID required' });
       }
       
       // Create a clean updates object without any dest_* variants
-      const updates = {
+      const updates = sanitizeLanePayload({
         ...updatesWithoutDestFields
-      };
+      });
       
       // Map all destination field variants to the canonical destination_* fields
       // Using nullish coalescing to try each possible source in priority order
@@ -467,15 +617,13 @@ export default async function handler(req, res) {
         return res.status(403).json({ error: 'Not authorized to modify this lane' });
       }
       
-      const { data, error } = await supabaseAdmin
-        .from('lanes')
-        .update(updates)
-        .eq('id', id)
-        .select('*');
+      const updateResult = await updateLaneWithFallback(supabaseAdmin, id, updates);
+      const data = updateResult.data;
+      const error = updateResult.error;
       
       if (error) {
         console.error('Lane update failed:', error);
-        return res.status(500).json({ error: 'Failed to update lane' });
+        return res.status(Number(error?.status) || 500).json({ error: error?.message || 'Failed to update lane' });
       }
       const updatedLane = Array.isArray(data) ? data[0] : data;
   const laneRecord = await fetchLaneById(updatedLane?.id ?? id, supabaseAdmin);
@@ -534,6 +682,6 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (error) {
     console.error('Lane API error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(Number(error?.status) || 500).json({ error: error?.message || 'Internal server error' });
   }
 }

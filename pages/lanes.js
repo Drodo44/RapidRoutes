@@ -108,6 +108,7 @@ export default function LanesPage() {
   const [randomize, setRandomize] = useState(false);
   const [randMin, setRandMin] = useState('');
   const [randMax, setRandMax] = useState('');
+  const [showWeightRandomModal, setShowWeightRandomModal] = useState(false);
   const [weight, setWeight] = useState('');
   const [rate, setRate] = useState('');
   const [isPosted, setIsPosted] = useState(false);
@@ -223,15 +224,15 @@ export default function LanesPage() {
         length_ft: Number(lengthFt),
         full_partial: fullPartial === 'partial' ? 'partial' : 'full',
         pickup_earliest: pickupEarliest,
-        pickup_latest: pickupLatest,
+        pickup_latest: pickupLatest || null,
         randomize_weight: !!randomize,
-        weight_lbs: randomize ? null : Number(weight),
-        weight_min: randomize ? Number(randMin) || null : null,
-        weight_max: randomize ? Number(randMax) || null : null,
-        rate: rate ? Number(rate) : null,
+        weight_lbs: randomize ? null : (weight === '' ? null : Number(weight)),
+        weight_min: randomize ? (randMin === '' ? null : Number(randMin)) : null,
+        weight_max: randomize ? (randMax === '' ? null : Number(randMax)) : null,
+        rate: rate === '' ? null : Number(rate),
         randomize_rate: !!randomizeRate,
-        rate_min: randomizeRate ? Number(randRateMin) || null : null,
-        rate_max: randomizeRate ? Number(randRateMax) || null : null,
+        rate_min: randomizeRate ? (randRateMin === '' ? null : Number(randRateMin)) : null,
+        rate_max: randomizeRate ? (randRateMax === '' ? null : Number(randRateMax)) : null,
         comment: comment || null,
         commodity: commodity || null
       };
@@ -401,6 +402,33 @@ export default function LanesPage() {
     setDestZip(it.zip || '');
   }
 
+  function handleRandomizeWeightToggle(checked) {
+    setRandomize(checked);
+    if (checked) {
+      setShowWeightRandomModal(true);
+    }
+  }
+
+  function cancelRandomizeWeight() {
+    setShowWeightRandomModal(false);
+    setRandomize(false);
+  }
+
+  function applyRandomizedWeight() {
+    const min = Number(randMin);
+    const max = Number(randMax);
+    if (!Number.isFinite(min) || !Number.isFinite(max) || min <= 0 || max <= 0 || min > max) {
+      toast.error('Enter valid min/max weight bounds');
+      return;
+    }
+
+    const randomValue = Math.floor(Math.random() * (max - min + 1)) + min;
+    setWeight(String(randomValue));
+    setShowWeightRandomModal(false);
+    setRandomize(false);
+    toast.success(`Weight randomized to ${randomValue.toLocaleString()} lbs`);
+  }
+
   // Stats for Sidebar
   const stats = {
     postedLanes: current.length,
@@ -514,12 +542,12 @@ export default function LanesPage() {
                   </div>
 
                   {/* Secondary Fields Group */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                     <div className="space-y-2">
                       <label className="text-xs font-bold text-secondary uppercase tracking-wider ml-1">Equipment</label>
                       <div className="bg-black/30 rounded-xl border border-white/10 focus-within:border-cyan-500/50 transition-colors h-[50px] relative">
                         <EquipmentPicker
-                          value={equipment}
+                          code={equipment}
                           onChange={setEquipment}
                           inputClassName="w-full h-full bg-transparent border-none text-white font-medium focus:ring-0 px-4 text-base"
                         />
@@ -533,6 +561,15 @@ export default function LanesPage() {
                         onChange={(e) => setPickupEarliest(e.target.value)}
                         className="w-full h-[50px] bg-black/30 rounded-xl border border-white/10 text-white px-4 focus:border-cyan-500/50 focus:ring-0 [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert-[1] [&::-webkit-calendar-picker-indicator]:opacity-50 [&::-webkit-calendar-picker-indicator]:hover:opacity-100 cursor-pointer"
                         required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-secondary uppercase tracking-wider ml-1">Latest Pickup Date</label>
+                      <input
+                        type="date"
+                        value={pickupLatest}
+                        onChange={(e) => setPickupLatest(e.target.value)}
+                        className="w-full h-[50px] bg-black/30 rounded-xl border border-white/10 text-white px-4 focus:border-cyan-500/50 focus:ring-0 [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert-[1] [&::-webkit-calendar-picker-indicator]:opacity-50 [&::-webkit-calendar-picker-indicator]:hover:opacity-100 cursor-pointer"
                       />
                     </div>
                     <div className="space-y-2">
@@ -594,7 +631,7 @@ export default function LanesPage() {
                             <input
                               type="checkbox"
                               checked={randomize}
-                              onChange={(e) => setRandomize(e.target.checked)}
+                              onChange={(e) => handleRandomizeWeightToggle(e.target.checked)}
                               className="w-3 h-3 rounded border-white/20 bg-transparent text-cyan-500 focus:ring-0"
                             />
                             <span className="text-[10px] text-cyan-400/80 uppercase tracking-wider">Randomize</span>
@@ -722,8 +759,57 @@ export default function LanesPage() {
         />
       )}
 
+      {showWeightRandomModal && (
+        <div
+          className="fixed inset-0 z-[120] flex items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(5px)' }}
+        >
+          <div className="glass-card" style={{ width: '420px', maxWidth: '92vw' }}>
+            <div className="card-header flex justify-between items-center">
+              <h3>Randomize Weight</h3>
+              <button onClick={cancelRandomizeWeight} className="text-secondary hover:text-white">✕</button>
+            </div>
+            <div className="card-body">
+              <p className="text-secondary text-sm mb-4">Enter low/high bounds (lbs), then apply a random integer weight.</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="form-label">Low</label>
+                  <input
+                    type="number"
+                    className="form-input"
+                    value={randMin}
+                    onChange={(e) => setRandMin(e.target.value)}
+                    placeholder="10000"
+                  />
+                </div>
+                <div>
+                  <label className="form-label">High</label>
+                  <input
+                    type="number"
+                    className="form-input"
+                    value={randMax}
+                    onChange={(e) => setRandMax(e.target.value)}
+                    placeholder="45000"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 mt-6">
+                <button onClick={cancelRandomizeWeight} className="btn btn-ghost">Cancel</button>
+                <button onClick={applyRandomizedWeight} className="btn btn-primary">Apply Weight</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
 
 
     </DashboardLayout>
   );
 }
+
+// EMERGENCY HOTFIX MANUAL TESTS (Lanes):
+// 1) Equipment dropdown: open Equipment field, verify full trailer list is available (Dry Van/Reefer/Flatbed/Step Deck/Conestoga/Power Only/Hotshot/Box Truck/Sprinter, etc), create lane, and confirm save succeeds.
+// 2) Randomize Weight popup: check Randomize under Weight, verify low/high popup appears; enter bounds (e.g., 12000-22000), click Apply Weight, and confirm Weight field is set to an integer within range.
+// 3) Latest Pickup Date: set Pickup Date=today and Latest Pickup Date=tomorrow, create lane, and verify pickup_earliest/pickup_latest persist on reload and are returned in lane payload.
+// 4) API/Supabase errors: create lane and confirm browser console has no new 400s for rest/v1/lanes and /api/lanes returns success (200/201) with a lane object.
