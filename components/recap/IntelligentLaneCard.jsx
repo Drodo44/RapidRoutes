@@ -58,6 +58,8 @@ export default function IntelligentLaneCard({
     const [showCarrierOfferForm, setShowCarrierOfferForm] = useState(false);
     const [carrierOfferMC, setCarrierOfferMC] = useState('');
     const [carrierOfferRate, setCarrierOfferRate] = useState('');
+    const [carrierOfferEmail, setCarrierOfferEmail] = useState('');
+    const [offerActionType, setOfferActionType] = useState('offer'); // 'offer', 'call', 'email'
     const [showEmailModal, setShowEmailModal] = useState(false);
     const [showArchiveModal, setShowArchiveModal] = useState(false);
     const [showGaveBackModal, setShowGaveBackModal] = useState(false);
@@ -90,22 +92,55 @@ export default function IntelligentLaneCard({
     const isCurrent = (lane.lane_status || lane.status) === 'current';
     const isPriority = lane.is_priority || false;
 
-    // Handle carrier offer submission
-    const handleSubmitCarrierOffer = () => {
-        if (carrierOfferMC && carrierOfferRate) {
-            onAddCarrierOffer?.(lane.id, {
-                mc_number: carrierOfferMC,
-                rate_offered: parseFloat(carrierOfferRate),
-            });
+    // Handle carrier offer/call/email submission
+    const handleSubmitCarrierOffer = async () => {
+        if (carrierOfferMC) {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                const logData = {
+                    lane_id: lane.id,
+                    mc_number: carrierOfferMC,
+                    email: carrierOfferEmail,
+                    rate: carrierOfferRate ? parseFloat(carrierOfferRate) : null,
+                    action: offerActionType,
+                    user_id: session?.user?.id
+                };
+
+                const { error } = await supabase.from('carrier_history').insert([logData]);
+                if (error) throw error;
+            } catch (e) {
+                console.error("Log failed", e);
+            }
+
+            if (offerActionType === 'offer') {
+                onAddCarrierOffer?.(lane.id, {
+                    mc_number: carrierOfferMC,
+                    rate_offered: parseFloat(carrierOfferRate),
+                });
+            }
+
             setCarrierOfferMC('');
             setCarrierOfferRate('');
+            setCarrierOfferEmail('');
             setShowCarrierOfferForm(false);
         }
     };
 
     // Handle archive
-    const handleArchive = () => {
+    const handleArchive = async () => {
         if (archiveData.mc && archiveData.rate) {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                await supabase.from('carrier_history').insert([{
+                    lane_id: lane.id,
+                    mc_number: archiveData.mc,
+                    email: archiveData.email,
+                    rate: parseFloat(archiveData.rate),
+                    action: 'covered',
+                    user_id: session?.user?.id
+                }]);
+            } catch (e) { console.error("History log failed", e); }
+
             onArchive?.(lane.id, archiveData);
             setShowArchiveModal(false);
             setArchiveData({ mc: '', email: '', rate: '' });
@@ -113,7 +148,17 @@ export default function IntelligentLaneCard({
     };
 
     // Handle gave back
-    const handleGaveBack = () => {
+    const handleGaveBack = async () => {
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            await supabase.from('carrier_history').insert([{
+                lane_id: lane.id,
+                action: 'gave_back',
+                notes: gaveBackReason,
+                user_id: session?.user?.id
+            }]);
+        } catch (e) { console.error("Gave back log failed", e); }
+
         onGaveBack?.(lane.id, gaveBackReason);
         setShowGaveBackModal(false);
         setGaveBackReason('');
@@ -261,22 +306,34 @@ export default function IntelligentLaneCard({
                         {/* Action Buttons Grid */}
                         <div className="grid grid-cols-2 gap-2">
                             <button
-                                onClick={handleSubmitCarrierOffer}
+                                onClick={() => { setOfferActionType('offer'); setShowCarrierOfferForm(true); }}
                                 className="col-span-2 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs font-bold rounded shadow-lg shadow-cyan-900/20 transition-all"
                             >
                                 Log Offer
                             </button>
                             <button
-                                onClick={() => setShowEmailModal(true)}
-                                className="col-span-2 py-1.5 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 hover:text-purple-300 border border-purple-500/20 text-[10px] font-bold rounded transition-colors flex items-center justify-center gap-2"
+                                onClick={() => { setOfferActionType('call'); setShowCarrierOfferForm(true); }}
+                                className="py-1.5 bg-white/5 hover:bg-white/10 text-white text-[10px] font-bold rounded border border-white/10 transition-all"
                             >
-                                ✉️ Create Email
+                                📞 Log Call
+                            </button>
+                            <button
+                                onClick={() => { setOfferActionType('email'); setShowCarrierOfferForm(true); }}
+                                className="py-1.5 bg-white/5 hover:bg-white/10 text-white text-[10px] font-bold rounded border border-white/10 transition-all"
+                            >
+                                ✉️ Log Email
                             </button>
                             <button onClick={() => setShowArchiveModal(true)} className="py-1.5 border border-white/10 hover:bg-white/5 text-gray-400 hover:text-white text-[10px] font-bold rounded transition-colors">
                                 Archive
                             </button>
                             <button onClick={() => setShowGaveBackModal(true)} className="py-1.5 border border-white/10 hover:bg-white/5 text-gray-400 hover:text-white text-[10px] font-bold rounded transition-colors">
                                 Gave Back
+                            </button>
+                            <button
+                                onClick={() => setShowEmailModal(true)}
+                                className="col-span-2 mt-1 py-1.5 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 hover:text-purple-300 border border-purple-500/20 text-[10px] font-bold rounded transition-colors flex items-center justify-center gap-2"
+                            >
+                                ✨ Auto-Email Generator
                             </button>
                         </div>
                     </div>
@@ -382,25 +439,37 @@ export default function IntelligentLaneCard({
 
             {/* Inline Offer Form (Overlay or below) */}
             {showCarrierOfferForm && (
-                <div className="p-3 bg-blue-900/10 border-t border-blue-500/20 flex gap-2 animate-in slide-in-from-top-2">
-                    <input
-                        value={carrierOfferMC}
-                        onChange={(e) => setCarrierOfferMC(e.target.value)}
-                        placeholder="Carrier MC #"
-                        className="flex-1 bg-black/40 border border-white/10 rounded px-2 py-1 text-xs text-white"
-                    />
-                    <input
-                        value={carrierOfferRate}
-                        onChange={(e) => setCarrierOfferRate(e.target.value)}
-                        placeholder="Rate $"
-                        type="number"
-                        className="w-24 bg-black/40 border border-white/10 rounded px-2 py-1 text-xs text-white"
-                    />
-                    <button onClick={handleSubmitCarrierOffer} className="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs font-bold">
-                        Save
-                    </button>
-                    <button onClick={() => setShowCarrierOfferForm(false)} className="px-2 py-1 bg-transparent hover:bg-white/10 text-gray-400 rounded text-xs">
-                        ✕
+                <div className="p-4 bg-slate-900 border-t border-cyan-500/30 animate-in slide-in-from-top-2">
+                    <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest">Logging {offerActionType}</h4>
+                        <button onClick={() => setShowCarrierOfferForm(false)} className="text-gray-500 hover:text-white">✕</button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 mb-3">
+                        <input
+                            value={carrierOfferMC}
+                            onChange={(e) => setCarrierOfferMC(e.target.value)}
+                            placeholder="Carrier MC #"
+                            className="bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-cyan-500/50"
+                        />
+                        <input
+                            value={carrierOfferEmail}
+                            onChange={(e) => setCarrierOfferEmail(e.target.value)}
+                            placeholder="Carrier Email"
+                            className="bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-cyan-500/50"
+                        />
+                        <input
+                            value={carrierOfferRate}
+                            onChange={(e) => setCarrierOfferRate(e.target.value)}
+                            placeholder="Rate (Optional)"
+                            type="number"
+                            className="col-span-2 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-cyan-500/50"
+                        />
+                    </div>
+                    <button
+                        onClick={handleSubmitCarrierOffer}
+                        className="w-full py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-xs font-bold shadow-lg shadow-cyan-900/20 transition-all"
+                    >
+                        Confirm Log
                     </button>
                 </div>
             )}

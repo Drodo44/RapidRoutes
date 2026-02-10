@@ -22,11 +22,62 @@ export default function Settings() {
     notes: ''
   });
   const [message, setMessage] = useState(null);
+  const [pendingUsers, setPendingUsers] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
 
   useEffect(() => {
     fetchBlacklist();
     fetchCorrections();
+    fetchUsers();
   }, []);
+
+  const fetchUsers = async () => {
+    try {
+      setLoadingUsers(true);
+      const response = await fetch('/api/admin/users');
+      const data = await response.json();
+      if (Array.isArray(data)) {
+        setAllUsers(data);
+        setPendingUsers(data.filter(u => u.status === 'pending'));
+      }
+    } catch (error) {
+      console.error('Failed to fetch users:', error);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const handleApprove = async (userId) => {
+    try {
+      const response = await fetch('/api/admin/approve-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId })
+      });
+      if (!response.ok) throw new Error('Approval failed');
+      showMessage('User approved successfully');
+      fetchUsers();
+    } catch (err) {
+      showMessage(err.message, 'error');
+    }
+  };
+
+  const handleDelink = async (userId) => {
+    if (!confirm('De-link this user from the current team? They will have their own independent team visibility.')) return;
+    try {
+      const response = await fetch('/api/admin/delink-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId })
+      });
+      if (!response.ok) throw new Error('De-linking failed');
+      showMessage('User de-linked successfully');
+      fetchUsers();
+    } catch (err) {
+      showMessage(err.message, 'error');
+    }
+  };
 
   const fetchBlacklist = async () => {
     try {
@@ -179,7 +230,7 @@ export default function Settings() {
 
   return (
     <DashboardLayout title="Settings | RapidRoutes">
-      <div className="space-y-6">
+      <div className="space-y-6 pb-20">
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold text-gray-100">Settings</h1>
@@ -195,6 +246,70 @@ export default function Settings() {
             {message.text}
           </div>
         )}
+
+        {/* User Approval Section - PRIORITY TOP */}
+        <Card className="p-6 border-cyan-500/20 bg-cyan-500/5">
+          <div className="border-b border-white/10 pb-4 mb-6">
+            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+              <span className="text-cyan-400">🛡️</span> User Approval Queue
+            </h2>
+            <p className="text-sm text-gray-400 mt-1">Approve new users and manage team access</p>
+          </div>
+
+          {loadingUsers ? (
+            <div className="py-8 flex justify-center"><Spinner /></div>
+          ) : pendingUsers.length === 0 ? (
+            <div className="py-8 text-center text-gray-500 bg-black/20 rounded-xl border border-dashed border-white/5">
+              No users pending approval
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {pendingUsers.map(user => (
+                <div key={user.id} className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
+                  <div>
+                    <div className="font-bold text-white">{user.email}</div>
+                    <div className="text-xs text-gray-500 uppercase tracking-widest mt-0.5">{user.role || 'New User'}</div>
+                  </div>
+                  <Button onClick={() => handleApprove(user.id)} variant="primary" size="sm">
+                    Approve Access
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Team Management / De-linking */}
+          <div className="mt-10 border-t border-white/10 pt-8">
+            <h3 className="text-lg font-bold text-white mb-4">Team De-linking</h3>
+            <div className="overflow-x-auto">
+              <table className="min-w-full">
+                <thead>
+                  <tr className="text-left text-[10px] font-bold text-gray-500 uppercase tracking-widest border-b border-white/5">
+                    <th className="pb-3 px-2">User</th>
+                    <th className="pb-3 px-2">Organization ID</th>
+                    <th className="pb-3 px-2 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {allUsers.map(user => (
+                    <tr key={user.id} className="text-sm">
+                      <td className="py-3 px-2 text-white">{user.email}</td>
+                      <td className="py-3 px-2 text-gray-500 font-mono text-xs">{user.organization_id || 'N/A'}</td>
+                      <td className="py-3 px-2 text-right">
+                        <button
+                          onClick={() => handleDelink(user.id)}
+                          className="text-[10px] font-bold text-orange-400 hover:text-orange-300 uppercase tracking-tighter"
+                        >
+                          De-link Team
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </Card>
 
         {/* Weekly Market Data Upload */}
         <Card className="p-6">

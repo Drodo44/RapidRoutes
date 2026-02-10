@@ -177,7 +177,7 @@ export function AuthProvider({ children }) {
     user,
     profile,
     loading,
-    isAuthenticated: !!session && !!profile && profile.status === 'approved',
+    isAuthenticated: !!session && profile?.status === 'approved',
     isAdmin: profile?.role === 'Admin',
     isBroker: profile?.role === 'Broker',
     isSupport: profile?.role === 'Support',

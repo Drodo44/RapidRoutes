@@ -8,7 +8,7 @@ export default async function handler(req, res) {
   try {
     supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
     // Get all users with their profiles
-    const { data: users, error } = await adminSupabase
+    const { data: users, error } = await supabaseAdmin
       .from('profiles')
       .select('*')
       .order('created_at', { ascending: false });
