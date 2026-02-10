@@ -55,8 +55,14 @@ export default function SmartArchiveModal({ lane, onClose, onComplete }) {
             setLoading(false);
             return;
         }
-        if (!carrierName.trim()) {
-            setError('Carrier Name is required');
+        if (!carrierEmail.trim()) {
+            setError('Carrier Email is required');
+            setLoading(false);
+            return;
+        }
+        const parsedRate = Number.parseFloat(String(payRate));
+        if (!Number.isFinite(parsedRate) || parsedRate <= 0) {
+            setError('Valid Carrier Pay Rate is required');
             setLoading(false);
             return;
         }
@@ -65,10 +71,10 @@ export default function SmartArchiveModal({ lane, onClose, onComplete }) {
             const carrierData = {
                 covered: true,
                 carrier_mc: carrierMc.trim(),
-                carrier_name: carrierName.trim(),
+                carrier_name: carrierName.trim() || null,
                 carrier_phone: carrierPhone.trim() || null,
-                carrier_email: carrierEmail.trim() || null,
-                pay_rate: payRate ? parseFloat(payRate) : null
+                carrier_email: carrierEmail.trim().toLowerCase(),
+                pay_rate: parsedRate
             };
 
             const result = await handleSmartArchive(lane.id, carrierData);
@@ -154,10 +160,10 @@ export default function SmartArchiveModal({ lane, onClose, onComplete }) {
                                     />
                                 </div>
 
-                                {/* Carrier Name - Required */}
+                                {/* Carrier Name - Optional */}
                                 <div style={styles.inputGroup}>
                                     <label className="label" htmlFor="carrierName">
-                                        Carrier Name <span style={styles.required}>*</span>
+                                        Carrier Name
                                     </label>
                                     <input
                                         id="carrierName"
@@ -166,7 +172,6 @@ export default function SmartArchiveModal({ lane, onClose, onComplete }) {
                                         placeholder="ABC Trucking"
                                         value={carrierName}
                                         onChange={(e) => setCarrierName(e.target.value)}
-                                        required
                                     />
                                 </div>
 
@@ -185,10 +190,10 @@ export default function SmartArchiveModal({ lane, onClose, onComplete }) {
                                     />
                                 </div>
 
-                                {/* Email - Optional */}
+                                {/* Email - Required for canonical carrier_coverage */}
                                 <div style={styles.inputGroup}>
                                     <label className="label" htmlFor="carrierEmail">
-                                        Email
+                                        Email <span style={styles.required}>*</span>
                                     </label>
                                     <input
                                         id="carrierEmail"
@@ -197,13 +202,14 @@ export default function SmartArchiveModal({ lane, onClose, onComplete }) {
                                         placeholder="dispatch@carrier.com"
                                         value={carrierEmail}
                                         onChange={(e) => setCarrierEmail(e.target.value)}
+                                        required
                                     />
                                 </div>
 
-                                {/* Pay Rate - Optional */}
+                                {/* Pay Rate - Required for canonical carrier_coverage */}
                                 <div style={{ ...styles.inputGroup, gridColumn: '1 / -1' }}>
                                     <label className="label" htmlFor="payRate">
-                                        Carrier Pay Rate ($)
+                                        Carrier Pay Rate ($) <span style={styles.required}>*</span>
                                     </label>
                                     <input
                                         id="payRate"
@@ -214,6 +220,7 @@ export default function SmartArchiveModal({ lane, onClose, onComplete }) {
                                         onChange={(e) => setPayRate(e.target.value)}
                                         min="0"
                                         step="0.01"
+                                        required
                                     />
                                 </div>
                             </div>

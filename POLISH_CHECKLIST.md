@@ -8,10 +8,17 @@ Operating model:
 
 ---
 
+## ✅ Completed
+- Dashboard Covered (This week) — DONE
+- Floor Space Calculator — DONE
+- P0 — Recap: lane visibility + saved-city gating — DONE (2026-02-10)
+
+---
+
 ## ✅ Tickets (implement in this exact order)
 
-### ☐ Ticket 1 — Recap Page: workflow-critical buttons + proactive indicators
-**Progress:** Not started
+### ✅ Ticket 3 — Recap Page: workflow-critical buttons + proactive indicators
+**Progress:** Complete (2026-02-10)
 
 **Acceptance Criteria**
 - Recap page buttons work end-to-end:
@@ -32,6 +39,59 @@ Operating model:
   - Weather warnings indicating lateness risk
   - Traffic warnings indicating lateness risk
 - Do not change the visuals of the new recap page except restoring the missing functional/info elements.
+
+**Acceptance Criteria (Verified)**
+- Log Offer writes ONLY to `carrier_offers` (no `carrier_coverage` writes from offer logging).
+- Archive writes canonical coverage rows to `carrier_coverage`.
+- Gave Back updates lane status/reason correctly on `lanes`.
+- Log Call / Log Email write canonical contact logs (`city_performance`, with `contacts` fallback for schema variance).
+- Org scoping is enforced for all actions.
+
+**Verification Queries (SQL)**
+```sql
+-- carrier_offers: canonical write for Log Offer
+SELECT id, lane_id, organization_id, user_id, mc_number, rate_offered, created_at
+FROM carrier_offers
+WHERE lane_id = :lane_id
+ORDER BY created_at DESC
+LIMIT 10;
+
+-- carrier_coverage: canonical write for Archive
+SELECT id, lane_id, organization_id, user_id,
+       origin_city, origin_state, dest_city, dest_state,
+       mc_number, carrier_email, rate_covered, covered_at, created_at
+FROM carrier_coverage
+WHERE lane_id = :lane_id
+ORDER BY covered_at DESC
+LIMIT 10;
+
+-- lanes: gave back / archive state verification
+SELECT id, organization_id, lane_status, gave_back_reason, gave_back_at, coverage_source, covered_at, updated_at
+FROM lanes
+WHERE id = :lane_id;
+
+-- city_performance: canonical contact logs for Log Call / Log Email
+SELECT id, lane_id, city, state, city_type, contact_method, reference_id, notes, contact_received_at, created_at
+FROM city_performance
+WHERE lane_id = :lane_id
+ORDER BY COALESCE(contact_received_at, created_at) DESC
+LIMIT 20;
+
+-- contacts: fallback contact log table when city_performance schema differs
+SELECT id, lane_id, contact_method, created_at
+FROM contacts
+WHERE lane_id = :lane_id
+ORDER BY created_at DESC
+LIMIT 20;
+```
+
+**Verification Notes**
+- `Log Offer` now opens its input form and persists canonical rows in `carrier_offers`.
+- `Archive` requires MC + carrier email + rate and writes canonical coverage to `carrier_coverage`.
+- `Gave Back` persists archive status and reason fields on `lanes`.
+- `Log Call` / `Log Email` now send authenticated requests and persist contact logs by lane.
+- Lane-targeted writes are validated against organization/user scope before insert/update.
+- Legacy lane-field mirrors remain best-effort only; canonical analytics tables are the source of truth.
 
 ---
 

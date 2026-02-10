@@ -81,8 +81,10 @@ export default function IntelligentLaneCard({
     const destCoords = getCityCoords(lane.dest_city || lane.destination_city);
 
     // Check if lane has saved city choices
-    const hasSavedChoices = lane.saved_origin_cities?.length > 0 &&
-        lane.saved_dest_cities?.length > 0;
+    const hasSavedChoices = lane.hasSavedCities || (
+        lane.saved_origin_cities?.length > 0 &&
+        lane.saved_dest_cities?.length > 0
+    );
     const totalPairs = hasSavedChoices
         ? Math.min(lane.saved_origin_cities.length, lane.saved_dest_cities.length)
         : 0;
@@ -105,7 +107,7 @@ export default function IntelligentLaneCard({
 
     // Handle archive
     const handleArchive = () => {
-        if (archiveData.mc && archiveData.rate) {
+        if (archiveData.mc && archiveData.email && archiveData.rate) {
             onArchive?.(lane.id, archiveData);
             setShowArchiveModal(false);
             setArchiveData({ mc: '', email: '', rate: '' });
@@ -175,6 +177,12 @@ export default function IntelligentLaneCard({
                                     }`}>
                                     {isCurrent ? 'Active' : 'Archived'}
                                 </span>
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${hasSavedChoices
+                                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                        : 'bg-amber-500/10 text-amber-300 border-amber-500/30'
+                                    }`}>
+                                    {hasSavedChoices ? 'City Selection Saved' : 'Needs City Selection'}
+                                </span>
                                 {isHotLane && <span className="text-[10px] font-bold text-orange-400">🔥 Hot</span>}
                             </div>
                             <div className="flex gap-2">
@@ -188,6 +196,12 @@ export default function IntelligentLaneCard({
                                     className="rounded border-white/20 bg-white/5 text-cyan-500 focus:ring-0"
                                 />
                             </div>
+                        </div>
+                    )}
+
+                    {!hasSavedChoices && (
+                        <div className="mb-3 text-[10px] text-amber-300 border border-amber-500/20 bg-amber-500/10 rounded px-2 py-1">
+                            Posting/export actions are disabled until city selections are saved.
                         </div>
                     )}
 
@@ -261,14 +275,19 @@ export default function IntelligentLaneCard({
                         {/* Action Buttons Grid */}
                         <div className="grid grid-cols-2 gap-2">
                             <button
-                                onClick={handleSubmitCarrierOffer}
+                                onClick={() => setShowCarrierOfferForm(true)}
                                 className="col-span-2 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs font-bold rounded shadow-lg shadow-cyan-900/20 transition-all"
                             >
                                 Log Offer
                             </button>
                             <button
-                                onClick={() => setShowEmailModal(true)}
-                                className="col-span-2 py-1.5 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 hover:text-purple-300 border border-purple-500/20 text-[10px] font-bold rounded transition-colors flex items-center justify-center gap-2"
+                                onClick={() => hasSavedChoices && setShowEmailModal(true)}
+                                disabled={!hasSavedChoices}
+                                className={`col-span-2 py-1.5 border text-[10px] font-bold rounded transition-colors flex items-center justify-center gap-2 ${hasSavedChoices
+                                        ? 'bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 hover:text-purple-300 border-purple-500/20'
+                                        : 'bg-gray-700/30 text-gray-500 border-gray-600/40 cursor-not-allowed'
+                                    }`}
+                                title={hasSavedChoices ? 'Create Email' : 'Save city selections first'}
                             >
                                 ✉️ Create Email
                             </button>
@@ -298,9 +317,13 @@ export default function IntelligentLaneCard({
                     {/* Minimal Map Controls (Top Right) */}
                     <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover/map:opacity-100 transition-opacity duration-300">
                         <button
-                            onClick={() => onExportCSV?.([lane.id])}
-                            className="p-2 bg-black/80 hover:bg-black text-white rounded-lg backdrop-blur-md border border-white/10 text-xs font-bold"
-                            title="Export to DAT CSV"
+                            onClick={() => hasSavedChoices && onExportCSV?.([lane.id])}
+                            disabled={!hasSavedChoices}
+                            className={`p-2 rounded-lg backdrop-blur-md border text-xs font-bold ${hasSavedChoices
+                                    ? 'bg-black/80 hover:bg-black text-white border-white/10'
+                                    : 'bg-gray-800/70 text-gray-500 border-gray-600/40 cursor-not-allowed'
+                                }`}
+                            title={hasSavedChoices ? 'Export to DAT CSV' : 'Needs city selection before export'}
                         >
                             📋
                         </button>
@@ -358,10 +381,23 @@ export default function IntelligentLaneCard({
                         {pairs.length === 0 && (
                             <div className="text-center py-8 px-4">
                                 <div className="text-2xl opacity-20 mb-2">🏔️</div>
-                                <div className="text-xs text-gray-500">No active postings generated yet.</div>
-                                <button onClick={() => onGenerateRecap?.(lane.id)} className="mt-2 text-[10px] text-cyan-400 hover:text-cyan-300 underline">
-                                    Generate Postings
-                                </button>
+                                <div className="text-xs text-gray-500">
+                                    {hasSavedChoices
+                                        ? 'No active postings generated yet.'
+                                        : 'Needs City Selection before posting/export actions.'}
+                                </div>
+                                {hasSavedChoices ? (
+                                    <button onClick={() => onGenerateRecap?.(lane.id)} className="mt-2 text-[10px] text-cyan-400 hover:text-cyan-300 underline">
+                                        Generate Postings
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={() => router.push('/lanes')}
+                                        className="mt-2 text-[10px] text-amber-300 hover:text-amber-200 underline"
+                                    >
+                                        Go to Lanes to select cities
+                                    </button>
+                                )}
                             </div>
                         )}
                     </div>
@@ -418,6 +454,16 @@ export default function IntelligentLaneCard({
                                     onChange={e => setArchiveData({ ...archiveData, mc: e.target.value })}
                                     className="w-full bg-black/40 border border-white/10 rounded px-2 py-1.5 text-sm text-white focus:border-cyan-500/50 outline-none"
                                     placeholder="e.g. 123456"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[10px] text-gray-400 uppercase font-bold">Carrier Email</label>
+                                <input
+                                    value={archiveData.email}
+                                    onChange={e => setArchiveData({ ...archiveData, email: e.target.value })}
+                                    type="email"
+                                    className="w-full bg-black/40 border border-white/10 rounded px-2 py-1.5 text-sm text-white focus:border-cyan-500/50 outline-none"
+                                    placeholder="carrier@example.com"
                                 />
                             </div>
                             <div>

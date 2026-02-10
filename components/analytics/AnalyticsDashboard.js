@@ -9,120 +9,201 @@ import AnalyticsChart from './AnalyticsChart';
  * Main analytics dashboard component with metrics, charts and tables
  */
 export default function AnalyticsDashboard() {
+  const INSUFFICIENT_DATA_LABEL = 'Insufficient data';
+
   // State for analytics data
   const [loading, setLoading] = useState(true);
   const [metrics, setMetrics] = useState({
     totalLanes: 0,
     activeLanes: 0,
-    avgDistance: 0,
-    quoteAccuracy: 0,
-    successfulPosts: 0
+    avgDistance: null,
+    quoteAccuracy: null,
+    successfulPosts: null
+  });
+  const [insufficientData, setInsufficientData] = useState({
+    avgDistance: true,
+    quoteAccuracy: false,
+    successfulPosts: false,
+    kmaDistribution: false,
+    equipmentDistribution: false,
+    recentLanes: false
   });
   const [kmaDistribution, setKmaDistribution] = useState([]);
   const [equipmentDistribution, setEquipmentDistribution] = useState([]);
   const [recentLanes, setRecentLanes] = useState([]);
-  const [refreshInterval, setRefreshInterval] = useState(60); // seconds
+  const refreshInterval = 60; // seconds
   
   // Use toast for notifications
-  const { showToast, hideToast, ToastComponent } = useToast();
+  const { showToast, ToastComponent } = useToast();
+
+  const isMissingSchemaError = (error) => {
+    const message = String(error?.message || error?.details || '').toLowerCase();
+    return (
+      message.includes('does not exist') ||
+      message.includes('not found') ||
+      message.includes('undefined column')
+    );
+  };
+
+  const normalizeLaneStatus = (lane) => {
+    const rawStatus = lane?.lane_status ?? lane?.status;
+    if (rawStatus == null || rawStatus === '') return 'current';
+    return String(rawStatus).trim().toLowerCase();
+  };
+
+  const resolveOrganizationScope = async () => {
+    if (!supabase) {
+      throw new Error('Supabase client unavailable');
+    }
+
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError) throw sessionError;
+
+    const user = session?.user;
+    if (!user) {
+      throw new Error('Authentication required');
+    }
+
+    let organizationId =
+      user?.user_metadata?.organization_id ||
+      user?.app_metadata?.organization_id ||
+      null;
+
+    if (!organizationId) {
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('organization_id')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (profileError) {
+        throw new Error(`Unable to resolve organization scope: ${profileError.message}`);
+      }
+      organizationId = profile?.organization_id || null;
+    }
+
+    if (!organizationId) {
+      throw new Error('Organization scope unavailable for analytics.');
+    }
+
+    return { organizationId };
+  };
   
   // Function to fetch analytics data
   const fetchAnalyticsData = async () => {
     try {
       setLoading(true);
-      
-      // Fetch summary metrics
-      const { data: summaryData, error: summaryError } = await supabase
+
+      const { organizationId } = await resolveOrganizationScope();
+
+      // Fetch org-scoped lane dataset for core metrics/charts.
+      const { data: laneMetricsRows, error: laneMetricsError } = await supabase
         .from('lanes')
-        .select('id, lane_status');
-      
-      if (summaryError) throw summaryError;
-      
-      // Calculate summary metrics
-      const totalLanes = summaryData.length;
-      const activeLanes = summaryData.filter(lane => lane.lane_status === 'current').length;
-      
-      // Fetch quote accuracy metrics (sample data if table doesn't exist)
-      let quoteAccuracy = 0;
+        .select('id, lane_status, status, equipment_code, origin_city, origin_state')
+        .eq('organization_id', organizationId);
+      if (laneMetricsError) throw laneMetricsError;
+
+      const scopedLanes = laneMetricsRows || [];
+      const totalLanes = scopedLanes.length;
+      const activeLanes = scopedLanes.filter((lane) => normalizeLaneStatus(lane) === 'current').length;
+
+      // Quote accuracy: org scoped, no synthetic fallback.
+      let quoteAccuracy = null;
+      let quoteAccuracyInsufficient = false;
       try {
         const { data: quoteData, error: quoteError } = await supabase
           .from('lane_rates')
-          .select('rate_accuracy');
-          
-        if (!quoteError && quoteData?.length) {
-          quoteAccuracy = quoteData.reduce((sum, item) => sum + (item.rate_accuracy || 0), 0) / 
-                          quoteData.length;
+          .select('rate_accuracy')
+          .eq('organization_id', organizationId);
+        if (quoteError) {
+          if (isMissingSchemaError(quoteError)) {
+            quoteAccuracyInsufficient = true;
+          } else {
+            throw quoteError;
+          }
         } else {
-          // Sample data if table doesn't exist
-          quoteAccuracy = 0.85; // 85% accuracy
+          const numericRates = (quoteData || [])
+            .map((item) => Number(item.rate_accuracy))
+            .filter((value) => Number.isFinite(value));
+
+          if (numericRates.length > 0) {
+            quoteAccuracy = Math.round(
+              (numericRates.reduce((sum, value) => sum + value, 0) / numericRates.length) * 100
+            );
+          } else {
+            quoteAccuracyInsufficient = true;
+          }
         }
       } catch (error) {
-        console.warn('Lane rates table may not exist:', error);
-        quoteAccuracy = 0.85; // Sample data
+        if (isMissingSchemaError(error)) {
+          quoteAccuracyInsufficient = true;
+        } else {
+          throw error;
+        }
       }
       
-      // Fetch successful posts percentage
-      let successfulPosts = 0;
+      // Successful post rate: org scoped, no synthetic fallback.
+      let successfulPosts = null;
+      let successfulPostsInsufficient = false;
       try {
         const { data: postData, error: postError } = await supabase
           .from('post_attempts')
-          .select('success');
-          
-        if (!postError && postData?.length) {
-          successfulPosts = postData.filter(post => post.success).length / postData.length;
+          .select('success')
+          .eq('organization_id', organizationId);
+        if (postError) {
+          if (isMissingSchemaError(postError)) {
+            successfulPostsInsufficient = true;
+          } else {
+            throw postError;
+          }
         } else {
-          // Sample data if table doesn't exist
-          successfulPosts = 0.92; // 92% success rate
+          if ((postData || []).length > 0) {
+            const successfulCount = (postData || []).filter((post) => !!post.success).length;
+            successfulPosts = Math.round((successfulCount / (postData || []).length) * 100);
+          } else {
+            successfulPostsInsufficient = true;
+          }
         }
       } catch (error) {
-        console.warn('Post attempts table may not exist:', error);
-        successfulPosts = 0.92; // Sample data
+        if (isMissingSchemaError(error)) {
+          successfulPostsInsufficient = true;
+        } else {
+          throw error;
+        }
       }
       
-      // Update summary metrics (avgDistance removed - not in schema)
+      // Update summary metrics (distance is not available in canonical scoped tables).
       setMetrics({
         totalLanes,
         activeLanes,
-        avgDistance: 0, // Distance field not available in current schema
-        quoteAccuracy: Math.round(quoteAccuracy * 100),
-        successfulPosts: Math.round(successfulPosts * 100)
+        avgDistance: null,
+        quoteAccuracy,
+        successfulPosts
       });
       
-      // Fetch KMA distribution
-      const { data: kmaData, error: kmaError } = await supabase
-        .rpc('get_kma_distribution')
-        .limit(10);
-      
-      if (kmaError) {
-        console.warn('KMA distribution RPC may not exist:', kmaError);
-        // Provide sample data if the function doesn't exist
-        setKmaDistribution([
-          { name: 'Chicago', value: 125 },
-          { name: 'Atlanta', value: 98 },
-          { name: 'Dallas', value: 87 },
-          { name: 'Los Angeles', value: 76 },
-          { name: 'New York', value: 62 }
-        ]);
-      } else {
-        setKmaDistribution(kmaData || []);
-      }
-      
-      // Fetch equipment distribution
-      const { data: equipData, error: equipError } = await supabase
-        .from('lanes')
-        .select('equipment_code')
-        .eq('lane_status', 'current');
-      
-      if (equipError) throw equipError;
-      
-      // Process equipment distribution
+      // KMA distribution (org-scoped approximation from origin city/state frequency).
+      const marketCounts = {};
+      scopedLanes.forEach((lane) => {
+        const city = String(lane.origin_city || '').trim();
+        const state = String(lane.origin_state || '').trim();
+        if (!city || !state) return;
+        const key = `${city}, ${state}`;
+        marketCounts[key] = (marketCounts[key] || 0) + 1;
+      });
+      const kmaData = Object.entries(marketCounts)
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 10);
+      setKmaDistribution(kmaData);
+
+      // Equipment distribution (org-scoped, active lanes only).
       const equipmentCounts = {};
-      equipData.forEach(lane => {
+      scopedLanes
+        .filter((lane) => normalizeLaneStatus(lane) === 'current')
+        .forEach((lane) => {
         const code = lane.equipment_code || 'Unknown';
         equipmentCounts[code] = (equipmentCounts[code] || 0) + 1;
       });
       
-      // Convert to array format for chart
       const equipmentArray = Object.entries(equipmentCounts).map(([code, count]) => ({
         name: code,
         value: count
@@ -130,20 +211,35 @@ export default function AnalyticsDashboard() {
       
       setEquipmentDistribution(equipmentArray);
       
-      // Fetch recent lanes for table
+      // Fetch recent lanes for table (org-scoped).
       const { data: lanesData, error: lanesError } = await supabase
         .from('lanes')
         .select('id, origin_city, origin_state, dest_city, dest_state, equipment_code, length_ft, weight_lbs, lane_status, created_at')
+        .eq('organization_id', organizationId)
         .order('created_at', { ascending: false })
         .limit(50);
       
       if (lanesError) throw lanesError;
       
       setRecentLanes(lanesData || []);
+
+      const nextInsufficientState = {
+        avgDistance: true,
+        quoteAccuracy: quoteAccuracyInsufficient,
+        successfulPosts: successfulPostsInsufficient,
+        kmaDistribution: kmaData.length === 0,
+        equipmentDistribution: equipmentArray.length === 0,
+        recentLanes: (lanesData || []).length === 0
+      };
+      setInsufficientData(nextInsufficientState);
+
+      const missingCount = Object.values(nextInsufficientState).filter(Boolean).length;
       
       showToast({
-        message: 'Analytics data refreshed',
-        type: 'success',
+        message: missingCount > 0
+          ? 'Analytics refreshed with insufficient data on some metrics'
+          : 'Analytics data refreshed',
+        type: missingCount > 0 ? 'warning' : 'success',
         duration: 3000
       });
     } catch (error) {
@@ -243,6 +339,16 @@ export default function AnalyticsDashboard() {
     );
   };
 
+  const quoteAccuracyValue = metrics.quoteAccuracy == null
+    ? INSUFFICIENT_DATA_LABEL
+    : `${metrics.quoteAccuracy}%`;
+  const successfulPostsValue = metrics.successfulPosts == null
+    ? INSUFFICIENT_DATA_LABEL
+    : `${metrics.successfulPosts}%`;
+  const avgDistanceValue = metrics.avgDistance == null
+    ? INSUFFICIENT_DATA_LABEL
+    : `${metrics.avgDistance} mi`;
+
   return (
     <div className="bg-gray-900 text-gray-100">
       {/* Toast notification component */}
@@ -298,8 +404,9 @@ export default function AnalyticsDashboard() {
         />
         <MetricCard
           title="Avg Distance"
-          value={`${metrics.avgDistance} mi`}
+          value={avgDistanceValue}
           loading={loading}
+          helperText={insufficientData.avgDistance ? 'Insufficient data in current schema.' : ''}
           icon={
             <svg className="h-6 w-6 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
@@ -308,8 +415,9 @@ export default function AnalyticsDashboard() {
         />
         <MetricCard
           title="Quote Accuracy"
-          value={`${metrics.quoteAccuracy}%`}
+          value={quoteAccuracyValue}
           loading={loading}
+          helperText={insufficientData.quoteAccuracy ? 'Insufficient data for this organization.' : ''}
           icon={
             <svg className="h-6 w-6 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 8h6m-5 0a3 3 0 110 6H9l3 3m-3-6h6m6 1a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -318,8 +426,9 @@ export default function AnalyticsDashboard() {
         />
         <MetricCard
           title="Post Success Rate"
-          value={`${metrics.successfulPosts}%`}
+          value={successfulPostsValue}
           loading={loading}
+          helperText={insufficientData.successfulPosts ? 'Insufficient data for this organization.' : ''}
           icon={
             <svg className="h-6 w-6 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -330,29 +439,42 @@ export default function AnalyticsDashboard() {
       
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <AnalyticsChart
-          title="KMA Distribution"
-          data={kmaDistribution}
-          type="bar"
-          xKey="name"
-          yKeys={['value']}
-          labels={['Lanes']}
-          loading={loading}
-        />
-        <AnalyticsChart
-          title="Equipment Distribution"
-          data={equipmentDistribution}
-          type="pie"
-          xKey="name"
-          yKeys={['value']}
-          labels={['Count']}
-          loading={loading}
-        />
+        <div>
+          <AnalyticsChart
+            title="KMA Distribution"
+            data={kmaDistribution}
+            type="bar"
+            xKey="name"
+            yKeys={['value']}
+            labels={['Lanes']}
+            loading={loading}
+          />
+          {!loading && insufficientData.kmaDistribution && (
+            <p className="mt-2 text-xs text-amber-300">Insufficient data for KMA distribution in this organization.</p>
+          )}
+        </div>
+        <div>
+          <AnalyticsChart
+            title="Equipment Distribution"
+            data={equipmentDistribution}
+            type="pie"
+            xKey="name"
+            yKeys={['value']}
+            labels={['Count']}
+            loading={loading}
+          />
+          {!loading && insufficientData.equipmentDistribution && (
+            <p className="mt-2 text-xs text-amber-300">Insufficient data for equipment distribution in this organization.</p>
+          )}
+        </div>
       </div>
       
       {/* Lanes Table */}
       <div className="mb-6">
         <h3 className="text-lg font-medium mb-3">Recent Lanes</h3>
+        {!loading && insufficientData.recentLanes && (
+          <p className="mb-2 text-xs text-amber-300">Insufficient data: no recent lanes found for this organization.</p>
+        )}
         <AnalyticsTable
           data={recentLanes}
           columns={laneColumns}
@@ -368,7 +490,7 @@ export default function AnalyticsDashboard() {
 /**
  * Metric card component for summary stats
  */
-function MetricCard({ title, value, loading = false, icon = null }) {
+function MetricCard({ title, value, loading = false, icon = null, helperText = '' }) {
   return (
     <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
       <div className="flex items-center justify-between">
@@ -379,7 +501,10 @@ function MetricCard({ title, value, loading = false, icon = null }) {
         {loading ? (
           <div className="h-6 w-16 bg-gray-700 rounded animate-pulse"></div>
         ) : (
-          <p className="text-2xl font-bold text-gray-100">{value}</p>
+          <>
+            <p className={`text-2xl font-bold ${value === 'Insufficient data' ? 'text-amber-300' : 'text-gray-100'}`}>{value}</p>
+            {helperText ? <p className="mt-1 text-[11px] text-gray-400">{helperText}</p> : null}
+          </>
         )}
       </div>
     </div>

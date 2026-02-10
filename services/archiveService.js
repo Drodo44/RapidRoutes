@@ -2,6 +2,9 @@
 // RapidRoutes 2.0 - Smart Archive Service
 // Purpose: Handle Smart Archive workflow with Carrier Memory
 
+import supabase from '@/utils/supabaseClient';
+import { archiveLaneCovered } from '@/lib/laneIntelligenceService';
+
 /**
  * Lazy import of Supabase admin client to avoid bundling in client-side code.
  */
@@ -11,32 +14,11 @@ async function getSupabaseAdmin() {
 }
 
 /**
- * Calculate margin between bill rate and carrier pay.
- * Returns margin amount and percentage.
- * 
- * @param {number} billRate - Customer bill rate
- * @param {number} carrierPay - Carrier pay rate
- * @returns {Object} { marginAmount, marginPercent }
- */
-function calculateMargin(billRate, carrierPay) {
-    if (!billRate || billRate <= 0) return { marginAmount: null, marginPercent: null };
-    if (!carrierPay || carrierPay < 0) return { marginAmount: null, marginPercent: null };
-
-    const marginAmount = billRate - carrierPay;
-    const marginPercent = ((marginAmount / billRate) * 100);
-
-    return {
-        marginAmount: parseFloat(marginAmount.toFixed(2)),
-        marginPercent: parseFloat(marginPercent.toFixed(2))
-    };
-}
-
-/**
  * Smart Archive workflow handler.
  * 
  * When user archives a load:
- * 1. If covered: Prompts for carrier info, creates covered_loads record, updates lane
- * 2. If not covered: Simply archives the lane
+ * 1. If covered: writes canonical coverage in carrier_coverage via archiveLaneCovered
+ * 2. If not covered: archives lane lifecycle state only (mirror update on lanes)
  * 
  * This enables "Carrier Memory" - tracking who covered which lanes at what rate.
  * 
@@ -44,7 +26,7 @@ function calculateMargin(billRate, carrierPay) {
  * @param {Object|null} carrierData - Carrier info if load was covered, null if not
  * @param {boolean} carrierData.covered - True if load was covered
  * @param {string} carrierData.carrier_mc - Carrier MC number (required if covered)
- * @param {string} carrierData.carrier_name - Carrier name (required if covered)
+ * @param {string} [carrierData.carrier_name] - Carrier name (optional display field)
  * @param {string} [carrierData.carrier_phone] - Carrier phone
  * @param {string} [carrierData.carrier_email] - Carrier email
  * @param {number} [carrierData.pay_rate] - Rate paid to carrier
@@ -65,125 +47,85 @@ function calculateMargin(billRate, carrierPay) {
  * const result = await handleSmartArchive('lane-uuid', { covered: false });
  */
 export async function handleSmartArchive(laneId, carrierData = null) {
-    const supabase = await getSupabaseAdmin();
-
-    // Get current user
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-        return { success: false, error: 'Authentication required' };
-    }
-
-    // Validate lane ID
     if (!laneId) {
         return { success: false, error: 'Lane ID is required' };
     }
-
-    // Step 1: Fetch the lane being archived
-    const { data: lane, error: laneError } = await supabase
-        .from('lanes')
-        .select('*')
-        .eq('id', laneId)
-        .single();
-
-    if (laneError || !lane) {
-        console.error('[archiveService] Lane not found:', laneError);
-        return { success: false, error: 'Lane not found' };
+    if (!supabase) {
+        return { success: false, error: 'Authentication client unavailable' };
     }
 
-    // Step 2: Check if load was covered
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    const user = session?.user || null;
+    if (sessionError || !user) {
+        return { success: false, error: 'Authentication required' };
+    }
+
+    const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('organization_id')
+        .eq('id', user.id)
+        .maybeSingle();
+    if (profileError) {
+        console.warn('[archiveService] Unable to resolve organization from profile:', profileError.message);
+    }
+
+    const organizationId =
+        profile?.organization_id ||
+        user?.user_metadata?.organization_id ||
+        user?.app_metadata?.organization_id ||
+        null;
     const wasCovered = carrierData?.covered === true;
 
     if (wasCovered) {
-        // Validate required carrier fields
-        if (!carrierData.carrier_mc) {
-            return { success: false, error: 'Carrier MC number is required' };
-        }
-        if (!carrierData.carrier_name) {
-            return { success: false, error: 'Carrier name is required' };
+        const mcNumber = String(carrierData?.carrier_mc || '').trim();
+        const carrierEmail = String(carrierData?.carrier_email || '').trim().toLowerCase();
+        const rateCovered = Number.parseFloat(String(carrierData?.pay_rate));
+
+        if (!mcNumber || !carrierEmail || !Number.isFinite(rateCovered) || rateCovered <= 0) {
+            return { success: false, error: 'Carrier MC, carrier email, and valid pay rate are required' };
         }
 
-        // Calculate margin if possible
-        const { marginAmount, marginPercent } = calculateMargin(
-            lane.bill_rate,
-            carrierData.pay_rate
+        const canonicalArchive = await archiveLaneCovered(
+            laneId,
+            { mc: mcNumber, email: carrierEmail, rate: rateCovered },
+            user.id,
+            organizationId
         );
 
-        // Step 2a: Create covered_loads record
-        const coveredLoadData = {
-            lane_id: laneId,
-            covered_by_user_id: user.id,
-            carrier_mc: carrierData.carrier_mc.trim(),
-            carrier_name: carrierData.carrier_name.trim(),
-            carrier_phone: carrierData.carrier_phone?.trim() || null,
-            carrier_email: carrierData.carrier_email?.trim().toLowerCase() || null,
-            carrier_pay_rate: carrierData.pay_rate || null,
-            origin_city: lane.origin_city,
-            origin_state: lane.origin_state,
-            destination_city: lane.destination_city || lane.destinationCity,
-            destination_state: lane.destination_state || lane.destinationState,
-            bill_rate: lane.bill_rate,
-            margin_amount: marginAmount,
-            margin_percent: marginPercent,
-            covered_at: new Date().toISOString()
-        };
-
-        const { data: coveredLoad, error: insertError } = await supabase
-            .from('covered_loads')
-            .insert(coveredLoadData)
-            .select()
-            .single();
-
-        if (insertError) {
-            console.error('[archiveService] Failed to create covered_loads record:', insertError);
-            return { success: false, error: 'Failed to save carrier information' };
-        }
-
-        // Step 2b: Update lane with reference to covered load and set status to archived
-        const { error: updateError } = await supabase
-            .from('lanes')
-            .update({
-                status: 'archived',
-                last_covered_load_id: coveredLoad.id
-            })
-            .eq('id', laneId);
-
-        if (updateError) {
-            console.error('[archiveService] Failed to update lane:', updateError);
-            // Attempt to rollback covered_loads insert
-            await supabase.from('covered_loads').delete().eq('id', coveredLoad.id);
-            return { success: false, error: 'Failed to archive lane' };
+        if (!canonicalArchive.success) {
+            return canonicalArchive;
         }
 
         return {
             success: true,
             covered: true,
-            coveredLoadId: coveredLoad.id,
-            laneId: laneId,
-            carrierMemory: {
-                carrier_name: carrierData.carrier_name,
-                carrier_mc: carrierData.carrier_mc,
-                pay_rate: carrierData.pay_rate || null,
-                margin_percent: marginPercent
-            },
-            message: `Lane archived. Covered by ${carrierData.carrier_name} (${carrierData.carrier_mc})`
+            laneId,
+            canonical: true,
+            warnings: canonicalArchive.warnings || [],
+            message: `Lane archived. Covered by carrier ${mcNumber}`
         };
     }
 
-    // Step 3: If not covered, just archive the lane
-    const { error: archiveError } = await supabase
+    // Non-covered archive: lifecycle mirror only (no canonical coverage write).
+    let archiveQuery = supabase
         .from('lanes')
-        .update({ status: 'archived' })
+        .update({ lane_status: 'archive', updated_at: new Date().toISOString() })
         .eq('id', laneId);
+    if (organizationId) {
+        archiveQuery = archiveQuery.eq('organization_id', organizationId);
+    }
 
+    const { error: archiveError } = await archiveQuery;
     if (archiveError) {
-        console.error('[archiveService] Failed to archive lane:', archiveError);
+        console.error('[archiveService] Failed to archive lane without coverage:', archiveError);
         return { success: false, error: 'Failed to archive lane' };
     }
 
     return {
         success: true,
         covered: false,
-        laneId: laneId,
+        laneId,
+        canonical: true,
         message: 'Lane archived without coverage data'
     };
 }

@@ -34,6 +34,27 @@ function generatePairReferenceId(baseRefId, pairIndex) {
   return `RR${String(Math.floor(Math.random() * 100000)).padStart(5, '0')}`;
 }
 
+function getSavedCityState(lane) {
+  const savedOriginCities = Array.isArray(lane?.saved_origin_cities)
+    ? lane.saved_origin_cities
+    : Array.isArray(lane?.saved_origins)
+      ? lane.saved_origins
+      : Array.isArray(lane?.origin_cities)
+        ? lane.origin_cities
+        : [];
+
+  const savedDestCities = Array.isArray(lane?.saved_dest_cities)
+    ? lane.saved_dest_cities
+    : Array.isArray(lane?.saved_dests)
+      ? lane.saved_dests
+      : Array.isArray(lane?.dest_cities)
+        ? lane.dest_cities
+        : [];
+
+  const hasSavedCities = savedOriginCities.length > 0 && savedDestCities.length > 0;
+  return { savedOriginCities, savedDestCities, hasSavedCities };
+}
+
 function matches(q, l) {
   if (!q) return true;
 
@@ -68,7 +89,7 @@ function matches(q, l) {
   // Check origin/destination cities and states
   const s = searchTerm.toLowerCase();
   const origin = `${l.origin_city || ''}, ${l.origin_state || ''}`.toLowerCase();
-  const dest = `${l.dest_city || ''}, ${l.dest_state || ''}`.toLowerCase();
+  const dest = `${l.dest_city || l.destination_city || ''}, ${l.dest_state || l.destination_state || ''}`.toLowerCase();
   const equipment = String(l.equipment_code || '').toLowerCase();
   const comment = String(l.comment || '').toLowerCase();
 
@@ -78,8 +99,8 @@ function matches(q, l) {
     comment.includes(s) ||
     (l.origin_city || '').toLowerCase().includes(s) ||
     (l.origin_state || '').toLowerCase().includes(s) ||
-    (l.dest_city || '').toLowerCase().includes(s) ||
-    (l.dest_state || '').toLowerCase().includes(s);
+    (l.dest_city || l.destination_city || '').toLowerCase().includes(s) ||
+    (l.dest_state || l.destination_state || '').toLowerCase().includes(s);
 
   return cityStateMatch;
 }
@@ -297,6 +318,7 @@ export default function RecapPage() {
   const [recaps, setRecaps] = useState({});
   const [generatingIds, setGeneratingIds] = useState(new Set());
   const [showAIOnly, setShowAIOnly] = useState(false);
+  const [onlyWithSavedCities, setOnlyWithSavedCities] = useState(false);
   const [sortOrder, setSortOrder] = useState('date');
   const [postedPairs, setPostedPairs] = useState([]); // Store all generated pairs for dropdown
   const [selectedLaneId, setSelectedLaneId] = useState(''); // For dropdown snap-to functionality
@@ -308,6 +330,7 @@ export default function RecapPage() {
   const [emailLanes, setEmailLanes] = useState([]);
   const [csvModalOpen, setCsvModalOpen] = useState(false);
   const [selectedLaneIds, setSelectedLaneIds] = useState([]);
+  const [loadWarning, setLoadWarning] = useState('');
 
   // Generate CSV for selected lanes or all visible lanes
   async function generateCSV(laneIds = [], contactMethod = 'both') {
@@ -436,20 +459,71 @@ export default function RecapPage() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setLoadWarning('');
 
     (async () => {
       try {
-        const records = await fetchLaneRecordsBrowser({ status: 'current', limit: 300, onlyWithSavedCities: true });
+        const requestFilters = { status: 'current', limit: 300, throwOnError: true };
+        const records = await fetchLaneRecordsBrowser(requestFilters);
         if (cancelled) return;
-        // Filter to lanes with saved city choices (check arrays directly)
-        const lanesWithChoices = (records || []).filter(
-          (l) => Array.isArray(l.saved_origin_cities) && l.saved_origin_cities.length > 0 &&
-            Array.isArray(l.saved_dest_cities) && l.saved_dest_cities.length > 0
-        );
-        setLanes(lanesWithChoices);
+
+        const normalizedRecords = (records || []).map((lane) => {
+          const destCity = lane.dest_city || lane.destination_city || null;
+          const destState = lane.dest_state || lane.destination_state || null;
+          const { savedOriginCities, savedDestCities, hasSavedCities } = getSavedCityState(lane);
+
+          return {
+            ...lane,
+            dest_city: destCity,
+            dest_state: destState,
+            destination_city: lane.destination_city || destCity,
+            destination_state: lane.destination_state || destState,
+            saved_origin_cities: savedOriginCities,
+            saved_dest_cities: savedDestCities,
+            hasSavedCities,
+            lane_status: lane.lane_status || lane.status || 'current',
+            status: lane.status || lane.lane_status || 'current'
+          };
+        });
+
+        if (process.env.NODE_ENV !== 'production') {
+          const withSavedCitySelections = normalizedRecords.filter((l) => l.hasSavedCities).length;
+          const missingSavedCitySelections = normalizedRecords.filter((l) => !l.hasSavedCities);
+
+          console.log('[Recap] lanes loaded', {
+            filters: requestFilters,
+            totalFetched: normalizedRecords.length,
+            withSavedCitySelections,
+            withoutSavedCitySelections: normalizedRecords.length - withSavedCitySelections
+          });
+
+          if (normalizedRecords.length === 0) {
+            console.log('[Recap] No lanes returned for current user/org scope.');
+          }
+
+          if (missingSavedCitySelections.length > 0) {
+            missingSavedCitySelections.slice(0, 25).forEach((lane) => {
+              console.log('[Recap] lane missing saved city selections', {
+                lane_id: lane.id,
+                created_at: lane.created_at,
+                org_id: lane.organization_id,
+                saved_origin_cities_state: Array.isArray(lane.saved_origin_cities)
+                  ? `array(${lane.saved_origin_cities.length})`
+                  : lane.saved_origin_cities == null ? 'null' : typeof lane.saved_origin_cities,
+                saved_dest_cities_state: Array.isArray(lane.saved_dest_cities)
+                  ? `array(${lane.saved_dest_cities.length})`
+                  : lane.saved_dest_cities == null ? 'null' : typeof lane.saved_dest_cities
+              });
+            });
+          }
+        }
+
+        setLanes(normalizedRecords);
       } catch (error) {
         if (cancelled) return;
         console.error('Error loading lanes:', error);
+        setLanes([]);
+        setLoadWarning('Unable to load lanes for Recap right now. Please refresh and try again.');
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -473,6 +547,10 @@ export default function RecapPage() {
   const filtered = useMemo(() => {
     let result = (lanes || []).filter(l => matches(q, l));
 
+    if (onlyWithSavedCities) {
+      result = result.filter((lane) => lane.hasSavedCities);
+    }
+
     // Apply AI-only filter if enabled
     if (showAIOnly) {
       result = result.filter(lane => recaps[lane.id]);
@@ -482,14 +560,21 @@ export default function RecapPage() {
     if (sortOrder === 'origin') {
       result.sort((a, b) => `${a.origin_city}, ${a.origin_state}`.localeCompare(`${b.origin_city}, ${b.origin_state}`));
     } else if (sortOrder === 'dest') {
-      result.sort((a, b) => `${a.dest_city}, ${a.dest_state}`.localeCompare(`${b.dest_city}, ${b.dest_state}`));
+      result.sort((a, b) =>
+        `${a.dest_city || a.destination_city || ''}, ${a.dest_state || a.destination_state || ''}`.localeCompare(
+          `${b.dest_city || b.destination_city || ''}, ${b.dest_state || b.destination_state || ''}`
+        )
+      );
     } else if (sortOrder === 'equipment') {
       result.sort((a, b) => a.equipment_code.localeCompare(b.equipment_code));
     }
     // date sorting is default (no need to sort again)
 
     return result;
-  }, [lanes, q, recaps, showAIOnly, sortOrder]);
+  }, [lanes, q, recaps, showAIOnly, sortOrder, onlyWithSavedCities]);
+
+  const totalCurrentLanes = (lanes || []).length;
+  const filteredSavedLanesCount = filtered.filter((lane) => lane.hasSavedCities).length;
 
   const handleGenerateRecap = async (laneId) => {
     setGeneratingIds(prev => new Set([...prev, laneId]));
@@ -565,7 +650,18 @@ export default function RecapPage() {
   };
 
   const handleGaveBack = async (laneId, reason) => {
-    const result = await markLaneGaveBack(laneId, reason);
+    const { data: { session } } = await supabase.auth.getSession();
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('organization_id')
+      .eq('id', session?.user?.id)
+      .single();
+
+    const result = await markLaneGaveBack(
+      laneId,
+      reason,
+      profile?.organization_id
+    );
 
     if (result.success) {
       setLanes(prev => prev.map(l =>
@@ -666,7 +762,7 @@ export default function RecapPage() {
           <button
             onClick={() => setCsvModalOpen(true)}
             className="px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 text-emerald-400 hover:from-emerald-500/30 hover:to-cyan-500/30 border border-emerald-500/20 text-sm font-bold transition-all shadow-lg shadow-emerald-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={filtered.length === 0 || isGeneratingCSV}
+            disabled={filteredSavedLanesCount === 0 || isGeneratingCSV}
           >
             {isGeneratingCSV ? '⏳ Generating...' : '📥 Generate DAT Bulk Upload CSV'}
           </button>
@@ -685,6 +781,12 @@ export default function RecapPage() {
           </button>
         </div>
       </div>
+
+      {loadWarning && (
+        <div className="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200">
+          {loadWarning}
+        </div>
+      )}
 
       {/* Control Bar - Glass Panel */}
       <div className="bg-white/5 border border-white/10 rounded-2xl p-4 mb-8 backdrop-blur-md shadow-xl sticky top-4 z-40">
@@ -768,6 +870,16 @@ export default function RecapPage() {
             </select>
             <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white/40 text-xs">▼</div>
           </div>
+
+          <label className="h-10 inline-flex items-center gap-2 px-3 rounded-xl bg-black/40 border border-white/10 text-xs text-gray-200 whitespace-nowrap">
+            <input
+              type="checkbox"
+              checked={onlyWithSavedCities}
+              onChange={(e) => setOnlyWithSavedCities(e.target.checked)}
+              className="rounded border-white/20 bg-white/5 text-cyan-500 focus:ring-0"
+            />
+            <span>Only lanes with saved cities</span>
+          </label>
         </div>
       </div>
 
@@ -776,11 +888,17 @@ export default function RecapPage() {
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-16 border-2 border-dashed border-white/10 rounded-3xl bg-white/5 text-center">
             <div className="text-6xl mb-6 opacity-30">📭</div>
-            <h3 className="text-xl font-bold text-white mb-2">No active recaps found</h3>
+            <h3 className="text-xl font-bold text-white mb-2">
+              {totalCurrentLanes === 0 ? 'No active recaps found' : 'No lanes match current filters'}
+            </h3>
             <p className="text-secondary max-w-md mx-auto mb-8">
-              {q ? 'Try adjusting your search filters.' : 'Lanes appear here after you select "Posting Cities" in the Lane Constructor.'}
+              {totalCurrentLanes === 0
+                ? (q ? 'Try adjusting your search filters.' : 'Lanes appear here after they are created in the Lane Constructor.')
+                : (onlyWithSavedCities
+                  ? 'Current lanes exist, but none in this view have saved city selections yet.'
+                  : 'Current lanes exist. Try clearing search or filter options.')}
             </p>
-            {!q && (
+            {!q && totalCurrentLanes === 0 && (
               <Link href="/lanes" className="px-6 py-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold shadow-lg shadow-cyan-900/40 transition-all">
                 Create New Lane
               </Link>
@@ -837,3 +955,10 @@ export default function RecapPage() {
     </DashboardLayout>
   );
 }
+
+// Recap P0 Manual Test Checklist:
+// 1) Create lane A -> B in /lanes and save. Verify lane exists in `lanes` with org/user and city fields populated.
+// 2) Open /recap (or refresh). Confirm lane appears with origin/destination city-state even without saved cities.
+// 3) Verify badge behavior: lanes with arrays show "City Selection Saved"; lanes without arrays show "Needs City Selection".
+// 4) Toggle "Only lanes with saved cities" on/off and verify client-side filtering behavior.
+// 5) Verify status/org behavior: lane appears when lane_status/status is null (treated as current) and remains org-scoped.

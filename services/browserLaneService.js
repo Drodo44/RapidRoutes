@@ -44,9 +44,10 @@ function toQuery(params = {}) {
 }
 
 /**
- * Fetch lanes via server API. Returns an array; never throws. Safe for browsers.
+ * Fetch lanes via server API. Returns an array by default. Set filters.throwOnError=true to throw.
  */
 export async function fetchLaneRecords(filters = {}) {
+  const throwOnError = !!filters.throwOnError;
   try {
     const f = sanitizeLaneFilters(filters);
     
@@ -101,19 +102,31 @@ export async function fetchLaneRecords(filters = {}) {
     });
     
     if (!res.ok) {
-      console.error(`[browserLaneService.fetchLaneRecords] HTTP ${res.status}: ${res.statusText}`);
+      const errorPayload = await res.json().catch(() => null);
+      const message = errorPayload?.error || errorPayload?.message || `HTTP ${res.status}: ${res.statusText}`;
+      console.error(`[browserLaneService.fetchLaneRecords] ${message}`);
+      if (throwOnError) {
+        throw new Error(message);
+      }
       return [];
     }
     
     const payload = await res.json().catch(() => ({ ok: false, data: [] }));
     if (!payload?.ok || !Array.isArray(payload.data)) {
-      console.error('[browserLaneService.fetchLaneRecords] Invalid response payload');
+      const message = payload?.error || payload?.message || 'Invalid response payload';
+      console.error('[browserLaneService.fetchLaneRecords] Invalid response payload:', message);
+      if (throwOnError) {
+        throw new Error(message);
+      }
       return [];
     }
     
     return payload.data;
   } catch (err) {
     console.error('[browserLaneService.fetchLaneRecords] Failed:', err);
+    if (throwOnError) {
+      throw err instanceof Error ? err : new Error(String(err));
+    }
     return [];
   }
 }

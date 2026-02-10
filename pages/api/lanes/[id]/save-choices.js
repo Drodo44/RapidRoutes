@@ -5,7 +5,39 @@
 // Auto-generates: RR number (e.g., RR00012)
 // ============================================================================
 
-const supabase = supabaseAdmin;
+const IS_DEV = process.env.NODE_ENV !== 'production';
+
+function isMissingColumnError(error) {
+  const message = String(error?.message || '');
+  return /column .* does not exist/i.test(message);
+}
+
+async function persistLaneSavedCities({ supabase, laneId, originCities, destCities }) {
+  const payloadVariants = [
+    { saved_origin_cities: originCities, saved_dest_cities: destCities },
+    { saved_origins: originCities, saved_dests: destCities },
+    { origin_cities: originCities, dest_cities: destCities }
+  ];
+
+  let lastError = null;
+  for (const payload of payloadVariants) {
+    const { error } = await supabase
+      .from('lanes')
+      .update(payload)
+      .eq('id', laneId);
+
+    if (!error) {
+      return { ok: true, payload };
+    }
+
+    lastError = error;
+    if (!isMissingColumnError(error)) {
+      break;
+    }
+  }
+
+  return { ok: false, error: lastError };
+}
 
 export default async function handler(req, res) {
   let supabaseAdmin;
@@ -16,6 +48,7 @@ export default async function handler(req, res) {
   }
 
   const { id } = req.query;
+  const supabase = supabaseAdmin;
 
   // Prevent caching of GET results
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -49,7 +82,7 @@ export default async function handler(req, res) {
     // Check if lane exists
     const { data: lane, error: laneError } = await supabase
       .from('lanes')
-      .select('id, origin_city, origin_state, dest_city, dest_state')
+      .select('id, origin_city, origin_state, dest_city, dest_state, destination_city, destination_state')
       .eq('id', id)
       .single();
 
@@ -57,6 +90,9 @@ export default async function handler(req, res) {
     if (!lane) {
       return res.status(404).json({ error: 'Lane not found' });
     }
+
+    const laneDestCity = lane.dest_city || lane.destination_city || null;
+    const laneDestState = lane.dest_state || lane.destination_state || null;
 
     // Check if choices already exist for this lane
     const { data: existing, error: existingError } = await supabase
@@ -101,8 +137,8 @@ export default async function handler(req, res) {
           lane_id: id,
           origin_city: lane.origin_city,
           origin_state: lane.origin_state,
-          dest_city: lane.dest_city,
-          dest_state: lane.dest_state,
+          dest_city: laneDestCity,
+          dest_state: laneDestState,
           origin_cities: origin_cities,
           dest_cities: dest_cities,
           rr_number: rr_number
@@ -112,6 +148,27 @@ export default async function handler(req, res) {
 
       if (error) throw error;
       result = data;
+    }
+
+    const laneSaveResult = await persistLaneSavedCities({
+      supabase,
+      laneId: id,
+      originCities: origin_cities,
+      destCities: dest_cities
+    });
+
+    if (!laneSaveResult.ok) {
+      throw laneSaveResult.error || new Error('Failed to persist lane saved city selections');
+    }
+
+    if (IS_DEV) {
+      console.log('[save-choices] saved lane city selections', {
+        lane_id: id,
+        rr_number: result.rr_number,
+        origin_count: origin_cities.length,
+        dest_count: dest_cities.length,
+        lane_payload: laneSaveResult.payload
+      });
     }
 
     res.status(200).json({

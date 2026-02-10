@@ -6,23 +6,13 @@
 // - If part is specified for GET, returns only that part.
 
 import { EnterpriseCsvGenerator } from '../../lib/enterpriseCsvGenerator.js';
-import { toCsv, chunkRows, DAT_HEADERS, MIN_PAIRS_REQUIRED, ROWS_PER_PAIR } from '../../lib/datCsvBuilder.js';
+import { toCsv, chunkRows, DAT_HEADERS } from '../../lib/datCsvBuilder.js';
 import { monitor } from '../../lib/monitor.js';
 import { validateApiAuth } from '../../middleware/auth.unified.js';
 import { assertApiAuth, isInternalBypass } from '@/lib/auth';
+import { getUserOrganizationId } from '@/lib/organizationHelper';
 import fs from 'fs';
 import path from 'path';
-import { fetchLaneRecords, sanitizeLaneFilters } from '../../services/laneService.js';
-
-// Helper to get active row count for pagination
-async function getActiveRowCount() {
-  const { count, error } = await adminSupabase
-    .from('lane_city_choices')
-    .select('*', { count: 'exact', head: true });
-    
-  if (error) throw error;
-  return count || 0;
-}
 
 function daysAgoUTC(n) {
   const d = new Date();
@@ -31,7 +21,7 @@ function daysAgoUTC(n) {
 }
 
 // Helper to select lanes based on query parameters
-async function selectLanes({ pending, days, all }) {
+async function selectLanes({ days, organizationId }) {
   const supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
   
   // FIX: Query 'lanes' table directly to ensure we get user-created lanes with Rate Randomizer columns
@@ -44,6 +34,10 @@ async function selectLanes({ pending, days, all }) {
   if (days != null) {
     const since = daysAgoUTC(Number(days));
     query = query.gte('created_at', since);
+  }
+
+  if (organizationId) {
+    query = query.eq('organization_id', organizationId);
   }
 
   // pending/all filters can be implemented if 'lane_status' exists, but currently we just fetch latest
@@ -119,9 +113,41 @@ export default async function handler(req, res) {
     monitor.log('info', `${method} /api/exportDatCsv`);
     monitor.log('debug', 'Query params:', req.query);
 
+    // Get query parameters with defaults
+    const pending = String(req.query.pending || '') === '1';
+    const all = String(req.query.all || '') === '1';
+    const days = req.query.days != null ? Number(req.query.days) : null;
+    const part = req.query.part != null ? Number(req.query.part) : 1;
+
+    // Org scoping parity with exportSavedCitiesCsv
+    const userId = auth.user?.id || auth.userId || auth.id;
+    const userOrgId = userId ? await getUserOrganizationId(userId) : null;
+    const isAdmin = auth.profile?.role === 'Admin' || auth.profile?.role === 'Administrator' || auth.user?.role === 'Admin';
+    let organizationId = req.query.organizationId ? String(req.query.organizationId) : undefined;
+
+    if (!isInternalBypass(req)) {
+      if (!isAdmin) {
+        if (!userOrgId) {
+          return res.status(403).json({ error: 'User not assigned to an organization' });
+        }
+        organizationId = userOrgId;
+      } else if (req.query.exportAll === 'true') {
+        organizationId = undefined;
+      } else {
+        if (!userOrgId) {
+          return res.status(403).json({ error: 'Admin not assigned to an organization' });
+        }
+        organizationId = userOrgId;
+      }
+    }
+
+    if (process.env.NODE_ENV !== 'production') {
+      debugLog(`[exportDatCsv] org scope userId=${userId || 'unknown'} role=${auth.profile?.role || auth.user?.role || 'unknown'} orgId=${organizationId || 'ALL'}`);
+    }
+
     // Handle HEAD request for pagination info
     if (method === 'HEAD') {
-      const activeCount = await getActiveRowCount();
+      const activeCount = (await selectLanes({ pending, days, all, organizationId })).length;
       const parts = Math.ceil(activeCount / 499);
       res.setHeader('X-Total-Parts', String(parts));
       monitor.endOperation(operationId, { success: true, parts });
@@ -133,17 +159,11 @@ export default async function handler(req, res) {
       return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    // Get query parameters with defaults
-    const pending = String(req.query.pending || '') === '1';
-    const all = String(req.query.all || '') === '1';
-    const days = req.query.days != null ? Number(req.query.days) : null;
-    const part = req.query.part != null ? Number(req.query.part) : 1;
-
     monitor.log('info', 'Processing request:', { pending, days, all, part });
 
 
     // Get lanes to process
-    const lanes = await selectLanes({ pending, days, all });
+    const lanes = await selectLanes({ pending, days, all, organizationId });
     debugLog(`📦 [TRACE] Supabase returned ${lanes?.length || 0} lanes (pre-validation)`);
     if (lanes && lanes.length) {
       lanes.slice(0, 50).forEach((lane, i) => {
@@ -294,7 +314,7 @@ export default async function handler(req, res) {
     try {
       const laneIds = lanes.map(lane => lane.id);
       if (laneIds.length > 0) {
-        await adminSupabase
+        await supabaseAdmin
           .from('lanes')
           .update({ lane_status: 'current', posted_at: new Date().toISOString() })
           .in('id', laneIds);

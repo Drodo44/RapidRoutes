@@ -1,6 +1,42 @@
 // pages/api/save-city-selections.js
 // API endpoint to save user-selected city pairs for a lane
 
+const IS_DEV = process.env.NODE_ENV !== 'production';
+
+function isMissingColumnError(error) {
+  const message = String(error?.message || '');
+  return /column .* does not exist/i.test(message);
+}
+
+async function persistLaneSavedCities({ supabase, laneId, originCities, destCities }) {
+  const payloadVariants = [
+    { saved_origin_cities: originCities, saved_dest_cities: destCities },
+    { saved_origins: originCities, saved_dests: destCities },
+    { origin_cities: originCities, dest_cities: destCities }
+  ];
+
+  let lastError = null;
+  for (const payload of payloadVariants) {
+    const { data, error } = await supabase
+      .from('lanes')
+      .update(payload)
+      .eq('id', laneId)
+      .select()
+      .single();
+
+    if (!error) {
+      return { ok: true, data, payload };
+    }
+
+    lastError = error;
+    if (!isMissingColumnError(error)) {
+      break;
+    }
+  }
+
+  return { ok: false, error: lastError };
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -37,22 +73,18 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Update the lane with saved city selections
-    const { data, error } = await supabaseAdmin
-      .from('lanes')
-      .update({
-        saved_origin_cities: originCities,
-        saved_dest_cities: destCities
-      })
-      .eq('id', laneId)
-      .select()
-      .single();
+    const saveResult = await persistLaneSavedCities({
+      supabase: supabaseAdmin,
+      laneId,
+      originCities,
+      destCities,
+    });
 
-    if (error) {
-      console.error('[save-city-selections] Update failed:', error);
+    if (!saveResult.ok) {
+      console.error('[save-city-selections] Update failed:', saveResult.error);
       return res.status(500).json({ 
         error: 'Failed to save selections',
-        details: error.message 
+        details: saveResult.error?.message || 'Unknown error',
       });
     }
 
@@ -61,13 +93,22 @@ export default async function handler(req, res) {
     const totalPairs = 1 + numAlternativePairs; // 1 original lane + alternatives
     const totalPostings = totalPairs * 2;
 
-    console.log(`✅ Saved city selections for lane ${laneId}: ${totalPairs} pairs (1 original + ${numAlternativePairs} alternatives) × 2 contact methods = ${totalPostings} postings`);
+    if (IS_DEV) {
+      console.log('[save-city-selections] saved selections', {
+        lane_id: laneId,
+        origin_count: originCities.length,
+        dest_count: destCities.length,
+        payload: saveResult.payload,
+        total_pairs: totalPairs,
+        total_postings: totalPostings,
+      });
+    }
 
     return res.status(200).json({ 
       success: true,
       message: 'City selections saved successfully',
       totalCombinations: totalPostings,
-      lane: data
+      lane: saveResult.data,
     });
   } catch (error) {
     console.error('[save-city-selections] Error:', error);

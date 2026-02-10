@@ -1,6 +1,7 @@
 // components/LogContactModal.jsx
 // Simple modal for logging city contact events
 import { useState } from 'react';
+import supabase from '../utils/supabaseClient';
 
 export default function LogContactModal({ isOpen, onClose, lane, city, cityType }) {
   const [contactMethod, setContactMethod] = useState('email');
@@ -15,9 +16,17 @@ export default function LogContactModal({ isOpen, onClose, lane, city, cityType 
     setSaving(true);
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Authentication required');
+      }
+
       const response = await fetch('/api/city-performance', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
         body: JSON.stringify({
           laneId: lane?.id,
           city: city?.city,

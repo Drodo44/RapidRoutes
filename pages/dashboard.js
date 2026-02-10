@@ -180,84 +180,60 @@ function useTopCarriers() {
   const [carriers, setCarriers] = useState([]);
 
   useEffect(() => {
-    const isMissingColumnError = (error) => {
-      const message = String(error?.message || error?.details || '').toLowerCase();
-      return message.includes('column') && message.includes('does not exist');
-    };
-
     const fetchCarriers = async () => {
       if (!session || !user || !supabase) return;
 
       try {
+        const currentOrgId =
+          user?.organization_id ||
+          user?.user_metadata?.organization_id ||
+          user?.app_metadata?.organization_id ||
+          null;
+        const orgId = typeof currentOrgId === 'string' ? currentOrgId : currentOrgId?.id;
+        if (!orgId) {
+          if (process.env.NODE_ENV !== 'production') {
+            console.warn('[dashboard] Top Carriers skipped: missing organization_id scope');
+          }
+          setCarriers([]);
+          return;
+        }
+
+        // Canonical source: carrier_coverage only (carriers who actually ran lanes).
+        const { data: coverageData, error: coverageError } = await supabase
+          .from('carrier_coverage')
+          .select('lane_id, mc_number, carrier_email')
+          .eq('organization_id', orgId)
+          .order('covered_at', { ascending: false })
+          .limit(500);
+        if (coverageError) throw coverageError;
+
         const carrierMap = {};
-        const upsertCarrier = (mc, email = '') => {
-          if (!mc) return null;
+        (coverageData || []).forEach((entry) => {
+          const mc = String(entry.mc_number || '').trim();
+          if (!mc) return;
           if (!carrierMap[mc]) {
             carrierMap[mc] = {
               mc,
-              email: email || '',
-              loads: 0,
+              email: entry.carrier_email || '',
+              laneIds: new Set(),
               totalMargin: null
             };
-          } else if (!carrierMap[mc].email && email) {
-            carrierMap[mc].email = email;
+          } else if (!carrierMap[mc].email && entry.carrier_email) {
+            carrierMap[mc].email = entry.carrier_email;
           }
-          return carrierMap[mc];
-        };
 
-        // Preferred source: carrier_coverage (canonical)
-        const { data: coverageData, error: coverageError } = await supabase
-          .from('carrier_coverage')
-          .select('lane_id, mc_number, carrier_email, rate_covered')
-          .eq('user_id', user.id)
-          .order('covered_at', { ascending: false })
-          .limit(250);
-
-        let usableCoverage = [];
-        if (coverageError) {
-          if (!coverageError.message?.includes('does not exist')) {
-            throw coverageError;
+          if (entry.lane_id) {
+            carrierMap[mc].laneIds.add(entry.lane_id);
           }
-        } else {
-          usableCoverage = coverageData || [];
-        }
-
-        usableCoverage.forEach((entry) => {
-          const carrier = upsertCarrier(entry.mc_number, entry.carrier_email || '');
-          if (!carrier) return;
-          carrier.loads += 1;
-        });
-
-        // Offer activity feeds Top Carriers analytics (best effort for mixed schemas)
-        let offers = [];
-        let { data: offersWithEmail, error: offersError } = await supabase
-          .from('carrier_offers')
-          .select('mc_number, carrier_email')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(250);
-
-        if (offersError && isMissingColumnError(offersError)) {
-          ({ data: offersWithEmail, error: offersError } = await supabase
-            .from('carrier_offers')
-            .select('mc_number')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false })
-            .limit(250));
-        }
-
-        if (offersError && !offersError.message?.includes('does not exist')) {
-          throw offersError;
-        }
-
-        offers = offersWithEmail || [];
-        offers.forEach((offer) => {
-          const carrier = upsertCarrier(offer.mc_number, offer.carrier_email || '');
-          if (!carrier) return;
-          carrier.loads += 1;
         });
 
         const carrierList = Object.values(carrierMap)
+          .map((carrier) => ({
+            mc: carrier.mc,
+            email: carrier.email,
+            loads: carrier.laneIds.size,
+            totalMargin: carrier.totalMargin
+          }))
           .sort((a, b) => b.loads - a.loads)
           .slice(0, 5);
 
