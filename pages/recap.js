@@ -14,7 +14,6 @@ import DashboardLayout from '../components/DashboardLayout.jsx';
 import CSVExportModal from '../components/recap/CSVExportModal.jsx';
 import IntelligentLaneCard from '../components/recap/IntelligentLaneCard.jsx';
 import {
-  archiveLaneCovered,
   markLaneGaveBack,
   boostLaneRate,
   addCarrierOffer,
@@ -626,26 +625,31 @@ export default function RecapPage() {
 
   const handleArchive = async (laneId, archiveData) => {
     const { data: { session } } = await supabase.auth.getSession();
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('organization_id')
-      .eq('id', session?.user?.id)
-      .single();
+    const response = await fetch('/api/lanes/archive-covered', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session?.access_token || ''}`,
+      },
+      body: JSON.stringify({
+        laneId,
+        mc: archiveData?.mc,
+        email: archiveData?.email,
+        rate: archiveData?.rate,
+      }),
+    });
 
-    const result = await archiveLaneCovered(
-      laneId,
-      archiveData,
-      session?.user?.id,
-      profile?.organization_id
-    );
+    const result = await response.json().catch(() => ({}));
 
-    if (result.success) {
+    if (response.ok && result.success) {
       // Refresh lanes
       setLanes(prev => prev.map(l =>
-        l.id === laneId ? { ...l, lane_status: 'archive' } : l
+        l.id === laneId
+          ? { ...l, lane_status: 'archive', covered_at: result.coveredAt || new Date().toISOString() }
+          : l
       ));
     } else {
-      alert('Failed to archive lane: ' + result.error);
+      alert('Failed to archive lane: ' + (result.error || `HTTP ${response.status}`));
     }
   };
 
