@@ -96,6 +96,22 @@ export async function handleSmartArchive(laneId, carrierData = null) {
             return canonicalArchive;
         }
 
+        const { error: laneMirrorError } = await supabase
+            .from('lanes')
+            .update({
+                lane_status: 'archive',
+                covered_at: new Date().toISOString(),
+            })
+            .eq('id', laneId)
+            .eq('organization_id', organizationId)
+            .select('id')
+            .single();
+
+        if (laneMirrorError) {
+            console.error('[archiveService] Failed to mirror covered archive lifecycle on lanes:', laneMirrorError);
+            return { success: false, error: 'Failed to archive lane lifecycle state' };
+        }
+
         return {
             success: true,
             covered: true,
@@ -107,15 +123,13 @@ export async function handleSmartArchive(laneId, carrierData = null) {
     }
 
     // Non-covered archive: lifecycle mirror only (no canonical coverage write).
-    let archiveQuery = supabase
+    const { error: archiveError } = await supabase
         .from('lanes')
-        .update({ lane_status: 'archive', updated_at: new Date().toISOString() })
-        .eq('id', laneId);
-    if (organizationId) {
-        archiveQuery = archiveQuery.eq('organization_id', organizationId);
-    }
-
-    const { error: archiveError } = await archiveQuery;
+        .update({ lane_status: 'archive' })
+        .eq('id', laneId)
+        .eq('organization_id', organizationId)
+        .select('id')
+        .single();
     if (archiveError) {
         console.error('[archiveService] Failed to archive lane without coverage:', archiveError);
         return { success: false, error: 'Failed to archive lane' };
