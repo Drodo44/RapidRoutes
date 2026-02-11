@@ -63,19 +63,10 @@ export default function LaneCard({ lane, onEdit, onDelete, onArchive, onRestore,
 
   return (
     <div
-      className={`group relative transition-all duration-300 ${isPosting ? 'row-span-2 col-span-1 md:col-span-2 lg:col-span-3 xl:col-span-3 z-50' : 'hover:-translate-y-1'}`}
-      style={{
-        background: 'linear-gradient(135deg, rgba(20, 28, 40, 0.95) 0%, rgba(15, 20, 30, 0.9) 100%)',
-        backdropFilter: 'blur(24px)',
-        border: isPosting ? '1px solid rgba(6, 182, 212, 0.5)' : '1px solid rgba(56, 189, 248, 0.1)',
-        borderTop: '1px solid rgba(56, 189, 248, 0.3)',
-        borderRadius: '16px',
-        boxShadow: isPosting ? '0 20px 50px rgba(0,0,0,0.5)' : '0 4px 24px rgba(0,0,0,0.3)',
-        overflow: 'hidden'
-      }}
+      className={`lane-card group relative transition-all duration-300 ${isPosting ? 'lane-card-expanded row-span-2 col-span-1 md:col-span-2 lg:col-span-3 xl:col-span-3 z-50' : 'lane-card-hover'}`}
     >
       {/* Top Glow Accent */}
-      <div className={`absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent transition-opacity ${isPosting ? 'opacity-100' : 'opacity-50 group-hover:opacity-100'}`} />
+      <div className={`lane-card-accent absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent transition-opacity ${isPosting ? 'opacity-100' : 'opacity-50 group-hover:opacity-100'}`} />
 
       {/* Content Container */}
       <div className="p-5">
@@ -112,7 +103,7 @@ export default function LaneCard({ lane, onEdit, onDelete, onArchive, onRestore,
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 gap-3 mb-5 p-3 rounded-lg bg-black/20 border border-white/5">
+        <div className="lane-card-stats grid grid-cols-2 gap-3 mb-5 p-3 rounded-lg bg-black/20 border border-white/5">
           <div>
             <div className="text-[10px] uppercase tracking-wider text-secondary font-semibold mb-1">Pickup Date</div>
             <div className="text-sm font-medium text-white flex items-center gap-2">
@@ -137,6 +128,7 @@ export default function LaneCard({ lane, onEdit, onDelete, onArchive, onRestore,
               <div className="text-sm font-medium text-white">{lane.weight_lbs ? `${(lane.weight_lbs / 1000).toFixed(0)}k lbs` : '—'}</div>
             </div>
             <button
+              type="button"
               onClick={(e) => { e.stopPropagation(); onViewRoute(lane); }}
               className="text-xs text-cyan-400 hover:text-cyan-300 font-medium flex items-center gap-1 transition-colors"
             >
@@ -150,7 +142,7 @@ export default function LaneCard({ lane, onEdit, onDelete, onArchive, onRestore,
           <div className="mb-5 animate-in fade-in zoom-in duration-300 border-t border-white/10 pt-4">
             <div className="flex items-center justify-between mb-2">
               <h4 className="text-sm font-bold text-cyan-400 uppercase tracking-wider">Post Configuration</h4>
-              <button onClick={() => setIsPosting(false)} className="text-xs text-secondary hover:text-white">Close</button>
+              <button type="button" onClick={() => setIsPosting(false)} className="text-xs text-secondary hover:text-white">Close</button>
             </div>
             <div className="bg-black/30 rounded-xl p-2 max-h-[400px] overflow-y-auto custom-scrollbar">
               <OptionsDisplay
@@ -167,6 +159,7 @@ export default function LaneCard({ lane, onEdit, onDelete, onArchive, onRestore,
         <div className="flex items-center gap-2 pt-2">
           {isArchived ? (
             <button
+              type="button"
               onClick={(e) => { e.stopPropagation(); onRestore(lane); }}
               className="flex-1 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white text-xs font-semibold border border-white/10 transition-all"
             >
@@ -175,6 +168,7 @@ export default function LaneCard({ lane, onEdit, onDelete, onArchive, onRestore,
           ) : (
             <>
               <button
+                type="button"
                 onClick={handlePostClick}
                 disabled={loadingOptions}
                 className="flex-1 py-2 rounded-lg bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 text-white text-xs font-bold shadow-lg shadow-cyan-900/40 border border-cyan-400/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
@@ -190,6 +184,7 @@ export default function LaneCard({ lane, onEdit, onDelete, onArchive, onRestore,
 
               <div className="flex gap-1">
                 <button
+                  type="button"
                   onClick={(e) => { e.stopPropagation(); onEdit(lane); }}
                   className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 text-secondary hover:text-white border border-white/5 transition-colors"
                   title="Edit"
@@ -197,6 +192,7 @@ export default function LaneCard({ lane, onEdit, onDelete, onArchive, onRestore,
                   ✏️
                 </button>
                 <button
+                  type="button"
                   onClick={(e) => { e.stopPropagation(); onArchive(lane); }}
                   className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 text-secondary hover:text-white border border-white/5 transition-colors"
                   title="Archive"
@@ -204,6 +200,7 @@ export default function LaneCard({ lane, onEdit, onDelete, onArchive, onRestore,
                   📦
                 </button>
                 <button
+                  type="button"
                   onClick={(e) => { e.stopPropagation(); onDelete(lane); }}
                   className="w-8 h-8 flex items-center justify-center rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/10 transition-colors"
                   title="Delete"

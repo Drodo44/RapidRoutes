@@ -1,7 +1,7 @@
 // pages/lanes.js
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { Toaster, toast } from 'react-hot-toast';
+import { toast } from 'react-hot-toast';
 
 // Components
 import DashboardLayout from '../components/DashboardLayout';
@@ -20,25 +20,27 @@ import { generateOptions } from '../components/post-options/OptionsGenerator';
 
 // --- Edit Lane Modal Component (Inline) ---
 function EditLaneModal({ lane, isOpen, onClose, onSave }) {
-  if (!isOpen || !lane) return null;
-
   // Local state for edit form - just the basics for now
-  const [localLane, setLocalLane] = useState({ ...lane });
+  const [localLane, setLocalLane] = useState(lane ? { ...lane } : {});
+
+  useEffect(() => {
+    if (lane) {
+      setLocalLane({ ...lane });
+    }
+  }, [lane]);
+
+  if (!isOpen || !lane) return null;
 
   const handleChange = (field, value) => {
     setLocalLane(prev => ({ ...prev, [field]: value }));
   };
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 100,
-      background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(5px)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center'
-    }}>
-      <div className="glass-card" style={{ width: '500px', maxWidth: '90vw', maxHeight: '90vh', overflowY: 'auto' }}>
+    <div className="lanes-modal-backdrop">
+      <div className="lanes-modal-card rr-card-elevated">
         <div className="card-header flex justify-between items-center">
           <h3>Edit Lane</h3>
-          <button onClick={onClose} className="text-secondary hover:text-white">✕</button>
+          <button type="button" onClick={onClose} className="text-secondary hover:text-white" aria-label="Close edit lane modal">✕</button>
         </div>
         <div className="card-body">
           <div className="grid grid-2 gap-4 mb-4">
@@ -78,8 +80,46 @@ function EditLaneModal({ lane, isOpen, onClose, onSave }) {
             </div>
           </div>
           <div className="flex gap-2 justify-end mt-6">
-            <button onClick={onClose} className="btn btn-ghost">Cancel</button>
-            <button onClick={() => onSave(localLane)} className="btn btn-primary">Save Changes</button>
+            <button type="button" onClick={onClose} className="rr-btn btn-outline">Cancel</button>
+            <button type="button" onClick={() => onSave(localLane)} className="rr-btn rr-btn-primary">Save Changes</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CitySelectionModal({ target, value, onChange, onPick, onClose }) {
+  if (!target) return null;
+
+  const isOrigin = target === 'origin';
+  const title = isOrigin ? 'Select Origin City' : 'Select Destination City';
+  const placeholder = isOrigin ? 'Origin city, ST' : 'Destination city, ST';
+
+  return (
+    <div className="lanes-modal-backdrop" role="dialog" aria-modal="true" aria-label={title}>
+      <div className="lanes-modal-card rr-card-elevated lanes-city-modal-card">
+        <div className="card-header flex justify-between items-center">
+          <h3>{title}</h3>
+          <button type="button" onClick={onClose} className="text-secondary hover:text-white" aria-label="Close city selector">✕</button>
+        </div>
+        <div className="card-body">
+          <p className="text-secondary text-sm mb-4">
+            Use city autocomplete and select the correct market. Existing lane logic is unchanged.
+          </p>
+          <GoogleCityAutocomplete
+            value={value}
+            onChange={onChange}
+            onPick={(city) => {
+              onPick(city);
+              onClose();
+            }}
+            placeholder={placeholder}
+            className="w-full"
+            inputClassName="rr-input lanes-city-modal-input"
+          />
+          <div className="flex justify-end gap-2 mt-6">
+            <button type="button" onClick={onClose} className="rr-btn btn-outline">Done</button>
           </div>
         </div>
       </div>
@@ -90,7 +130,7 @@ function EditLaneModal({ lane, isOpen, onClose, onSave }) {
 
 export default function LanesPage() {
   const router = useRouter();
-  const { loading, isAuthenticated, session, profile } = useAuth(); // isAdmin removed if unused
+  const { loading, isAuthenticated, profile } = useAuth(); // isAdmin removed if unused
 
   // Form state
   const [origin, setOrigin] = useState('');
@@ -131,7 +171,7 @@ export default function LanesPage() {
   // Edit State
   const [editingLane, setEditingLane] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [pendingAction, setPendingAction] = useState(null);
+  const [cityModalTarget, setCityModalTarget] = useState(null);
 
   // Admin view toggle (My Lanes vs All)
   const [showMyLanesOnly, setShowMyLanesOnly] = useState(false);
@@ -440,182 +480,162 @@ export default function LanesPage() {
   return (
     <AppBackground>
       <DashboardLayout title="Lanes | RapidRoutes" stats={stats}>
+        <section className="lanes-page">
+          <header className="lanes-toolbar">
+            <div className="lanes-toolbar-copy">
+              <h1 className="lanes-title">Lane Management</h1>
+              <p className="lanes-subtitle">Create and manage your freight lanes</p>
+            </div>
 
-      {/* Header Actions */}
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
-            Lane Management
-          </h1>
-          <p className="text-secondary mt-1">Create and manage your freight lanes</p>
-        </div>
+            <div className="lanes-visibility-toggle rr-card">
+              <button
+                type="button"
+                onClick={() => setShowMyLanesOnly(true)}
+                className={`lanes-toggle-btn ${showMyLanesOnly ? 'active' : ''}`}
+              >
+                My Lanes
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowMyLanesOnly(false)}
+                className={`lanes-toggle-btn ${!showMyLanesOnly ? 'active' : ''}`}
+              >
+                All RapidRoutes User Lanes
+              </button>
+            </div>
+          </header>
 
-        {/* Admin Lane Filter Toggle */}
-        <div className="bg-white/5 p-1 rounded-lg border border-white/5 flex gap-1">
-          <button
-            onClick={() => setShowMyLanesOnly(true)}
-            className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${showMyLanesOnly
-              ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 shadow-[0_0_10px_rgba(6,182,212,0.15)]'
-              : 'text-gray-400 hover:text-white hover:bg-white/5'
-              }`}
-          >
-            My Lanes
-          </button>
-          <button
-            onClick={() => setShowMyLanesOnly(false)}
-            className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${!showMyLanesOnly
-              ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 shadow-[0_0_10px_rgba(6,182,212,0.15)]'
-              : 'text-gray-400 hover:text-white hover:bg-white/5'
-              }`}
-          >
-            All RapidRoutes User Lanes
-          </button>
-        </div>
-      </div>
-
-      {/* Lane Constructor Panel - Premium Enterprise Interface */}
-      <div className="mb-10 relative z-10">
-        <div
-          className="rounded-2xl border border-cyan-500/20 shadow-2xl overflow-hidden"
-          style={{
-            background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(10, 10, 14, 0.98) 100%)',
-            backdropFilter: 'blur(30px)',
-            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5), 0 0 30px rgba(6, 182, 212, 0.05)'
-          }}
-        >
-          {/* Top Cyan Accent */}
-          <div className="h-0.5 w-full bg-gradient-to-r from-cyan-500/0 via-cyan-500 to-cyan-500/0 opacity-70" />
-
-          <div className="p-6 lg:p-8">
-            <div className="flex items-center justify-between mb-8 border-b border-white/5 pb-4">
-              <h3 className="text-lg font-bold text-white tracking-wide flex items-center gap-3">
-                <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400">
-                  ⚡
-                </span>
-                Lane Constructor
-              </h3>
-              <div className="flex items-center gap-4">
-                <label className="flex items-center gap-2 cursor-pointer group px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors border border-white/5">
+          <section className="lanes-constructor rr-card-elevated">
+            <div className="lanes-constructor-accent" />
+            <div className="lanes-constructor-inner">
+              <div className="lanes-constructor-header">
+                <h2 className="lanes-constructor-title">
+                  <span className="lanes-constructor-icon" aria-hidden="true">⚡</span>
+                  Lane Constructor
+                </h2>
+                <label className="lanes-autopost-toggle">
                   <input
                     type="checkbox"
                     checked={isPosted}
                     onChange={(e) => setIsPosted(e.target.checked)}
-                    className="w-4 h-4 rounded border-cyan-500/30 bg-black/40 text-cyan-500 focus:ring-offset-0 focus:ring-0"
                   />
-                  <span className="text-xs font-semibold text-secondary group-hover:text-cyan-400 transition-colors uppercase tracking-wider">Auto-Post</span>
+                  <span>Auto-Post</span>
                 </label>
               </div>
-            </div>
 
-            <form onSubmit={submitLane}>
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+              <form onSubmit={submitLane}>
+                <div className="lanes-constructor-grid">
+                  <div className="lanes-core-column">
+                    <div className="lanes-route-grid">
+                      <div className="lanes-field">
+                        <label className="form-label section-header">Origin</label>
+                        <button
+                          type="button"
+                          className="lanes-city-trigger"
+                          onClick={() => setCityModalTarget('origin')}
+                          aria-label="Select origin city"
+                        >
+                          <span className={`lanes-city-value ${origin ? '' : 'lanes-city-placeholder'}`}>
+                            {origin || 'Select origin city'}
+                          </span>
+                          <span className="lanes-city-meta">
+                            {originZip ? `ZIP ${originZip}` : 'Search by city/state'}
+                          </span>
+                        </button>
+                      </div>
 
-                {/* LEFT COLUMN - Core Route */}
-                <div className="lg:col-span-8 space-y-6">
-                  {/* Origin & Destination Group */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-cyan-400/80 uppercase tracking-wider ml-1">Origin</label>
-                      <div className="bg-black/30 p-1 rounded-xl border border-white/10 focus-within:border-cyan-500/50 focus-within:ring-1 focus-within:ring-cyan-500/20 transition-all shadow-inner">
-                        <GoogleCityAutocomplete
-                          value={origin}
-                          onChange={setOrigin}
-                          onPick={onPickOrigin}
-                          placeholder="City, ST"
-                          className="w-full"
-                          inputClassName="w-full bg-transparent border-none text-white text-lg font-bold placeholder:text-white/10 focus:ring-0 py-3 px-3"
+                      <div className="lanes-field">
+                        <label className="form-label section-header">Destination</label>
+                        <button
+                          type="button"
+                          className="lanes-city-trigger"
+                          onClick={() => setCityModalTarget('dest')}
+                          aria-label="Select destination city"
+                        >
+                          <span className={`lanes-city-value ${dest ? '' : 'lanes-city-placeholder'}`}>
+                            {dest || 'Select destination city'}
+                          </span>
+                          <span className="lanes-city-meta">
+                            {destZip ? `ZIP ${destZip}` : 'Search by city/state'}
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="lanes-details-grid">
+                      <div className="lanes-field">
+                        <label className="form-label section-header">Equipment</label>
+                        <div className="lanes-input-shell">
+                          <EquipmentPicker
+                            label=""
+                            code={equipment}
+                            onChange={setEquipment}
+                            inputClassName="rr-input lanes-input"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="lanes-field">
+                        <label className="form-label section-header">Pickup Date</label>
+                        <input
+                          type="date"
+                          value={pickupEarliest}
+                          onChange={(e) => setPickupEarliest(e.target.value)}
+                          className="rr-input lanes-input"
+                          required
+                        />
+                      </div>
+
+                      <div className="lanes-field">
+                        <label className="form-label section-header">Latest Pickup Date</label>
+                        <input
+                          type="date"
+                          value={pickupLatest}
+                          onChange={(e) => setPickupLatest(e.target.value)}
+                          className="rr-input lanes-input"
+                        />
+                      </div>
+
+                      <div className="lanes-field">
+                        <label className="form-label section-header">Commodity</label>
+                        <input
+                          type="text"
+                          value={commodity}
+                          onChange={(e) => setCommodity(e.target.value)}
+                          placeholder="General Freight"
+                          className="rr-input lanes-input"
+                          aria-label="Commodity"
                         />
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-cyan-400/80 uppercase tracking-wider ml-1">Destination</label>
-                      <div className="bg-black/30 p-1 rounded-xl border border-white/10 focus-within:border-cyan-500/50 focus-within:ring-1 focus-within:ring-cyan-500/20 transition-all shadow-inner">
-                        <GoogleCityAutocomplete
-                          value={dest}
-                          onChange={setDest}
-                          onPick={onPickDest}
-                          placeholder="City, ST"
-                          className="w-full"
-                          inputClassName="w-full bg-transparent border-none text-white text-lg font-bold placeholder:text-white/10 focus:ring-0 py-3 px-3"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Secondary Fields Group */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-secondary uppercase tracking-wider ml-1">Equipment</label>
-                      <div className="bg-black/30 rounded-xl border border-white/10 focus-within:border-cyan-500/50 transition-colors h-[50px] relative">
-                        <EquipmentPicker
-                          code={equipment}
-                          onChange={setEquipment}
-                          inputClassName="w-full h-full bg-transparent border-none text-white font-medium focus:ring-0 px-4 text-base"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-secondary uppercase tracking-wider ml-1">Pickup Date</label>
-                      <input
-                        type="date"
-                        value={pickupEarliest}
-                        onChange={(e) => setPickupEarliest(e.target.value)}
-                        className="w-full h-[50px] bg-black/30 rounded-xl border border-white/10 text-white px-4 focus:border-cyan-500/50 focus:ring-0 [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert-[1] [&::-webkit-calendar-picker-indicator]:opacity-50 [&::-webkit-calendar-picker-indicator]:hover:opacity-100 cursor-pointer"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-secondary uppercase tracking-wider ml-1">Latest Pickup Date</label>
-                      <input
-                        type="date"
-                        value={pickupLatest}
-                        onChange={(e) => setPickupLatest(e.target.value)}
-                        className="w-full h-[50px] bg-black/30 rounded-xl border border-white/10 text-white px-4 focus:border-cyan-500/50 focus:ring-0 [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert-[1] [&::-webkit-calendar-picker-indicator]:opacity-50 [&::-webkit-calendar-picker-indicator]:hover:opacity-100 cursor-pointer"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-secondary uppercase tracking-wider ml-1">Commodity</label>
-                      <input
-                        type="text"
-                        value={commodity}
-                        onChange={(e) => setCommodity(e.target.value)}
-                        placeholder="General Freight"
-                        className="w-full h-[50px] bg-black/30 rounded-xl border border-white/10 text-white px-4 focus:border-cyan-500/50 focus:ring-0 placeholder:text-white/10"
+                    <div className="lanes-field">
+                      <label className="form-label section-header">Internal Notes</label>
+                      <textarea
+                        value={comment}
+                        onChange={(e) => setComment(e.target.value)}
+                        placeholder="Add notes about this lane..."
+                        rows={2}
+                        className="rr-input lanes-textarea"
                       />
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-secondary uppercase tracking-wider ml-1">Internal Notes</label>
-                    <textarea
-                      value={comment}
-                      onChange={(e) => setComment(e.target.value)}
-                      placeholder="Add notes about this lane..."
-                      rows={2}
-                      className="w-full bg-black/30 rounded-xl border border-white/10 text-white px-4 py-3 focus:border-cyan-500/50 focus:ring-0 placeholder:text-white/10 resize-none"
-                    />
-                  </div>
-                </div>
+                  <aside className="lanes-financial-column">
+                    <div className="lanes-financial-card rr-card">
+                      <h3 className="section-header lanes-financial-title">Financials</h3>
 
-                {/* RIGHT COLUMN - Stats & Actions */}
-                <div className="lg:col-span-4 flex flex-col gap-6">
-                  <div className="p-5 rounded-xl bg-white/5 border border-white/5 space-y-4">
-                    <h4 className="text-xs font-bold text-cyan-400 uppercase tracking-widest border-b border-white/5 pb-2 mb-2">Financials</h4>
-
-                    <div className="space-y-3">
-                      <div>
-                        <div className="flex justify-between mb-1">
-                          <label className="text-xs text-secondary">Rate</label>
-                          <div className="flex items-center gap-1.5">
+                      <div className="lanes-financial-field">
+                        <div className="lanes-financial-label-row">
+                          <label className="form-label">Rate</label>
+                          <label className="lanes-randomize-toggle">
                             <input
                               type="checkbox"
                               checked={randomizeRate}
                               onChange={(e) => setRandomizeRate(e.target.checked)}
-                              className="w-3 h-3 rounded border-white/20 bg-transparent text-cyan-500 focus:ring-0"
                             />
-                            <span className="text-[10px] text-cyan-400/80 uppercase tracking-wider">Randomize</span>
-                          </div>
+                            <span>Randomize</span>
+                          </label>
                         </div>
                         <input
                           type="number"
@@ -623,21 +643,22 @@ export default function LanesPage() {
                           onChange={(e) => setRate(e.target.value)}
                           placeholder="0.00"
                           disabled={randomizeRate}
-                          className={`w-full bg-black/40 border border-white/10 rounded-lg py-2 px-3 text-white focus:border-emerald-500/50 focus:ring-0 font-mono text-right ${randomizeRate ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          className={`rr-input lanes-input lanes-mono-input ${randomizeRate ? 'lanes-disabled-input' : ''}`}
+                          aria-label="Rate"
                         />
                       </div>
-                      <div>
-                        <div className="flex justify-between mb-1">
-                          <label className="text-xs text-secondary">Weight (lbs)</label>
-                          <div className="flex items-center gap-1.5">
+
+                      <div className="lanes-financial-field">
+                        <div className="lanes-financial-label-row">
+                          <label className="form-label">Weight (lbs)</label>
+                          <label className="lanes-randomize-toggle">
                             <input
                               type="checkbox"
                               checked={randomize}
                               onChange={(e) => handleRandomizeWeightToggle(e.target.checked)}
-                              className="w-3 h-3 rounded border-white/20 bg-transparent text-cyan-500 focus:ring-0"
                             />
-                            <span className="text-[10px] text-cyan-400/80 uppercase tracking-wider">Randomize</span>
-                          </div>
+                            <span>Randomize</span>
+                          </label>
                         </div>
                         <input
                           type="number"
@@ -645,167 +666,143 @@ export default function LanesPage() {
                           onChange={(e) => setWeight(e.target.value)}
                           placeholder="40000"
                           disabled={randomize}
-                          className={`w-full bg-black/40 border border-white/10 rounded-lg py-2 px-3 text-white focus:border-cyan-500/50 focus:ring-0 font-mono text-right ${randomize ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          className={`rr-input lanes-input lanes-mono-input ${randomize ? 'lanes-disabled-input' : ''}`}
+                          aria-label="Weight in pounds"
                         />
                       </div>
                     </div>
-                  </div>
 
-                  <div className="flex-1 flex flex-col justify-end">
                     <button
                       type="submit"
                       disabled={busy}
-                      className="w-full py-4 rounded-xl bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 text-white font-bold shadow-[0_0_30px_rgba(6,182,212,0.4)] border border-cyan-400/20 transition-all active:scale-[0.98] uppercase tracking-widest text-sm flex items-center justify-center gap-3 group relative overflow-hidden"
+                      className="rr-btn rr-btn-primary lanes-submit-btn"
                     >
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
-                      {busy ? (
-                        <span className="animate-pulse">Creating...</span>
-                      ) : (
-                        <>
-                          <span>Create Lane</span>
-                          <span className="text-xl group-hover:translate-x-1 transition-transform">➜</span>
-                        </>
-                      )}
+                      {busy ? 'Creating...' : 'Create Lane'}
                     </button>
+                  </aside>
+                </div>
+              </form>
+            </div>
+          </section>
+
+          <section className="lanes-list-section">
+            <div className="lanes-list-toolbar">
+              <button type="button" className="lanes-list-tab active">
+                Current Lanes
+                <span className="lanes-list-count">{current.length}</span>
+              </button>
+            </div>
+
+            <div className="lanes-list-grid">
+              {current.map((lane) => (
+                <LaneCard
+                  key={lane.id}
+                  lane={lane}
+                  onEdit={(l) => { setEditingLane(l); setShowEditModal(true); }}
+                  onDelete={(l) => handleLaneAction(l, 'delete')}
+                  onArchive={(l) => handleLaneAction(l, 'archive')}
+                  onRestore={(l) => handleLaneAction(l, 'restore')}
+                  onViewRoute={(l) => { setSelectedLaneForMap(l); setIsMapModalOpen(true); }}
+                  onPost={handlePostLane}
+                  isArchived={false}
+                />
+              ))}
+            </div>
+
+            {current.length === 0 && (
+              <div className="lanes-empty-state rr-card">
+                <div className="lanes-empty-icon">🚛</div>
+                <h3>No active lanes</h3>
+                <p>Create your first lane above to get started with automated posting and tracking.</p>
+              </div>
+            )}
+          </section>
+
+          {archive.length > 0 && (
+            <section className="lanes-archive-section">
+              <h3 className="section-header">Archived Lanes</h3>
+              <div className="lanes-archive-grid">
+                {archive.map((lane) => (
+                  <LaneCard
+                    key={lane.id}
+                    lane={lane}
+                    isArchived={true}
+                    onRestore={(l) => handleLaneAction(l, 'restore')}
+                    onDelete={(l) => handleLaneAction(l, 'delete')}
+                    onViewRoute={(l) => { setSelectedLaneForMap(l); setIsMapModalOpen(true); }}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {isMapModalOpen && selectedLaneForMap && (
+            <RouteMapModal
+              isOpen={isMapModalOpen}
+              onClose={() => setIsMapModalOpen(false)}
+              lane={selectedLaneForMap}
+              origin={selectedLaneForMap.origin_city}
+              dest={selectedLaneForMap.dest_city || selectedLaneForMap.destination_city}
+            />
+          )}
+
+          {showEditModal && editingLane && (
+            <EditLaneModal
+              lane={editingLane}
+              isOpen={showEditModal}
+              onClose={() => setShowEditModal(false)}
+              onSave={handleSaveEdit}
+            />
+          )}
+
+          <CitySelectionModal
+            target={cityModalTarget}
+            value={cityModalTarget === 'origin' ? origin : dest}
+            onChange={cityModalTarget === 'origin' ? setOrigin : setDest}
+            onPick={cityModalTarget === 'origin' ? onPickOrigin : onPickDest}
+            onClose={() => setCityModalTarget(null)}
+          />
+
+          {showWeightRandomModal && (
+            <div className="lanes-modal-backdrop">
+              <div className="lanes-modal-card rr-card-elevated lanes-weight-modal-card">
+                <div className="card-header flex justify-between items-center">
+                  <h3>Randomize Weight</h3>
+                  <button type="button" onClick={cancelRandomizeWeight} className="text-secondary hover:text-white" aria-label="Close randomize weight modal">✕</button>
+                </div>
+                <div className="card-body">
+                  <p className="text-secondary text-sm mb-4">Enter low/high bounds (lbs), then apply a random integer weight.</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="form-label">Low</label>
+                      <input
+                        type="number"
+                        className="form-input"
+                        value={randMin}
+                        onChange={(e) => setRandMin(e.target.value)}
+                        placeholder="10000"
+                      />
+                    </div>
+                    <div>
+                      <label className="form-label">High</label>
+                      <input
+                        type="number"
+                        className="form-input"
+                        value={randMax}
+                        onChange={(e) => setRandMax(e.target.value)}
+                        placeholder="45000"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2 mt-6">
+                    <button type="button" onClick={cancelRandomizeWeight} className="rr-btn btn-outline">Cancel</button>
+                    <button type="button" onClick={applyRandomizedWeight} className="rr-btn rr-btn-primary">Apply Weight</button>
                   </div>
                 </div>
-
               </div>
-            </form>
-          </div>
-        </div>
-      </div>
-
-      {/* Lanes Grid */}
-      <div className="mb-6">
-        <div className="flex gap-6 border-b border-white/10 mb-6">
-          <button
-            className={`pb-2 px-1 text-sm font-medium transition-colors ${true ? 'text-primary border-b-2 border-primary' : 'text-secondary hover:text-white'
-              }`}
-          >
-            Current Lanes <span className="ml-2 bg-white/10 px-2 py-0.5 rounded-full text-xs">{current.length}</span>
-          </button>
-        </div>
-
-        {/* Lanes Grid - Premium Layout */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {false ? ( // Assuming 'loading' state is managed elsewhere, using 'false' for now
-            // Skeleton Loader
-            [...Array(6)].map((_, i) => (
-              <div key={i} className="h-48 rounded-2xl bg-white/5 animate-pulse border border-white/5" />
-            ))
-          ) : (
-            current.map(lane => ( // Using 'current' as per original logic
-              <LaneCard
-                key={lane.id}
-                lane={lane}
-                onEdit={(l) => { setEditingLane(l); setShowEditModal(true); }} // Reverted to original edit logic
-                onDelete={(l) => handleLaneAction(l, 'delete')} // Reverted to original delete logic
-                onArchive={(l) => handleLaneAction(l, 'archive')} // Reverted to original archive logic
-                onRestore={(l) => handleLaneAction(l, 'restore')} // Added restore logic
-                onViewRoute={(l) => { setSelectedLaneForMap(l); setIsMapModalOpen(true); }} // Reverted to original view route logic
-                onPost={handlePostLane} // Reverted to original post logic
-                isArchived={false} // Assuming this is for current lanes
-              />
-            ))
+            </div>
           )}
-        </div>
-
-        {current.length === 0 && (
-          <div className="glass-card text-center py-16">
-            <div className="text-4xl mb-4">🚛</div>
-            <h3 className="text-xl font-semibold text-primary mb-2">No active lanes</h3>
-            <p className="text-secondary max-w-md mx-auto">
-              Create your first lane above to get started with automated posting and tracking.
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* Archived Lanes */}
-      {archive.length > 0 && (
-        <div className="mt-12 pt-8 border-t border-white/5">
-          <h3 className="text-lg font-bold text-secondary mb-6 uppercase tracking-wider text-xs">Archived Lanes</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 opacity-60 hover:opacity-100 transition-opacity">
-            {archive.map(lane => (
-              <LaneCard
-                key={lane.id}
-                lane={lane}
-                isArchived={true}
-                onRestore={(l) => handleLaneAction(l, 'restore')}
-                onDelete={(l) => handleLaneAction(l, 'delete')}
-                onViewRoute={(l) => { setSelectedLaneForMap(l); setIsMapModalOpen(true); }}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Modals */}
-      {isMapModalOpen && selectedLaneForMap && (
-        <RouteMapModal
-          isOpen={isMapModalOpen}
-          onClose={() => setIsMapModalOpen(false)}
-          lane={selectedLaneForMap}
-          origin={selectedLaneForMap.origin_city}
-          dest={selectedLaneForMap.dest_city || selectedLaneForMap.destination_city}
-        />
-      )}
-
-      {showEditModal && editingLane && (
-        <EditLaneModal
-          lane={editingLane}
-          isOpen={showEditModal}
-          onClose={() => setShowEditModal(false)}
-          onSave={handleSaveEdit}
-        />
-      )}
-
-      {showWeightRandomModal && (
-        <div
-          className="fixed inset-0 z-[120] flex items-center justify-center"
-          style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(5px)' }}
-        >
-          <div className="glass-card" style={{ width: '420px', maxWidth: '92vw' }}>
-            <div className="card-header flex justify-between items-center">
-              <h3>Randomize Weight</h3>
-              <button onClick={cancelRandomizeWeight} className="text-secondary hover:text-white">✕</button>
-            </div>
-            <div className="card-body">
-              <p className="text-secondary text-sm mb-4">Enter low/high bounds (lbs), then apply a random integer weight.</p>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="form-label">Low</label>
-                  <input
-                    type="number"
-                    className="form-input"
-                    value={randMin}
-                    onChange={(e) => setRandMin(e.target.value)}
-                    placeholder="10000"
-                  />
-                </div>
-                <div>
-                  <label className="form-label">High</label>
-                  <input
-                    type="number"
-                    className="form-input"
-                    value={randMax}
-                    onChange={(e) => setRandMax(e.target.value)}
-                    placeholder="45000"
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end gap-2 mt-6">
-                <button onClick={cancelRandomizeWeight} className="btn btn-ghost">Cancel</button>
-                <button onClick={applyRandomizedWeight} className="btn btn-primary">Apply Weight</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-
-
+        </section>
       </DashboardLayout>
     </AppBackground>
   );
