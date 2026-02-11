@@ -58,7 +58,7 @@ function CreatePrompt() {
     if (error) {
       console.error('Error creating prompt:', error);
     } else {
-      router.push('/prompts/library');
+      router.push('/sales-resources');
     }
   };
 

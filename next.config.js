@@ -12,6 +12,28 @@ const nextConfig = {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   },
+  async redirects() {
+    return [
+      {
+        source: '/prompts/library',
+        destination: '/sales-resources',
+        permanent: true
+      }
+    ];
+  },
+  async headers() {
+    return [
+      {
+        source: '/sales-resources',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store'
+          }
+        ]
+      }
+    ];
+  },
   webpack: (config) => {
     config.resolve.extensions = ['.js', '.jsx', '.json', '.ts', '.tsx'];
     config.resolve.extensionAlias = {

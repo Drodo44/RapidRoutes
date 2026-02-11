@@ -67,7 +67,11 @@ export default function DashboardSidebar({ stats }) {
                             <span className="nav-badge">{stats?.postedLanes ?? 0}</span>
                         )}
                     </Link>
-                    <Link href="/sales-resources" className={`nav-item ${currentPath === '/sales-resources' ? 'active' : ''}`}>
+                    <Link
+                        href="/sales-resources"
+                        prefetch={false}
+                        className={`nav-item ${currentPath === '/sales-resources' ? 'active' : ''}`}
+                    >
                         <SalesIcon />
                         <span>Sales Resources</span>
                     </Link>

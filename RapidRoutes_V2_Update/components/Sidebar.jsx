@@ -9,7 +9,7 @@ const navItems = [
   { href: "/lanes", label: "New Lane" },
   { href: "/recap", label: "Recap" },
   { href: "/smart-recap", label: "Smart Recap" },
-  { href: "/prompts/library", label: "Sales Resources" },
+  { href: "/sales-resources", label: "Sales Resources" },
   { href: "/settings", label: "Settings" },
   { href: "/profile", label: "Profile" },
   { href: "/admin", label: "Admin" },
@@ -61,6 +61,7 @@ export default function Sidebar() {
           <Link
             key={item.href}
             href={item.href}
+            prefetch={item.href === '/sales-resources' ? false : undefined}
             className={`px-4 py-2 rounded hover:bg-[#1f2937] transition-colors ${
               router.pathname === item.href ? "bg-[#1f2937]" : ""
             }`}

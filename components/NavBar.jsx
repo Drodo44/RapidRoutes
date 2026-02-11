@@ -9,7 +9,7 @@ export default function Navbar() {
     { href: "/dashboard", label: "📊 Dashboard" },
     { href: "/lanes", label: "🛣️ Lanes" },
     { href: "/recap", label: "📋 Recap" },
-    { href: "/prompts/library", label: "🛠️ Sales Resources" },
+    { href: "/sales-resources", label: "🛠️ Sales Resources" },
     { href: "/profile", label: "👤 Profile" },
     { href: "/settings", label: "⚙️ Settings" },
     { href: "/admin", label: "🔐 Admin" },
@@ -46,7 +46,10 @@ export default function Navbar() {
         <ul className="flex space-x-6">
           {navLinks.map((link) => (
             <li key={link.href}>
-              <Link href={link.href}>
+              <Link
+                href={link.href}
+                prefetch={link.href === '/sales-resources' ? false : undefined}
+              >
                 <span
                   className={`cursor-pointer font-medium transition text-sm`}
                   style={{

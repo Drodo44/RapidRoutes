@@ -530,7 +530,7 @@ export default function Dashboard() {
                   <span className="nav-badge">{stats?.postedLanes ?? 0}</span>
                 )}
               </Link>
-              <Link href="/prompts/library" className="nav-item">
+              <Link href="/sales-resources" prefetch={false} className="nav-item">
                 <SalesIcon />
                 <span>Sales Resources</span>
               </Link>

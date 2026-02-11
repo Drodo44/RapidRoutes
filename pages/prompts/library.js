@@ -1,4 +1,4 @@
-// pages/prompts/library.js
+// Legacy prompt library page (deprecated route)
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useRouter } from 'next/router';
