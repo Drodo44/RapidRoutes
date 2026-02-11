@@ -13,6 +13,7 @@ import EmailTemplateModal from '../components/EmailTemplateModal.jsx';
 import DashboardLayout from '../components/DashboardLayout.jsx';
 import CSVExportModal from '../components/recap/CSVExportModal.jsx';
 import IntelligentLaneCard from '../components/recap/IntelligentLaneCard.jsx';
+import AppBackground from '../components/ui/AppBackground';
 import {
   markLaneGaveBack,
   boostLaneRate,
@@ -760,7 +761,8 @@ export default function RecapPage() {
   };
 
   return (
-    <DashboardLayout title="Recap | RapidRoutes" stats={stats}>
+    <AppBackground>
+      <DashboardLayout title="Recap | RapidRoutes" stats={stats}>
 
       {/* Header Actions */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-8">
@@ -966,7 +968,8 @@ export default function RecapPage() {
         onExport={(laneIds, contactMethod) => generateCSV(laneIds, contactMethod)}
       />
 
-    </DashboardLayout>
+      </DashboardLayout>
+    </AppBackground>
   );
 }
 

@@ -1,4 +1,5 @@
 // pages/_app.js
+import '../styles/design-tokens.css';
 import '../styles/globals.css';
 import '../styles/dashboard.css';
 import '../styles/enterprise.css';

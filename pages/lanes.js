@@ -11,6 +11,7 @@ import LaneCard from '../components/LaneCard.jsx';
 import RouteMapModal from '../components/RouteMapModal.jsx';
 // We'll use a simple inline modal for editing if one doesn't exist, 
 // to avoid import errors. 
+import AppBackground from '../components/ui/AppBackground';
 
 import supabase from '../utils/supabaseClient';
 import { getMyLanesOnlyPreference, setMyLanesOnlyPreference } from '../lib/laneFilterPreferences.js';
@@ -437,7 +438,8 @@ export default function LanesPage() {
   };
 
   return (
-    <DashboardLayout title="Lanes | RapidRoutes" stats={stats}>
+    <AppBackground>
+      <DashboardLayout title="Lanes | RapidRoutes" stats={stats}>
 
       {/* Header Actions */}
       <div className="flex justify-between items-center mb-6">
@@ -804,7 +806,8 @@ export default function LanesPage() {
 
 
 
-    </DashboardLayout>
+      </DashboardLayout>
+    </AppBackground>
   );
 }
 

@@ -8,6 +8,7 @@ import Head from 'next/head';
 import dynamic from 'next/dynamic';
 // Image import removed - using text logo instead
 import supabase from '../utils/supabaseClient';
+import AppBackground from '../components/ui/AppBackground';
 
 const MarketMap = dynamic(() => import('../components/MarketMap'), {
   ssr: false,
@@ -483,7 +484,7 @@ export default function Dashboard() {
   const userName = user?.email?.split('@')[0] || 'User';
 
   return (
-    <>
+    <AppBackground>
       <Head>
         <title>Dashboard | RapidRoutes</title>
       </Head>
@@ -618,6 +619,6 @@ export default function Dashboard() {
         {/* ESPN Ticker */}
         <LaneTicker lanes={recentLanes} />
       </div>
-    </>
+    </AppBackground>
   );
 }

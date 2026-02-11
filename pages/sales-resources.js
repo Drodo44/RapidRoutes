@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import Head from 'next/head';
 import DashboardLayout from '../components/DashboardLayout';
+import AppBackground from '../components/ui/AppBackground';
 
 export default function SalesResources() {
     const [activeTab, setActiveTab] = useState('scripts');
 
     return (
-        <DashboardLayout>
-            <div className="min-h-screen bg-slate-900 text-white p-6">
+        <AppBackground>
+            <DashboardLayout>
+                <div className="min-h-screen text-white p-6">
                 <Head>
                     <title>Sales Resources | RapidRoutes</title>
                 </Head>
@@ -49,7 +51,8 @@ export default function SalesResources() {
                 box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
             }
           `}</style>
-            </div>
-        </DashboardLayout>
+                </div>
+            </DashboardLayout>
+        </AppBackground>
     );
 }
