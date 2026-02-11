@@ -54,6 +54,10 @@ function getSavedCityState(lane) {
   return { savedOriginCities, savedDestCities, hasSavedCities };
 }
 
+function isArchivedLane(lane) {
+  return String(lane?.lane_status || lane?.status || '').trim().toLowerCase() === 'archive';
+}
+
 function matches(q, l) {
   if (!q) return true;
 
@@ -544,7 +548,9 @@ export default function RecapPage() {
   }, []);
 
   const filtered = useMemo(() => {
-    let result = (lanes || []).filter(l => matches(q, l));
+    let result = (lanes || [])
+      .filter((lane) => !isArchivedLane(lane))
+      .filter((lane) => matches(q, lane));
 
     if (onlyWithSavedCities) {
       result = result.filter((lane) => lane.hasSavedCities);
@@ -572,8 +578,9 @@ export default function RecapPage() {
     return result;
   }, [lanes, q, recaps, showAIOnly, sortOrder, onlyWithSavedCities]);
 
-  const totalCurrentLanes = (lanes || []).length;
+  const totalCurrentLanes = (lanes || []).filter((lane) => !isArchivedLane(lane)).length;
   const filteredSavedLanesCount = filtered.filter((lane) => lane.hasSavedCities).length;
+  const csvLanes = filtered.filter((lane) => !isArchivedLane(lane));
 
   const handleGenerateRecap = async (laneId) => {
     setGeneratingIds(prev => new Set([...prev, laneId]));
@@ -642,12 +649,15 @@ export default function RecapPage() {
     const result = await response.json().catch(() => ({}));
 
     if (response.ok && result.success) {
-      // Refresh lanes
-      setLanes(prev => prev.map(l =>
-        l.id === laneId
-          ? { ...l, lane_status: 'archive', covered_at: result.coveredAt || new Date().toISOString() }
-          : l
-      ));
+      // Remove archived lane immediately from Recap UI/CSV scope
+      setLanes(prev => prev.filter((lane) => lane.id !== laneId));
+      setSelectedLaneIds(prev => prev.filter((id) => id !== laneId));
+      setRecaps(prev => {
+        if (!prev[laneId]) return prev;
+        const next = { ...prev };
+        delete next[laneId];
+        return next;
+      });
     } else {
       alert('Failed to archive lane: ' + (result.error || `HTTP ${response.status}`));
     }
@@ -951,7 +961,7 @@ export default function RecapPage() {
       <CSVExportModal
         isOpen={csvModalOpen}
         onClose={() => setCsvModalOpen(false)}
-        lanes={filtered}
+        lanes={csvLanes}
         selectedLaneIds={selectedLaneIds}
         onExport={(laneIds, contactMethod) => generateCSV(laneIds, contactMethod)}
       />
