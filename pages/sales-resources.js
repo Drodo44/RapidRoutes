@@ -1,65 +1,13 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/router';
 import DashboardLayout from '../components/DashboardLayout';
 import AppBackground from '../components/ui/AppBackground';
+import { useAuth } from '../contexts/AuthContext';
+import supabase from '../utils/supabaseClient';
 
-const RESOURCE_LIBRARY = [
-  {
-    id: 'cold-openers',
-    title: 'Cold Call Openers',
-    category: 'scripts',
-    description: 'Concise opening frameworks for first-touch shipper calls.',
-    tags: ['Phone', 'Outbound', 'First Touch'],
-    cta: 'Open Script'
-  },
-  {
-    id: 'objection-pricing',
-    title: 'Rate Objection Handling',
-    category: 'battlecards',
-    description: 'Response angles for “your rate is too high” and capacity pushback.',
-    tags: ['Pricing', 'Negotiation', 'Retention'],
-    cta: 'View Battle Card'
-  },
-  {
-    id: 'follow-up-sequences',
-    title: 'Follow-Up Sequence Templates',
-    category: 'templates',
-    description: 'Multi-touch cadence templates for warm leads and stalled opportunities.',
-    tags: ['Email', 'Follow-Up', 'Cadence'],
-    cta: 'Use Template'
-  },
-  {
-    id: 'lane-intel-brief',
-    title: 'Weekly Lane Intel Brief',
-    category: 'intel',
-    description: 'Snapshot format for presenting market shifts to shippers each week.',
-    tags: ['Market', 'Briefing', 'Insights'],
-    cta: 'View Brief'
-  },
-  {
-    id: 'renewal-talktrack',
-    title: 'Contract Renewal Talk Track',
-    category: 'scripts',
-    description: 'Position value and secure renewal with confidence under rate pressure.',
-    tags: ['Renewal', 'Strategy', 'Retention'],
-    cta: 'Open Script'
-  },
-  {
-    id: 'email-reengage',
-    title: 'Re-Engagement Email Pack',
-    category: 'templates',
-    description: 'Three-step reactivation messaging for dormant shipper accounts.',
-    tags: ['Email', 'Reactivation', 'Pipeline'],
-    cta: 'Use Template'
-  }
-];
-
-const CATEGORY_OPTIONS = [
-  { id: 'all', label: 'All Resources' },
-  { id: 'scripts', label: 'Scripts' },
-  { id: 'battlecards', label: 'Battle Cards' },
-  { id: 'templates', label: 'Templates' },
-  { id: 'intel', label: 'Market Intel' }
-];
+const TAB_OPTIONS = ['All', 'Email Prompts', 'Flowcharts', 'Lead Gen', 'Company Information', 'Favorites'];
+const CATEGORY_OPTIONS = TAB_OPTIONS.filter((tab) => tab !== 'All' && tab !== 'Favorites');
+const FAVORITE_KEY_CANDIDATES = ['prompt_card_id', 'card_id', 'prompt_id'];
 
 const QUICK_PROMPTS = [
   'Draft a concise cold-call opener for a food shipper with late-pickup pain.',
@@ -71,33 +19,481 @@ const QUICK_PROMPTS = [
 const INITIAL_CHAT = [
   {
     role: 'assistant',
-    content: 'I can help you draft sales scripts, objection responses, and follow-ups. Ask for a concise output and target shipper context.'
+    content: 'I can help you draft sales scripts, objection responses, and follow-ups. Ask for concise output with shipper context.'
   }
 ];
 
+function createEmptyCardForm() {
+  return {
+    title: '',
+    category: CATEGORY_OPTIONS[0],
+    description: '',
+    useCase: '',
+    targetAudience: '',
+    promptText: '',
+    html: '',
+    badge: ''
+  };
+}
+
+function createEmptySuggestionForm() {
+  return {
+    title: '',
+    category: CATEGORY_OPTIONS[0],
+    description: '',
+    promptText: ''
+  };
+}
+
+function getErrorMessage(error, fallbackMessage) {
+  if (error?.message && typeof error.message === 'string') {
+    return error.message;
+  }
+  return fallbackMessage;
+}
+
+function isPolicyError(error) {
+  const message = getErrorMessage(error, '').toLowerCase();
+  return message.includes('policy') || message.includes('row-level security') || message.includes('rls');
+}
+
+function isMissingColumnError(error) {
+  const message = getErrorMessage(error, '').toLowerCase();
+  return message.includes('does not exist') || message.includes('unknown column') || error?.code === 'PGRST204';
+}
+
+function slugifyTitle(title) {
+  const normalized = String(title || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return normalized || 'prompt';
+}
+
+function getFavoriteCardId(row, preferredKey) {
+  const keysToTry = [preferredKey, ...FAVORITE_KEY_CANDIDATES].filter(Boolean);
+  for (const key of keysToTry) {
+    if (row && row[key]) return row[key];
+  }
+  return null;
+}
+
+function detectFavoriteKey(rows) {
+  if (!Array.isArray(rows) || rows.length === 0) return null;
+  for (const candidate of FAVORITE_KEY_CANDIDATES) {
+    if (rows.some((row) => Object.prototype.hasOwnProperty.call(row || {}, candidate))) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
 export default function SalesResources() {
-  const [activeCategory, setActiveCategory] = useState('all');
-  const [searchQuery, setSearchQuery] = useState('');
+  const router = useRouter();
+  const { loading, isAuthenticated, user } = useAuth();
+  const chatInputRef = useRef(null);
+
+  const isAdmin = user?.role === 'admin';
+
+  const [activeTab, setActiveTab] = useState('All');
+  const [promptCards, setPromptCards] = useState([]);
+  const [isLoadingCards, setIsLoadingCards] = useState(true);
+  const [cardsError, setCardsError] = useState('');
+  const [actionError, setActionError] = useState('');
+  const [policyError, setPolicyError] = useState('');
+  const [favoriteKey, setFavoriteKey] = useState(FAVORITE_KEY_CANDIDATES[0]);
 
   const [messages, setMessages] = useState(INITIAL_CHAT);
   const [draftMessage, setDraftMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [chatError, setChatError] = useState('');
 
-  const filteredResources = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [editingCardId, setEditingCardId] = useState(null);
+  const [cardForm, setCardForm] = useState(createEmptyCardForm());
+  const [isSavingCard, setIsSavingCard] = useState(false);
 
-    return RESOURCE_LIBRARY.filter((resource) => {
-      const categoryMatch = activeCategory === 'all' || resource.category === activeCategory;
-      const queryMatch =
-        query.length === 0 ||
-        resource.title.toLowerCase().includes(query) ||
-        resource.description.toLowerCase().includes(query) ||
-        resource.tags.some((tag) => tag.toLowerCase().includes(query));
+  const [suggestionForm, setSuggestionForm] = useState(createEmptySuggestionForm());
+  const [isSubmittingSuggestion, setIsSubmittingSuggestion] = useState(false);
+  const [suggestionNotice, setSuggestionNotice] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [suggestionsError, setSuggestionsError] = useState('');
 
-      return categoryMatch && queryMatch;
+  const blockedByPolicy = Boolean(policyError);
+
+  const filteredCards = useMemo(() => {
+    if (activeTab === 'All') return promptCards;
+    if (activeTab === 'Favorites') return promptCards.filter((card) => card.isFavorite);
+
+    return promptCards.filter(
+      (card) => String(card.category || '').trim().toLowerCase() === activeTab.toLowerCase()
+    );
+  }, [activeTab, promptCards]);
+
+  const favoriteKeyOrder = useMemo(() => {
+    return [...new Set([favoriteKey, ...FAVORITE_KEY_CANDIDATES].filter(Boolean))];
+  }, [favoriteKey]);
+
+  const setPolicyErrorAndStop = useCallback((context, error) => {
+    const message = `${context}: ${getErrorMessage(error, 'Policy validation failed.')}`;
+    setPolicyError(message);
+    setCardsError(message);
+    setActionError(message);
+  }, []);
+
+  const loadPromptCards = useCallback(async () => {
+    if (!user?.id || !supabase) return;
+
+    setIsLoadingCards(true);
+    setCardsError('');
+
+    try {
+      const [cardsResponse, favoritesResponse] = await Promise.all([
+        supabase.from('prompt_cards').select('*').order('created_at', { ascending: false }),
+        supabase.from('prompt_favorites').select('*').eq('user_id', user.id)
+      ]);
+
+      if (cardsResponse.error) {
+        if (isPolicyError(cardsResponse.error)) {
+          setPolicyErrorAndStop('prompt_cards fetch failed', cardsResponse.error);
+          return;
+        }
+        throw cardsResponse.error;
+      }
+
+      if (favoritesResponse.error) {
+        if (isPolicyError(favoritesResponse.error)) {
+          setPolicyErrorAndStop('prompt_favorites fetch failed', favoritesResponse.error);
+          return;
+        }
+        throw favoritesResponse.error;
+      }
+
+      const favoritesRows = favoritesResponse.data || [];
+      const detectedFavoriteKey = detectFavoriteKey(favoritesRows);
+      if (detectedFavoriteKey) {
+        setFavoriteKey(detectedFavoriteKey);
+      }
+
+      const favoriteIds = new Set(
+        favoritesRows
+          .map((row) => getFavoriteCardId(row, detectedFavoriteKey || favoriteKey))
+          .filter(Boolean)
+          .map((value) => String(value))
+      );
+
+      const mergedCards = (cardsResponse.data || []).map((card) => ({
+        ...card,
+        isFavorite: favoriteIds.has(String(card.id))
+      }));
+
+      setPromptCards(mergedCards);
+    } catch (error) {
+      setCardsError(getErrorMessage(error, 'Unable to load prompt cards.'));
+    } finally {
+      setIsLoadingCards(false);
+    }
+  }, [favoriteKey, setPolicyErrorAndStop, user?.id]);
+
+  const loadSuggestions = useCallback(async () => {
+    if (!isAdmin || !supabase) return;
+
+    setIsLoadingSuggestions(true);
+    setSuggestionsError('');
+
+    try {
+      const { data, error } = await supabase
+        .from('prompt_suggestions')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        if (isPolicyError(error)) {
+          setPolicyErrorAndStop('prompt_suggestions fetch failed', error);
+          return;
+        }
+        throw error;
+      }
+
+      setSuggestions(data || []);
+    } catch (error) {
+      setSuggestionsError(getErrorMessage(error, 'Unable to load suggestions.'));
+    } finally {
+      setIsLoadingSuggestions(false);
+    }
+  }, [isAdmin, setPolicyErrorAndStop]);
+
+  useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      router.replace('/login');
+    }
+  }, [loading, isAuthenticated, router]);
+
+  useEffect(() => {
+    if (loading || !isAuthenticated || !user?.id || blockedByPolicy) return;
+    loadPromptCards();
+  }, [blockedByPolicy, isAuthenticated, loadPromptCards, loading, user?.id]);
+
+  useEffect(() => {
+    if (!isAdmin || loading || !isAuthenticated || blockedByPolicy) {
+      setSuggestions([]);
+      return;
+    }
+    loadSuggestions();
+  }, [blockedByPolicy, isAdmin, isAuthenticated, loadSuggestions, loading]);
+
+  async function insertFavorite(cardId) {
+    for (const key of favoriteKeyOrder) {
+      const { error } = await supabase.from('prompt_favorites').insert([{ user_id: user.id, [key]: cardId }]);
+      if (!error) {
+        setFavoriteKey(key);
+        return null;
+      }
+      if (isPolicyError(error)) return error;
+      if (!isMissingColumnError(error)) return error;
+    }
+    return new Error('Unable to identify prompt_favorites key for insert.');
+  }
+
+  async function removeFavorite(cardId) {
+    for (const key of favoriteKeyOrder) {
+      const { error } = await supabase
+        .from('prompt_favorites')
+        .delete()
+        .eq('user_id', user.id)
+        .eq(key, cardId);
+      if (!error) {
+        setFavoriteKey(key);
+        return null;
+      }
+      if (isPolicyError(error)) return error;
+      if (!isMissingColumnError(error)) return error;
+    }
+    return new Error('Unable to identify prompt_favorites key for delete.');
+  }
+
+  async function handleToggleFavorite(cardId) {
+    if (!user?.id || blockedByPolicy || !supabase) return;
+
+    const currentCard = promptCards.find((card) => card.id === cardId);
+    if (!currentCard) return;
+
+    const nextFavoriteValue = !currentCard.isFavorite;
+    setActionError('');
+
+    setPromptCards((prev) =>
+      prev.map((card) => (card.id === cardId ? { ...card, isFavorite: nextFavoriteValue } : card))
+    );
+
+    const operationError = nextFavoriteValue
+      ? await insertFavorite(cardId)
+      : await removeFavorite(cardId);
+
+    if (operationError) {
+      if (isPolicyError(operationError)) {
+        setPolicyErrorAndStop('prompt_favorites update failed', operationError);
+      } else {
+        setActionError(getErrorMessage(operationError, 'Unable to update favorite.'));
+      }
+
+      setPromptCards((prev) =>
+        prev.map((card) => (card.id === cardId ? { ...card, isFavorite: !nextFavoriteValue } : card))
+      );
+    }
+  }
+
+  async function handleCopyPrompt(card) {
+    const promptText = String(card?.prompt_text || '');
+    setDraftMessage(promptText);
+    chatInputRef.current?.focus();
+
+    if (!promptText.trim()) {
+      setActionError('This card has no prompt text to copy.');
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(promptText);
+      setActionError('');
+    } catch (error) {
+      setActionError('Prompt added to chat input, but clipboard access was blocked.');
+    }
+  }
+
+  function handleDownloadHtml(card) {
+    if (blockedByPolicy) return;
+
+    const htmlContent = String(card?.html || '');
+    if (!htmlContent.trim()) {
+      setActionError('This card has no HTML content to download.');
+      return;
+    }
+
+    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+    const downloadUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = `rapidroutes-${slugifyTitle(card?.title)}.html`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(downloadUrl);
+  }
+
+  function openUploadModal() {
+    setEditingCardId(null);
+    setCardForm(createEmptyCardForm());
+    setActionError('');
+    setIsEditorOpen(true);
+  }
+
+  function openEditModal(card) {
+    setEditingCardId(card.id);
+    setCardForm({
+      title: String(card.title || ''),
+      category: CATEGORY_OPTIONS.includes(card.category) ? card.category : CATEGORY_OPTIONS[0],
+      description: String(card.description || ''),
+      useCase: String(card.use_case || ''),
+      targetAudience: String(card.target_audience || ''),
+      promptText: String(card.prompt_text || ''),
+      html: String(card.html || ''),
+      badge: String(card.badge || '')
     });
-  }, [activeCategory, searchQuery]);
+    setActionError('');
+    setIsEditorOpen(true);
+  }
+
+  function closeEditorModal() {
+    if (isSavingCard) return;
+    setIsEditorOpen(false);
+  }
+
+  async function handleSaveCard(event) {
+    event.preventDefault();
+    if (!isAdmin || blockedByPolicy || !supabase) return;
+
+    setIsSavingCard(true);
+    setActionError('');
+
+    const payload = {
+      title: cardForm.title.trim(),
+      category: cardForm.category,
+      description: cardForm.description.trim(),
+      use_case: cardForm.useCase.trim() || null,
+      target_audience: cardForm.targetAudience.trim() || null,
+      prompt_text: cardForm.promptText.trim(),
+      html: cardForm.html.trim(),
+      badge: cardForm.badge.trim() || null
+    };
+
+    try {
+      const operation = editingCardId
+        ? supabase.from('prompt_cards').update(payload).eq('id', editingCardId)
+        : supabase.from('prompt_cards').insert([payload]);
+
+      const { error } = await operation;
+      if (error) {
+        if (isPolicyError(error)) {
+          setPolicyErrorAndStop('prompt_cards save failed', error);
+          return;
+        }
+        throw error;
+      }
+
+      setIsEditorOpen(false);
+      setEditingCardId(null);
+      setCardForm(createEmptyCardForm());
+      await loadPromptCards();
+    } catch (error) {
+      setActionError(getErrorMessage(error, 'Unable to save prompt card.'));
+    } finally {
+      setIsSavingCard(false);
+    }
+  }
+
+  async function handleDeleteCard(cardId) {
+    if (!isAdmin || blockedByPolicy || !supabase) return;
+    if (!window.confirm('Delete this prompt card?')) return;
+
+    setActionError('');
+
+    try {
+      const { error } = await supabase.from('prompt_cards').delete().eq('id', cardId);
+      if (error) {
+        if (isPolicyError(error)) {
+          setPolicyErrorAndStop('prompt_cards delete failed', error);
+          return;
+        }
+        throw error;
+      }
+
+      setPromptCards((prev) => prev.filter((card) => card.id !== cardId));
+    } catch (error) {
+      setActionError(getErrorMessage(error, 'Unable to delete prompt card.'));
+    }
+  }
+
+  async function handleDeleteSuggestion(suggestionId) {
+    if (!isAdmin || blockedByPolicy || !supabase) return;
+    if (!window.confirm('Delete this suggestion?')) return;
+
+    setSuggestionsError('');
+
+    try {
+      const { error } = await supabase.from('prompt_suggestions').delete().eq('id', suggestionId);
+      if (error) {
+        if (isPolicyError(error)) {
+          setPolicyErrorAndStop('prompt_suggestions delete failed', error);
+          return;
+        }
+        throw error;
+      }
+      setSuggestions((prev) => prev.filter((item) => item.id !== suggestionId));
+    } catch (error) {
+      setSuggestionsError(getErrorMessage(error, 'Unable to delete suggestion.'));
+    }
+  }
+
+  async function handleSubmitSuggestion(event) {
+    event.preventDefault();
+    if (!user?.id || blockedByPolicy || !supabase) return;
+
+    setIsSubmittingSuggestion(true);
+    setSuggestionsError('');
+    setSuggestionNotice('');
+
+    const payload = {
+      title: suggestionForm.title.trim(),
+      category: suggestionForm.category,
+      description: suggestionForm.description.trim(),
+      prompt_text: suggestionForm.promptText.trim() || null,
+      user_id: user.id
+    };
+
+    try {
+      const { error } = await supabase.from('prompt_suggestions').insert([payload]);
+      if (error) {
+        if (isPolicyError(error)) {
+          setPolicyErrorAndStop('prompt_suggestions submit failed', error);
+          return;
+        }
+        throw error;
+      }
+
+      setSuggestionForm(createEmptySuggestionForm());
+      setSuggestionNotice('Suggestion submitted successfully.');
+
+      if (isAdmin) {
+        await loadSuggestions();
+      }
+    } catch (error) {
+      setSuggestionsError(getErrorMessage(error, 'Unable to submit suggestion.'));
+    } finally {
+      setIsSubmittingSuggestion(false);
+    }
+  }
 
   async function handleSendMessage(event) {
     event.preventDefault();
@@ -130,8 +526,7 @@ export default function SalesResources() {
 
       setMessages((prev) => [...prev, { role: 'assistant', content: assistantMessage }]);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to get AI response right now.';
-      setChatError(message);
+      setChatError(getErrorMessage(error, 'Unable to get AI response right now.'));
     } finally {
       setIsSending(false);
     }
@@ -143,6 +538,24 @@ export default function SalesResources() {
     setChatError('');
   }
 
+  if (loading) {
+    return (
+      <AppBackground>
+        <DashboardLayout title="Sales Resources | RapidRoutes">
+          <section className="sales-page">
+            <div className="sales-empty-state rr-card">
+              <h3>Loading Prompt Library...</h3>
+            </div>
+          </section>
+        </DashboardLayout>
+      </AppBackground>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return null;
+  }
+
   return (
     <AppBackground>
       <DashboardLayout title="Sales Resources | RapidRoutes">
@@ -150,70 +563,152 @@ export default function SalesResources() {
           <header className="sales-header">
             <div className="sales-header-copy">
               <h1 className="sales-title">Sales Resources</h1>
-              <p className="sales-subtitle">Scripts, battle cards, and an AI copilot for rapid outbound prep</p>
+              <p className="sales-subtitle">Prompt library and RapidRoutes AI for outbound prep</p>
             </div>
+            {isAdmin && (
+              <button
+                type="button"
+                className="rr-btn rr-btn-primary"
+                onClick={openUploadModal}
+                disabled={blockedByPolicy}
+              >
+                Upload
+              </button>
+            )}
           </header>
+
+          {policyError && (
+            <div className="sales-empty-state rr-card sales-error-banner">
+              <h3>Policy Error</h3>
+              <p>{policyError}</p>
+            </div>
+          )}
+
+          {cardsError && !policyError && (
+            <div className="sales-empty-state rr-card sales-error-banner">
+              <h3>Prompt Library Error</h3>
+              <p>{cardsError}</p>
+            </div>
+          )}
+
+          {actionError && !policyError && (
+            <div className="sales-empty-state rr-card sales-error-banner">
+              <p>{actionError}</p>
+            </div>
+          )}
 
           <div className="sales-grid">
             <section className="sales-library rr-card-elevated">
               <div className="sales-library-header">
                 <div>
-                  <h2>Resource Library</h2>
-                  <p>Stub content for Phase 4 UI. Local files can replace these cards later.</p>
-                </div>
-                <div className="sales-library-search-wrap">
-                  <label htmlFor="resource-search" className="form-label section-header">Search</label>
-                  <input
-                    id="resource-search"
-                    type="search"
-                    className="rr-input"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Find scripts, templates, or battle cards"
-                  />
+                  <h2>Prompt Library</h2>
+                  <p>Database-backed prompts with favorites and HTML downloads.</p>
                 </div>
               </div>
 
-              <div className="sales-category-list" role="tablist" aria-label="Resource categories">
-                {CATEGORY_OPTIONS.map((category) => (
+              <div className="sales-category-list" role="tablist" aria-label="Prompt tabs">
+                {TAB_OPTIONS.map((tab) => (
                   <button
-                    key={category.id}
+                    key={tab}
                     type="button"
-                    className={`sales-category-btn ${activeCategory === category.id ? 'active' : ''}`}
-                    onClick={() => setActiveCategory(category.id)}
+                    className={`sales-category-btn ${activeTab === tab ? 'active' : ''}`}
+                    onClick={() => setActiveTab(tab)}
                   >
-                    {category.label}
+                    {tab}
                   </button>
                 ))}
               </div>
 
-              <div className="sales-resource-grid">
-                {filteredResources.map((resource) => (
-                  <article key={resource.id} className="sales-resource-card rr-card">
-                    <div className="sales-resource-card-head">
-                      <span className="sales-resource-category">{resource.category}</span>
-                      <button type="button" className="btn-icon sales-resource-pin" aria-label={`Pin ${resource.title}`}>
-                        ★
-                      </button>
-                    </div>
-                    <h3>{resource.title}</h3>
-                    <p>{resource.description}</p>
-                    <div className="sales-resource-tags">
-                      {resource.tags.map((tag) => (
-                        <span key={`${resource.id}-${tag}`}>{tag}</span>
-                      ))}
-                    </div>
-                    <button type="button" className="rr-btn btn-outline sales-resource-action">
-                      {resource.cta}
-                    </button>
-                  </article>
-                ))}
-              </div>
-
-              {filteredResources.length === 0 && (
+              {isLoadingCards ? (
                 <div className="sales-empty-state rr-card">
-                  <h3>No resources found</h3>
-                  <p>Try another search term or category filter.</p>
+                  <h3>Loading cards...</h3>
+                </div>
+              ) : (
+                <div className="sales-resource-grid">
+                  {filteredCards.map((card) => (
+                    <article key={card.id} className="sales-resource-card rr-card">
+                      <div className="sales-resource-card-head">
+                        <div className="sales-resource-title-wrap">
+                          <h3>{card.title}</h3>
+                          {card.badge && <span className="sales-resource-badge">{card.badge}</span>}
+                        </div>
+                        <button
+                          type="button"
+                          className={`btn-icon sales-resource-pin ${card.isFavorite ? 'is-favorite' : ''}`}
+                          onClick={() => handleToggleFavorite(card.id)}
+                          aria-label={card.isFavorite ? `Remove ${card.title} from favorites` : `Add ${card.title} to favorites`}
+                          disabled={blockedByPolicy}
+                        >
+                          ★
+                        </button>
+                      </div>
+
+                      <div className="sales-resource-body">
+                        <span className="sales-resource-category">{card.category}</span>
+                        <p>{card.description}</p>
+
+                        {card.use_case && (
+                          <div className="sales-resource-meta">
+                            <span className="sales-meta-label">USE CASE</span>
+                            <p>{card.use_case}</p>
+                          </div>
+                        )}
+
+                        {card.target_audience && (
+                          <div className="sales-resource-meta">
+                            <span className="sales-meta-label">TARGET AUDIENCE</span>
+                            <p>{card.target_audience}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="sales-resource-actions">
+                        <button
+                          type="button"
+                          className="rr-btn btn-outline sales-resource-action"
+                          onClick={() => handleCopyPrompt(card)}
+                          disabled={blockedByPolicy}
+                        >
+                          Copy Prompt
+                        </button>
+                        <button
+                          type="button"
+                          className="rr-btn btn-outline sales-resource-action"
+                          onClick={() => handleDownloadHtml(card)}
+                          disabled={blockedByPolicy}
+                        >
+                          Download HTML
+                        </button>
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            className="rr-btn btn-outline sales-resource-action"
+                            onClick={() => openEditModal(card)}
+                            disabled={blockedByPolicy}
+                          >
+                            Edit
+                          </button>
+                        )}
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            className="rr-btn btn-outline sales-resource-action sales-resource-action-danger"
+                            onClick={() => handleDeleteCard(card.id)}
+                            disabled={blockedByPolicy}
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+
+              {!isLoadingCards && filteredCards.length === 0 && (
+                <div className="sales-empty-state rr-card">
+                  <h3>No prompts found</h3>
+                  <p>Try a different tab or add a new card.</p>
                 </div>
               )}
             </section>
@@ -221,7 +716,7 @@ export default function SalesResources() {
             <aside className="sales-chat-panel rr-card-elevated">
               <div className="sales-chat-header">
                 <div>
-                  <h2>AI Sales Copilot</h2>
+                  <h2>RapidRoutes AI</h2>
                   <p>Ephemeral chat only. Nothing is stored.</p>
                 </div>
                 <button type="button" className="rr-btn btn-outline" onClick={startNewChat}>
@@ -231,15 +726,18 @@ export default function SalesResources() {
 
               <div className="sales-chat-messages" aria-live="polite">
                 {messages.map((message, index) => (
-                  <div key={`chat-${index}`} className={`sales-chat-message ${message.role === 'assistant' ? 'assistant' : 'user'}`}>
-                    <span className="sales-chat-role">{message.role === 'assistant' ? 'Copilot' : 'You'}</span>
+                  <div
+                    key={`chat-${index}`}
+                    className={`sales-chat-message ${message.role === 'assistant' ? 'assistant' : 'user'}`}
+                  >
+                    <span className="sales-chat-role">{message.role === 'assistant' ? 'RapidRoutes AI' : 'You'}</span>
                     <p>{message.content}</p>
                   </div>
                 ))}
                 {isSending && (
                   <div className="sales-chat-message assistant pending">
-                    <span className="sales-chat-role">Copilot</span>
-                    <p>Thinking…</p>
+                    <span className="sales-chat-role">RapidRoutes AI</span>
+                    <p>Thinking...</p>
                   </div>
                 )}
               </div>
@@ -250,7 +748,10 @@ export default function SalesResources() {
                     key={`prompt-${idx}`}
                     type="button"
                     className="sales-prompt-chip"
-                    onClick={() => setDraftMessage(prompt)}
+                    onClick={() => {
+                      setDraftMessage(prompt);
+                      chatInputRef.current?.focus();
+                    }}
                   >
                     {prompt}
                   </button>
@@ -260,10 +761,11 @@ export default function SalesResources() {
               <form className="sales-chat-form" onSubmit={handleSendMessage}>
                 <label htmlFor="sales-chat-input" className="form-label section-header">Message</label>
                 <textarea
+                  ref={chatInputRef}
                   id="sales-chat-input"
                   className="rr-input sales-chat-input"
                   value={draftMessage}
-                  onChange={(e) => setDraftMessage(e.target.value)}
+                  onChange={(event) => setDraftMessage(event.target.value)}
                   placeholder="Ask for a script, rebuttal, follow-up, or discovery questions..."
                   rows={3}
                   disabled={isSending}
@@ -277,6 +779,245 @@ export default function SalesResources() {
               </form>
             </aside>
           </div>
+
+          <div className="sales-suggestions-grid">
+            <section className="sales-suggestion-box rr-card-elevated">
+              <h2>Suggest a Prompt</h2>
+              <p>Share ideas for new cards in the prompt library.</p>
+
+              <form className="sales-suggestion-form" onSubmit={handleSubmitSuggestion}>
+                <label htmlFor="suggest-title" className="form-label section-header">Title</label>
+                <input
+                  id="suggest-title"
+                  type="text"
+                  className="rr-input"
+                  value={suggestionForm.title}
+                  onChange={(event) =>
+                    setSuggestionForm((prev) => ({ ...prev, title: event.target.value }))
+                  }
+                  required
+                  disabled={isSubmittingSuggestion || blockedByPolicy}
+                />
+
+                <label htmlFor="suggest-category" className="form-label section-header">Category</label>
+                <select
+                  id="suggest-category"
+                  className="rr-input"
+                  value={suggestionForm.category}
+                  onChange={(event) =>
+                    setSuggestionForm((prev) => ({ ...prev, category: event.target.value }))
+                  }
+                  required
+                  disabled={isSubmittingSuggestion || blockedByPolicy}
+                >
+                  {CATEGORY_OPTIONS.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </select>
+
+                <label htmlFor="suggest-description" className="form-label section-header">Description</label>
+                <textarea
+                  id="suggest-description"
+                  className="rr-input sales-suggestion-textarea"
+                  value={suggestionForm.description}
+                  onChange={(event) =>
+                    setSuggestionForm((prev) => ({ ...prev, description: event.target.value }))
+                  }
+                  rows={5}
+                  required
+                  disabled={isSubmittingSuggestion || blockedByPolicy}
+                />
+
+                <label htmlFor="suggest-prompt" className="form-label section-header">Prompt Text (Optional)</label>
+                <textarea
+                  id="suggest-prompt"
+                  className="rr-input sales-suggestion-textarea"
+                  value={suggestionForm.promptText}
+                  onChange={(event) =>
+                    setSuggestionForm((prev) => ({ ...prev, promptText: event.target.value }))
+                  }
+                  rows={4}
+                  disabled={isSubmittingSuggestion || blockedByPolicy}
+                />
+
+                {suggestionNotice && <p className="sales-success-note">{suggestionNotice}</p>}
+                {suggestionsError && !policyError && <p className="sales-chat-error">{suggestionsError}</p>}
+
+                <div className="sales-suggestion-actions">
+                  <button
+                    type="submit"
+                    className="rr-btn rr-btn-primary"
+                    disabled={isSubmittingSuggestion || blockedByPolicy}
+                  >
+                    {isSubmittingSuggestion ? 'Submitting...' : 'Submit Suggestion'}
+                  </button>
+                </div>
+              </form>
+            </section>
+
+            {isAdmin && (
+              <section className="sales-admin-suggestions rr-card-elevated">
+                <div className="sales-admin-suggestions-header">
+                  <h2>Suggestions</h2>
+                  <p>Admin-only review queue</p>
+                </div>
+
+                {isLoadingSuggestions ? (
+                  <div className="sales-empty-state rr-card">
+                    <h3>Loading suggestions...</h3>
+                  </div>
+                ) : (
+                  <div className="sales-admin-suggestion-list">
+                    {suggestions.map((item) => (
+                      <article key={item.id} className="sales-admin-suggestion-item rr-card">
+                        <div className="sales-admin-suggestion-title">
+                          <h3>{item.title}</h3>
+                          <button
+                            type="button"
+                            className="rr-btn btn-outline sales-resource-action sales-resource-action-danger"
+                            onClick={() => handleDeleteSuggestion(item.id)}
+                            disabled={blockedByPolicy}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                        <span className="sales-resource-category">{item.category}</span>
+                        <p>{item.description}</p>
+                        {item.prompt_text && (
+                          <div className="sales-resource-meta">
+                            <span className="sales-meta-label">PROMPT TEXT</span>
+                            <p>{item.prompt_text}</p>
+                          </div>
+                        )}
+                      </article>
+                    ))}
+                  </div>
+                )}
+
+                {!isLoadingSuggestions && suggestions.length === 0 && (
+                  <div className="sales-empty-state rr-card">
+                    <h3>No suggestions yet</h3>
+                  </div>
+                )}
+              </section>
+            )}
+          </div>
+
+          {isEditorOpen && (
+            <div className="sales-modal-backdrop" onClick={closeEditorModal}>
+              <div className="sales-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+                <div className="sales-modal-header">
+                  <h2>{editingCardId ? 'Edit Prompt Card' : 'Upload Prompt Card'}</h2>
+                  <button type="button" className="btn-icon sales-modal-close" onClick={closeEditorModal} disabled={isSavingCard}>
+                    ✕
+                  </button>
+                </div>
+
+                <form className="sales-modal-form" onSubmit={handleSaveCard}>
+                  <label htmlFor="card-title" className="form-label section-header">Title</label>
+                  <input
+                    id="card-title"
+                    type="text"
+                    className="rr-input"
+                    value={cardForm.title}
+                    onChange={(event) => setCardForm((prev) => ({ ...prev, title: event.target.value }))}
+                    required
+                    disabled={isSavingCard || blockedByPolicy}
+                  />
+
+                  <label htmlFor="card-category" className="form-label section-header">Category</label>
+                  <select
+                    id="card-category"
+                    className="rr-input"
+                    value={cardForm.category}
+                    onChange={(event) => setCardForm((prev) => ({ ...prev, category: event.target.value }))}
+                    required
+                    disabled={isSavingCard || blockedByPolicy}
+                  >
+                    {CATEGORY_OPTIONS.map((category) => (
+                      <option key={category} value={category}>
+                        {category}
+                      </option>
+                    ))}
+                  </select>
+
+                  <label htmlFor="card-description" className="form-label section-header">Description</label>
+                  <textarea
+                    id="card-description"
+                    className="rr-input sales-suggestion-textarea"
+                    value={cardForm.description}
+                    onChange={(event) => setCardForm((prev) => ({ ...prev, description: event.target.value }))}
+                    rows={3}
+                    required
+                    disabled={isSavingCard || blockedByPolicy}
+                  />
+
+                  <label htmlFor="card-usecase" className="form-label section-header">Use Case (Optional)</label>
+                  <input
+                    id="card-usecase"
+                    type="text"
+                    className="rr-input"
+                    value={cardForm.useCase}
+                    onChange={(event) => setCardForm((prev) => ({ ...prev, useCase: event.target.value }))}
+                    disabled={isSavingCard || blockedByPolicy}
+                  />
+
+                  <label htmlFor="card-target-audience" className="form-label section-header">Target Audience (Optional)</label>
+                  <input
+                    id="card-target-audience"
+                    type="text"
+                    className="rr-input"
+                    value={cardForm.targetAudience}
+                    onChange={(event) => setCardForm((prev) => ({ ...prev, targetAudience: event.target.value }))}
+                    disabled={isSavingCard || blockedByPolicy}
+                  />
+
+                  <label htmlFor="card-prompt-text" className="form-label section-header">Prompt Text</label>
+                  <textarea
+                    id="card-prompt-text"
+                    className="rr-input sales-suggestion-textarea"
+                    value={cardForm.promptText}
+                    onChange={(event) => setCardForm((prev) => ({ ...prev, promptText: event.target.value }))}
+                    rows={5}
+                    required
+                    disabled={isSavingCard || blockedByPolicy}
+                  />
+
+                  <label htmlFor="card-html" className="form-label section-header">HTML</label>
+                  <textarea
+                    id="card-html"
+                    className="rr-input sales-suggestion-textarea"
+                    value={cardForm.html}
+                    onChange={(event) => setCardForm((prev) => ({ ...prev, html: event.target.value }))}
+                    rows={6}
+                    required
+                    disabled={isSavingCard || blockedByPolicy}
+                  />
+
+                  <label htmlFor="card-badge" className="form-label section-header">Badge (Optional)</label>
+                  <input
+                    id="card-badge"
+                    type="text"
+                    className="rr-input"
+                    value={cardForm.badge}
+                    onChange={(event) => setCardForm((prev) => ({ ...prev, badge: event.target.value }))}
+                    disabled={isSavingCard || blockedByPolicy}
+                  />
+
+                  <div className="sales-modal-actions">
+                    <button type="button" className="rr-btn btn-outline" onClick={closeEditorModal} disabled={isSavingCard}>
+                      Cancel
+                    </button>
+                    <button type="submit" className="rr-btn rr-btn-primary" disabled={isSavingCard || blockedByPolicy}>
+                      {isSavingCard ? 'Saving...' : editingCardId ? 'Save Changes' : 'Upload Card'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
         </section>
       </DashboardLayout>
     </AppBackground>

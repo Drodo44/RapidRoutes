@@ -470,7 +470,7 @@ function LaneTicker({ lanes }) {
 // ============================================
 export default function Dashboard() {
   const router = useRouter();
-  const { loading, isAuthenticated, user } = useAuth();
+  const { loading, isAuthenticated } = useAuth();
   const stats = useDashboardStats();
   const recentLanes = useRecentLanes();
   const topCarriers = useTopCarriers();
@@ -494,8 +494,6 @@ export default function Dashboard() {
   if (!isAuthenticated) {
     return null;
   }
-
-  const userName = user?.email?.split('@')[0] || 'User';
 
   return (
     <AppBackground>
@@ -573,8 +571,8 @@ export default function Dashboard() {
           {/* Header */}
           <header className="dashboard-header">
             <div>
-              <h1>Welcome back, {userName}!</h1>
-              <p className="header-subtitle">Your freight command center</p>
+              <h1>RapidRoutes</h1>
+              <p className="header-subtitle">Redefine the game. Outsmart the lane.</p>
             </div>
             <div className="header-actions">
               <Link href="/lanes" className="btn-primary">
