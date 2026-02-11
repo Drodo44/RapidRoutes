@@ -571,8 +571,7 @@ export default function Dashboard() {
           {/* Header */}
           <header className="dashboard-header">
             <div>
-              <h1>RapidRoutes</h1>
-              <p className="header-subtitle">Redefine the game. Outsmart the lane.</p>
+              <h1>Redefine the game. Outsmart the lane.</h1>
             </div>
             <div className="header-actions">
               <Link href="/lanes" className="btn-primary">
