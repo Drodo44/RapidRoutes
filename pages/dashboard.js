@@ -300,7 +300,7 @@ function StatCard({ label, value, trend, type = 'default', icon }) {
   };
 
   return (
-    <div className={`dashboard-stat-card ${typeClasses[type]}`}>
+    <div className={`dashboard-stat-card rr-card-elevated ${typeClasses[type]}`}>
       <div className="stat-card-header">
         <span className="stat-card-label">{label}</span>
         {icon && <span className="stat-card-icon">{icon}</span>}
@@ -322,7 +322,7 @@ function StatCard({ label, value, trend, type = 'default', icon }) {
 function TopCarriersPanel({ carriers }) {
   if (!carriers || carriers.length === 0) {
     return (
-      <div className="panel-card">
+      <div className="panel-card rr-card">
         <div className="panel-header">
           <h4>Top Carriers</h4>
         </div>
@@ -334,7 +334,7 @@ function TopCarriersPanel({ carriers }) {
   }
 
   return (
-    <div className="panel-card">
+    <div className="panel-card rr-card">
       <div className="panel-header">
         <h4>Top Carriers</h4>
         <span className="panel-badge">{carriers.length}</span>
@@ -376,13 +376,17 @@ function HeatmapPanel({ heatmaps }) {
     : null;
 
   return (
-    <div className="heatmap-panel">
+    <div className="heatmap-panel rr-card-elevated">
       <div className="heatmap-header">
-        <h3>Market Conditions</h3>
+        <div className="heatmap-title-group">
+          <h3>Market Conditions</h3>
+          <p className="heatmap-subtitle">Weather-radar pressure map by equipment type</p>
+        </div>
         <div className="heatmap-tabs">
           {tabs.map(tab => (
             <button
               key={tab.id}
+              type="button"
               className={`heatmap-tab ${activeTab === tab.id ? 'active' : ''}`}
               onClick={() => setActiveTab(tab.id)}
             >
@@ -392,14 +396,24 @@ function HeatmapPanel({ heatmaps }) {
           ))}
         </div>
       </div>
-      <div className="heatmap-content" style={{ padding: 0, height: '500px' }}>
-        <MarketMap type={activeTab} imageUrl={currentUrl} />
-      </div>
-      {lastUpdated && (
-        <div className="heatmap-footer">
-          Updated: {lastUpdated}
+      <div className="heatmap-content">
+        <div className="heatmap-map-frame">
+          <MarketMap type={activeTab} imageUrl={currentUrl} />
+          <div className="heatmap-grid-overlay" aria-hidden="true"></div>
         </div>
-      )}
+      </div>
+      <div className="heatmap-footer">
+        <div className="heatmap-legend" aria-label="Heatmap intensity legend">
+          <span className="heatmap-legend-label">Intensity</span>
+          <span className="heatmap-legend-scale"></span>
+          <span className="heatmap-legend-extreme">Hotter markets</span>
+        </div>
+        {lastUpdated && (
+          <div className="heatmap-updated">
+            Updated: {lastUpdated}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

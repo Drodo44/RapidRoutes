@@ -70,13 +70,14 @@ const MarketMap = ({ type = 'dryvan', imageUrl = null }) => {
                 blur: imageUrl ? 10 : 25,
                 maxZoom: 10,
                 max: 1.0,
-                minOpacity: 0.3,
+                minOpacity: 0.82,
                 gradient: {
-                    0.2: '#3B82F6', // Blue (Cool)
-                    0.4: '#60A5FA', // Light Blue
-                    0.6: '#34D399', // Green
-                    0.8: '#F59E0B', // Orange
-                    1.0: '#EF4444'  // Red (Hot)
+                    0.12: '#2563eb', // Deep blue
+                    0.3: '#0ea5e9',  // Cyan
+                    0.5: '#22c55e',  // Green
+                    0.68: '#facc15', // Yellow
+                    0.84: '#f97316', // Orange
+                    1.0: '#ef4444'   // Hot red
                 }
             });
 
