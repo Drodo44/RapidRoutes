@@ -1,58 +1,284 @@
-import React, { useState } from 'react';
-import Head from 'next/head';
+import React, { useMemo, useState } from 'react';
 import DashboardLayout from '../components/DashboardLayout';
 import AppBackground from '../components/ui/AppBackground';
 
+const RESOURCE_LIBRARY = [
+  {
+    id: 'cold-openers',
+    title: 'Cold Call Openers',
+    category: 'scripts',
+    description: 'Concise opening frameworks for first-touch shipper calls.',
+    tags: ['Phone', 'Outbound', 'First Touch'],
+    cta: 'Open Script'
+  },
+  {
+    id: 'objection-pricing',
+    title: 'Rate Objection Handling',
+    category: 'battlecards',
+    description: 'Response angles for “your rate is too high” and capacity pushback.',
+    tags: ['Pricing', 'Negotiation', 'Retention'],
+    cta: 'View Battle Card'
+  },
+  {
+    id: 'follow-up-sequences',
+    title: 'Follow-Up Sequence Templates',
+    category: 'templates',
+    description: 'Multi-touch cadence templates for warm leads and stalled opportunities.',
+    tags: ['Email', 'Follow-Up', 'Cadence'],
+    cta: 'Use Template'
+  },
+  {
+    id: 'lane-intel-brief',
+    title: 'Weekly Lane Intel Brief',
+    category: 'intel',
+    description: 'Snapshot format for presenting market shifts to shippers each week.',
+    tags: ['Market', 'Briefing', 'Insights'],
+    cta: 'View Brief'
+  },
+  {
+    id: 'renewal-talktrack',
+    title: 'Contract Renewal Talk Track',
+    category: 'scripts',
+    description: 'Position value and secure renewal with confidence under rate pressure.',
+    tags: ['Renewal', 'Strategy', 'Retention'],
+    cta: 'Open Script'
+  },
+  {
+    id: 'email-reengage',
+    title: 'Re-Engagement Email Pack',
+    category: 'templates',
+    description: 'Three-step reactivation messaging for dormant shipper accounts.',
+    tags: ['Email', 'Reactivation', 'Pipeline'],
+    cta: 'Use Template'
+  }
+];
+
+const CATEGORY_OPTIONS = [
+  { id: 'all', label: 'All Resources' },
+  { id: 'scripts', label: 'Scripts' },
+  { id: 'battlecards', label: 'Battle Cards' },
+  { id: 'templates', label: 'Templates' },
+  { id: 'intel', label: 'Market Intel' }
+];
+
+const QUICK_PROMPTS = [
+  'Draft a concise cold-call opener for a food shipper with late-pickup pain.',
+  'Give me 3 pricing objection responses that keep tone collaborative.',
+  'Create a short follow-up email after no reply for 5 days.',
+  'Summarize why lane volatility justifies proactive communication this week.'
+];
+
+const INITIAL_CHAT = [
+  {
+    role: 'assistant',
+    content: 'I can help you draft sales scripts, objection responses, and follow-ups. Ask for a concise output and target shipper context.'
+  }
+];
+
 export default function SalesResources() {
-    const [activeTab, setActiveTab] = useState('scripts');
+  const [activeCategory, setActiveCategory] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
-    return (
-        <AppBackground>
-            <DashboardLayout>
-                <div className="min-h-screen text-white p-6">
-                <Head>
-                    <title>Sales Resources | RapidRoutes</title>
-                </Head>
+  const [messages, setMessages] = useState(INITIAL_CHAT);
+  const [draftMessage, setDraftMessage] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const [chatError, setChatError] = useState('');
 
-                <div className="max-w-7xl mx-auto">
-                    <div className="flex justify-between items-center mb-8">
-                        <div>
-                            <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
-                                Sales Resources
-                            </h1>
-                            <p className="text-gray-400 mt-2">Scripts, Battle Cards, and Market Intelligence</p>
-                        </div>
-                    </div>
+  const filteredResources = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
 
-                    {/* Content Placeholder / Upload Area */}
-                    <div className="glass-card p-12 border border-dashed border-white/20 rounded-xl text-center bg-white/5">
-                        <div className="w-20 h-20 bg-cyan-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                            <span className="text-4xl">📂</span>
-                        </div>
-                        <h2 className="text-2xl font-bold text-white mb-2">Resource Library Empty</h2>
-                        <p className="text-gray-400 max-w-md mx-auto mb-8">
-                            The previous resources (HTML prompts, flowcharts, PDFs) are missing from the repository.
-                            Please upload them here when you have access to your backups.
-                        </p>
+    return RESOURCE_LIBRARY.filter((resource) => {
+      const categoryMatch = activeCategory === 'all' || resource.category === activeCategory;
+      const queryMatch =
+        query.length === 0 ||
+        resource.title.toLowerCase().includes(query) ||
+        resource.description.toLowerCase().includes(query) ||
+        resource.tags.some((tag) => tag.toLowerCase().includes(query));
 
-                        <button className="px-6 py-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold rounded-lg shadow-lg shadow-cyan-900/20 transition-all flex items-center gap-2 mx-auto">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                            </svg>
-                            Upload Resources
-                        </button>
-                    </div>
+      return categoryMatch && queryMatch;
+    });
+  }, [activeCategory, searchQuery]);
+
+  async function handleSendMessage(event) {
+    event.preventDefault();
+
+    const nextUserMessage = draftMessage.trim();
+    if (!nextUserMessage || isSending) return;
+
+    const nextConversation = [...messages, { role: 'user', content: nextUserMessage }];
+    setMessages(nextConversation);
+    setDraftMessage('');
+    setChatError('');
+    setIsSending(true);
+
+    try {
+      const response = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: nextConversation })
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.error || 'Unable to get AI response right now.');
+      }
+
+      const assistantMessage = typeof payload?.message === 'string' ? payload.message.trim() : '';
+      if (!assistantMessage) {
+        throw new Error('AI response was empty. Please try again.');
+      }
+
+      setMessages((prev) => [...prev, { role: 'assistant', content: assistantMessage }]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to get AI response right now.';
+      setChatError(message);
+    } finally {
+      setIsSending(false);
+    }
+  }
+
+  function startNewChat() {
+    setMessages(INITIAL_CHAT);
+    setDraftMessage('');
+    setChatError('');
+  }
+
+  return (
+    <AppBackground>
+      <DashboardLayout title="Sales Resources | RapidRoutes">
+        <section className="sales-page">
+          <header className="sales-header">
+            <div className="sales-header-copy">
+              <h1 className="sales-title">Sales Resources</h1>
+              <p className="sales-subtitle">Scripts, battle cards, and an AI copilot for rapid outbound prep</p>
+            </div>
+          </header>
+
+          <div className="sales-grid">
+            <section className="sales-library rr-card-elevated">
+              <div className="sales-library-header">
+                <div>
+                  <h2>Resource Library</h2>
+                  <p>Stub content for Phase 4 UI. Local files can replace these cards later.</p>
                 </div>
-
-                <style jsx>{`
-            .glass-card {
-                background: linear-gradient(180deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.8) 100%);
-                backdrop-filter: blur(12px);
-                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-            }
-          `}</style>
+                <div className="sales-library-search-wrap">
+                  <label htmlFor="resource-search" className="form-label section-header">Search</label>
+                  <input
+                    id="resource-search"
+                    type="search"
+                    className="rr-input"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Find scripts, templates, or battle cards"
+                  />
                 </div>
-            </DashboardLayout>
-        </AppBackground>
-    );
+              </div>
+
+              <div className="sales-category-list" role="tablist" aria-label="Resource categories">
+                {CATEGORY_OPTIONS.map((category) => (
+                  <button
+                    key={category.id}
+                    type="button"
+                    className={`sales-category-btn ${activeCategory === category.id ? 'active' : ''}`}
+                    onClick={() => setActiveCategory(category.id)}
+                  >
+                    {category.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="sales-resource-grid">
+                {filteredResources.map((resource) => (
+                  <article key={resource.id} className="sales-resource-card rr-card">
+                    <div className="sales-resource-card-head">
+                      <span className="sales-resource-category">{resource.category}</span>
+                      <button type="button" className="btn-icon sales-resource-pin" aria-label={`Pin ${resource.title}`}>
+                        ★
+                      </button>
+                    </div>
+                    <h3>{resource.title}</h3>
+                    <p>{resource.description}</p>
+                    <div className="sales-resource-tags">
+                      {resource.tags.map((tag) => (
+                        <span key={`${resource.id}-${tag}`}>{tag}</span>
+                      ))}
+                    </div>
+                    <button type="button" className="rr-btn btn-outline sales-resource-action">
+                      {resource.cta}
+                    </button>
+                  </article>
+                ))}
+              </div>
+
+              {filteredResources.length === 0 && (
+                <div className="sales-empty-state rr-card">
+                  <h3>No resources found</h3>
+                  <p>Try another search term or category filter.</p>
+                </div>
+              )}
+            </section>
+
+            <aside className="sales-chat-panel rr-card-elevated">
+              <div className="sales-chat-header">
+                <div>
+                  <h2>AI Sales Copilot</h2>
+                  <p>Ephemeral chat only. Nothing is stored.</p>
+                </div>
+                <button type="button" className="rr-btn btn-outline" onClick={startNewChat}>
+                  New Chat
+                </button>
+              </div>
+
+              <div className="sales-chat-messages" aria-live="polite">
+                {messages.map((message, index) => (
+                  <div key={`chat-${index}`} className={`sales-chat-message ${message.role === 'assistant' ? 'assistant' : 'user'}`}>
+                    <span className="sales-chat-role">{message.role === 'assistant' ? 'Copilot' : 'You'}</span>
+                    <p>{message.content}</p>
+                  </div>
+                ))}
+                {isSending && (
+                  <div className="sales-chat-message assistant pending">
+                    <span className="sales-chat-role">Copilot</span>
+                    <p>Thinking…</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="sales-chat-prompts">
+                {QUICK_PROMPTS.map((prompt, idx) => (
+                  <button
+                    key={`prompt-${idx}`}
+                    type="button"
+                    className="sales-prompt-chip"
+                    onClick={() => setDraftMessage(prompt)}
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+
+              <form className="sales-chat-form" onSubmit={handleSendMessage}>
+                <label htmlFor="sales-chat-input" className="form-label section-header">Message</label>
+                <textarea
+                  id="sales-chat-input"
+                  className="rr-input sales-chat-input"
+                  value={draftMessage}
+                  onChange={(e) => setDraftMessage(e.target.value)}
+                  placeholder="Ask for a script, rebuttal, follow-up, or discovery questions..."
+                  rows={3}
+                  disabled={isSending}
+                />
+                {chatError && <p className="sales-chat-error">{chatError}</p>}
+                <div className="sales-chat-actions">
+                  <button type="submit" className="rr-btn rr-btn-primary" disabled={isSending || !draftMessage.trim()}>
+                    {isSending ? 'Sending...' : 'Send'}
+                  </button>
+                </div>
+              </form>
+            </aside>
+          </div>
+        </section>
+      </DashboardLayout>
+    </AppBackground>
+  );
 }

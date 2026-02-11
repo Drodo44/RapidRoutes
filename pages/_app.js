@@ -3,6 +3,7 @@ import '../styles/design-tokens.css';
 import '../styles/globals.css';
 import '../styles/dashboard.css';
 import '../styles/lanes.css';
+import '../styles/sales-resources.css';
 import '../styles/enterprise.css';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
