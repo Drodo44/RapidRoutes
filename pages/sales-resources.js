@@ -91,10 +91,10 @@ function detectFavoriteKey(rows) {
 
 export default function SalesResources() {
   const router = useRouter();
-  const { loading, isAuthenticated, user } = useAuth();
+  const { loading, isAuthenticated, user, profile } = useAuth();
   const chatInputRef = useRef(null);
 
-  const isAdmin = user?.role?.toLowerCase() === 'admin';
+  const isAdmin = profile?.role?.toLowerCase() === 'admin';
 
   const [activeTab, setActiveTab] = useState('All');
   const [promptCards, setPromptCards] = useState([]);
