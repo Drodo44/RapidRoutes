@@ -94,7 +94,7 @@ export default function SalesResources() {
   const { loading, isAuthenticated, user } = useAuth();
   const chatInputRef = useRef(null);
 
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role?.toLowerCase() === 'admin';
 
   const [activeTab, setActiveTab] = useState('All');
   const [promptCards, setPromptCards] = useState([]);
