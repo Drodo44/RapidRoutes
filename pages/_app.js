@@ -5,7 +5,7 @@ import '../styles/dashboard.css';
 import '../styles/lanes.css';
 import '../styles/sales-resources.css';
 import '../styles/enterprise.css';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import NavBar from '../components/NavBar.jsx';
@@ -20,26 +20,100 @@ const PUBLIC_ROUTES = new Set(['/login', '/signup', '/']);
 function AppContent({ Component, pageProps }) {
   const router = useRouter();
   const [routeLoading, setRouteLoading] = useState(false);
+  const [bootError, setBootError] = useState(null);
   const { loading, isAuthenticated, session } = useAuth();
+  const redirectGuardRef = useRef({ path: null, atMs: 0, count: 0 });
+  const bootStartRef = useRef(Date.now());
+
+  const logBoot = useCallback((step, extra = {}) => {
+    console.log('[boot]', {
+      step,
+      elapsedMs: Date.now() - bootStartRef.current,
+      pathname: router.pathname,
+      hasSession: !!session,
+      ...extra,
+    });
+  }, [router.pathname, session]);
 
   // Enable keyboard shortcuts
   useKeyboardShortcuts();
 
   // Verify Supabase initialization on mount
   useEffect(() => {
+    bootStartRef.current = Date.now();
+    const pathname = typeof window !== 'undefined' ? window.location.pathname : 'unknown';
+    console.log('[boot]', {
+      step: 'boot:start',
+      elapsedMs: 0,
+      pathname,
+    });
     console.log("✅ Supabase initialized:", !!supabase);
     console.log("✅ Supabase URL configured:", !!process.env.NEXT_PUBLIC_SUPABASE_URL);
+    console.log('[boot]', {
+      step: 'boot:supabaseClientReady',
+      elapsedMs: Date.now() - bootStartRef.current,
+      pathname,
+      ready: !!supabase,
+    });
   }, []);
 
   // Global auth redirect for protected routes
   useEffect(() => {
     if (!loading && !PUBLIC_ROUTES.has(router.pathname)) {
       if (!isAuthenticated) {
-        console.log('Redirecting to login - not authenticated');
-        router.replace('/login');
+        const nowMs = Date.now();
+        const guard = redirectGuardRef.current;
+
+        if (guard.path === '/login' && (nowMs - guard.atMs) < 1000) {
+          guard.count += 1;
+        } else {
+          guard.path = '/login';
+          guard.count = 1;
+        }
+        guard.atMs = nowMs;
+
+        logBoot('boot:routeDecision', {
+          decision: 'redirect:/login',
+          redirectCount: guard.count,
+          isAuthenticated,
+        });
+
+        if (guard.count > 1) {
+          const loopMessage = 'Redirect loop detected. Please reload.';
+          console.error('[boot]', {
+            step: 'boot:routeDecision',
+            elapsedMs: Date.now() - bootStartRef.current,
+            pathname: router.pathname,
+            decision: 'redirect-loop-blocked',
+          });
+          setBootError(loopMessage);
+          setRouteLoading(false);
+          return;
+        }
+
+        router.replace('/login').catch((error) => {
+          console.error('[boot] route redirect failed', error);
+          setBootError('Failed to redirect to login. Please reload.');
+        });
+      } else {
+        logBoot('boot:routeDecision', {
+          decision: 'allow-protected-route',
+          isAuthenticated,
+        });
       }
+    } else if (!loading) {
+      logBoot('boot:routeDecision', {
+        decision: 'allow-public-route',
+        isAuthenticated,
+      });
     }
-  }, [loading, isAuthenticated, router]);
+  }, [loading, isAuthenticated, router, router.pathname, logBoot]);
+
+  useEffect(() => {
+    if (!loading) {
+      logBoot('boot:done', { loading: false, routeLoading, bootError: !!bootError });
+    }
+  }, [loading, routeLoading, bootError, router.pathname, logBoot]);
 
   // Handle route changes
   useEffect(() => {
@@ -103,10 +177,30 @@ function AppContent({ Component, pageProps }) {
             alignItems: 'center',
             justifyContent: 'center'
           }}>
-            <div style={{ textAlign: 'center' }}>
-              <div className="spinner" style={{ margin: '0 auto 16px' }}></div>
-              <div style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>Loading RapidRoutes...</div>
-            </div>
+            {bootError ? (
+              <div style={{ textAlign: 'center', maxWidth: '420px', padding: '0 16px' }}>
+                <div style={{ fontSize: '15px', color: 'var(--text-secondary)', marginBottom: '12px' }}>{bootError}</div>
+                <button
+                  type="button"
+                  onClick={() => window.location.reload()}
+                  style={{
+                    border: '1px solid var(--border)',
+                    borderRadius: '8px',
+                    padding: '8px 14px',
+                    background: 'var(--bg-secondary)',
+                    color: 'var(--text-primary)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Reload
+                </button>
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center' }}>
+                <div className="spinner" style={{ margin: '0 auto 16px' }}></div>
+                <div style={{ fontSize: '15px', color: 'var(--text-secondary)' }}>Loading RapidRoutes...</div>
+              </div>
+            )}
           </div>
         ) : (
           <ErrorBoundary componentName={Component.displayName || Component.name || 'Page'}>

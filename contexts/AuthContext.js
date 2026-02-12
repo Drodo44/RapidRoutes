@@ -1,9 +1,23 @@
 // contexts/AuthContext.js
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import supabase from '../utils/supabaseClient';
 
 const AuthContext = createContext({});
+const BOOT_TIMEOUT_MS = 8000;
+const AUTH_BOOT_PUBLIC_ROUTES = new Set(['/login', '/signup']);
+
+function withTimeout(promise, timeoutMs, timeoutMessage) {
+  let timeoutId;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
+    }),
+  ]).finally(() => {
+    clearTimeout(timeoutId);
+  });
+}
 
 export function AuthProvider({ children }) {
   const router = useRouter();
@@ -11,75 +25,137 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const bootStartRef = useRef(Date.now());
+  const pathnameRef = useRef(router.pathname);
+
+  useEffect(() => {
+    pathnameRef.current = router.pathname;
+  }, [router.pathname]);
 
   useEffect(() => {
     let mounted = true;
+    bootStartRef.current = Date.now();
+
+    const logBoot = (step, extra = {}) => {
+      console.log('[boot]', {
+        step,
+        elapsedMs: Date.now() - bootStartRef.current,
+        pathname: pathnameRef.current,
+        ...extra,
+      });
+    };
+
+    const fetchProfileWithTimeout = async (accessToken, userId) => {
+      logBoot('boot:getProfile:start', { userId });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), BOOT_TIMEOUT_MS);
+      try {
+        const response = await fetch('/api/auth/profile', {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error(`PROFILE_HTTP_${response.status}`);
+        }
+
+        const payload = await response.json();
+        logBoot('boot:getProfile:done', { userId, hasProfile: !!payload?.profile });
+        return payload?.profile ?? null;
+      } catch (error) {
+        const reason = error?.name === 'AbortError' ? 'PROFILE_TIMEOUT' : error?.message || 'PROFILE_UNKNOWN_ERROR';
+        logBoot('boot:getProfile:error', { userId, error: reason });
+        throw new Error(reason);
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    };
 
     // Skip on server-side (supabase is null during SSR)
+    logBoot('boot:start');
     if (!supabase) {
-      console.log('AuthContext: Supabase not available (SSR), waiting for client-side hydration');
+      logBoot('boot:supabaseClientReady', { ready: false });
       setLoading(false);
+      logBoot('boot:done', { loading: false, reason: 'no-supabase-client' });
       return;
     }
+    logBoot('boot:supabaseClientReady', { ready: true });
 
     async function initializeAuth() {
       try {
-        // Get initial session
-        console.log('AuthContext: Initializing auth system...');
-        const { data: { session: initialSession } } = await supabase.auth.getSession();
+        logBoot('boot:getSession:start');
+        const { data: { session: initialSession } } = await withTimeout(
+          supabase.auth.getSession(),
+          BOOT_TIMEOUT_MS,
+          'SESSION_TIMEOUT'
+        );
+        logBoot('boot:getSession:done', { hasSession: !!initialSession });
 
         if (!mounted) return;
-
-        console.log('AuthContext: Initial session check:', {
-          hasSession: !!initialSession,
-          userId: initialSession?.user?.id
-        });
 
         setSession(initialSession);
         setUser(initialSession?.user ?? null);
 
         if (initialSession?.user) {
-          // Get initial profile via API route
-          console.log('AuthContext: Fetching initial profile for user:', initialSession.user.id);
-
-          try {
-            const response = await fetch('/api/auth/profile', {
-              headers: {
-                'Authorization': `Bearer ${initialSession.access_token}`
-              }
-            });
-
-            if (response.ok) {
-              const { profile } = await response.json();
-              console.log('AuthContext: Initial profile loaded:', {
-                id: profile?.id,
-                status: profile?.status,
-                role: profile?.role,
-                email: profile?.email
+          const isAuthPage = AUTH_BOOT_PUBLIC_ROUTES.has(pathnameRef.current);
+          if (isAuthPage) {
+            // Never block login/signup rendering on profile fetch.
+            logBoot('boot:routeDecision', { decision: 'public-route-skip-profile-block', hasSession: true });
+            fetchProfileWithTimeout(initialSession.access_token, initialSession.user.id)
+              .then((loadedProfile) => {
+                if (mounted) {
+                  setProfile(loadedProfile);
+                }
+              })
+              .catch(() => {
+                if (mounted) {
+                  setProfile(null);
+                }
               });
-              setProfile(profile);
-            } else {
-              console.error('AuthContext: Profile API failed:', response.status);
-              setProfile(null);
+          } else {
+            try {
+              const loadedProfile = await fetchProfileWithTimeout(initialSession.access_token, initialSession.user.id);
+              if (mounted) {
+                setProfile(loadedProfile);
+              }
+              logBoot('boot:routeDecision', {
+                decision: loadedProfile ? 'profile-ready' : 'profile-missing',
+                hasSession: true,
+              });
+            } catch (profileError) {
+              if (mounted) {
+                setProfile(null);
+              }
+              logBoot('boot:routeDecision', {
+                decision: 'profile-error-fallback-login',
+                hasSession: true,
+                error: profileError.message,
+              });
             }
-          } catch (fetchError) {
-            console.error('AuthContext: Profile fetch failed:', fetchError.message);
-            setProfile(null);
           }
         } else {
-          console.log('AuthContext: No initial session');
+          if (mounted) {
+            setProfile(null);
+          }
+          logBoot('boot:routeDecision', { decision: 'no-session', hasSession: false });
         }
       } catch (error) {
-        console.error('AuthContext: Initialization error:', error);
+        logBoot('boot:getSession:error', { error: error?.message || 'UNKNOWN_SESSION_ERROR' });
         if (mounted) {
           setProfile(null);
           setUser(null);
           setSession(null);
         }
+        logBoot('boot:routeDecision', {
+          decision: 'session-error-fallback-login',
+          hasSession: false,
+        });
       } finally {
         if (mounted) {
-          console.log('AuthContext: Setting loading to false');
           setLoading(false);
+          logBoot('boot:done', { loading: false });
         }
       }
     }
@@ -91,54 +167,64 @@ export function AuthProvider({ children }) {
 
       if (!mounted) return;
 
-      console.log('Auth state change:', event, newSession?.user?.id);
-
       setSession(newSession);
       setUser(newSession?.user ?? null);
 
-      // Clear profile on signOut
-      if (event === 'SIGNED_OUT') {
-        console.log('AuthContext: User signed out');
-        setProfile(null);
-        setLoading(false);
-        return;
-      }
+      try {
+        if (event === 'SIGNED_OUT') {
+          setProfile(null);
+          logBoot('boot:routeDecision', { decision: 'signed-out', hasSession: false });
+          return;
+        }
 
-      // Update profile on auth changes
-      if (newSession?.user) {
-        console.log('AuthContext: Fetching profile for auth state change, user ID:', newSession.user.id);
+        if (!newSession?.user) {
+          setProfile(null);
+          logBoot('boot:routeDecision', { decision: 'auth-change-no-session', hasSession: false });
+          return;
+        }
+
+        const isAuthPage = AUTH_BOOT_PUBLIC_ROUTES.has(pathnameRef.current);
+        if (isAuthPage) {
+          logBoot('boot:routeDecision', { decision: 'auth-change-public-route-skip-profile-block', hasSession: true });
+          fetchProfileWithTimeout(newSession.access_token, newSession.user.id)
+            .then((loadedProfile) => {
+              if (mounted) {
+                setProfile(loadedProfile);
+              }
+            })
+            .catch(() => {
+              if (mounted) {
+                setProfile(null);
+              }
+            });
+          return;
+        }
 
         try {
-          const response = await fetch('/api/auth/profile', {
-            headers: {
-              'Authorization': `Bearer ${newSession.access_token}`
-            }
+          const loadedProfile = await fetchProfileWithTimeout(newSession.access_token, newSession.user.id);
+          if (mounted) {
+            setProfile(loadedProfile);
+          }
+          logBoot('boot:routeDecision', {
+            decision: loadedProfile ? 'auth-change-profile-ready' : 'auth-change-profile-missing',
+            hasSession: true,
           });
-
-          if (response.ok) {
-            const { profile: newProfile } = await response.json();
-            console.log('AuthContext: Profile loaded from auth change:', {
-              id: newProfile?.id,
-              status: newProfile?.status,
-              role: newProfile?.role,
-              email: newProfile?.email
-            });
-            setProfile(newProfile);
-          } else {
-            console.error('AuthContext: Profile API failed in auth change:', response.status);
+        } catch (profileError) {
+          if (mounted) {
             setProfile(null);
           }
-        } catch (fetchError) {
-          console.error('AuthContext: Profile fetch exception:', fetchError.message);
-          setProfile(null);
+          logBoot('boot:routeDecision', {
+            decision: 'auth-change-profile-error-fallback-login',
+            hasSession: true,
+            error: profileError.message,
+          });
         }
-      } else {
-        console.log('AuthContext: No user in auth change session');
-        setProfile(null);
+      } finally {
+        if (mounted) {
+          setLoading(false);
+          logBoot('boot:done', { loading: false, source: `auth-state:${event}` });
+        }
       }
-
-      console.log('AuthContext: Auth change complete, setting loading to false');
-      setLoading(false);
     });
 
     return () => {
