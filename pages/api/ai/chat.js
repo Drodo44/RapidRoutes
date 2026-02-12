@@ -26,7 +26,8 @@ const BASE_SYSTEM_INSTRUCTION = [
   'Do not mention research, sources, scraping, Serper, Jina, or reference material unless the user explicitly asks for sources or links.',
   'Do not add extra sections, labels, preambles, headings, or commentary unless the user asks for them.',
   'Ask follow-up questions only if required inputs are truly missing to complete the exact request, then stop.',
-  'If the user asks for a constrained format (for example "output only four email bodies"), return exactly that format and nothing else.'
+  'If the user asks for a constrained format (for example "output only four email bodies"), return exactly that format and nothing else.',
+  'When the user specifies a count, return exactly that number of complete outputs.'
 ].join(' ');
 
 function normalizeModelName(modelName) {
@@ -444,7 +445,7 @@ async function generateWithGeminiModel({ apiKey, model, contents, researchContex
         generationConfig: {
           temperature: 0.2,
           topP: 0.9,
-          maxOutputTokens: 1600
+          maxOutputTokens: 2200
         }
       })
     },
