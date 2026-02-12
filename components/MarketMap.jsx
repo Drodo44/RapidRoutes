@@ -1,7 +1,8 @@
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import { useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import L from 'leaflet';
+import { extractHeatmapPoints, HEATMAP_LAYER_SETTINGS } from '../lib/datHeatmapExtraction';
 
 // Component to handle map center and zoom updates
 function MapUpdater({ center, zoom }) {
@@ -16,6 +17,7 @@ const MarketMap = ({ type = 'dryvan', imageUrl = null }) => {
     const [isMounted, setIsMounted] = useState(false);
     const mapRef = useRef(null);
     const heatLayerRef = useRef(null);
+    const extractionCacheRef = useRef(new Map());
     const [points, setPoints] = useState([]);
 
     useEffect(() => {
@@ -34,27 +36,6 @@ const MarketMap = ({ type = 'dryvan', imageUrl = null }) => {
         }
     }, []);
 
-    // Effect to process the image or load mock data
-    useEffect(() => {
-        if (!isMounted) return;
-
-        const processData = async () => {
-            if (imageUrl) {
-                try {
-                    const extractedPoints = await processImageToHeatmap(imageUrl);
-                    setPoints(extractedPoints);
-                } catch (err) {
-                    console.error("Failed to process heatmap image:", err);
-                    setPoints(getMockData(type)); // Fallback
-                }
-            } else {
-                setPoints(getMockData(type));
-            }
-        };
-
-        processData();
-    }, [imageUrl, type, isMounted]);
-
     // Effect to render the heat layer
     useEffect(() => {
         if (mapRef.current && points.length > 0) {
@@ -66,19 +47,12 @@ const MarketMap = ({ type = 'dryvan', imageUrl = null }) => {
             // Create new heat layer
             // Points format: [lat, lng, intensity]
             const heat = L.heatLayer(points, {
-                radius: imageUrl ? 15 : 35, // Smaller radius for pixel-perfect data
-                blur: imageUrl ? 10 : 25,
+                radius: HEATMAP_LAYER_SETTINGS.radius,
+                blur: HEATMAP_LAYER_SETTINGS.blur,
                 maxZoom: 10,
-                max: 1.0,
-                minOpacity: 0.82,
-                gradient: {
-                    0.12: '#2563eb', // Deep blue
-                    0.3: '#0ea5e9',  // Cyan
-                    0.5: '#22c55e',  // Green
-                    0.68: '#facc15', // Yellow
-                    0.84: '#f97316', // Orange
-                    1.0: '#ef4444'   // Hot red
-                }
+                max: HEATMAP_LAYER_SETTINGS.maxIntensity,
+                minOpacity: HEATMAP_LAYER_SETTINGS.opacity,
+                gradient: HEATMAP_LAYER_SETTINGS.gradient
             });
 
             heat.addTo(mapRef.current);
@@ -87,85 +61,35 @@ const MarketMap = ({ type = 'dryvan', imageUrl = null }) => {
     }, [points]);
 
     // Image Processing Logic
-    const processImageToHeatmap = (url) => {
+    const processImageToHeatmap = useCallback((url) => {
         return new Promise((resolve, reject) => {
             const img = new Image();
             img.crossOrigin = "Anonymous";
             img.onload = () => {
                 const canvas = document.createElement('canvas');
-                // Limit canvas size for performance
-                const MAX_WIDTH = 500;
-                const scale = MAX_WIDTH / img.width;
-                canvas.width = MAX_WIDTH;
-                canvas.height = img.height * scale;
+                const MAX_WIDTH = 1200;
+                const scale = Math.min(1, MAX_WIDTH / img.width);
+                canvas.width = Math.max(1, Math.round(img.width * scale));
+                canvas.height = Math.max(1, Math.round(img.height * scale));
 
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                const data = imageData.data;
-                const extracted = [];
+                const {
+                    extracted,
+                    gridSize,
+                    distribution,
+                    bounds
+                } = extractHeatmapPoints(ctx, canvas.width, canvas.height);
 
-                // Approximate US Bounds for mapping pixels to coordinates
-                // These connect the image corners to Lat/Lng
-                const BOUNDS = {
-                    North: 50.0,
-                    South: 24.0,
-                    West: -125.0,
-                    East: -66.0
-                };
-
-                // Scan pixels
-                // We scan every 4th pixel for performance balance
-                const step = 2; // High resolution scanning
-
-                for (let y = 0; y < canvas.height; y += step) {
-                    for (let x = 0; x < canvas.width; x += step) {
-                        const i = (y * canvas.width + x) * 4;
-                        const r = data[i];
-                        const g = data[i + 1];
-                        const b = data[i + 2];
-                        const a = data[i + 3];
-
-                        if (a < 50) continue;
-
-                        let intensity = 0;
-                        let matched = false;
-
-                        // AGGRESSIVE Red/Hot Detection
-                        // If pixel is generally "warm" (Red component is significant)
-                        // DAT map uses pinks/light reds which might be R=255, G=150, B=150
-                        if (r > 100 && r > b) {
-                            if (r > 160) {
-                                // High heat
-                                intensity = 1.0;
-                                matched = true;
-                            } else if (r > 120) {
-                                // Medium heat
-                                intensity = 0.7;
-                                matched = true;
-                            }
-                        }
-
-                        // Blue/Cold Detection
-                        if (!matched && b > 120 && b > r) {
-                            intensity = 0.3;
-                            matched = true;
-                        }
-
-
-                        if (matched) {
-                            // Map Pixel (x,y) to Lat/Lng
-                            // x: 0 -> width maps to West -> East
-                            // y: 0 -> height maps to North -> South
-
-                            const lng = BOUNDS.West + (x / canvas.width) * (BOUNDS.East - BOUNDS.West);
-                            const lat = BOUNDS.North - (y / canvas.height) * (BOUNDS.North - BOUNDS.South);
-
-                            extracted.push([lat, lng, intensity]);
-                        }
-                    }
-                }
+                console.log('[MarketMap] DAT extraction debug', {
+                    imageDimensions: { width: canvas.width, height: canvas.height },
+                    gridSize,
+                    totalPointsExtracted: extracted.length,
+                    samplePoints: extracted.slice(0, 10),
+                    intensityDistribution: distribution,
+                    observedBounds: bounds
+                });
 
                 if (extracted.length === 0) {
                     console.warn("No heatmap data detected in image");
@@ -177,7 +101,33 @@ const MarketMap = ({ type = 'dryvan', imageUrl = null }) => {
             img.onerror = (e) => reject(e);
             img.src = url;
         });
-    };
+    }, [type]);
+
+    // Effect to process the image or load mock data
+    useEffect(() => {
+        if (!isMounted) return;
+
+        const processData = async () => {
+            if (imageUrl) {
+                try {
+                    if (extractionCacheRef.current.has(imageUrl)) {
+                        setPoints(extractionCacheRef.current.get(imageUrl));
+                        return;
+                    }
+                    const extractedPoints = await processImageToHeatmap(imageUrl);
+                    extractionCacheRef.current.set(imageUrl, extractedPoints);
+                    setPoints(extractedPoints);
+                } catch (err) {
+                    console.error("Failed to process heatmap image:", err);
+                    setPoints(getMockData(type)); // Fallback
+                }
+            } else {
+                setPoints(getMockData(type));
+            }
+        };
+
+        processData();
+    }, [imageUrl, isMounted, processImageToHeatmap, type]);
 
     if (!isMounted) {
         return (
