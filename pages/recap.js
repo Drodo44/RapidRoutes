@@ -763,34 +763,34 @@ export default function RecapPage() {
   return (
     <AppBackground>
       <DashboardLayout title="Recap | RapidRoutes" stats={stats}>
-
+      <section className="recap-page flex flex-col gap-6 pb-4">
       {/* Header Actions */}
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-8">
-        <div>
-          <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-4">
+        <div className="space-y-2">
+          <h1 className="text-3xl font-extrabold tracking-tight text-white">
             Active Lane Postings
           </h1>
-          <p className="text-secondary mt-1">Manage generated city pairs and export for DAT</p>
+          <p className="text-slate-200">Manage generated city pairs and export for DAT</p>
         </div>
 
         {/* Action Buttons */}
         <div className="flex gap-3 flex-wrap">
           <button
             onClick={() => setCsvModalOpen(true)}
-            className="px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 text-emerald-400 hover:from-emerald-500/30 hover:to-cyan-500/30 border border-emerald-500/20 text-sm font-bold transition-all shadow-lg shadow-emerald-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="rr-btn rr-btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={filteredSavedLanesCount === 0 || isGeneratingCSV}
           >
             {isGeneratingCSV ? '⏳ Generating...' : '📥 Generate DAT Bulk Upload CSV'}
           </button>
           <button
             onClick={openExportView}
-            className="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white border border-white/10 text-sm font-semibold transition-all"
+            className="rr-btn btn-outline"
           >
             📄 Print Recap
           </button>
           <button
             onClick={handleGenerateEmail}
-            className="px-4 py-2 rounded-lg bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 border border-cyan-500/20 text-sm font-bold transition-all shadow-lg shadow-cyan-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="rr-btn rr-btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={isGeneratingEmail}
           >
             {isGeneratingEmail ? '⏳ Generating...' : '✉️ Generate Email'}
@@ -799,17 +799,18 @@ export default function RecapPage() {
       </div>
 
       {loadWarning && (
-        <div className="mb-6 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200">
+        <div className="rr-card mb-1 rounded-xl border border-amber-300/45 bg-amber-500/35 p-3 text-sm text-amber-100">
           {loadWarning}
         </div>
       )}
 
-      {/* Control Bar - Glass Panel */}
-      <div className="bg-white/5 border border-white/10 rounded-2xl p-4 mb-8 backdrop-blur-md shadow-xl sticky top-4 z-40">
-        <div className="flex flex-col md:flex-row gap-4">
+      {/* Control Bar */}
+      <div className="rr-card-elevated sticky top-4 z-40 p-4">
+        <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
+          <div className="flex flex-col sm:flex-row gap-3">
 
           {/* Jump to Lane */}
-          <div className="relative min-w-[200px]">
+          <div className="relative min-w-[220px]">
             <select
               value={selectedLaneId}
               onChange={(e) => {
@@ -818,7 +819,7 @@ export default function RecapPage() {
                   scrollToLane(e.target.value);
                 }
               }}
-              className="w-full h-10 pl-3 pr-8 bg-black/40 border border-white/10 rounded-xl text-sm text-white focus:ring-1 focus:ring-cyan-500/50 appearance-none"
+              className="rr-input h-10 pl-3 pr-8 text-sm appearance-none"
             >
               <option value="">Jump to Lane...</option>
               {filtered.flatMap(lane => {
@@ -867,32 +868,33 @@ export default function RecapPage() {
                 </option>
               ))}
             </select>
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white/40 text-xs">▼</div>
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-300 text-xs">▼</div>
           </div>
 
 
 
           {/* Sort */}
-          <div className="relative min-w-[140px]">
+          <div className="relative min-w-[160px]">
             <select
               value={sortOrder}
               onChange={(e) => setSortOrder(e.target.value)}
-              className="w-full h-10 pl-3 pr-8 bg-black/40 border border-white/10 rounded-xl text-sm text-white focus:ring-1 focus:ring-cyan-500/50 appearance-none"
+              className="rr-input h-10 pl-3 pr-8 text-sm appearance-none"
             >
               <option value="date">Newest First</option>
               <option value="origin">City: Origin</option>
               <option value="dest">City: Destination</option>
               <option value="equipment">Equipment</option>
             </select>
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white/40 text-xs">▼</div>
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-300 text-xs">▼</div>
+          </div>
           </div>
 
-          <label className="h-10 inline-flex items-center gap-2 px-3 rounded-xl bg-black/40 border border-white/10 text-xs text-gray-200 whitespace-nowrap">
+          <label className="h-10 inline-flex items-center gap-2 px-3 rounded-xl bg-slate-900/45 border border-slate-300/35 text-xs text-slate-100 whitespace-nowrap">
             <input
               type="checkbox"
               checked={onlyWithSavedCities}
               onChange={(e) => setOnlyWithSavedCities(e.target.checked)}
-              className="rounded border-white/20 bg-white/5 text-cyan-500 focus:ring-0"
+              className="rounded border-slate-300/45 bg-slate-900/45 text-cyan-500 focus:ring-0"
             />
             <span>Only lanes with saved cities</span>
           </label>
@@ -902,12 +904,12 @@ export default function RecapPage() {
       {/* Content Grid */}
       <div className="space-y-6">
         {filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center p-16 border-2 border-dashed border-white/10 rounded-3xl bg-white/5 text-center">
+          <div className="rr-card-elevated flex flex-col items-center justify-center p-14 border-2 border-dashed border-slate-300/35 rounded-3xl text-center">
             <div className="text-6xl mb-6 opacity-30">📭</div>
             <h3 className="text-xl font-bold text-white mb-2">
               {totalCurrentLanes === 0 ? 'No active recaps found' : 'No lanes match current filters'}
             </h3>
-            <p className="text-secondary max-w-md mx-auto mb-8">
+            <p className="text-slate-200 max-w-md mx-auto mb-8">
               {totalCurrentLanes === 0
                 ? (q ? 'Try adjusting your search filters.' : 'Lanes appear here after they are created in the Lane Constructor.')
                 : (onlyWithSavedCities
@@ -915,7 +917,7 @@ export default function RecapPage() {
                   : 'Current lanes exist. Try clearing search or filter options.')}
             </p>
             {!q && totalCurrentLanes === 0 && (
-              <Link href="/lanes" className="px-6 py-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold shadow-lg shadow-cyan-900/40 transition-all">
+              <Link href="/lanes" className="rr-btn rr-btn-primary">
                 Create New Lane
               </Link>
             )}
@@ -967,7 +969,7 @@ export default function RecapPage() {
         selectedLaneIds={selectedLaneIds}
         onExport={(laneIds, contactMethod) => generateCSV(laneIds, contactMethod)}
       />
-
+      </section>
       </DashboardLayout>
     </AppBackground>
   );

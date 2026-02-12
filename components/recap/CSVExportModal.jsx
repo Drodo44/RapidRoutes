@@ -66,21 +66,21 @@ export default function CSVExportModal({
     return (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
             <div
-                className="bg-slate-900 border border-white/10 rounded-xl w-full max-w-2xl max-h-[80vh] flex flex-col"
+                className="rr-card-elevated border border-slate-300/40 rounded-xl w-full max-w-2xl max-h-[80vh] flex flex-col"
                 style={{
-                    boxShadow: '0 0 50px rgba(6, 182, 212, 0.1)',
+                    boxShadow: '0 0 50px rgba(6, 182, 212, 0.24)',
                 }}
             >
                 {/* Header */}
-                <div className="p-6 border-b border-white/10">
+                <div className="p-6 border-b border-slate-300/30">
                     <div className="flex items-center justify-between">
                         <div>
                             <h2 className="text-xl font-bold text-white">Generate DAT Bulk Upload CSV</h2>
-                            <p className="text-sm text-gray-400 mt-1">Select lanes and contact method for export</p>
+                            <p className="text-sm text-slate-200 mt-1">Select lanes and contact method for export</p>
                         </div>
                         <button
                             onClick={onClose}
-                            className="p-2 text-gray-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
+                            className="p-2 text-slate-200 hover:text-white rounded-lg hover:bg-slate-800/45 transition-colors"
                         >
                             ✕
                         </button>
@@ -98,8 +98,8 @@ export default function CSVExportModal({
                             <button
                                 onClick={() => setContactMethod('email')}
                                 className={`flex-1 py-3 rounded-lg border text-sm font-bold transition-all ${contactMethod === 'email'
-                                        ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-400'
-                                        : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                                        ? 'bg-cyan-500/35 border-cyan-300/45 text-cyan-100'
+                                        : 'bg-slate-900/40 border-slate-300/35 text-slate-100 hover:bg-slate-800/45'
                                     }`}
                             >
                                 📧 Email Only
@@ -107,8 +107,8 @@ export default function CSVExportModal({
                             <button
                                 onClick={() => setContactMethod('phone')}
                                 className={`flex-1 py-3 rounded-lg border text-sm font-bold transition-all ${contactMethod === 'phone'
-                                        ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-400'
-                                        : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                                        ? 'bg-cyan-500/35 border-cyan-300/45 text-cyan-100'
+                                        : 'bg-slate-900/40 border-slate-300/35 text-slate-100 hover:bg-slate-800/45'
                                     }`}
                             >
                                 📞 Phone Only
@@ -116,8 +116,8 @@ export default function CSVExportModal({
                             <button
                                 onClick={() => setContactMethod('both')}
                                 className={`flex-1 py-3 rounded-lg border text-sm font-bold transition-all ${contactMethod === 'both'
-                                        ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-400'
-                                        : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                                        ? 'bg-cyan-500/35 border-cyan-300/45 text-cyan-100'
+                                        : 'bg-slate-900/40 border-slate-300/35 text-slate-100 hover:bg-slate-800/45'
                                     }`}
                             >
                                 📧📞 Email + Phone
@@ -141,7 +141,7 @@ export default function CSVExportModal({
                                 <span className="text-gray-600">|</span>
                                 <button
                                     onClick={selectNone}
-                                    className="text-xs text-gray-400 hover:text-gray-300"
+                                    className="text-xs text-slate-200 hover:text-white"
                                 >
                                     Clear
                                 </button>
@@ -161,8 +161,8 @@ export default function CSVExportModal({
                                         key={lane.id}
                                         onClick={() => toggleLane(lane.id)}
                                         className={`p-4 rounded-lg border cursor-pointer transition-all ${isSelected
-                                                ? 'bg-cyan-500/10 border-cyan-500/30'
-                                                : 'bg-white/5 border-white/10 hover:bg-white/10'
+                                                ? 'bg-cyan-500/35 border-cyan-300/45'
+                                                : 'bg-slate-900/40 border-slate-300/35 hover:bg-slate-800/45'
                                             }`}
                                     >
                                         <div className="flex items-center gap-3">
@@ -170,17 +170,17 @@ export default function CSVExportModal({
                                                 type="checkbox"
                                                 checked={isSelected}
                                                 onChange={() => { }}
-                                                className="w-4 h-4 rounded border-white/20 bg-white/5 text-cyan-500"
+                                                className="w-4 h-4 rounded border-slate-300/35 bg-slate-900/40 text-cyan-500"
                                             />
                                             <div className="flex-1">
                                                 <div className="font-medium text-white text-sm">
                                                     {lane.origin_city}, {lane.origin_state} → {lane.dest_city || lane.destination_city}, {lane.dest_state || lane.destination_state}
                                                 </div>
-                                                <div className="text-xs text-gray-400 mt-0.5">
+                                                <div className="text-xs text-slate-200 mt-0.5">
                                                     {lane.reference_id || lane.id?.slice(0, 8)} • {pairs} pairs • {lane.equipment_code}
                                                 </div>
                                             </div>
-                                            <span className="text-xs text-gray-500">
+                                            <span className="text-xs text-slate-100">
                                                 {pairs * (contactMethod === 'both' ? 2 : 1)} postings
                                             </span>
                                         </div>
@@ -192,22 +192,22 @@ export default function CSVExportModal({
                 </div>
 
                 {/* Footer */}
-                <div className="p-6 border-t border-white/10 bg-black/30">
+                <div className="p-6 border-t border-slate-300/30 bg-slate-900/45">
                     <div className="flex items-center justify-between">
-                        <div className="text-sm text-gray-400">
+                        <div className="text-sm text-slate-200">
                             <span className="text-white font-bold">{totalPostings}</span> total postings will be exported
                         </div>
                         <div className="flex gap-3">
                             <button
                                 onClick={onClose}
-                                className="px-4 py-2 bg-white/5 text-gray-400 rounded-lg border border-white/10 hover:bg-white/10 transition-colors"
+                                className="rr-btn btn-outline"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleExport}
                                 disabled={lanesToExport.length === 0}
-                                className="px-6 py-2 bg-gradient-to-r from-cyan-500 to-cyan-600 text-white font-bold rounded-lg shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="rr-btn rr-btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 📥 Generate CSV
                             </button>

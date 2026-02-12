@@ -1,7 +1,7 @@
 // components/recap/IntelligentLaneCard.jsx
 // Enterprise Lane Card with intelligent features
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import { WeatherBadge } from '../weather/WeatherCard';
 import EmailTemplateModal from '../EmailTemplateModal';
@@ -124,10 +124,10 @@ export default function IntelligentLaneCard({
     // Determine border color based on alerts
     const getBorderColor = () => {
         if (dyingLaneAlert) return 'border-red-500/50';
-        if (noResponseAlert) return 'border-amber-500/40';
+        if (noResponseAlert) return 'border-amber-400/45';
         if (isPriority) return 'border-yellow-500/50';
-        if (isHotLane) return 'border-emerald-500/30';
-        return 'border-cyan-500/10';
+        if (isHotLane) return 'border-emerald-400/40';
+        return 'border-cyan-300/40';
     };
 
     // Generate map URL
@@ -148,7 +148,7 @@ export default function IntelligentLaneCard({
     }, [lane.saved_origin_cities, lane.saved_dest_cities]);
 
     return (
-        <div className={`glass-card mb-8 transition-all duration-300 hover:shadow-[0_0_30px_rgba(6,182,212,0.15)] ${getBorderColor()} flex flex-col`}>
+        <div className={`rr-card-elevated relative mb-8 transition-all duration-300 hover:shadow-[0_0_34px_rgba(6,182,212,0.28)] ${getBorderColor()} flex flex-col overflow-hidden`}>
 
             {/* Top Alert Banners */}
             {dyingLaneAlert && (
@@ -159,7 +159,7 @@ export default function IntelligentLaneCard({
                     </div>
                     {/* Priority/Select Controls in Header */}
                     <div className="flex items-center gap-2">
-                        <button onClick={() => onTogglePriority?.(lane.id)} className={`text-xs ${isPriority ? 'text-yellow-400' : 'text-gray-500 hover:text-yellow-400'}`}>
+                        <button onClick={() => onTogglePriority?.(lane.id)} className={`text-xs ${isPriority ? 'text-yellow-300' : 'text-slate-200 hover:text-yellow-300'}`}>
                             {isPriority ? '⭐ Priority' : '☆ Priority'}
                         </button>
                     </div>
@@ -168,39 +168,39 @@ export default function IntelligentLaneCard({
 
             <div className="flex min-h-[420px] h-auto"> {/* Dynamic Height */}
                 {/* LEFT: Lane Identity & Intelligence */}
-                <div className="w-[240px] p-5 border-r border-white/5 flex flex-col bg-black/20">
+                <div className="w-[240px] p-5 border-r border-slate-300/35 flex flex-col bg-slate-900/45">
                     {/* Header Controls (if no alert banner) */}
                     {!dyingLaneAlert && (
                         <div className="flex justify-between mb-4">
                             <div className="flex items-center gap-2">
-                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${isCurrent ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-gray-500/10 text-gray-400 border-gray-500/20'
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${isCurrent ? 'bg-emerald-500/35 text-emerald-100 border-emerald-300/45' : 'bg-slate-500/35 text-slate-100 border-slate-300/45'
                                     }`}>
                                     {isCurrent ? 'Active' : 'Archived'}
                                 </span>
                                 <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${hasSavedChoices
-                                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                                        : 'bg-amber-500/10 text-amber-300 border-amber-500/30'
+                                        ? 'bg-emerald-500/35 text-emerald-100 border-emerald-300/45'
+                                        : 'bg-amber-500/35 text-amber-100 border-amber-300/45'
                                     }`}>
                                     {hasSavedChoices ? 'City Selection Saved' : 'Needs City Selection'}
                                 </span>
-                                {isHotLane && <span className="text-[10px] font-bold text-orange-400">🔥 Hot</span>}
+                                {isHotLane && <span className="text-[10px] font-bold text-orange-200">🔥 Hot</span>}
                             </div>
                             <div className="flex gap-2">
-                                <button onClick={() => onTogglePriority?.(lane.id)} className={`text-lg leading-none ${isPriority ? 'text-yellow-400' : 'text-gray-600 hover:text-yellow-400'}`}>
+                                <button onClick={() => onTogglePriority?.(lane.id)} className={`text-lg leading-none ${isPriority ? 'text-yellow-300' : 'text-slate-300 hover:text-yellow-300'}`}>
                                     {isPriority ? '★' : '☆'}
                                 </button>
                                 <input
                                     type="checkbox"
                                     checked={isSelected}
                                     onChange={(e) => onSelect?.(lane.id, e.target.checked)}
-                                    className="rounded border-white/20 bg-white/5 text-cyan-500 focus:ring-0"
+                                    className="rounded border-slate-300/45 bg-slate-900/45 text-cyan-500 focus:ring-0"
                                 />
                             </div>
                         </div>
                     )}
 
                     {!hasSavedChoices && (
-                        <div className="mb-3 text-[10px] text-amber-300 border border-amber-500/20 bg-amber-500/10 rounded px-2 py-1">
+                        <div className="mb-3 text-[10px] text-amber-100 border border-amber-300/45 bg-amber-500/35 rounded px-2 py-1">
                             Posting/export actions are disabled until city selections are saved.
                         </div>
                     )}
@@ -215,7 +215,7 @@ export default function IntelligentLaneCard({
                         )}
                     </div>
 
-                    <div className="mb-4 pb-4 border-b border-white/5">
+                    <div className="mb-4 pb-4 border-b border-slate-300/30">
                         <div className="text-[10px] uppercase tracking-wider text-cyan-400 font-bold mb-1">Destination</div>
                         <div className="text-xl font-bold text-white leading-tight">{lane.dest_city || lane.destination_city}, {lane.dest_state || lane.destination_state}</div>
                         {destCoords && (
@@ -227,19 +227,19 @@ export default function IntelligentLaneCard({
 
                     <div className="grid grid-cols-2 gap-x-2 gap-y-4 mb-6">
                         <div>
-                            <div className="text-[9px] uppercase text-gray-500 font-bold">Equip</div>
+                            <div className="text-[9px] uppercase text-slate-300 font-bold">Equip</div>
                             <div className="text-sm font-bold text-white">{lane.equipment_code || 'V'}</div>
                         </div>
                         <div>
-                            <div className="text-[9px] uppercase text-gray-500 font-bold">Weight</div>
+                            <div className="text-[9px] uppercase text-slate-300 font-bold">Weight</div>
                             <div className="text-sm font-bold text-white">{lane.weight_lbs ? `${Math.round(lane.weight_lbs / 1000)}k` : '-'}</div>
                         </div>
                         <div>
-                            <div className="text-[9px] uppercase text-gray-500 font-bold">Miles</div>
+                            <div className="text-[9px] uppercase text-slate-300 font-bold">Miles</div>
                             <div className="text-sm font-bold text-white">{lane.stats?.miles || 0}</div>
                         </div>
                         <div>
-                            <div className="text-[9px] uppercase text-gray-500 font-bold">Est. Time</div>
+                            <div className="text-[9px] uppercase text-slate-300 font-bold">Est. Time</div>
                             <div className="text-sm font-bold text-white">
                                 {lane.stats?.miles ? `${Math.round(lane.stats.miles / 50)}h ${Math.round((lane.stats.miles % 50) / 50 * 60)}m` : '-'}
                             </div>
@@ -247,29 +247,29 @@ export default function IntelligentLaneCard({
                     </div>
 
                     {/* Traffic & Intelligence Section (Left Side) */}
-                    <div className="mb-6 p-3 bg-white/5 rounded border border-white/5">
+                    <div className="mb-6 p-3 bg-slate-900/38 rounded border border-slate-300/35">
                         <div className="mb-2">
-                            <div className="text-[9px] uppercase text-gray-500 font-bold mb-1">Traffic Conditions</div>
+                            <div className="text-[9px] uppercase text-slate-300 font-bold mb-1">Traffic Conditions</div>
                             <div className="flex items-center gap-2">
                                 <span className="relative flex h-2 w-2">
                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                                     <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                                 </span>
-                                <span className="text-xs font-medium text-emerald-400">Normal Flow</span>
+                                <span className="text-xs font-medium text-emerald-200">Normal Flow</span>
                             </div>
                         </div>
                         <div>
-                            <div className="text-[9px] uppercase text-gray-500 font-bold mb-1">Route</div>
-                            <div className="text-xs font-mono text-gray-400">I-55 → I-44 → I-35</div>
+                            <div className="text-[9px] uppercase text-slate-300 font-bold mb-1">Route</div>
+                            <div className="text-xs font-mono text-slate-200">I-55 → I-44 → I-35</div>
                         </div>
                     </div>
 
 
-                    <div className="mt-auto pt-4 border-t border-white/5">
-                        <div className="text-[10px] uppercase text-gray-500 font-bold mb-1">Target Rate</div>
+                    <div className="mt-auto pt-4 border-t border-slate-300/30">
+                        <div className="text-[10px] uppercase text-slate-300 font-bold mb-1">Target Rate</div>
                         <div className="flex items-baseline gap-2 mb-3">
-                            <span className="text-2xl font-extrabold text-emerald-400">${lane.rate?.toLocaleString() || '0'}</span>
-                            <span className="text-[10px] text-gray-500 font-mono">${(lane.rate / (lane.stats?.miles || 1)).toFixed(2)}/mi</span>
+                            <span className="text-2xl font-extrabold text-emerald-200">${lane.rate?.toLocaleString() || '0'}</span>
+                            <span className="text-[10px] text-slate-300 font-mono">${(lane.rate / (lane.stats?.miles || 1)).toFixed(2)}/mi</span>
                         </div>
 
                         {/* Action Buttons Grid */}
@@ -284,17 +284,17 @@ export default function IntelligentLaneCard({
                                 onClick={() => hasSavedChoices && setShowEmailModal(true)}
                                 disabled={!hasSavedChoices}
                                 className={`col-span-2 py-1.5 border text-[10px] font-bold rounded transition-colors flex items-center justify-center gap-2 ${hasSavedChoices
-                                        ? 'bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 hover:text-purple-300 border-purple-500/20'
-                                        : 'bg-gray-700/30 text-gray-500 border-gray-600/40 cursor-not-allowed'
+                                        ? 'bg-purple-500/35 hover:bg-purple-500/45 text-purple-100 hover:text-white border-purple-300/45'
+                                        : 'bg-slate-700/35 text-slate-300 border-slate-400/35 cursor-not-allowed'
                                     }`}
                                 title={hasSavedChoices ? 'Create Email' : 'Save city selections first'}
                             >
                                 ✉️ Create Email
                             </button>
-                            <button onClick={() => setShowArchiveModal(true)} className="py-1.5 border border-white/10 hover:bg-white/5 text-gray-400 hover:text-white text-[10px] font-bold rounded transition-colors">
+                            <button onClick={() => setShowArchiveModal(true)} className="py-1.5 border border-slate-300/35 bg-slate-900/40 hover:bg-slate-800/50 text-slate-100 text-[10px] font-bold rounded transition-colors">
                                 Archive
                             </button>
-                            <button onClick={() => setShowGaveBackModal(true)} className="py-1.5 border border-white/10 hover:bg-white/5 text-gray-400 hover:text-white text-[10px] font-bold rounded transition-colors">
+                            <button onClick={() => setShowGaveBackModal(true)} className="py-1.5 border border-slate-300/35 bg-slate-900/40 hover:bg-slate-800/50 text-slate-100 text-[10px] font-bold rounded transition-colors">
                                 Gave Back
                             </button>
                         </div>
@@ -302,7 +302,7 @@ export default function IntelligentLaneCard({
                 </div>
 
                 {/* CENTER: Map Embed (Clean, No Overlay) */}
-                <div className="flex-1 relative bg-slate-900 group/map min-h-[420px]">
+                <div className="flex-1 relative bg-slate-950 group/map min-h-[420px]">
                     <iframe
                         src={mapSrc}
                         width="100%"
@@ -320,8 +320,8 @@ export default function IntelligentLaneCard({
                             onClick={() => hasSavedChoices && onExportCSV?.([lane.id])}
                             disabled={!hasSavedChoices}
                             className={`p-2 rounded-lg backdrop-blur-md border text-xs font-bold ${hasSavedChoices
-                                    ? 'bg-black/80 hover:bg-black text-white border-white/10'
-                                    : 'bg-gray-800/70 text-gray-500 border-gray-600/40 cursor-not-allowed'
+                                    ? 'bg-slate-900/85 hover:bg-slate-900 text-white border-slate-300/35'
+                                    : 'bg-slate-700/55 text-slate-300 border-slate-400/35 cursor-not-allowed'
                                 }`}
                             title={hasSavedChoices ? 'Export to DAT CSV' : 'Needs city selection before export'}
                         >
@@ -329,7 +329,7 @@ export default function IntelligentLaneCard({
                         </button>
                         <button
                             onClick={() => window.open(mapSrc, '_blank')}
-                            className="p-2 bg-black/80 hover:bg-black text-white rounded-lg backdrop-blur-md border border-white/10 text-xs font-bold"
+                            className="p-2 bg-slate-900/85 hover:bg-slate-900 text-white rounded-lg backdrop-blur-md border border-slate-300/35 text-xs font-bold"
                             title="Open Google Maps"
                         >
                             ↗
@@ -338,39 +338,39 @@ export default function IntelligentLaneCard({
                 </div>
 
                 {/* RIGHT: Posted Lanes */}
-                <div className="w-[280px] border-l border-white/5 flex flex-col bg-black/20">
-                    <div className="p-3 border-b border-white/5 flex justify-between items-center bg-white/5">
+                <div className="w-[280px] border-l border-slate-300/35 flex flex-col bg-slate-900/45">
+                    <div className="p-3 border-b border-slate-300/30 flex justify-between items-center bg-slate-900/45">
                         <div className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider">Posted Lanes</div>
-                        <span className="text-[10px] font-bold bg-cyan-500/20 text-cyan-300 px-2 py-0.5 rounded border border-cyan-500/30">
+                        <span className="text-[10px] font-bold bg-cyan-500/35 text-cyan-100 px-2 py-0.5 rounded border border-cyan-300/45">
                             {pairs.length} Active
                         </span>
                     </div>
 
                     <div className="flex-1 p-2 space-y-1">
                         {pairs.map((pair, idx) => (
-                            <div key={idx} className="group/row p-2 rounded hover:bg-white/5 border border-transparent hover:border-white/5 transition-all cursor-pointer">
+                            <div key={idx} className="group/row p-2 rounded bg-slate-900/38 hover:bg-slate-800/45 border border-slate-300/30 transition-all cursor-pointer">
                                 <div className="flex justify-between items-start mb-1">
-                                    <div className="text-[11px] font-bold text-gray-200 truncate pr-2" title={`${pair.origin.city} → ${pair.dest.city}`}>
+                                    <div className="text-[11px] font-bold text-slate-100 truncate pr-2" title={`${pair.origin.city} → ${pair.dest.city}`}>
                                         {pair.origin.city} → {pair.dest.city}
                                     </div>
-                                    <div className="text-[11px] font-mono text-emerald-400 font-bold">
+                                    <div className="text-[11px] font-mono text-emerald-200 font-bold">
                                         ${Math.round(lane.rate * (1 + (Math.random() * 0.1 - 0.05))).toLocaleString()}
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <span className="text-[9px] text-gray-500 font-mono">
+                                    <span className="text-[9px] text-slate-300 font-mono">
                                         {pair.origin.distance ? Math.round(pair.origin.distance) : 0}mi DH
                                     </span>
                                     <div className="flex gap-1 ml-auto opacity-60 group-hover/row:opacity-100 transition-opacity">
                                         <button
                                             onClick={(e) => { e.stopPropagation(); setContactModal({ open: true, lane, city: pair.origin, cityType: 'pickup' }); }}
-                                            className="px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 text-[9px] border border-cyan-500/20 hover:bg-cyan-500/20"
+                                            className="px-1.5 py-0.5 rounded bg-cyan-500/35 text-cyan-100 text-[9px] border border-cyan-300/40 hover:bg-cyan-500/45"
                                         >
                                             📞
                                         </button>
                                         <button
                                             onClick={(e) => { e.stopPropagation(); setContactModal({ open: true, lane, city: pair.dest, cityType: 'delivery' }); }}
-                                            className="px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 text-[9px] border border-purple-500/20 hover:bg-purple-500/20"
+                                            className="px-1.5 py-0.5 rounded bg-purple-500/35 text-purple-100 text-[9px] border border-purple-300/40 hover:bg-purple-500/45"
                                         >
                                             📧
                                         </button>
@@ -381,7 +381,7 @@ export default function IntelligentLaneCard({
                         {pairs.length === 0 && (
                             <div className="text-center py-8 px-4">
                                 <div className="text-2xl opacity-20 mb-2">🏔️</div>
-                                <div className="text-xs text-gray-500">
+                                <div className="text-xs text-slate-300">
                                     {hasSavedChoices
                                         ? 'No active postings generated yet.'
                                         : 'Needs City Selection before posting/export actions.'}
@@ -403,13 +403,13 @@ export default function IntelligentLaneCard({
                     </div>
 
                     {/* Quick Stats Footer */}
-                    <div className="p-3 border-t border-white/5 grid grid-cols-2 gap-2 bg-black/40 mt-auto">
-                        <div className="bg-white/5 rounded p-1.5 text-center">
-                            <div className="text-[9px] text-gray-500 uppercase">Avg DH</div>
+                    <div className="p-3 border-t border-slate-300/30 grid grid-cols-2 gap-2 bg-slate-900/45 mt-auto">
+                        <div className="bg-slate-900/38 border border-slate-300/30 rounded p-1.5 text-center">
+                            <div className="text-[9px] text-slate-300 uppercase">Avg DH</div>
                             <div className="text-xs font-bold text-white">42mi</div>
                         </div>
-                        <div className="bg-white/5 rounded p-1.5 text-center">
-                            <div className="text-[9px] text-gray-500 uppercase">Contacts</div>
+                        <div className="bg-slate-900/38 border border-slate-300/30 rounded p-1.5 text-center">
+                            <div className="text-[9px] text-slate-300 uppercase">Contacts</div>
                             <div className={`text-xs font-bold ${isHotLane ? 'text-emerald-400' : 'text-white'}`}>{contactCount}</div>
                         </div>
                     </div>
@@ -418,24 +418,24 @@ export default function IntelligentLaneCard({
 
             {/* Inline Offer Form (Overlay or below) */}
             {showCarrierOfferForm && (
-                <div className="p-3 bg-blue-900/10 border-t border-blue-500/20 flex gap-2 animate-in slide-in-from-top-2">
+                <div className="p-3 bg-blue-600/35 border-t border-blue-300/45 flex gap-2 animate-in slide-in-from-top-2">
                     <input
                         value={carrierOfferMC}
                         onChange={(e) => setCarrierOfferMC(e.target.value)}
                         placeholder="Carrier MC #"
-                        className="flex-1 bg-black/40 border border-white/10 rounded px-2 py-1 text-xs text-white"
+                        className="flex-1 bg-slate-900/45 border border-slate-300/35 rounded px-2 py-1 text-xs text-white"
                     />
                     <input
                         value={carrierOfferRate}
                         onChange={(e) => setCarrierOfferRate(e.target.value)}
                         placeholder="Rate $"
                         type="number"
-                        className="w-24 bg-black/40 border border-white/10 rounded px-2 py-1 text-xs text-white"
+                        className="w-24 bg-slate-900/45 border border-slate-300/35 rounded px-2 py-1 text-xs text-white"
                     />
                     <button onClick={handleSubmitCarrierOffer} className="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs font-bold">
                         Save
                     </button>
-                    <button onClick={() => setShowCarrierOfferForm(false)} className="px-2 py-1 bg-transparent hover:bg-white/10 text-gray-400 rounded text-xs">
+                    <button onClick={() => setShowCarrierOfferForm(false)} className="px-2 py-1 bg-transparent hover:bg-slate-800/40 text-slate-100 rounded text-xs">
                         ✕
                     </button>
                 </div>
@@ -444,40 +444,40 @@ export default function IntelligentLaneCard({
             {/* Archive Modal Overlay */}
             {showArchiveModal && (
                 <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 rounded-2xl">
-                    <div className="bg-slate-900 border border-white/10 p-5 rounded-xl w-full max-w-sm shadow-2xl">
+                    <div className="rr-card-elevated border border-slate-300/40 p-5 rounded-xl w-full max-w-sm shadow-2xl">
                         <h4 className="text-sm font-bold text-white mb-3">Archive Lane (Covered)</h4>
                         <div className="space-y-3">
                             <div>
-                                <label className="text-[10px] text-gray-400 uppercase font-bold">Carrier MC</label>
+                                <label className="text-[10px] text-slate-200 uppercase font-bold">Carrier MC</label>
                                 <input
                                     value={archiveData.mc}
                                     onChange={e => setArchiveData({ ...archiveData, mc: e.target.value })}
-                                    className="w-full bg-black/40 border border-white/10 rounded px-2 py-1.5 text-sm text-white focus:border-cyan-500/50 outline-none"
+                                    className="w-full bg-slate-900/45 border border-slate-300/35 rounded px-2 py-1.5 text-sm text-white focus:border-cyan-300/60 outline-none"
                                     placeholder="e.g. 123456"
                                 />
                             </div>
                             <div>
-                                <label className="text-[10px] text-gray-400 uppercase font-bold">Carrier Email</label>
+                                <label className="text-[10px] text-slate-200 uppercase font-bold">Carrier Email</label>
                                 <input
                                     value={archiveData.email}
                                     onChange={e => setArchiveData({ ...archiveData, email: e.target.value })}
                                     type="email"
-                                    className="w-full bg-black/40 border border-white/10 rounded px-2 py-1.5 text-sm text-white focus:border-cyan-500/50 outline-none"
+                                    className="w-full bg-slate-900/45 border border-slate-300/35 rounded px-2 py-1.5 text-sm text-white focus:border-cyan-300/60 outline-none"
                                     placeholder="carrier@example.com"
                                 />
                             </div>
                             <div>
-                                <label className="text-[10px] text-gray-400 uppercase font-bold">Rate Covered</label>
+                                <label className="text-[10px] text-slate-200 uppercase font-bold">Rate Covered</label>
                                 <input
                                     value={archiveData.rate}
                                     onChange={e => setArchiveData({ ...archiveData, rate: e.target.value })}
                                     type="number"
-                                    className="w-full bg-black/40 border border-white/10 rounded px-2 py-1.5 text-sm text-white focus:border-cyan-500/50 outline-none"
+                                    className="w-full bg-slate-900/45 border border-slate-300/35 rounded px-2 py-1.5 text-sm text-white focus:border-cyan-300/60 outline-none"
                                     placeholder="$0.00"
                                 />
                             </div>
                             <div className="flex gap-2 mt-4">
-                                <button onClick={() => setShowArchiveModal(false)} className="flex-1 py-2 bg-white/5 hover:bg-white/10 text-gray-300 text-xs font-bold rounded">Cancel</button>
+                                <button onClick={() => setShowArchiveModal(false)} className="flex-1 py-2 bg-slate-900/45 border border-slate-300/35 hover:bg-slate-800/50 text-slate-100 text-xs font-bold rounded">Cancel</button>
                                 <button onClick={handleArchive} className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded shadow-lg shadow-emerald-900/20">Archive</button>
                             </div>
                         </div>
@@ -488,15 +488,15 @@ export default function IntelligentLaneCard({
             {/* Gave Back Modal Overlay */}
             {showGaveBackModal && (
                 <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 rounded-2xl">
-                    <div className="bg-slate-900 border border-white/10 p-5 rounded-xl w-full max-w-sm shadow-2xl">
+                    <div className="rr-card-elevated border border-slate-300/40 p-5 rounded-xl w-full max-w-sm shadow-2xl">
                         <h4 className="text-sm font-bold text-white mb-3">Mark as Gave Back</h4>
                         <div className="space-y-3">
                             <div>
-                                <label className="text-[10px] text-gray-400 uppercase font-bold">Reason</label>
+                                <label className="text-[10px] text-slate-200 uppercase font-bold">Reason</label>
                                 <select
                                     value={gaveBackReason}
                                     onChange={e => setGaveBackReason(e.target.value)}
-                                    className="w-full bg-black/40 border border-white/10 rounded px-2 py-1.5 text-sm text-white focus:border-red-500/50 outline-none appearance-none"
+                                    className="w-full bg-slate-900/45 border border-slate-300/35 rounded px-2 py-1.5 text-sm text-white focus:border-red-300/60 outline-none appearance-none"
                                 >
                                     <option value="">Select Reason...</option>
                                     <option value="Customer Cancelled">Customer Cancelled</option>
@@ -507,7 +507,7 @@ export default function IntelligentLaneCard({
                                 </select>
                             </div>
                             <div className="flex gap-2 mt-4">
-                                <button onClick={() => setShowGaveBackModal(false)} className="flex-1 py-2 bg-white/5 hover:bg-white/10 text-gray-300 text-xs font-bold rounded">Cancel</button>
+                                <button onClick={() => setShowGaveBackModal(false)} className="flex-1 py-2 bg-slate-900/45 border border-slate-300/35 hover:bg-slate-800/50 text-slate-100 text-xs font-bold rounded">Cancel</button>
                                 <button onClick={handleGaveBack} className="flex-1 py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded shadow-lg shadow-red-900/20">Confirm</button>
                             </div>
                         </div>
