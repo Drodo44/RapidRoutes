@@ -68,8 +68,20 @@ const SettingsIcon = () => (
 // ============================================
 // CUSTOM HOOKS
 // ============================================
+function resolveOrganizationId(user, profile) {
+  const currentOrgId =
+    profile?.organization_id ??
+    user?.organization_id ??
+    user?.user_metadata?.organization_id ??
+    user?.app_metadata?.organization_id ??
+    null;
+
+  if (!currentOrgId) return null;
+  return typeof currentOrgId === 'string' ? currentOrgId : currentOrgId?.id || null;
+}
+
 function useDashboardStats() {
-  const { session, user } = useAuth();
+  const { session, user, profile } = useAuth();
   const [stats, setStats] = useState({
     postedLanes: 0,
     failedLanes: 0,
@@ -94,12 +106,7 @@ function useDashboardStats() {
         const failed = lanes?.filter(l => l.lane_status === 'failed').length || 0;
         
         // Covered (This week): canonical source is carrier_coverage.
-        const currentOrgId =
-          user?.organization_id ||
-          user?.user_metadata?.organization_id ||
-          user?.app_metadata?.organization_id ||
-          null;
-        const orgId = typeof currentOrgId === 'string' ? currentOrgId : currentOrgId?.id;
+        const orgId = resolveOrganizationId(user, profile);
 
         // Equivalent to: covered_at >= date_trunc('week', now())
         const weekStart = new Date();
@@ -142,7 +149,7 @@ function useDashboardStats() {
     fetchStats();
     const interval = setInterval(fetchStats, 30000);
     return () => clearInterval(interval);
-  }, [session, user]);
+  }, [session, user, profile]);
 
   return stats;
 }
@@ -177,7 +184,7 @@ function useRecentLanes() {
 }
 
 function useTopCarriers() {
-  const { session, user } = useAuth();
+  const { session, user, profile } = useAuth();
   const [carriers, setCarriers] = useState([]);
 
   useEffect(() => {
@@ -185,12 +192,7 @@ function useTopCarriers() {
       if (!session || !user || !supabase) return;
 
       try {
-        const currentOrgId =
-          user?.organization_id ||
-          user?.user_metadata?.organization_id ||
-          user?.app_metadata?.organization_id ||
-          null;
-        const orgId = typeof currentOrgId === 'string' ? currentOrgId : currentOrgId?.id;
+        const orgId = resolveOrganizationId(user, profile);
         if (!orgId) {
           if (process.env.NODE_ENV !== 'production') {
             console.warn('[dashboard] Top Carriers skipped: missing organization_id scope');
@@ -245,7 +247,7 @@ function useTopCarriers() {
     };
 
     fetchCarriers();
-  }, [session, user]);
+  }, [session, user, profile]);
 
   return carriers;
 }
