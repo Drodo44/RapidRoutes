@@ -4,15 +4,17 @@ const JINA_READER_BASE = 'https://r.jina.ai';
 
 const MODEL_CACHE_TTL_MS = 10 * 60 * 1000;
 const LIST_MODELS_TIMEOUT_MS = 10000;
-const SERPER_TIMEOUT_MS = 10000;
-const JINA_TIMEOUT_MS = 15000;
-const GEMINI_TIMEOUT_MS = 30000;
+const SERPER_TIMEOUT_MS = 4500;
+const JINA_TIMEOUT_MS = 3500;
+const GEMINI_TIMEOUT_MS = 35000;
+const RESEARCH_BUDGET_MS = 12000;
 
 const MAX_SERPER_RESULTS = 5;
 const MAX_JINA_LINKS = 3;
 const MAX_JINA_CHARS_PER_PAGE = 20000;
 const MAX_TOTAL_JINA_CHARS = 60000;
 const MAX_RESEARCH_CONTEXT_CHARS = 70000;
+const MAX_CONTINUATIONS = 1;
 
 const modelCache = {
   expiresAt: 0,
@@ -20,15 +22,36 @@ const modelCache = {
   selectedModel: ''
 };
 
+const NUMBER_WORDS = {
+  one: 1,
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  eight: 8,
+  nine: 9,
+  ten: 10,
+  eleven: 11,
+  twelve: 12
+};
+
 const BASE_SYSTEM_INSTRUCTION = [
   'Follow the user instructions exactly.',
   'Use REFERENCE MATERIAL silently for factual grounding.',
   'Do not mention research, sources, scraping, Serper, Jina, or reference material unless the user explicitly asks for sources or links.',
-  'Do not add extra sections, labels, preambles, headings, or commentary unless the user asks for them.',
-  'Ask follow-up questions only if required inputs are truly missing to complete the exact request, then stop.',
-  'If the user asks for a constrained format (for example "output only four email bodies"), return exactly that format and nothing else.',
-  'When the user specifies a count, return exactly that number of complete outputs.'
+  'Do not add extra sections, labels, preambles, headings, bullets, numbering, separators, or commentary unless the user asks for them.',
+  'Ask follow-up questions only if required inputs are truly missing to complete the exact request, then stop.'
 ].join(' ');
+
+function createRequestId() {
+  if (typeof globalThis.crypto?.randomUUID === 'function') {
+    return globalThis.crypto.randomUUID();
+  }
+
+  return `req_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
 
 function normalizeModelName(modelName) {
   const trimmed = String(modelName || '').trim();
@@ -51,6 +74,52 @@ function parseAssistantText(payload) {
     .map((part) => (typeof part?.text === 'string' ? part.text : ''))
     .join('\n')
     .trim();
+}
+
+function extractFinishReason(payload) {
+  const reason = payload?.candidates?.[0]?.finishReason;
+  return typeof reason === 'string' ? reason : '';
+}
+
+function extractUsage(payload) {
+  const usage = payload?.usageMetadata || {};
+
+  return {
+    promptTokenCount: Number.isFinite(usage.promptTokenCount) ? usage.promptTokenCount : null,
+    outputTokenCount: Number.isFinite(usage.candidatesTokenCount)
+      ? usage.candidatesTokenCount
+      : (Number.isFinite(usage.outputTokenCount) ? usage.outputTokenCount : null),
+    totalTokenCount: Number.isFinite(usage.totalTokenCount) ? usage.totalTokenCount : null
+  };
+}
+
+function mergeUsage(firstUsage, secondUsage) {
+  const keys = ['promptTokenCount', 'outputTokenCount', 'totalTokenCount'];
+  const merged = {};
+
+  keys.forEach((key) => {
+    const a = firstUsage?.[key];
+    const b = secondUsage?.[key];
+
+    if (Number.isFinite(a) && Number.isFinite(b)) {
+      merged[key] = a + b;
+      return;
+    }
+
+    if (Number.isFinite(a)) {
+      merged[key] = a;
+      return;
+    }
+
+    if (Number.isFinite(b)) {
+      merged[key] = b;
+      return;
+    }
+
+    merged[key] = null;
+  });
+
+  return merged;
 }
 
 function normalizeIncomingMessages(body) {
@@ -114,8 +183,8 @@ function extractLikelyCompanyOrDomain(message) {
 
   const patterns = [
     /\bcompany\s*:\s*([^\n]+)/i,
-    /\bfor\s+([A-Z][A-Za-z0-9&'.,\-\s]{2,70})\b/,
-    /\babout\s+([A-Z][A-Za-z0-9&'.,\-\s]{2,70})\b/
+    /\bfor\s+([A-Z][A-Za-z0-9&'.,\-\s]{2,80})\b/,
+    /\babout\s+([A-Z][A-Za-z0-9&'.,\-\s]{2,80})\b/
   ];
 
   for (const pattern of patterns) {
@@ -131,6 +200,43 @@ function extractLikelyCompanyOrDomain(message) {
   }
 
   return '';
+}
+
+function extractRequestedEmailBodyCount(message) {
+  const input = String(message || '');
+  if (!/email\s+bod(?:y|ies)/i.test(input)) {
+    return null;
+  }
+
+  const directDigitMatch = input.match(/\b(\d{1,2})\b(?=[^\n]{0,60}email\s+bod(?:y|ies))/i)
+    || input.match(/email\s+bod(?:y|ies)[^\n]{0,60}\b(\d{1,2})\b/i);
+
+  if (directDigitMatch?.[1]) {
+    const value = Number.parseInt(directDigitMatch[1], 10);
+    return Number.isFinite(value) && value > 0 ? value : null;
+  }
+
+  const wordPattern = Object.keys(NUMBER_WORDS).join('|');
+  const directWordMatch = input.match(new RegExp(`\\b(${wordPattern})\\b(?=[^\\n]{0,60}email\\s+bod(?:y|ies))`, 'i'))
+    || input.match(new RegExp(`email\\s+bod(?:y|ies)[^\\n]{0,60}\\b(${wordPattern})\\b`, 'i'));
+
+  if (directWordMatch?.[1]) {
+    return NUMBER_WORDS[directWordMatch[1].toLowerCase()] || null;
+  }
+
+  if (/output\s+only\s+the\s+four\s+email\s+bodies/i.test(input)) {
+    return 4;
+  }
+
+  return null;
+}
+
+function countBodies(output) {
+  return String(output || '')
+    .split(/\n\n+/)
+    .map((segment) => segment.trim())
+    .filter(Boolean)
+    .length;
 }
 
 function buildSerperQuery(messages) {
@@ -167,7 +273,15 @@ function normalizeSerperResults(payload) {
   })).filter((item) => item.link);
 }
 
+function remainingBudgetMs(deadlineMs) {
+  return Math.max(0, deadlineMs - Date.now());
+}
+
 async function fetchWithTimeout(url, options, timeoutMs) {
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    throw new Error('Timeout budget exhausted before fetch call.');
+  }
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -181,13 +295,18 @@ async function fetchWithTimeout(url, options, timeoutMs) {
   }
 }
 
-async function fetchSerperResults(query, serperApiKey) {
+async function fetchSerperResults(query, serperApiKey, deadlineMs) {
   if (!query) {
     return { results: [], notes: ['Serper query was empty.'] };
   }
 
   if (!serperApiKey) {
     return { results: [], notes: ['SERPER_API_KEY missing; search was skipped.'] };
+  }
+
+  const timeoutMs = Math.min(SERPER_TIMEOUT_MS, remainingBudgetMs(deadlineMs));
+  if (timeoutMs <= 0) {
+    return { results: [], notes: ['Research time budget exhausted before Serper search.'] };
   }
 
   try {
@@ -201,7 +320,7 @@ async function fetchSerperResults(query, serperApiKey) {
         },
         body: JSON.stringify({ q: query, num: MAX_SERPER_RESULTS })
       },
-      SERPER_TIMEOUT_MS
+      timeoutMs
     );
 
     const payload = await response.json().catch(() => ({}));
@@ -224,7 +343,7 @@ async function fetchSerperResults(query, serperApiKey) {
   }
 }
 
-async function fetchSingleJinaExtract(link, jinaApiKey, maxChars) {
+async function fetchSingleJinaExtract(link, jinaApiKey, maxChars, timeoutMs) {
   const normalizedLink = normalizeHttpLink(link);
   if (!normalizedLink) return null;
 
@@ -239,7 +358,7 @@ async function fetchSingleJinaExtract(link, jinaApiKey, maxChars) {
       method: 'GET',
       headers
     },
-    JINA_TIMEOUT_MS
+    timeoutMs
   );
 
   if (!response.ok) {
@@ -256,7 +375,7 @@ async function fetchSingleJinaExtract(link, jinaApiKey, maxChars) {
   };
 }
 
-async function fetchJinaExtracts(links, jinaApiKey) {
+async function fetchJinaExtracts(links, jinaApiKey, deadlineMs) {
   const normalizedLinks = links.map(normalizeHttpLink).filter(Boolean).slice(0, MAX_JINA_LINKS);
   if (normalizedLinks.length === 0) {
     return { extracts: [], notes: [] };
@@ -269,10 +388,17 @@ async function fetchJinaExtracts(links, jinaApiKey) {
   for (const link of normalizedLinks) {
     if (remainingChars <= 0) break;
 
+    const budgetLeft = remainingBudgetMs(deadlineMs);
+    if (budgetLeft <= 0) {
+      notes.push('Research time budget exhausted before finishing Jina fetches.');
+      break;
+    }
+
+    const timeoutMs = Math.min(JINA_TIMEOUT_MS, budgetLeft);
     const perPageLimit = Math.min(MAX_JINA_CHARS_PER_PAGE, remainingChars);
 
     try {
-      const extract = await fetchSingleJinaExtract(link, jinaApiKey, perPageLimit);
+      const extract = await fetchSingleJinaExtract(link, jinaApiKey, perPageLimit, timeoutMs);
       if (!extract) {
         notes.push(`Jina Reader returned empty content for ${link}.`);
         continue;
@@ -417,11 +543,26 @@ async function getAutoSelectedModel(apiKey) {
   return selectedModel;
 }
 
-async function generateWithGeminiModel({ apiKey, model, contents, researchContext }) {
+function buildRequestSpecificInstruction(latestUserMessage) {
+  const requestedBodies = extractRequestedEmailBodyCount(latestUserMessage);
+  if (!requestedBodies) return '';
+
+  return [
+    `This request requires exactly ${requestedBodies} email bodies.`,
+    'Output only the email body text, with no subject lines.',
+    'Do not include labels, numbering, bullets, or separators like ***.',
+    'Each body must be one concise paragraph.',
+    'Separate each body with exactly one blank line.'
+  ].join(' ');
+}
+
+async function generateWithGeminiModel({ apiKey, model, contents, researchContext, latestUserMessage }) {
   const normalizedModel = normalizeModelName(model);
   if (!normalizedModel) {
     throw new Error('Gemini model name is empty.');
   }
+
+  const requestSpecificInstruction = buildRequestSpecificInstruction(latestUserMessage);
 
   const endpointWithoutKey = `${GEMINI_MODELS_ENDPOINT}/${encodeURIComponent(normalizedModel)}:generateContent`;
   const url = `${endpointWithoutKey}?key=${encodeURIComponent(apiKey)}`;
@@ -438,14 +579,15 @@ async function generateWithGeminiModel({ apiKey, model, contents, researchContex
           role: 'system',
           parts: [
             { text: BASE_SYSTEM_INSTRUCTION },
+            requestSpecificInstruction ? { text: requestSpecificInstruction } : null,
             { text: researchContext }
-          ]
+          ].filter(Boolean)
         },
         contents,
         generationConfig: {
-          temperature: 0.2,
-          topP: 0.9,
-          maxOutputTokens: 2200
+          temperature: 0.15,
+          topP: 0.85,
+          maxOutputTokens: 4000
         }
       })
     },
@@ -462,7 +604,53 @@ async function generateWithGeminiModel({ apiKey, model, contents, researchContex
   };
 }
 
+function shouldContinueForTruncation({ requestedBodyCount, assistantMessage, finishReason, attempt }) {
+  if (!requestedBodyCount) return false;
+  if (attempt >= MAX_CONTINUATIONS) return false;
+  if (!assistantMessage.trim()) return false;
+
+  const normalizedReason = String(finishReason || '').toUpperCase();
+  const truncated = normalizedReason.includes('MAX_TOKENS') || normalizedReason.includes('LENGTH');
+  if (!truncated) return false;
+
+  const producedBodies = countBodies(assistantMessage);
+  return producedBodies < requestedBodyCount;
+}
+
+function buildContinuationPrompt(remainingBodies) {
+  return [
+    'Continue exactly where you left off.',
+    `Output only the remaining ${remainingBodies} email bodies.`,
+    'No subject lines, no labels, no numbering, no separators.',
+    'Each body must be one concise paragraph.',
+    'Separate bodies by exactly one blank line.'
+  ].join(' ');
+}
+
+function logTelemetry(telemetry) {
+  console.log('[ai/chat][telemetry]', JSON.stringify(telemetry));
+}
+
 export default async function handler(req, res) {
+  const startedAt = Date.now();
+  const requestId = createRequestId();
+  const streamingEnabled = false;
+
+  let clientAborted = false;
+  let clientClosedBeforeResponse = false;
+
+  req.on?.('aborted', () => {
+    clientAborted = true;
+    console.warn(`[ai/chat][${requestId}] client aborted request`);
+  });
+
+  req.on?.('close', () => {
+    if (!res.writableEnded) {
+      clientClosedBeforeResponse = true;
+      console.warn(`[ai/chat][${requestId}] request closed before response completed`);
+    }
+  });
+
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'Method not allowed' });
@@ -474,23 +662,41 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'GEMINI_API_KEY missing' });
   }
 
+  let selectedModel = '';
+  let finishReason = '';
+  let continuationFinishReason = '';
+  let usageSummary = { promptTokenCount: null, outputTokenCount: null, totalTokenCount: null };
+  let responseByteLength = 0;
+  let continuationUsed = false;
+  let query = '';
+  let serperResultsCount = 0;
+  let jinaExtractsCount = 0;
+
   try {
     const normalizedMessages = normalizeIncomingMessages(req.body);
     if (!ensureLastMessageIsUser(normalizedMessages)) {
       return res.status(400).json({ error: 'messages must end with a non-empty user message.' });
     }
 
-    const query = buildSerperQuery(normalizedMessages);
+    const latestUserMessage = normalizedMessages[normalizedMessages.length - 1]?.content || '';
+
+    const researchDeadline = Date.now() + RESEARCH_BUDGET_MS;
+
+    query = buildSerperQuery(normalizedMessages);
     const { results: serperResults, notes: serperNotes } = await fetchSerperResults(
       query,
-      process.env.SERPER_API_KEY
+      process.env.SERPER_API_KEY,
+      researchDeadline
     );
+    serperResultsCount = serperResults.length;
 
     const links = serperResults.map((item) => item.link).filter(Boolean).slice(0, MAX_JINA_LINKS);
     const { extracts: pageExtracts, notes: jinaNotes } = await fetchJinaExtracts(
       links,
-      process.env.JINA_API_KEY
+      process.env.JINA_API_KEY,
+      researchDeadline
     );
+    jinaExtractsCount = pageExtracts.length;
 
     const researchContext = buildResearchContext({
       query,
@@ -502,14 +708,14 @@ export default async function handler(req, res) {
     const contents = toGeminiContents(normalizedMessages);
     const overrideModel = normalizeModelName(process.env.GEMINI_MODEL);
     let geminiResult;
-    let selectedModel = '';
 
     if (overrideModel) {
       geminiResult = await generateWithGeminiModel({
         apiKey: geminiApiKey,
         model: overrideModel,
         contents,
-        researchContext
+        researchContext,
+        latestUserMessage
       });
       selectedModel = overrideModel;
 
@@ -521,7 +727,8 @@ export default async function handler(req, res) {
             apiKey: geminiApiKey,
             model: fallbackModel,
             contents,
-            researchContext
+            researchContext,
+            latestUserMessage
           });
           selectedModel = fallbackModel;
         }
@@ -532,7 +739,8 @@ export default async function handler(req, res) {
         apiKey: geminiApiKey,
         model: selectedModel,
         contents,
-        researchContext
+        researchContext,
+        latestUserMessage
       });
     }
 
@@ -546,13 +754,105 @@ export default async function handler(req, res) {
       return res.status(502).json({ error: upstreamError });
     }
 
-    const assistantMessage = parseAssistantText(payload);
+    finishReason = extractFinishReason(payload);
+    usageSummary = extractUsage(payload);
+
+    let assistantMessage = parseAssistantText(payload);
     if (!assistantMessage) {
       return res.status(502).json({ error: 'AI response was empty. Please try again.' });
     }
 
+    const requestedBodyCount = extractRequestedEmailBodyCount(latestUserMessage);
+
+    if (shouldContinueForTruncation({
+      requestedBodyCount,
+      assistantMessage,
+      finishReason,
+      attempt: 0
+    })) {
+      const producedBodies = countBodies(assistantMessage);
+      const remainingBodies = Math.max(0, requestedBodyCount - producedBodies);
+
+      if (remainingBodies > 0) {
+        continuationUsed = true;
+
+        const continuationPrompt = buildContinuationPrompt(remainingBodies);
+        const continuationContents = [
+          ...contents,
+          { role: 'model', parts: [{ text: assistantMessage }] },
+          { role: 'user', parts: [{ text: continuationPrompt }] }
+        ];
+
+        const continuationResult = await generateWithGeminiModel({
+          apiKey: geminiApiKey,
+          model: selectedModel,
+          contents: continuationContents,
+          researchContext,
+          latestUserMessage: continuationPrompt
+        });
+
+        if (continuationResult.ok) {
+          continuationFinishReason = extractFinishReason(continuationResult.payload);
+          usageSummary = mergeUsage(usageSummary, extractUsage(continuationResult.payload));
+
+          const continuationText = parseAssistantText(continuationResult.payload);
+          if (continuationText) {
+            assistantMessage = `${assistantMessage.trim()}\n\n${continuationText.trim()}`;
+          }
+        }
+      }
+    }
+
+    responseByteLength = Buffer.byteLength(assistantMessage, 'utf8');
+
+    const endedAt = Date.now();
+    logTelemetry({
+      requestId,
+      startedAt: new Date(startedAt).toISOString(),
+      endedAt: new Date(endedAt).toISOString(),
+      durationMs: endedAt - startedAt,
+      streamingEnabled,
+      model: selectedModel,
+      finishReason,
+      continuationUsed,
+      continuationFinishReason: continuationFinishReason || null,
+      promptTokenCount: usageSummary.promptTokenCount,
+      outputTokenCount: usageSummary.outputTokenCount,
+      totalTokenCount: usageSummary.totalTokenCount,
+      responseByteLength,
+      clientAborted,
+      clientClosedBeforeResponse,
+      researchQuery: query,
+      serperResultsCount,
+      jinaExtractsCount
+    });
+
     return res.status(200).json({ reply: assistantMessage });
   } catch (error) {
+    const endedAt = Date.now();
+
+    logTelemetry({
+      requestId,
+      startedAt: new Date(startedAt).toISOString(),
+      endedAt: new Date(endedAt).toISOString(),
+      durationMs: endedAt - startedAt,
+      streamingEnabled,
+      model: selectedModel || null,
+      finishReason: finishReason || null,
+      continuationUsed,
+      continuationFinishReason: continuationFinishReason || null,
+      promptTokenCount: usageSummary.promptTokenCount,
+      outputTokenCount: usageSummary.outputTokenCount,
+      totalTokenCount: usageSummary.totalTokenCount,
+      responseByteLength,
+      clientAborted,
+      clientClosedBeforeResponse,
+      researchQuery: query,
+      serperResultsCount,
+      jinaExtractsCount,
+      errorMessage: error?.message || String(error)
+    });
+
     if (error?.endpoint === GEMINI_MODELS_ENDPOINT) {
       const message = error?.message || 'Unable to auto-discover Gemini models.';
       return res.status(502).json({
