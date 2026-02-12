@@ -128,11 +128,11 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
       className="group relative transition-all duration-300 hover:-translate-y-1 mb-6"
       id={`lane-${lane.id}`}
       style={{
-        background: 'linear-gradient(135deg, rgba(20, 28, 40, 0.95) 0%, rgba(15, 20, 30, 0.9) 100%)',
+        background: 'linear-gradient(135deg, rgba(20, 28, 40, 0.48) 0%, rgba(15, 20, 30, 0.4) 100%)',
         backdropFilter: 'blur(24px)',
-        border: '1px solid rgba(56, 189, 248, 0.1)',
+        border: '1px solid rgba(125, 211, 252, 0.4)',
         borderRadius: '16px',
-        boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
+        boxShadow: '0 12px 34px rgba(2, 6, 23, 0.55), 0 0 22px rgba(56, 189, 248, 0.2)',
         overflow: 'hidden'
       }}
     >
@@ -140,7 +140,7 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
       <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent opacity-50 group-hover:opacity-100 transition-opacity" />
 
       {/* Header: Route Visual */}
-      <div className="p-6 border-b border-white/5 bg-black/20">
+      <div className="p-6 border-b border-slate-200/35 bg-slate-900/40">
         <div className="flex justify-between items-start">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
@@ -154,17 +154,17 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
             </div>
 
             <div className="flex items-center gap-3 flex-wrap">
-              <span className="px-2 py-1 rounded text-xs font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 uppercase tracking-wider font-mono">
+              <span className="px-2 py-1 rounded text-xs font-bold bg-cyan-500/35 text-cyan-100 border border-cyan-300/45 uppercase tracking-wider font-mono">
                 {getDisplayReferenceId(lane)}
               </span>
-              <span className={`px-2 py-1 rounded text-xs font-bold border uppercase tracking-wider ${isCurrent ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-gray-500/10 text-gray-400 border-gray-500/20'}`}>
+              <span className={`px-2 py-1 rounded text-xs font-bold border uppercase tracking-wider ${isCurrent ? 'bg-emerald-500/35 text-emerald-100 border-emerald-300/45' : 'bg-slate-500/35 text-slate-100 border-slate-300/45'}`}>
                 {isCurrent ? 'Current' : 'Archived'}
               </span>
-              <span className="text-xs text-secondary font-medium px-2 py-1 bg-white/5 rounded border border-white/5">
+              <span className="text-xs text-slate-100 font-medium px-2 py-1 bg-slate-900/38 rounded border border-slate-200/35">
                 {lane.equipment_code || '?'} • {lane.length_ft || '?'}ft
               </span>
               {lane.weight_lbs && (
-                <span className="text-xs text-secondary font-medium px-2 py-1 bg-white/5 rounded border border-white/5">
+                <span className="text-xs text-slate-100 font-medium px-2 py-1 bg-slate-900/38 rounded border border-slate-200/35">
                   {(lane.weight_lbs / 1000).toFixed(0)}k lbs
                 </span>
               )}
@@ -177,9 +177,9 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
       {hasSavedChoices && (
         <div className="p-6">
           <h4 className="flex items-center gap-2 text-sm font-bold text-white uppercase tracking-wider mb-4">
-            <span className="flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 text-xs shadow-lg shadow-emerald-500/20">✓</span>
+            <span className="flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500/35 text-emerald-100 text-xs shadow-lg shadow-emerald-500/30">✓</span>
             Selected Posting Cities
-            <span className="text-xs font-normal text-secondary normal-case ml-auto">
+            <span className="text-xs font-normal text-slate-100 normal-case ml-auto">
               ({totalPairs} pairs • {totalPairs * 2} postings with email + phone)
             </span>
           </h4>
@@ -192,19 +192,19 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
                 {lane.saved_origin_cities.map((city, idx) => (
                   <div
                     key={idx}
-                    className="flex justify-between items-center p-3 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 transition-colors group/item"
+                    className="flex justify-between items-center p-3 rounded-lg bg-slate-900/38 border border-slate-200/35 hover:bg-slate-800/45 transition-colors group/item"
                   >
                     <div>
                       <div className="font-medium text-white text-sm">
                         {city.city}, {city.state}
                       </div>
-                      <div className="text-[10px] text-secondary mt-0.5 font-mono">
+                      <div className="text-[10px] text-slate-100 mt-0.5 font-mono">
                         {city.kma_code} • {city.distance ? `${Math.round(city.distance)} mi` : 'N/A'}
                       </div>
                     </div>
                     <button
                       onClick={() => setContactModal({ open: true, lane, city, cityType: 'pickup' })}
-                      className="px-2 py-1.5 rounded bg-cyan-500/10 text-cyan-400 text-[10px] font-bold border border-cyan-500/20 hover:bg-cyan-500/20 transition-colors opacity-0 group-hover/item:opacity-100"
+                      className="px-2 py-1.5 rounded bg-cyan-500/35 text-cyan-100 text-[10px] font-bold border border-cyan-300/45 hover:bg-cyan-500/45 transition-colors opacity-0 group-hover/item:opacity-100"
                     >
                       📞 LOG CONTACT
                     </button>
@@ -220,19 +220,19 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
                 {lane.saved_dest_cities.map((city, idx) => (
                   <div
                     key={idx}
-                    className="flex justify-between items-center p-3 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 transition-colors group/item"
+                    className="flex justify-between items-center p-3 rounded-lg bg-slate-900/38 border border-slate-200/35 hover:bg-slate-800/45 transition-colors group/item"
                   >
                     <div>
                       <div className="font-medium text-white text-sm">
                         {city.city}, {city.state}
                       </div>
-                      <div className="text-[10px] text-secondary mt-0.5 font-mono">
+                      <div className="text-[10px] text-slate-100 mt-0.5 font-mono">
                         {city.kma_code} • {city.distance ? `${Math.round(city.distance)} mi` : 'N/A'}
                       </div>
                     </div>
                     <button
                       onClick={() => setContactModal({ open: true, lane, city, cityType: 'delivery' })}
-                      className="px-2 py-1.5 rounded bg-cyan-500/10 text-cyan-400 text-[10px] font-bold border border-cyan-500/20 hover:bg-cyan-500/20 transition-colors opacity-0 group-hover/item:opacity-100"
+                      className="px-2 py-1.5 rounded bg-cyan-500/35 text-cyan-100 text-[10px] font-bold border border-cyan-300/45 hover:bg-cyan-500/45 transition-colors opacity-0 group-hover/item:opacity-100"
                     >
                       📞 LOG CONTACT
                     </button>
@@ -246,12 +246,12 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
 
       {/* Legacy AI recap display (only if specifically generated) */}
       {recapData && recapData.bullets && (
-        <div className="p-6 border-t border-white/5 bg-cyan-900/5">
+        <div className="p-6 border-t border-slate-200/35 bg-cyan-900/35">
           <div className="mb-4">
             <h4 className="text-xs font-bold text-cyan-400 uppercase tracking-wider mb-3">AI Talking Points</h4>
             <ul className="space-y-2">
               {recapData.bullets.map((bullet, i) => (
-                <li key={i} className="flex gap-2 text-sm text-gray-300">
+                <li key={i} className="flex gap-2 text-sm text-slate-100">
                   <span className="text-cyan-500 mt-0.5">•</span>
                   <span>{bullet}</span>
                 </li>
@@ -264,7 +264,7 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
               <h4 className="text-xs font-bold text-orange-400 uppercase tracking-wider mb-3">Risk Factors</h4>
               <ul className="space-y-2">
                 {recapData.risks.map((risk, i) => (
-                  <li key={i} className="flex gap-2 text-sm text-gray-300">
+                  <li key={i} className="flex gap-2 text-sm text-slate-100">
                     <span className="text-orange-500 mt-0.5">•</span>
                     <span>{risk}</span>
                   </li>
@@ -274,18 +274,18 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
           )}
 
           {recapData.price_hint && (
-            <div className="p-4 bg-black/20 border border-white/5 rounded-xl">
-              <div className="text-xs text-secondary mb-2 uppercase tracking-wide font-bold">Estimated Rate Market</div>
+            <div className="p-4 bg-slate-900/38 border border-slate-200/35 rounded-xl">
+              <div className="text-xs text-slate-100 mb-2 uppercase tracking-wide font-bold">Estimated Rate Market</div>
               <div className="flex items-center justify-between text-sm font-mono">
                 <span className="text-red-400">${recapData.price_hint.low}/mi</span>
-                <div className="h-0.5 flex-1 bg-white/10 mx-3 rounded-full relative">
+                <div className="h-0.5 flex-1 bg-slate-200/35 mx-3 rounded-full relative">
                   <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/50"></div>
                 </div>
                 <span className="text-emerald-400">${recapData.price_hint.mid}/mi</span>
-                <div className="h-0.5 flex-1 bg-white/10 mx-3 rounded-full"></div>
+                <div className="h-0.5 flex-1 bg-slate-200/35 mx-3 rounded-full"></div>
                 <span className="text-cyan-400">${recapData.price_hint.high}/mi</span>
               </div>
-              <div className="mt-2 text-[10px] text-secondary text-right">Based on: {recapData.price_hint.basis}</div>
+              <div className="mt-2 text-[10px] text-slate-100 text-right">Based on: {recapData.price_hint.basis}</div>
             </div>
           )}
         </div>
@@ -293,15 +293,15 @@ function LaneCard({ lane, recapData, onGenerateRecap, isGenerating, postedPairs 
 
       {/* Show generate button only for lanes that need AI insights */}
       {!recapData && (lane.lane_status || lane.status) !== 'archive' && (
-        <div className="p-4 border-t border-white/5 flex justify-center bg-white/5">
+        <div className="p-4 border-t border-slate-200/35 flex justify-center bg-slate-900/38">
           <button
             onClick={() => onGenerateRecap(lane.id)}
             disabled={isGenerating}
-            className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-bold border border-white/10 transition-all flex items-center gap-2"
+            className="px-4 py-2 rounded-lg bg-slate-900/38 hover:bg-slate-800/45 text-white text-xs font-bold border border-slate-200/35 transition-all flex items-center gap-2"
           >
             {isGenerating ? (
               <>
-                <span className="animate-spin h-3 w-3 border-2 border-white/30 border-t-white rounded-full"></span>
+                <span className="animate-spin h-3 w-3 border-2 border-slate-100/45 border-t-white rounded-full"></span>
                 Generating...
               </>
             ) : (
