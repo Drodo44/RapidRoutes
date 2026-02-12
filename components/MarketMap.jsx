@@ -1,24 +1,23 @@
-import { MapContainer, TileLayer, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useCallback, useEffect, useState, useRef } from 'react';
 import L from 'leaflet';
 import { extractHeatmapPoints, HEATMAP_LAYER_SETTINGS } from '../lib/datHeatmapExtraction';
 
-// Component to handle map center and zoom updates
-function MapUpdater({ center, zoom }) {
-    const map = useMap();
-    useEffect(() => {
-        map.setView(center, zoom);
-    }, [center, zoom, map]);
-    return null;
-}
+const HEATMAP_CACHE_VERSION = 'v2';
+const CONUS_BOUNDS = [
+    [24.5, -125],
+    [49.5, -66]
+];
 
 const MarketMap = ({ type = 'dryvan', imageUrl = null }) => {
     const [isMounted, setIsMounted] = useState(false);
     const mapRef = useRef(null);
     const heatLayerRef = useRef(null);
+    const hasFittedConusRef = useRef(false);
     const extractionCacheRef = useRef(new Map());
     const [points, setPoints] = useState([]);
+    const [noDataMessage, setNoDataMessage] = useState(null);
 
     useEffect(() => {
         setIsMounted(true);
@@ -38,25 +37,68 @@ const MarketMap = ({ type = 'dryvan', imageUrl = null }) => {
 
     // Effect to render the heat layer
     useEffect(() => {
-        if (mapRef.current && points.length > 0) {
-            // Remove existing layer
-            if (heatLayerRef.current) {
-                mapRef.current.removeLayer(heatLayerRef.current);
-            }
+        if (!mapRef.current) return;
 
-            // Create new heat layer
-            // Points format: [lat, lng, intensity]
-            const heat = L.heatLayer(points, {
-                radius: HEATMAP_LAYER_SETTINGS.radius,
-                blur: HEATMAP_LAYER_SETTINGS.blur,
-                maxZoom: 10,
-                max: HEATMAP_LAYER_SETTINGS.maxIntensity,
-                minOpacity: HEATMAP_LAYER_SETTINGS.opacity,
-                gradient: HEATMAP_LAYER_SETTINGS.gradient
-            });
+        if (heatLayerRef.current) {
+            mapRef.current.removeLayer(heatLayerRef.current);
+            heatLayerRef.current = null;
+        }
 
-            heat.addTo(mapRef.current);
-            heatLayerRef.current = heat;
+        if (points.length === 0) return;
+
+        // Adapter: normalize extractor output into Leaflet.heat expected tuples.
+        const layerData = points
+            .map((point) => {
+                const lat = Number(point?.lat ?? point?.[0]);
+                const lng = Number(point?.lng ?? point?.[1]);
+                const weight = Number(point?.intensity ?? point?.[2] ?? 0);
+
+                if (!Number.isFinite(lat) || !Number.isFinite(lng) || !Number.isFinite(weight)) {
+                    return null;
+                }
+
+                return [lat, lng, weight];
+            })
+            .filter(Boolean);
+
+        if (layerData.length === 0) {
+            console.error('[heatmap] no valid points after adapter normalization');
+            return;
+        }
+
+        const weights = layerData.map((point) => point[2]);
+        const weightStats = {
+            min: Number(Math.min(...weights).toFixed(4)),
+            max: Number(Math.max(...weights).toFixed(4)),
+            avg: Number((weights.reduce((sum, value) => sum + value, 0) / weights.length).toFixed(4))
+        };
+
+        console.log('[heatmap] provider=', 'leaflet.heat');
+        console.log('[heatmap] extractedPoints=', points.length);
+        console.log('[heatmap] layerDataCount=', layerData.length);
+        console.log('[heatmap] sampleWeighted=', layerData.slice(0, 5));
+        console.log('[heatmap] weightStats=', weightStats);
+
+        const heat = L.heatLayer(layerData, {
+            radius: HEATMAP_LAYER_SETTINGS.radius,
+            blur: HEATMAP_LAYER_SETTINGS.blur,
+            maxZoom: 10,
+            max: HEATMAP_LAYER_SETTINGS.maxIntensity,
+            minOpacity: HEATMAP_LAYER_SETTINGS.opacity,
+            gradient: HEATMAP_LAYER_SETTINGS.gradient
+        });
+
+        heat.addTo(mapRef.current);
+        heatLayerRef.current = heat;
+
+        if (!hasFittedConusRef.current) {
+            mapRef.current.fitBounds(CONUS_BOUNDS, { animate: false, padding: [12, 12] });
+            hasFittedConusRef.current = true;
+        }
+
+        if (typeof window !== 'undefined') {
+            window.heatmapLayer = heat;
+            window.__heatmapWeighted = layerData;
         }
     }, [points]);
 
@@ -92,8 +134,7 @@ const MarketMap = ({ type = 'dryvan', imageUrl = null }) => {
                 });
 
                 if (extracted.length === 0) {
-                    console.warn("No heatmap data detected in image");
-                    resolve(getMockData(type).map(p => [p.lat, p.lng, p.intensity]));
+                    reject(new Error('No heatmap data detected in image'));
                 } else {
                     resolve(extracted);
                 }
@@ -101,33 +142,43 @@ const MarketMap = ({ type = 'dryvan', imageUrl = null }) => {
             img.onerror = (e) => reject(e);
             img.src = url;
         });
-    }, [type]);
+    }, []);
 
-    // Effect to process the image or load mock data
+    // Effect to process the image and update live heatmap points.
     useEffect(() => {
         if (!isMounted) return;
 
         const processData = async () => {
-            if (imageUrl) {
-                try {
-                    if (extractionCacheRef.current.has(imageUrl)) {
-                        setPoints(extractionCacheRef.current.get(imageUrl));
-                        return;
-                    }
-                    const extractedPoints = await processImageToHeatmap(imageUrl);
-                    extractionCacheRef.current.set(imageUrl, extractedPoints);
-                    setPoints(extractedPoints);
-                } catch (err) {
-                    console.error("Failed to process heatmap image:", err);
-                    setPoints(getMockData(type)); // Fallback
+            hasFittedConusRef.current = false;
+
+            if (!imageUrl) {
+                setPoints([]);
+                setNoDataMessage('No data');
+                return;
+            }
+
+            try {
+                const cacheKey = `${imageUrl}::${HEATMAP_CACHE_VERSION}`;
+                if (extractionCacheRef.current.has(cacheKey)) {
+                    const cachedPoints = extractionCacheRef.current.get(cacheKey);
+                    setNoDataMessage(null);
+                    setPoints(cachedPoints);
+                    return;
                 }
-            } else {
-                setPoints(getMockData(type));
+
+                const extractedPoints = await processImageToHeatmap(imageUrl);
+                extractionCacheRef.current.set(cacheKey, extractedPoints);
+                setNoDataMessage(null);
+                setPoints(extractedPoints);
+            } catch (err) {
+                console.error('[heatmap] extraction failed:', err);
+                setPoints([]);
+                setNoDataMessage('No data');
             }
         };
 
         processData();
-    }, [imageUrl, isMounted, processImageToHeatmap, type]);
+    }, [imageUrl, isMounted, processImageToHeatmap]);
 
     if (!isMounted) {
         return (
@@ -135,47 +186,43 @@ const MarketMap = ({ type = 'dryvan', imageUrl = null }) => {
         );
     }
 
-    // Mock heatmap visual data
-    const getMockData = (typ) => {
-        // [Existing mock data logic maintained as fallback]
-        const cluster = (lat, lng, count, spread) => {
-            const pts = [];
-            for (let i = 0; i < count; i++) {
-                pts.push({
-                    lat: lat + (Math.random() - 0.5) * spread,
-                    lng: lng + (Math.random() - 0.5) * spread,
-                    intensity: Math.random() * 0.5 + 0.5
-                });
-            }
-            return pts;
-        };
-
-        let basePoints = [
-            ...cluster(33.7490, -84.3880, 50, 2), // Atlanta
-            ...cluster(41.8781, -87.6298, 60, 2), // Chicago
-            ...cluster(32.7767, -96.7970, 55, 2.5), // Dallas
-        ];
-
-        // Return mapped to array format for consistency
-        return basePoints.map(p => [p.lat, p.lng, p.intensity]);
-    };
-
     return (
-        <MapContainer
-            center={[39.8283, -98.5795]}
-            zoom={4}
-            style={{ height: '100%', width: '100%', background: '#0f172a', borderRadius: '12px' }}
-            zoomControl={false}
-            scrollWheelZoom={false}
-            dragging={true}
-            doubleClickZoom={true}
-            ref={mapRef}
-        >
-            <TileLayer
-                url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-            />
-        </MapContainer>
+        <div style={{ position: 'relative', height: '100%', width: '100%' }}>
+            <MapContainer
+                center={[39.8283, -98.5795]}
+                zoom={4}
+                style={{ height: '100%', width: '100%', background: '#0f172a', borderRadius: '12px' }}
+                zoomControl={false}
+                scrollWheelZoom={false}
+                dragging={true}
+                doubleClickZoom={true}
+                ref={mapRef}
+            >
+                <TileLayer
+                    url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                />
+            </MapContainer>
+
+            {noDataMessage && (
+                <div
+                    style={{
+                        position: 'absolute',
+                        inset: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#cbd5e1',
+                        fontSize: '14px',
+                        fontWeight: 600,
+                        background: 'rgba(15, 23, 42, 0.35)',
+                        borderRadius: '12px'
+                    }}
+                >
+                    {noDataMessage}
+                </div>
+            )}
+        </div>
     );
 };
 
