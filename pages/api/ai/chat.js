@@ -717,7 +717,10 @@ function hasValidParagraphShape(output, requestedBodyCount) {
     if (paragraphs.length > 2) return false;
 
     const lines = body.split('\n').filter((line) => line.trim());
-    return lines.length <= 8;
+    if (lines.length > 8) return false;
+
+    const wordCount = body.trim().split(/\s+/).filter(Boolean).length;
+    return wordCount >= 30 && wordCount <= 130;
   });
 }
 
@@ -1151,6 +1154,7 @@ function buildRequestSpecificInstruction(latestUserMessage) {
     'Return plain text only.',
     'Do not include labels, numbering, bullets, markdown, or separators like ***.',
     'Each body must be one concise paragraph.',
+    'Keep each body laser sharp: 2-5 sentences and roughly 70-110 words.',
     'Separate each body with exactly one blank line.',
     `The total number of bodies must be exactly ${requestedBodies}; no more and no fewer.`
   ].join(' ');
@@ -1241,7 +1245,7 @@ function buildFormatRepairInstruction(requestedBodyCount, reason) {
     `Regenerate the full answer from scratch with exactly ${requestedBodyCount} email bodies.`,
     'Output plain text only.',
     'No subject lines, no headers, no numbering, no bullets, no markdown, and no separators.',
-    'Each body must be one concise paragraph.',
+    'Each body must be one concise paragraph with 2-5 sentences (about 70-110 words).',
     `Separate each body with exactly one blank line. Return exactly ${requestedBodyCount} bodies.`
   ].join(' ');
 }
@@ -1253,7 +1257,7 @@ function buildTailoringRegenerationInstruction(promptContext) {
     'If you cannot find facts, ask only one minimal clarification question and stop.',
     `Company: ${promptContext.companyName || '(not provided)'}`,
     `Location: ${promptContext.locationText || '(not provided)'}`,
-    'No subject lines unless requested. No markdown. No scheduling lines unless requested. Use clean, concise paragraph formatting.'
+    'No subject lines unless requested. No markdown. No scheduling lines unless requested. Use clean, concise paragraph formatting with 2-5 sentences per body.'
   ].join(' ');
 }
 
