@@ -172,7 +172,7 @@ async function generateWithGeminiModel({ apiKey, model, contents }) {
         systemInstruction: {
           role: 'system',
           parts: [{
-            text: 'Follow the user instructions exactly. Use provided context silently. Do not mention research or hidden context. Do not inject default assumptions (for example company names, cities, or extra sections). If required inputs are missing, ask only for the missing required inputs and stop. If the user asks for only a specific output format, return exactly that and nothing else. Do not add markdown, labels, headings, or separators unless the user explicitly asks for them.'
+            text: 'Follow the user instructions exactly. Use provided context silently. Do not mention research or hidden context. Do not inject default assumptions (for example company names, cities, or extra sections). If required inputs are missing, ask only for the missing required inputs and stop. If the user asks for only a specific output format, return exactly that and nothing else. Do not add markdown, labels, headings, or separators unless the user explicitly asks for them. For requests like "output only N email bodies," return plain text bodies only, separated by a single blank line.'
           }]
         },
         contents,
