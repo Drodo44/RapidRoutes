@@ -15,6 +15,7 @@ const MAX_JINA_CHARS_PER_PAGE = 20000;
 const MAX_TOTAL_JINA_CHARS = 60000;
 const MAX_RESEARCH_CONTEXT_CHARS = 70000;
 const MAX_CONTINUATIONS = 1;
+const MAX_FORMAT_REPAIRS = 1;
 
 const modelCache = {
   expiresAt: 0,
@@ -39,6 +40,7 @@ const NUMBER_WORDS = {
 
 const BASE_SYSTEM_INSTRUCTION = [
   'Follow the user instructions exactly.',
+  'When the user requests an exact count or strict output shape, comply exactly.',
   'Use REFERENCE MATERIAL silently for factual grounding.',
   'Do not mention research, sources, scraping, Serper, Jina, or reference material unless the user explicitly asks for sources or links.',
   'Do not add extra sections, labels, preambles, headings, bullets, numbering, separators, or commentary unless the user asks for them.',
@@ -237,6 +239,61 @@ function countBodies(output) {
     .map((segment) => segment.trim())
     .filter(Boolean)
     .length;
+}
+
+function splitEmailBodies(output) {
+  return String(output || '')
+    .replace(/\r\n/g, '\n')
+    .trim()
+    .split(/\n\s*\n/)
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+}
+
+function hasDisallowedBodyFormatting(output) {
+  const value = String(output || '');
+
+  const disallowedPatterns = [
+    /^subject\s*:/im,
+    /^\s*(?:email|body)\s*\d+\s*[:\-]/im,
+    /^\s*\*{3,}\s*$/m,
+    /^\s*#{1,6}\s+/m,
+    /^\s*\d+\s*[.)]\s+/m,
+    /```/
+  ];
+
+  return disallowedPatterns.some((pattern) => pattern.test(value));
+}
+
+function validateEmailBodyOutput(output, requestedBodyCount) {
+  if (!requestedBodyCount) {
+    return { ok: true, reason: '', bodyCount: countBodies(output) };
+  }
+
+  const trimmed = String(output || '').trim();
+  if (!trimmed) {
+    return { ok: false, reason: 'empty_response', bodyCount: 0 };
+  }
+
+  const bodies = splitEmailBodies(trimmed);
+  if (bodies.length !== requestedBodyCount) {
+    return {
+      ok: false,
+      reason: `expected_${requestedBodyCount}_bodies_got_${bodies.length}`,
+      bodyCount: bodies.length
+    };
+  }
+
+  if (hasDisallowedBodyFormatting(trimmed)) {
+    return { ok: false, reason: 'contains_disallowed_formatting', bodyCount: bodies.length };
+  }
+
+  const hasMultiParagraphBody = bodies.some((body) => body.includes('\n'));
+  if (hasMultiParagraphBody) {
+    return { ok: false, reason: 'body_not_single_paragraph', bodyCount: bodies.length };
+  }
+
+  return { ok: true, reason: '', bodyCount: bodies.length };
 }
 
 function buildSerperQuery(messages) {
@@ -550,13 +607,22 @@ function buildRequestSpecificInstruction(latestUserMessage) {
   return [
     `This request requires exactly ${requestedBodies} email bodies.`,
     'Output only the email body text, with no subject lines.',
-    'Do not include labels, numbering, bullets, or separators like ***.',
+    'Return plain text only.',
+    'Do not include labels, numbering, bullets, markdown, or separators like ***.',
     'Each body must be one concise paragraph.',
-    'Separate each body with exactly one blank line.'
+    'Separate each body with exactly one blank line.',
+    `The total number of bodies must be exactly ${requestedBodies}; no more and no fewer.`
   ].join(' ');
 }
 
-async function generateWithGeminiModel({ apiKey, model, contents, researchContext, latestUserMessage }) {
+async function generateWithGeminiModel({
+  apiKey,
+  model,
+  contents,
+  researchContext,
+  latestUserMessage,
+  extraSystemInstruction = ''
+}) {
   const normalizedModel = normalizeModelName(model);
   if (!normalizedModel) {
     throw new Error('Gemini model name is empty.');
@@ -580,13 +646,14 @@ async function generateWithGeminiModel({ apiKey, model, contents, researchContex
           parts: [
             { text: BASE_SYSTEM_INSTRUCTION },
             requestSpecificInstruction ? { text: requestSpecificInstruction } : null,
+            extraSystemInstruction ? { text: extraSystemInstruction } : null,
             { text: researchContext }
           ].filter(Boolean)
         },
         contents,
         generationConfig: {
-          temperature: 0.15,
-          topP: 0.85,
+          temperature: 0.1,
+          topP: 0.8,
           maxOutputTokens: 4000
         }
       })
@@ -624,6 +691,17 @@ function buildContinuationPrompt(remainingBodies) {
     'No subject lines, no labels, no numbering, no separators.',
     'Each body must be one concise paragraph.',
     'Separate bodies by exactly one blank line.'
+  ].join(' ');
+}
+
+function buildFormatRepairInstruction(requestedBodyCount, reason) {
+  return [
+    `The previous candidate did not satisfy strict format validation (${reason}).`,
+    `Regenerate the full answer from scratch with exactly ${requestedBodyCount} email bodies.`,
+    'Output plain text only.',
+    'No subject lines, no headers, no numbering, no bullets, no markdown, and no separators.',
+    'Each body must be one concise paragraph.',
+    `Separate each body with exactly one blank line. Return exactly ${requestedBodyCount} bodies.`
   ].join(' ');
 }
 
@@ -668,9 +746,14 @@ export default async function handler(req, res) {
   let usageSummary = { promptTokenCount: null, outputTokenCount: null, totalTokenCount: null };
   let responseByteLength = 0;
   let continuationUsed = false;
+  let formatRepairUsed = false;
+  let formatRepairReason = '';
+  let formatRepairFinishReason = '';
   let query = '';
   let serperResultsCount = 0;
   let jinaExtractsCount = 0;
+  let requestedBodyCount = null;
+  let finalBodyCount = 0;
 
   try {
     const normalizedMessages = normalizeIncomingMessages(req.body);
@@ -762,7 +845,7 @@ export default async function handler(req, res) {
       return res.status(502).json({ error: 'AI response was empty. Please try again.' });
     }
 
-    const requestedBodyCount = extractRequestedEmailBodyCount(latestUserMessage);
+    requestedBodyCount = extractRequestedEmailBodyCount(latestUserMessage);
 
     if (shouldContinueForTruncation({
       requestedBodyCount,
@@ -803,6 +886,66 @@ export default async function handler(req, res) {
       }
     }
 
+    if (requestedBodyCount) {
+      let validation = validateEmailBodyOutput(assistantMessage, requestedBodyCount);
+      finalBodyCount = validation.bodyCount;
+
+      if (!validation.ok) {
+        formatRepairReason = validation.reason;
+
+        for (let attempt = 0; attempt < MAX_FORMAT_REPAIRS; attempt += 1) {
+          formatRepairUsed = true;
+          const formatRepairInstruction = buildFormatRepairInstruction(
+            requestedBodyCount,
+            validation.reason
+          );
+
+          const repairResult = await generateWithGeminiModel({
+            apiKey: geminiApiKey,
+            model: selectedModel,
+            contents,
+            researchContext,
+            latestUserMessage,
+            extraSystemInstruction: formatRepairInstruction
+          });
+
+          if (!repairResult.ok) {
+            break;
+          }
+
+          formatRepairFinishReason = extractFinishReason(repairResult.payload);
+          usageSummary = mergeUsage(usageSummary, extractUsage(repairResult.payload));
+
+          const repairedMessage = parseAssistantText(repairResult.payload);
+          if (!repairedMessage) {
+            break;
+          }
+
+          const repairedValidation = validateEmailBodyOutput(repairedMessage, requestedBodyCount);
+          validation = repairedValidation;
+          finalBodyCount = repairedValidation.bodyCount;
+
+          if (repairedValidation.ok) {
+            assistantMessage = repairedMessage;
+            formatRepairReason = '';
+            break;
+          }
+
+          formatRepairReason = repairedValidation.reason;
+        }
+
+        if (!validation.ok) {
+          const formatError = new Error(
+            `AI response failed strict email-body formatting: ${validation.reason}`
+          );
+          formatError.status = 502;
+          throw formatError;
+        }
+      }
+    } else {
+      finalBodyCount = countBodies(assistantMessage);
+    }
+
     responseByteLength = Buffer.byteLength(assistantMessage, 'utf8');
 
     const endedAt = Date.now();
@@ -816,6 +959,9 @@ export default async function handler(req, res) {
       finishReason,
       continuationUsed,
       continuationFinishReason: continuationFinishReason || null,
+      formatRepairUsed,
+      formatRepairReason: formatRepairReason || null,
+      formatRepairFinishReason: formatRepairFinishReason || null,
       promptTokenCount: usageSummary.promptTokenCount,
       outputTokenCount: usageSummary.outputTokenCount,
       totalTokenCount: usageSummary.totalTokenCount,
@@ -824,7 +970,9 @@ export default async function handler(req, res) {
       clientClosedBeforeResponse,
       researchQuery: query,
       serperResultsCount,
-      jinaExtractsCount
+      jinaExtractsCount,
+      requestedBodyCount,
+      finalBodyCount
     });
 
     return res.status(200).json({ reply: assistantMessage });
@@ -841,6 +989,9 @@ export default async function handler(req, res) {
       finishReason: finishReason || null,
       continuationUsed,
       continuationFinishReason: continuationFinishReason || null,
+      formatRepairUsed,
+      formatRepairReason: formatRepairReason || null,
+      formatRepairFinishReason: formatRepairFinishReason || null,
       promptTokenCount: usageSummary.promptTokenCount,
       outputTokenCount: usageSummary.outputTokenCount,
       totalTokenCount: usageSummary.totalTokenCount,
@@ -850,6 +1001,8 @@ export default async function handler(req, res) {
       researchQuery: query,
       serperResultsCount,
       jinaExtractsCount,
+      requestedBodyCount,
+      finalBodyCount,
       errorMessage: error?.message || String(error)
     });
 
@@ -861,6 +1014,10 @@ export default async function handler(req, res) {
     }
 
     console.error('[ai/chat] Proxy error:', error?.message || error);
-    return res.status(500).json({ error: 'Failed to process AI chat request.' });
+    const status = Number.isInteger(error?.status) ? error.status : 500;
+    const message = status === 502
+      ? error?.message || 'AI service returned an invalid response format.'
+      : 'Failed to process AI chat request.';
+    return res.status(status).json({ error: message });
   }
 }
