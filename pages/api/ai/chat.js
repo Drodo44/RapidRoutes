@@ -230,13 +230,42 @@ function normalizeForMatch(value) {
     .trim();
 }
 
+function sanitizeExtractedField(value) {
+  return String(value || '')
+    .replace(/[\r\t]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function sanitizeCompanyField(value) {
+  const cleaned = sanitizeExtractedField(value)
+    .split(/\b(?:city|location|state)\s*:/i)[0]
+    .split(/[.?!]/)[0]
+    .trim();
+
+  return cleaned;
+}
+
+function sanitizeLocationField(value) {
+  let cleaned = sanitizeExtractedField(value);
+  cleaned = cleaned.split(/\b(?:give|write|create|output|provide|generate|draft)\b/i)[0].trim();
+  cleaned = cleaned.split(/[.?!]/)[0].trim();
+
+  const cityStateMatch = cleaned.match(/^([^,]+),\s*([A-Za-z]{2})\b/);
+  if (cityStateMatch) {
+    return `${cityStateMatch[1].trim()}, ${cityStateMatch[2].toUpperCase()}`;
+  }
+
+  return cleaned;
+}
+
 function extractCompanyFromMessage(message) {
   const input = String(message || '');
   if (!input.trim()) return '';
 
-  const explicitMatch = input.match(/\bcompany\s*:\s*([^\n]+)/i);
+  const explicitMatch = input.match(/\bcompany\s*:\s*([^\n]+?)(?=\b(?:city|location|state)\s*:|$)/i);
   if (explicitMatch?.[1]) {
-    return explicitMatch[1].replace(/[\r\t]/g, ' ').trim();
+    return sanitizeCompanyField(explicitMatch[1]);
   }
 
   const fallback = extractLikelyCompanyOrDomain(input);
@@ -251,7 +280,7 @@ function extractLocationFromMessage(message) {
 
   const explicitLocation = input.match(/\b(?:city|location)\s*:\s*([^\n]+)/i);
   if (explicitLocation?.[1]) {
-    return explicitLocation[1].replace(/[\r\t]/g, ' ').trim();
+    return sanitizeLocationField(explicitLocation[1]);
   }
 
   const cityStateMatch = input.match(/\b([A-Za-z][A-Za-z.'\-\s]{1,50},\s*[A-Z]{2})\b/);
