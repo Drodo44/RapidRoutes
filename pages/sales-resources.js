@@ -32,7 +32,10 @@ function createEmptyCardForm() {
     targetAudience: '',
     promptText: '',
     html: '',
-    badge: ''
+    badge: '',
+    allowCopyPrompt: true,
+    allowDownloadHtml: true,
+    allowView: false
   };
 }
 
@@ -69,6 +72,46 @@ function slugifyTitle(title) {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
   return normalized || 'prompt';
+}
+
+function trimStringValue(value) {
+  return String(value || '').trim();
+}
+
+function isFlowchartsCategory(category) {
+  return trimStringValue(category).toLowerCase() === 'flowcharts';
+}
+
+function looksLikeMermaidSyntax(text) {
+  return /^\s*(graph|flowchart)\b/i.test(String(text || ''));
+}
+
+function hasRenderableHtml(html) {
+  return /<(svg|img|iframe|div|section|article|main|p|table|ul|ol|h1|h2|h3|canvas|pre)\b/i.test(String(html || ''));
+}
+
+function sanitizeFlowchartHtml(html) {
+  return String(html || '')
+    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '')
+    .replace(/\son[a-z]+\s*=\s*"[^"]*"/gi, '')
+    .replace(/\son[a-z]+\s*=\s*'[^']*'/gi, '');
+}
+
+function getCardActionConfig(card) {
+  const promptText = trimStringValue(card?.prompt_text);
+  const html = trimStringValue(card?.html);
+  const isFlowchart = isFlowchartsCategory(card?.category);
+  const hasMermaidPrompt = looksLikeMermaidSyntax(promptText);
+
+  return {
+    isFlowchart,
+    hasPromptText: promptText.length > 0,
+    hasHtml: html.length > 0,
+    hasMermaidPrompt,
+    canCopyPrompt: !isFlowchart && promptText.length > 0,
+    canDownloadHtml: html.length > 0,
+    canViewFlowchart: isFlowchart && (html.length > 0 || hasMermaidPrompt)
+  };
 }
 
 function getFavoriteCardId(row, preferredKey) {
@@ -113,6 +156,8 @@ export default function SalesResources() {
   const [editingCardId, setEditingCardId] = useState(null);
   const [cardForm, setCardForm] = useState(createEmptyCardForm());
   const [isSavingCard, setIsSavingCard] = useState(false);
+  const [isFlowchartViewerOpen, setIsFlowchartViewerOpen] = useState(false);
+  const [activeFlowchartCard, setActiveFlowchartCard] = useState(null);
 
   const [suggestionForm, setSuggestionForm] = useState(createEmptySuggestionForm());
   const [isSubmittingSuggestion, setIsSubmittingSuggestion] = useState(false);
@@ -135,6 +180,16 @@ export default function SalesResources() {
   const favoriteKeyOrder = useMemo(() => {
     return [...new Set([favoriteKey, ...FAVORITE_KEY_CANDIDATES].filter(Boolean))];
   }, [favoriteKey]);
+
+  const activeFlowchartConfig = useMemo(() => getCardActionConfig(activeFlowchartCard), [activeFlowchartCard]);
+  const sanitizedFlowchartHtml = useMemo(
+    () => sanitizeFlowchartHtml(activeFlowchartCard?.html || ''),
+    [activeFlowchartCard?.html]
+  );
+  const activeFlowchartPrompt = useMemo(
+    () => trimStringValue(activeFlowchartCard?.prompt_text),
+    [activeFlowchartCard?.prompt_text]
+  );
 
   const setPolicyErrorAndStop = useCallback((context, error) => {
     const message = `${context}: ${getErrorMessage(error, 'Policy validation failed.')}`;
@@ -305,11 +360,9 @@ export default function SalesResources() {
   }
 
   async function handleCopyPrompt(card) {
-    const promptText = String(card?.prompt_text || '');
-    setDraftMessage(promptText);
-    chatInputRef.current?.focus();
+    const promptText = trimStringValue(card?.prompt_text);
 
-    if (!promptText.trim()) {
+    if (!promptText) {
       setActionError('This card has no prompt text to copy.');
       return;
     }
@@ -318,7 +371,7 @@ export default function SalesResources() {
       await navigator.clipboard.writeText(promptText);
       setActionError('');
     } catch (error) {
-      setActionError('Prompt added to chat input, but clipboard access was blocked.');
+      setActionError('Unable to copy prompt text to clipboard.');
     }
   }
 
@@ -342,6 +395,18 @@ export default function SalesResources() {
     URL.revokeObjectURL(downloadUrl);
   }
 
+  function openFlowchartViewer(card) {
+    if (blockedByPolicy) return;
+    setActionError('');
+    setActiveFlowchartCard(card);
+    setIsFlowchartViewerOpen(true);
+  }
+
+  function closeFlowchartViewer() {
+    setIsFlowchartViewerOpen(false);
+    setActiveFlowchartCard(null);
+  }
+
   function openUploadModal() {
     setEditingCardId(null);
     setCardForm(createEmptyCardForm());
@@ -350,16 +415,22 @@ export default function SalesResources() {
   }
 
   function openEditModal(card) {
+    const normalizedCategory = CATEGORY_OPTIONS.includes(card.category) ? card.category : CATEGORY_OPTIONS[0];
+    const actionConfig = getCardActionConfig({ ...card, category: normalizedCategory });
+
     setEditingCardId(card.id);
     setCardForm({
       title: String(card.title || ''),
-      category: CATEGORY_OPTIONS.includes(card.category) ? card.category : CATEGORY_OPTIONS[0],
+      category: normalizedCategory,
       description: String(card.description || ''),
       useCase: String(card.use_case || ''),
       targetAudience: String(card.target_audience || ''),
       promptText: String(card.prompt_text || ''),
       html: String(card.html || ''),
-      badge: String(card.badge || '')
+      badge: String(card.badge || ''),
+      allowCopyPrompt: actionConfig.canCopyPrompt,
+      allowDownloadHtml: actionConfig.canDownloadHtml,
+      allowView: actionConfig.isFlowchart
     });
     setActionError('');
     setIsEditorOpen(true);
@@ -377,15 +448,57 @@ export default function SalesResources() {
     setIsSavingCard(true);
     setActionError('');
 
+    const normalizedCategory = cardForm.allowView ? 'Flowcharts' : cardForm.category;
+    const isFlowchartCard = isFlowchartsCategory(normalizedCategory);
+    const copyEnabled = !isFlowchartCard && cardForm.allowCopyPrompt;
+    const downloadEnabled = cardForm.allowDownloadHtml;
+
+    let promptTextToSave = trimStringValue(cardForm.promptText);
+    let htmlToSave = trimStringValue(cardForm.html);
+
+    if (copyEnabled && !promptTextToSave) {
+      setActionError('Prompt Text is required when Copy Prompt is enabled.');
+      setIsSavingCard(false);
+      return;
+    }
+
+    if (downloadEnabled && !htmlToSave) {
+      setActionError('HTML is required when Download HTML is enabled.');
+      setIsSavingCard(false);
+      return;
+    }
+
+    if (!copyEnabled && !isFlowchartCard && promptTextToSave) {
+      const confirmClearPrompt = window.confirm(
+        'Disabling "Copy Prompt" will clear Prompt Text to enforce permissions without schema changes. Continue?'
+      );
+      if (!confirmClearPrompt) {
+        setIsSavingCard(false);
+        return;
+      }
+      promptTextToSave = '';
+    }
+
+    if (!downloadEnabled && htmlToSave) {
+      const confirmClearHtml = window.confirm(
+        'Disabling "Download HTML" will clear HTML content to enforce permissions without schema changes. Continue?'
+      );
+      if (!confirmClearHtml) {
+        setIsSavingCard(false);
+        return;
+      }
+      htmlToSave = '';
+    }
+
     const payload = {
-      title: cardForm.title.trim(),
-      category: cardForm.category,
-      description: cardForm.description.trim(),
-      use_case: cardForm.useCase.trim() || null,
-      target_audience: cardForm.targetAudience.trim() || null,
-      prompt_text: cardForm.promptText.trim(),
-      html: cardForm.html.trim(),
-      badge: cardForm.badge.trim() || null
+      title: trimStringValue(cardForm.title),
+      category: normalizedCategory,
+      description: trimStringValue(cardForm.description),
+      use_case: trimStringValue(cardForm.useCase) || null,
+      target_audience: trimStringValue(cardForm.targetAudience) || null,
+      prompt_text: promptTextToSave,
+      html: htmlToSave,
+      badge: trimStringValue(cardForm.badge) || null
     };
 
     try {
@@ -516,17 +629,21 @@ export default function SalesResources() {
 
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(payload?.error || 'Unable to get AI response right now.');
+        throw new Error(
+          typeof payload?.error === 'string' && payload.error.trim()
+            ? payload.error
+            : 'AI service is temporarily unavailable.'
+        );
       }
 
-      const assistantMessage = typeof payload?.message === 'string' ? payload.message.trim() : '';
+      const assistantMessage = typeof payload?.reply === 'string' ? payload.reply.trim() : '';
       if (!assistantMessage) {
         throw new Error('AI response was empty. Please try again.');
       }
 
       setMessages((prev) => [...prev, { role: 'assistant', content: assistantMessage }]);
     } catch (error) {
-      setChatError(getErrorMessage(error, 'Unable to get AI response right now.'));
+      setChatError(getErrorMessage(error, 'AI service is temporarily unavailable.'));
     } finally {
       setIsSending(false);
     }
@@ -625,7 +742,10 @@ export default function SalesResources() {
                 </div>
               ) : (
                 <div className="sales-resource-grid">
-                  {filteredCards.map((card) => (
+                  {filteredCards.map((card) => {
+                    const actionConfig = getCardActionConfig(card);
+
+                    return (
                     <article key={card.id} className="sales-resource-card rr-card">
                       <div className="sales-resource-card-head">
                         <div className="sales-resource-title-wrap">
@@ -663,22 +783,39 @@ export default function SalesResources() {
                       </div>
 
                       <div className="sales-resource-actions">
-                        <button
-                          type="button"
-                          className="rr-btn btn-outline sales-resource-action"
-                          onClick={() => handleCopyPrompt(card)}
-                          disabled={blockedByPolicy}
-                        >
-                          Copy Prompt
-                        </button>
-                        <button
-                          type="button"
-                          className="rr-btn btn-outline sales-resource-action"
-                          onClick={() => handleDownloadHtml(card)}
-                          disabled={blockedByPolicy}
-                        >
-                          Download HTML
-                        </button>
+                        {actionConfig.isFlowchart ? (
+                          <button
+                            type="button"
+                            className="rr-btn btn-outline sales-resource-action"
+                            onClick={() => openFlowchartViewer(card)}
+                            disabled={blockedByPolicy || !actionConfig.canViewFlowchart}
+                          >
+                            View
+                          </button>
+                        ) : actionConfig.canCopyPrompt ? (
+                          <button
+                            type="button"
+                            className="rr-btn btn-outline sales-resource-action"
+                            onClick={() => handleCopyPrompt(card)}
+                            disabled={blockedByPolicy}
+                          >
+                            Copy Prompt
+                          </button>
+                        ) : (
+                          <span className="sales-resource-inline-note">No prompt text</span>
+                        )}
+
+                        {actionConfig.canDownloadHtml && (
+                          <button
+                            type="button"
+                            className="rr-btn btn-outline sales-resource-action"
+                            onClick={() => handleDownloadHtml(card)}
+                            disabled={blockedByPolicy}
+                          >
+                            Download HTML
+                          </button>
+                        )}
+
                         {isAdmin && (
                           <button
                             type="button"
@@ -701,7 +838,8 @@ export default function SalesResources() {
                         )}
                       </div>
                     </article>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 
@@ -905,6 +1043,45 @@ export default function SalesResources() {
             )}
           </div>
 
+          {isFlowchartViewerOpen && activeFlowchartCard && (
+            <div className="sales-modal-backdrop" onClick={closeFlowchartViewer}>
+              <div
+                className="sales-modal sales-flowchart-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-label={`View flowchart: ${activeFlowchartCard.title}`}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="sales-modal-header">
+                  <h2>{activeFlowchartCard.title}</h2>
+                  <button type="button" className="btn-icon sales-modal-close" onClick={closeFlowchartViewer}>
+                    ✕
+                  </button>
+                </div>
+
+                <div className="sales-flowchart-body">
+                  {sanitizedFlowchartHtml && hasRenderableHtml(sanitizedFlowchartHtml) ? (
+                    <iframe
+                      title={`Flowchart preview: ${activeFlowchartCard.title}`}
+                      className="sales-flowchart-frame"
+                      sandbox=""
+                      srcDoc={sanitizedFlowchartHtml}
+                    />
+                  ) : activeFlowchartConfig.hasMermaidPrompt ? (
+                    <>
+                      <p className="sales-flowchart-note">
+                        Mermaid rendering library is not installed; showing source text instead.
+                      </p>
+                      <pre className="sales-flowchart-source">{activeFlowchartPrompt}</pre>
+                    </>
+                  ) : (
+                    <p className="sales-chat-error">This flowchart card has no previewable content.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {isEditorOpen && (
             <div className="sales-modal-backdrop" onClick={closeEditorModal}>
               <div className="sales-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
@@ -932,7 +1109,15 @@ export default function SalesResources() {
                     id="card-category"
                     className="rr-input"
                     value={cardForm.category}
-                    onChange={(event) => setCardForm((prev) => ({ ...prev, category: event.target.value }))}
+                    onChange={(event) => {
+                      const nextCategory = event.target.value;
+                      setCardForm((prev) => ({
+                        ...prev,
+                        category: nextCategory,
+                        allowView: isFlowchartsCategory(nextCategory) ? true : prev.allowView,
+                        allowCopyPrompt: isFlowchartsCategory(nextCategory) ? false : prev.allowCopyPrompt
+                      }));
+                    }}
                     required
                     disabled={isSavingCard || blockedByPolicy}
                   >
@@ -942,6 +1127,51 @@ export default function SalesResources() {
                       </option>
                     ))}
                   </select>
+
+                  <div className="sales-permissions-panel">
+                    <span className="sales-meta-label">Permissions</span>
+
+                    <label className="sales-permissions-option">
+                      <input
+                        type="checkbox"
+                        checked={isFlowchartsCategory(cardForm.category) ? false : cardForm.allowCopyPrompt}
+                        onChange={(event) =>
+                          setCardForm((prev) => ({ ...prev, allowCopyPrompt: event.target.checked }))
+                        }
+                        disabled={isSavingCard || blockedByPolicy || isFlowchartsCategory(cardForm.category)}
+                      />
+                      <span>Allow Copy Prompt</span>
+                    </label>
+
+                    <label className="sales-permissions-option">
+                      <input
+                        type="checkbox"
+                        checked={cardForm.allowDownloadHtml}
+                        onChange={(event) =>
+                          setCardForm((prev) => ({ ...prev, allowDownloadHtml: event.target.checked }))
+                        }
+                        disabled={isSavingCard || blockedByPolicy}
+                      />
+                      <span>Allow Download HTML</span>
+                    </label>
+
+                    <label className="sales-permissions-option">
+                      <input
+                        type="checkbox"
+                        checked={cardForm.allowView || isFlowchartsCategory(cardForm.category)}
+                        onChange={(event) =>
+                          setCardForm((prev) => ({
+                            ...prev,
+                            allowView: event.target.checked,
+                            category: event.target.checked ? 'Flowcharts' : prev.category,
+                            allowCopyPrompt: event.target.checked ? false : prev.allowCopyPrompt
+                          }))
+                        }
+                        disabled={isSavingCard || blockedByPolicy}
+                      />
+                      <span>Allow View (Flowcharts)</span>
+                    </label>
+                  </div>
 
                   <label htmlFor="card-description" className="form-label section-header">Description</label>
                   <textarea
@@ -981,7 +1211,7 @@ export default function SalesResources() {
                     value={cardForm.promptText}
                     onChange={(event) => setCardForm((prev) => ({ ...prev, promptText: event.target.value }))}
                     rows={5}
-                    required
+                    required={cardForm.allowCopyPrompt && !isFlowchartsCategory(cardForm.category)}
                     disabled={isSavingCard || blockedByPolicy}
                   />
 
@@ -992,7 +1222,7 @@ export default function SalesResources() {
                     value={cardForm.html}
                     onChange={(event) => setCardForm((prev) => ({ ...prev, html: event.target.value }))}
                     rows={6}
-                    required
+                    required={cardForm.allowDownloadHtml}
                     disabled={isSavingCard || blockedByPolicy}
                   />
 

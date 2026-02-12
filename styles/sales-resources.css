@@ -244,6 +244,14 @@
   white-space: nowrap;
 }
 
+.sales-resource-inline-note {
+  display: inline-flex;
+  align-items: center;
+  color: var(--rr-text-subtle);
+  font-size: 0.73rem;
+  min-height: 2rem;
+}
+
 .sales-resource-action-danger {
   border-color: rgba(248, 113, 113, 0.4);
   color: #fecaca;
@@ -516,6 +524,65 @@
   display: flex;
   flex-direction: column;
   gap: 0.52rem;
+}
+
+.sales-permissions-panel {
+  border: 1px solid rgba(148, 163, 184, 0.26);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.42);
+  padding: 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.48rem;
+}
+
+.sales-permissions-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  color: var(--rr-text-secondary);
+  font-size: 0.82rem;
+}
+
+.sales-permissions-option input {
+  accent-color: var(--rr-primary-blue);
+}
+
+.sales-flowchart-modal {
+  width: min(1120px, 100%);
+}
+
+.sales-flowchart-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.sales-flowchart-frame {
+  width: 100%;
+  min-height: 68vh;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: #0f172a;
+}
+
+.sales-flowchart-note {
+  margin: 0;
+  color: var(--rr-text-muted);
+  font-size: 0.82rem;
+}
+
+.sales-flowchart-source {
+  margin: 0;
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.62);
+  color: var(--rr-text-secondary);
+  padding: 0.85rem;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  overflow: auto;
+  max-height: 66vh;
 }
 
 .sales-modal-actions {

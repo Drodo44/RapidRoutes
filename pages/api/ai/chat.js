@@ -32,7 +32,14 @@ function parseAssistantText(payload) {
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    console.error('[ai/chat] GEMINI_API_KEY missing');
+    return res.status(500).json({ error: 'GEMINI_API_KEY missing' });
   }
 
   try {
@@ -44,11 +51,6 @@ export default async function handler(req, res) {
     const latestUserMessage = [...messages].reverse().find((msg) => msg.role === 'user');
     if (!latestUserMessage) {
       return res.status(400).json({ error: 'At least one user message is required.' });
-    }
-
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return res.status(500).json({ error: 'AI chat is not configured.' });
     }
 
     const model = process.env.GEMINI_MODEL || DEFAULT_MODEL;
@@ -76,8 +78,12 @@ export default async function handler(req, res) {
 
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      console.error('Gemini chat upstream error:', response.status, payload?.error?.message || 'Unknown upstream error');
-      return res.status(502).json({ error: 'AI service is temporarily unavailable.' });
+      const upstreamError =
+        typeof payload?.error?.message === 'string' && payload.error.message.trim()
+          ? payload.error.message.trim()
+          : 'AI service is temporarily unavailable.';
+      console.error('[ai/chat] Gemini upstream error:', response.status, upstreamError);
+      return res.status(502).json({ error: upstreamError });
     }
 
     const assistantMessage = parseAssistantText(payload);
@@ -85,9 +91,9 @@ export default async function handler(req, res) {
       return res.status(502).json({ error: 'AI response was empty. Please try again.' });
     }
 
-    return res.status(200).json({ message: assistantMessage });
+    return res.status(200).json({ reply: assistantMessage });
   } catch (error) {
-    console.error('AI chat proxy error:', error?.message || error);
+    console.error('[ai/chat] Proxy error:', error?.message || error);
     return res.status(500).json({ error: 'Failed to process AI chat request.' });
   }
 }
