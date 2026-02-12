@@ -4,8 +4,11 @@ import { Card, Button, Spinner } from "../components/EnterpriseUI";
 import DatMarketMaps from "../components/DatMarketMaps";
 import supabase from '../utils/supabaseClient';
 import DashboardLayout from '../components/DashboardLayout';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Settings() {
+  const { profile, user } = useAuth();
+  const isAdmin = profile?.role?.toLowerCase() === 'admin';
   const [notification, setNotification] = useState(false);
   const [blacklist, setBlacklist] = useState([]);
   const [corrections, setCorrections] = useState([]);
@@ -21,12 +24,24 @@ export default function Settings() {
     correct_state: '',
     notes: ''
   });
+  const [users, setUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [updatingUserId, setUpdatingUserId] = useState(null);
+  const [userStatusFilter, setUserStatusFilter] = useState('pending');
+  const [organizationOptions, setOrganizationOptions] = useState([]);
+  const [userAdminError, setUserAdminError] = useState(null);
   const [message, setMessage] = useState(null);
 
   useEffect(() => {
     fetchBlacklist();
     fetchCorrections();
   }, []);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    fetchUsers();
+    fetchOrganizationOptions();
+  }, [isAdmin, userStatusFilter]);
 
   const fetchBlacklist = async () => {
     try {
@@ -56,9 +71,130 @@ export default function Settings() {
     }
   };
 
+  const fetchUsers = async () => {
+    if (!supabase) return;
+
+    try {
+      setLoadingUsers(true);
+      setUserAdminError(null);
+
+      let query = supabase
+        .from('profiles')
+        .select('id, email, role, status, organization_id, team_name, team_role, created_at')
+        .order('created_at', { ascending: false });
+
+      if (userStatusFilter) {
+        query = query.eq('status', userStatusFilter);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+      setUsers(data || []);
+    } catch (error) {
+      console.error('Failed to load users:', error);
+      setUserAdminError(error.message || 'Failed to load users');
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const fetchOrganizationOptions = async () => {
+    if (!supabase) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('organization_id, team_name, email')
+        .eq('team_role', 'owner')
+        .not('organization_id', 'is', null);
+
+      if (error) throw error;
+
+      const uniqueOrganizations = [];
+      const seen = new Set();
+
+      for (const row of data || []) {
+        if (!row.organization_id || seen.has(row.organization_id)) continue;
+        seen.add(row.organization_id);
+        uniqueOrganizations.push(row);
+      }
+
+      setOrganizationOptions(uniqueOrganizations);
+    } catch (error) {
+      console.error('Failed to load organization options:', error);
+    }
+  };
+
   const showMessage = (text, type = 'success') => {
     setMessage({ text, type });
     setTimeout(() => setMessage(null), 3000);
+  };
+
+  const updateUserStatus = async (targetUserId, nextStatus) => {
+    if (!supabase || !targetUserId || targetUserId === user?.id) return;
+
+    try {
+      setUpdatingUserId(targetUserId);
+      setUserAdminError(null);
+
+      setUsers((prev) => prev.map((row) => (
+        row.id === targetUserId ? { ...row, status: nextStatus } : row
+      )));
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          status: nextStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', targetUserId);
+
+      if (error) throw error;
+
+      showMessage(`User ${nextStatus === 'approved' ? 'approved' : 'disabled'} successfully`, 'success');
+      fetchUsers();
+    } catch (error) {
+      console.error('Failed to update user status:', error);
+      showMessage(error.message || 'Failed to update user status', 'error');
+      setUserAdminError(error.message || 'Failed to update user status');
+      fetchUsers();
+    } finally {
+      setUpdatingUserId(null);
+    }
+  };
+
+  const updateUserOrganization = async (targetUserId, nextOrganizationId) => {
+    if (!supabase || !targetUserId || targetUserId === user?.id) return;
+
+    try {
+      setUpdatingUserId(targetUserId);
+      setUserAdminError(null);
+
+      setUsers((prev) => prev.map((row) => (
+        row.id === targetUserId ? { ...row, organization_id: nextOrganizationId || null } : row
+      )));
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          organization_id: nextOrganizationId || null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', targetUserId);
+
+      if (error) throw error;
+
+      showMessage('User team/org updated successfully', 'success');
+      fetchUsers();
+    } catch (error) {
+      console.error('Failed to update user team/org:', error);
+      showMessage(error.message || 'Failed to update user team/org', 'error');
+      setUserAdminError(error.message || 'Failed to update user team/org');
+      fetchUsers();
+    } finally {
+      setUpdatingUserId(null);
+    }
   };
 
   const handleAddCity = async (e) => {
@@ -449,6 +585,138 @@ export default function Settings() {
             </div>
           )}
         </Card>
+
+        {isAdmin && (
+          <Card className="p-6">
+            <div className="border-b border-gray-700 pb-4 mb-6">
+              <h2 className="text-xl font-semibold text-gray-100">User Management</h2>
+              <p className="text-sm text-gray-400 mt-1">
+                Approve, disable, and assign team/org access for user profiles
+              </p>
+            </div>
+
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+              <div className="flex items-center gap-3">
+                <label htmlFor="user-status-filter" className="text-sm text-gray-300">
+                  Status Filter
+                </label>
+                <select
+                  id="user-status-filter"
+                  value={userStatusFilter}
+                  onChange={(e) => setUserStatusFilter(e.target.value)}
+                  className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-gray-100 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                >
+                  <option value="pending">pending</option>
+                  <option value="approved">approved</option>
+                  <option value="disabled">disabled</option>
+                </select>
+              </div>
+              <Button
+                variant="secondary"
+                onClick={fetchUsers}
+                disabled={loadingUsers || updatingUserId !== null}
+              >
+                Refresh
+              </Button>
+            </div>
+
+            {userAdminError && (
+              <div className="mb-4 p-3 rounded-lg border bg-red-900/20 border-red-700 text-red-200 text-sm">
+                {userAdminError}
+              </div>
+            )}
+
+            {loadingUsers ? (
+              <div className="flex justify-center py-8">
+                <Spinner size="lg" />
+              </div>
+            ) : users.length === 0 ? (
+              <div className="text-center py-8 text-gray-400">
+                No users found for this status
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-700">
+                  <thead className="bg-gray-800/60">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">
+                        Email
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">
+                        Role
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">
+                        Status
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">
+                        Team/Org
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-800">
+                    {users.map((row) => {
+                      const isCurrentUser = row.id === user?.id;
+                      const isUpdating = updatingUserId === row.id;
+                      return (
+                        <tr key={row.id} className="hover:bg-gray-800/40">
+                          <td className="px-4 py-3 text-sm text-gray-100">
+                            {row.email || '—'}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-300">
+                            {row.role || '—'}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-300">
+                            {row.status || '—'}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-300">
+                            {row.team_name || row.organization_id || 'Unassigned'}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-300">
+                            <div className="flex flex-col md:flex-row gap-2 md:items-center">
+                              <button
+                                onClick={() => updateUserStatus(row.id, 'approved')}
+                                disabled={isCurrentUser || isUpdating || row.status === 'approved'}
+                                className="px-3 py-1 rounded border border-green-700 text-green-300 hover:text-green-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => updateUserStatus(row.id, 'disabled')}
+                                disabled={isCurrentUser || isUpdating || row.status === 'disabled'}
+                                className="px-3 py-1 rounded border border-red-700 text-red-300 hover:text-red-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                Disable
+                              </button>
+                              <select
+                                value={row.organization_id || ''}
+                                onChange={(e) => updateUserOrganization(row.id, e.target.value)}
+                                disabled={isCurrentUser || isUpdating}
+                                className="px-3 py-1 bg-gray-700 border border-gray-600 rounded text-gray-100 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                <option value="">Unassigned</option>
+                                {organizationOptions.map((org) => (
+                                  <option key={org.organization_id} value={org.organization_id}>
+                                    {org.team_name || org.email || org.organization_id}
+                                  </option>
+                                ))}
+                              </select>
+                              {isCurrentUser && (
+                                <span className="text-xs text-gray-500">Current user</span>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+        )}
 
         {/* Notification Settings */}
         <Card className="p-6">
