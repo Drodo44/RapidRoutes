@@ -1,21 +1,47 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { distanceInMiles } from '../utils/haversine';
-import { generateOptions } from './post-options/OptionsGenerator'; // Import Generator
-import OptionsDisplay from './post-options/OptionsDisplay'; // Import Display
+import { generateOptions } from './post-options/OptionsGenerator';
+import OptionsDisplay from './post-options/OptionsDisplay';
 
-export default function LaneCard({ lane, onEdit, onDelete, onArchive, onRestore, onViewRoute, onPost, isArchived }) {
-  const [isPosting, setIsPosting] = useState(false);
+function extractSavedSelections(laneData) {
+  const origins = Array.isArray(laneData?.saved_origin_cities)
+    ? laneData.saved_origin_cities
+    : Array.isArray(laneData?.saved_origins)
+      ? laneData.saved_origins
+      : Array.isArray(laneData?.origin_cities)
+        ? laneData.origin_cities
+        : [];
+
+  const destinations = Array.isArray(laneData?.saved_dest_cities)
+    ? laneData.saved_dest_cities
+    : Array.isArray(laneData?.saved_dests)
+      ? laneData.saved_dests
+      : Array.isArray(laneData?.dest_cities)
+        ? laneData.dest_cities
+        : [];
+
+  return { origins, destinations };
+}
+
+export default function LaneCard({ lane, onEdit, onDelete, onArchive, onRestore, onViewRoute, onPost, isArchived, onLaneUpdated }) {
+  const [isPostOptionsOpen, setIsPostOptionsOpen] = useState(false);
   const [postOptions, setPostOptions] = useState(null);
   const [loadingOptions, setLoadingOptions] = useState(false);
+  const [selectionDraft, setSelectionDraft] = useState(null);
+  const [savedSelections, setSavedSelections] = useState(() => extractSavedSelections(lane));
 
-  // Format dates gracefully
+  useEffect(() => {
+    setSavedSelections(extractSavedSelections(lane));
+    setSelectionDraft(null);
+    setIsPostOptionsOpen(false);
+  }, [lane]);
+
   const formatDate = (dateString) => {
     if (!dateString) return '—';
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
-  // Calculate estimated RPM
   const calculateRPM = () => {
     try {
       if (!lane.rate || lane.rate <= 0) return null;
@@ -27,7 +53,9 @@ export default function LaneCard({ lane, onEdit, onDelete, onArchive, onRestore,
         const estRoadDist = dist * 1.2;
         if (estRoadDist > 0) return (lane.rate / estRoadDist).toFixed(2);
       }
-    } catch (e) { return null; }
+    } catch (e) {
+      return null;
+    }
     return null;
   };
 
@@ -35,184 +63,230 @@ export default function LaneCard({ lane, onEdit, onDelete, onArchive, onRestore,
   const pickupDisplay = lane.pickup_latest && lane.pickup_latest !== lane.pickup_earliest
     ? `${formatDate(lane.pickup_earliest)} - ${formatDate(lane.pickup_latest)}`
     : formatDate(lane.pickup_earliest);
+  const hasSavedChoices = savedSelections.origins.length > 0 && savedSelections.destinations.length > 0;
 
-  const handlePostClick = async (e) => {
+  const handlePostOptionsClick = async (e) => {
     e.stopPropagation();
-    if (isPosting) {
-      setIsPosting(false);
+
+    if (isPostOptionsOpen) {
+      setIsPostOptionsOpen(false);
       return;
     }
 
+    setIsPostOptionsOpen(true);
+    if (postOptions) return;
+
     setLoadingOptions(true);
     try {
-      await generateOptions(lane, (data) => {
-        setPostOptions(data);
-        setIsPosting(true);
-        setLoadingOptions(false);
-      }, (err) => {
-        console.error(err);
-        setLoadingOptions(false);
-        // Fallback to simpler post if options fail
-        onPost(lane);
-      });
+      const result = await generateOptions(lane);
+      if (!result?.success || !result?.data) {
+        throw new Error(result?.message || result?.error || 'Failed to generate options');
+      }
+      setPostOptions(result.data);
     } catch (error) {
-      console.error("Post error", error);
+      console.error('Post options error', error);
+      setIsPostOptionsOpen(false);
+      onPost(lane);
+    } finally {
       setLoadingOptions(false);
     }
   };
 
+  const handleSaveSelectionsSuccess = (updatedLane, nextSelectionState) => {
+    if (updatedLane) {
+      setSavedSelections(extractSavedSelections(updatedLane));
+      if (typeof onLaneUpdated === 'function') {
+        onLaneUpdated(updatedLane);
+      }
+    }
+
+    setSelectionDraft({
+      origins: nextSelectionState?.origins || [],
+      destinations: nextSelectionState?.destinations || []
+    });
+    setIsPostOptionsOpen(false);
+  };
+
+  const optionsLanePayload = {
+    ...lane,
+    saved_origin_cities: savedSelections.origins,
+    saved_dest_cities: savedSelections.destinations
+  };
+
+  const totalSavedPairs = Math.min(savedSelections.origins.length, savedSelections.destinations.length);
+  const selectionSummaryText = hasSavedChoices
+    ? `${totalSavedPairs} saved pair${totalSavedPairs === 1 ? '' : 's'}`
+    : 'No city selections saved yet';
+
   return (
-    <div
-      className={`lane-card group relative transition-all duration-300 ${isPosting ? 'lane-card-expanded row-span-2 col-span-1 md:col-span-2 lg:col-span-3 xl:col-span-3 z-50' : 'lane-card-hover'}`}
-    >
-      {/* Top Glow Accent */}
-      <div className={`lane-card-accent absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent transition-opacity ${isPosting ? 'opacity-100' : 'opacity-50 group-hover:opacity-100'}`} />
+    <>
+      <div
+        className={`lane-card group relative transition-all duration-300 ${isPostOptionsOpen ? 'lane-card-expanded' : 'lane-card-hover'}`}
+      >
+        <div className={`lane-card-accent absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent transition-opacity ${isPostOptionsOpen ? 'opacity-100' : 'opacity-50 group-hover:opacity-100'}`} />
 
-      {/* Content Container */}
-      <div className="p-5">
-
-        {/* Header: Route Visual */}
-        <div className="flex justify-between items-start mb-5">
-          <div className="flex-1">
-            <div className="flex items-center gap-3 mb-1">
-              <span className="text-lg font-bold text-white tracking-tight drop-shadow-md">
-                {lane.origin_city}, {lane.origin_state}
-              </span>
-              <span className="text-cyan-400 text-xl">→</span>
-              <span className="text-lg font-bold text-white tracking-tight drop-shadow-md">
-                {lane.dest_city || lane.destination_city}, {lane.dest_state || lane.destination_state}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 uppercase tracking-wider">
-                {lane.equipment_code}
-              </span>
-              <span className="text-xs text-secondary font-medium">{lane.length_ft}ft</span>
-              {lane.full_partial === 'partial' && (
-                <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-purple-500/10 text-purple-400 border border-purple-500/20 uppercase tracking-wider">
-                  Partial
+        <div className="p-5">
+          <div className="flex justify-between items-start mb-5">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-1">
+                <span className="text-lg font-bold text-white tracking-tight drop-shadow-md">
+                  {lane.origin_city}, {lane.origin_state}
                 </span>
+                <span className="text-cyan-400 text-xl">→</span>
+                <span className="text-lg font-bold text-white tracking-tight drop-shadow-md">
+                  {lane.dest_city || lane.destination_city}, {lane.dest_state || lane.destination_state}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-cyan-500/35 text-cyan-100 border border-cyan-300/45 uppercase tracking-wider">
+                  {lane.equipment_code}
+                </span>
+                <span className="text-xs text-slate-100 font-medium">{lane.length_ft}ft</span>
+                {lane.full_partial === 'partial' && (
+                  <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-violet-500/35 text-violet-100 border border-violet-300/45 uppercase tracking-wider">
+                    Partial
+                  </span>
+                )}
+                <span className={`px-2 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider border ${hasSavedChoices ? 'bg-emerald-500/35 text-emerald-100 border-emerald-300/45' : 'bg-amber-500/35 text-amber-100 border-amber-300/45'}`}>
+                  {hasSavedChoices ? 'City Selection Complete' : 'City Selection Required'}
+                </span>
+              </div>
+            </div>
+            <div className="flex gap-1">
+              <div className="w-2 h-2 rounded-full bg-emerald-500/50 shadow-[0_0_8px_rgba(16,185,129,0.5)]" title="Active" />
+              {lane.rate > 0 && <div className="w-2 h-2 rounded-full bg-cyan-500/50 shadow-[0_0_8px_rgba(6,182,212,0.5)]" title="Rated" />}
+            </div>
+          </div>
+
+          <div className="lane-card-stats grid grid-cols-2 gap-3 mb-5 p-3 rounded-lg bg-slate-900/42 border border-slate-300/35">
+            <div>
+              <div className="text-[10px] uppercase tracking-wider text-slate-200 font-semibold mb-1">Pickup Date</div>
+              <div className="text-sm font-medium text-white flex items-center gap-2">
+                <span className="text-cyan-300">📅</span>
+                {pickupDisplay}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] uppercase tracking-wider text-slate-200 font-semibold mb-1">Target Rate</div>
+              <div className="text-lg font-bold text-emerald-300 leading-none">
+                {lane.rate > 0 ? `$${lane.rate.toLocaleString()}` : <span className="text-sm text-slate-200 italic font-normal">Open</span>}
+              </div>
+              {estRPM && (
+                <div className="text-[10px] text-slate-200 mt-0.5">
+                  ${estRPM}/mi (est)
+                </div>
               )}
             </div>
-          </div>
-          {/* Smart Status Indicator */}
-          <div className="flex gap-1">
-            <div className="w-2 h-2 rounded-full bg-emerald-500/50 shadow-[0_0_8px_rgba(16,185,129,0.5)]" title="Active" />
-            {lane.rate > 0 && <div className="w-2 h-2 rounded-full bg-cyan-500/50 shadow-[0_0_8px_rgba(6,182,212,0.5)]" title="Rated" />}
-          </div>
-        </div>
-
-        {/* Stats Grid */}
-        <div className="lane-card-stats grid grid-cols-2 gap-3 mb-5 p-3 rounded-lg bg-black/20 border border-white/5">
-          <div>
-            <div className="text-[10px] uppercase tracking-wider text-secondary font-semibold mb-1">Pickup Date</div>
-            <div className="text-sm font-medium text-white flex items-center gap-2">
-              <span className="text-cyan-400/70">📅</span>
-              {pickupDisplay}
-            </div>
-          </div>
-          <div>
-            <div className="text-[10px] uppercase tracking-wider text-secondary font-semibold mb-1">Target Rate</div>
-            <div className="text-lg font-bold text-emerald-400 leading-none">
-              {lane.rate > 0 ? `$${lane.rate.toLocaleString()}` : <span className="text-sm text-secondary italic font-normal">Open</span>}
-            </div>
-            {estRPM && (
-              <div className="text-[10px] text-secondary mt-0.5">
-                ${estRPM}/mi (est)
+            <div className="col-span-2 pt-2 border-t border-slate-300/35 flex justify-between items-center">
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-slate-200 font-semibold">Weight</div>
+                <div className="text-sm font-medium text-white">{lane.weight_lbs ? `${(lane.weight_lbs / 1000).toFixed(0)}k lbs` : '—'}</div>
+                <div className="text-[10px] text-slate-200 mt-1">{selectionSummaryText}</div>
               </div>
-            )}
-          </div>
-          <div className="col-span-2 pt-2 border-t border-white/5 flex justify-between items-center">
-            <div>
-              <div className="text-[10px] uppercase tracking-wider text-secondary font-semibold">Weight</div>
-              <div className="text-sm font-medium text-white">{lane.weight_lbs ? `${(lane.weight_lbs / 1000).toFixed(0)}k lbs` : '—'}</div>
-            </div>
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onViewRoute(lane); }}
-              className="text-xs text-cyan-400 hover:text-cyan-300 font-medium flex items-center gap-1 transition-colors"
-            >
-              View Map 🗺️
-            </button>
-          </div>
-        </div>
-
-        {/* Post Options Panel (Inline) */}
-        {isPosting && postOptions && (
-          <div className="mb-5 animate-in fade-in zoom-in duration-300 border-t border-white/10 pt-4">
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-sm font-bold text-cyan-400 uppercase tracking-wider">Post Configuration</h4>
-              <button type="button" onClick={() => setIsPosting(false)} className="text-xs text-secondary hover:text-white">Close</button>
-            </div>
-            <div className="bg-black/30 rounded-xl p-2 max-h-[400px] overflow-y-auto custom-scrollbar">
-              <OptionsDisplay
-                laneId={lane.id}
-                lane={lane}
-                originOptions={postOptions.originOptions || []}
-                destOptions={postOptions.destOptions || []}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Actions Footer */}
-        <div className="flex items-center gap-2 pt-2">
-          {isArchived ? (
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onRestore(lane); }}
-              className="flex-1 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white text-xs font-semibold border border-white/10 transition-all"
-            >
-              Restore Lane
-            </button>
-          ) : (
-            <>
               <button
                 type="button"
-                onClick={handlePostClick}
-                disabled={loadingOptions}
-                className="flex-1 py-2 rounded-lg bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 text-white text-xs font-bold shadow-lg shadow-cyan-900/40 border border-cyan-400/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                onClick={(e) => { e.stopPropagation(); onViewRoute(lane); }}
+                className="text-xs text-cyan-200 hover:text-cyan-100 font-medium flex items-center gap-1 transition-colors"
               >
-                {loadingOptions ? (
-                  <span className="animate-spin h-4 w-4 border-2 border-white/30 border-t-white rounded-full" />
-                ) : (
-                  <>
-                    <span className="text-sm">🚀</span> {isPosting ? 'Configure Post' : 'Post / Options'}
-                  </>
-                )}
+                View Map 🗺️
               </button>
+            </div>
+          </div>
 
-              <div className="flex gap-1">
+          <div className="flex items-center gap-2 pt-2">
+            {isArchived ? (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onRestore(lane); }}
+                className="flex-1 py-1.5 rounded-lg bg-slate-900/42 hover:bg-slate-800/45 text-white text-xs font-semibold border border-slate-300/35 transition-all"
+              >
+                Restore Lane
+              </button>
+            ) : (
+              <>
                 <button
                   type="button"
-                  onClick={(e) => { e.stopPropagation(); onEdit(lane); }}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 text-secondary hover:text-white border border-white/5 transition-colors"
-                  title="Edit"
+                  onClick={handlePostOptionsClick}
+                  disabled={loadingOptions}
+                  className="flex-1 py-2 rounded-lg bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 text-white text-xs font-bold shadow-lg shadow-cyan-900/40 border border-cyan-300/45 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
                 >
-                  ✏️
+                  {loadingOptions ? (
+                    <span className="animate-spin h-4 w-4 border-2 border-white/30 border-t-white rounded-full" />
+                  ) : (
+                    <>
+                      <span className="text-sm">🚀</span> Post Options
+                    </>
+                  )}
                 </button>
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); onArchive(lane); }}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-white/10 text-secondary hover:text-white border border-white/5 transition-colors"
-                  title="Archive"
-                >
-                  📦
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); onDelete(lane); }}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/10 transition-colors"
-                  title="Delete"
-                >
-                  🗑️
-                </button>
-              </div>
-            </>
-          )}
+
+                <div className="flex gap-1">
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onEdit(lane); }}
+                    className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-900/42 hover:bg-slate-800/45 text-slate-100 border border-slate-300/35 transition-colors"
+                    title="Edit"
+                  >
+                    ✏️
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onArchive(lane); }}
+                    className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-900/42 hover:bg-slate-800/45 text-slate-100 border border-slate-300/35 transition-colors"
+                    title="Archive"
+                  >
+                    📦
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onDelete(lane); }}
+                    className="w-8 h-8 flex items-center justify-center rounded-lg bg-red-500/35 hover:bg-red-500/45 text-red-100 border border-red-300/45 transition-colors"
+                    title="Delete"
+                  >
+                    🗑️
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
-
       </div>
-    </div>
+
+      {isPostOptionsOpen && (
+        <div className="lanes-modal-backdrop" role="dialog" aria-modal="true" aria-label="Post options city selection">
+          <div className="lanes-modal-card rr-card-elevated lanes-post-options-modal-card">
+            <div className="card-header flex justify-between items-center">
+              <div>
+                <h3 className="text-white">Post Options</h3>
+                <p className="text-xs text-slate-200 mt-1">
+                  {lane.origin_city}, {lane.origin_state} → {lane.dest_city || lane.destination_city}, {lane.dest_state || lane.destination_state}
+                </p>
+              </div>
+              <button type="button" onClick={() => setIsPostOptionsOpen(false)} className="text-secondary hover:text-white" aria-label="Close post options modal">✕</button>
+            </div>
+            <div className="card-body">
+              {loadingOptions ? (
+                <div className="flex items-center justify-center py-14">
+                  <span className="animate-spin h-7 w-7 border-2 border-slate-200/35 border-t-white rounded-full" />
+                </div>
+              ) : (
+                <OptionsDisplay
+                  laneId={lane.id}
+                  lane={optionsLanePayload}
+                  originOptions={postOptions?.originOptions || []}
+                  destOptions={postOptions?.destOptions || []}
+                  initialSelections={selectionDraft}
+                  onSelectionChange={(next) => setSelectionDraft({ origins: next.origins, destinations: next.destinations })}
+                  onSaveSuccess={handleSaveSelectionsSuccess}
+                  saveButtonLabel="Save Selections & Done"
+                />
+              )}
+            </div>
+            <div className="flex justify-end px-6 pb-6">
+              <button type="button" onClick={() => setIsPostOptionsOpen(false)} className="rr-btn btn-outline">Done</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

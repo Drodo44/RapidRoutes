@@ -17,6 +17,7 @@ import supabase from '../utils/supabaseClient';
 import { getMyLanesOnlyPreference, setMyLanesOnlyPreference } from '../lib/laneFilterPreferences.js';
 import { useAuth } from '../contexts/AuthContext';
 import { generateOptions } from '../components/post-options/OptionsGenerator';
+import { buildSmartSelectionIds, mapSelectionIdsToSavedCities } from '../lib/citySelection';
 
 // --- Edit Lane Modal Component (Inline) ---
 function EditLaneModal({ lane, isOpen, onClose, onSave }) {
@@ -144,6 +145,16 @@ export default function LanesPage() {
   const [pickupLatest, setPickupLatest] = useState('');
   const [comment, setComment] = useState('');
   const [commodity, setCommodity] = useState('');
+  const [emailDetailsExpanded, setEmailDetailsExpanded] = useState(false);
+  const [emailDetails, setEmailDetails] = useState({
+    commodity: '',
+    reeferTemperature: '',
+    equipmentRequirements: '',
+    pickupTime: '',
+    deliveryTime: '',
+    additionalInfo: '',
+    internalNotes: ''
+  });
 
   // Weight
   const [randomize, setRandomize] = useState(false);
@@ -234,6 +245,84 @@ export default function LanesPage() {
 
   // --- Actions ---
 
+  function updateEmailDetail(field, value) {
+    setEmailDetails((prev) => ({ ...prev, [field]: value }));
+  }
+
+  function cacheLaneEmailDetails(laneId) {
+    if (typeof window === 'undefined' || !laneId) return;
+
+    const payload = {
+      laneId,
+      commodity: emailDetails.commodity || '',
+      rate: rate || '',
+      reeferTemperature: emailDetails.reeferTemperature || '',
+      equipmentRequirements: emailDetails.equipmentRequirements || '',
+      pickupTime: emailDetails.pickupTime || '',
+      deliveryTime: emailDetails.deliveryTime || '',
+      additionalInfo: emailDetails.additionalInfo || '',
+      internalNotes: emailDetails.internalNotes || '',
+      updatedAt: Date.now()
+    };
+
+    const hasAnyValue = Object.entries(payload).some(([key, value]) => {
+      if (key === 'laneId' || key === 'updatedAt') return false;
+      return String(value || '').trim().length > 0;
+    });
+
+    if (!hasAnyValue) return;
+
+    try {
+      const storageKey = 'rr:lane-email-details';
+      const existingRaw = window.sessionStorage.getItem(storageKey);
+      const existing = existingRaw ? JSON.parse(existingRaw) : {};
+      existing[String(laneId)] = payload;
+      window.sessionStorage.setItem(storageKey, JSON.stringify(existing));
+    } catch (error) {
+      console.error('Failed to cache lane email details:', error);
+    }
+  }
+
+  async function autoApplySmartSelections(lane) {
+    const optionsResult = await generateOptions(lane);
+    if (!optionsResult?.success || !optionsResult?.data) {
+      throw new Error(optionsResult?.message || optionsResult?.error || 'Unable to generate post options');
+    }
+
+    const originOptions = Array.isArray(optionsResult.data.originOptions) ? optionsResult.data.originOptions : [];
+    const destOptions = Array.isArray(optionsResult.data.destOptions) ? optionsResult.data.destOptions : [];
+
+    const { originIds, destinationIds } = buildSmartSelectionIds(originOptions, destOptions);
+    if (originIds.length === 0 || destinationIds.length === 0) {
+      throw new Error('No smart city selections were available for this lane');
+    }
+
+    const originCities = mapSelectionIdsToSavedCities(originIds, originOptions);
+    const destCities = mapSelectionIdsToSavedCities(destinationIds, destOptions);
+    if (originCities.length === 0 || destCities.length === 0) {
+      throw new Error('Unable to map smart city selections');
+    }
+
+    const saveResponse = await fetch('/api/save-city-selections', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        laneId: lane.id,
+        originCities,
+        destCities
+      })
+    });
+
+    if (!saveResponse.ok) {
+      const errorData = await saveResponse.json().catch(() => ({}));
+      throw new Error(errorData?.error || 'Failed to save smart city selections');
+    }
+
+    return await saveResponse.json();
+  }
+
   async function submitLane(e) {
     if (e) e.preventDefault();
 
@@ -278,9 +367,21 @@ export default function LanesPage() {
         commodity: commodity || null
       };
 
-      // Create lane directly (no intermodal check)
-      await createLaneFromData(laneData, authSession);
-      toast.success('Lane created successfully');
+      const createdLane = await createLaneFromData(laneData, authSession);
+      cacheLaneEmailDetails(createdLane?.id);
+
+      if (isPosted) {
+        const autopostToast = toast.loading('Auto-Post enabled: selecting best cities...');
+        try {
+          await autoApplySmartSelections(createdLane);
+          toast.success('Lane created and city selection completed', { id: autopostToast });
+        } catch (autoError) {
+          toast.error(`Lane created, but Auto-Post failed: ${autoError.message}`, { id: autopostToast });
+        }
+      } else {
+        toast.success('Lane created successfully');
+      }
+
       await loadLists();
 
       // Reset Form fields that should clear
@@ -288,6 +389,16 @@ export default function LanesPage() {
       setRate('');
       setComment('');
       setCommodity('');
+      setEmailDetails({
+        commodity: '',
+        reeferTemperature: '',
+        equipmentRequirements: '',
+        pickupTime: '',
+        deliveryTime: '',
+        additionalInfo: '',
+        internalNotes: ''
+      });
+      setEmailDetailsExpanded(false);
       // We keep origin/dest/dates often for rapid entry, but let's clear them for "fresh" feel
       // or maybe just clear cities? User pref. Let's clear everything to be clean.
       setOrigin('');
@@ -597,27 +708,141 @@ export default function LanesPage() {
                       </div>
 
                       <div className="lanes-field">
-                        <label className="form-label section-header">Commodity</label>
+                        <label className="form-label section-header">Commodity (Lane/CSV)</label>
                         <input
                           type="text"
                           value={commodity}
                           onChange={(e) => setCommodity(e.target.value)}
                           placeholder="General Freight"
                           className="rr-input lanes-input"
-                          aria-label="Commodity"
+                          aria-label="Lane commodity"
                         />
                       </div>
                     </div>
 
                     <div className="lanes-field">
-                      <label className="form-label section-header">Internal Notes</label>
+                      <label className="form-label section-header">Lane Comment (CSV)</label>
                       <textarea
                         value={comment}
                         onChange={(e) => setComment(e.target.value)}
-                        placeholder="Add notes about this lane..."
+                        placeholder="Optional CSV/comment field for this lane..."
                         rows={2}
                         className="rr-input lanes-textarea"
                       />
+                    </div>
+
+                    <div className="lanes-email-details rr-card">
+                      <button
+                        type="button"
+                        onClick={() => setEmailDetailsExpanded((prev) => !prev)}
+                        className="lanes-email-toggle"
+                        aria-expanded={emailDetailsExpanded}
+                      >
+                        <span>Email Details (Optional)</span>
+                        <span>{emailDetailsExpanded ? '-' : '+'}</span>
+                      </button>
+
+                      {emailDetailsExpanded && (
+                        <div className="lanes-email-body">
+                          <div className="lanes-email-grid">
+                            <div className="lanes-field">
+                              <label className="form-label section-header">Commodity (Email Only)</label>
+                              <input
+                                type="text"
+                                value={emailDetails.commodity}
+                                onChange={(e) => updateEmailDetail('commodity', e.target.value)}
+                                placeholder="General Freight"
+                                className="rr-input lanes-input"
+                                aria-label="Email commodity"
+                              />
+                            </div>
+
+                            <div className="lanes-field">
+                              <label className="form-label section-header">Reefer Temperature (F)</label>
+                              <input
+                                type="number"
+                                value={emailDetails.reeferTemperature}
+                                onChange={(e) => updateEmailDetail('reeferTemperature', e.target.value)}
+                                placeholder="e.g. 34"
+                                className="rr-input lanes-input"
+                                aria-label="Reefer temperature"
+                              />
+                            </div>
+
+                            <div className="lanes-field">
+                              <label className="form-label section-header">Rate (Mirrors Financials)</label>
+                              <input
+                                type="text"
+                                value={rate || ''}
+                                placeholder="Set rate in Financials panel"
+                                className="rr-input lanes-input lanes-disabled-input"
+                                readOnly
+                                aria-label="Rate mirror"
+                              />
+                            </div>
+
+                            <div className="lanes-field">
+                              <label className="form-label section-header">Equipment Requirements</label>
+                              <input
+                                type="text"
+                                value={emailDetails.equipmentRequirements}
+                                onChange={(e) => updateEmailDetail('equipmentRequirements', e.target.value)}
+                                placeholder="Tarps, straps, team, etc."
+                                className="rr-input lanes-input"
+                                aria-label="Equipment requirements"
+                              />
+                            </div>
+
+                            <div className="lanes-field">
+                              <label className="form-label section-header">Pickup Time</label>
+                              <input
+                                type="text"
+                                value={emailDetails.pickupTime}
+                                onChange={(e) => updateEmailDetail('pickupTime', e.target.value)}
+                                placeholder="8:00 AM - 12:00 PM"
+                                className="rr-input lanes-input"
+                                aria-label="Pickup time"
+                              />
+                            </div>
+
+                            <div className="lanes-field">
+                              <label className="form-label section-header">Delivery Time</label>
+                              <input
+                                type="text"
+                                value={emailDetails.deliveryTime}
+                                onChange={(e) => updateEmailDetail('deliveryTime', e.target.value)}
+                                placeholder="1:00 PM - 5:00 PM"
+                                className="rr-input lanes-input"
+                                aria-label="Delivery time"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="lanes-email-grid lanes-email-grid-textarea">
+                            <div className="lanes-field">
+                              <label className="form-label section-header">Additional Info</label>
+                              <textarea
+                                value={emailDetails.additionalInfo}
+                                onChange={(e) => updateEmailDetail('additionalInfo', e.target.value)}
+                                placeholder="Extra email-only shipment details..."
+                                rows={2}
+                                className="rr-input lanes-textarea"
+                              />
+                            </div>
+
+                            <div className="lanes-field">
+                              <label className="form-label section-header">Internal Notes</label>
+                              <textarea
+                                value={emailDetails.internalNotes}
+                                onChange={(e) => updateEmailDetail('internalNotes', e.target.value)}
+                                placeholder="Internal email-only notes..."
+                                rows={2}
+                                className="rr-input lanes-textarea"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -705,6 +930,9 @@ export default function LanesPage() {
                   onViewRoute={(l) => { setSelectedLaneForMap(l); setIsMapModalOpen(true); }}
                   onPost={handlePostLane}
                   isArchived={false}
+                  onLaneUpdated={(updatedLane) => {
+                    setCurrent((prev) => prev.map((item) => (item.id === updatedLane.id ? { ...item, ...updatedLane } : item)));
+                  }}
                 />
               ))}
             </div>

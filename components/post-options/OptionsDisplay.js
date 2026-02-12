@@ -1,7 +1,17 @@
 // components/post-options/OptionsDisplay.js
 // Displays generated pickup/delivery options with selection checkboxes
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { generateDatCsvFromSelections, generateRecapFromSelections } from '../../lib/optionsExport';
+import {
+  buildCityOptionId,
+  buildSmartSelectionIds,
+  findBestCity,
+  getCityState,
+  groupCitiesByKma,
+  hydrateSelectionIdsFromSavedCities,
+  mapSelectionIdsToSavedCities,
+  normalizeCityName
+} from '../../lib/citySelection';
 
 import ManualCityAdd from './ManualCityAdd';
 
@@ -9,59 +19,60 @@ import ManualCityAdd from './ManualCityAdd';
  * Display component for lane options with selection capabilities
  * Shows origin and destination cities with KMAs, distances, and checkboxes
  */
-export default function OptionsDisplay({ laneId, lane, originOptions = [], destOptions = [], onSelectionChange, onManualAdd }) {
+export default function OptionsDisplay({
+  laneId,
+  lane,
+  originOptions = [],
+  destOptions = [],
+  onSelectionChange,
+  onManualAdd,
+  initialSelections = null,
+  onSaveSuccess = null,
+  saveButtonLabel = 'Save Selections & Add to Recap'
+}) {
   const [selectedOrigins, setSelectedOrigins] = useState(new Set());
   const [selectedDestinations, setSelectedDestinations] = useState(new Set());
+  const [isHydrated, setIsHydrated] = useState(false);
 
-  // Group options by KMA for better organization
-  const groupByKMA = (options) => {
-    const grouped = {};
-    options.forEach(option => {
-      const kma = option.kma_code || 'UNKNOWN';
-      if (!grouped[kma]) {
-        grouped[kma] = [];
-      }
-      grouped[kma].push(option);
-    });
-    return grouped;
-  };
+  const originsByKMA = useMemo(() => groupCitiesByKma(originOptions), [originOptions]);
+  const destsByKMA = useMemo(() => groupCitiesByKma(destOptions), [destOptions]);
 
-  const originsByKMA = useMemo(() => groupByKMA(originOptions), [originOptions]);
-  const destsByKMA = useMemo(() => groupByKMA(destOptions), [destOptions]);
+  useEffect(() => {
+    setSelectedOrigins(new Set());
+    setSelectedDestinations(new Set());
+    setIsHydrated(false);
+  }, [laneId]);
 
-  // Helper for robust name matching (handles "St." vs "Saint", "Ft" vs "Fort", etc.)
-  const normalizeCityName = (name) => {
-    return (name || '').toLowerCase()
-      .replace(/\s+(mkt|market)\s*$/i, '') // Remove market suffix first
-      .replace(/^n[\.\s]+/, 'north ') // Directionals start of string
-      .replace(/^s[\.\s]+/, 'south ')
-      .replace(/^e[\.\s]+/, 'east ')
-      .replace(/^w[\.\s]+/, 'west ')
-      .replace(/\b(ft\.?|fort)\b/g, 'fort')
-      .replace(/\b(st\.?|saint)\b/g, 'saint')
-      .replace(/\b(mt\.?|mount)\b/g, 'mount')
-      .replace(/[^a-z0-9]/g, ''); // Remove all punctuation/spaces for fuzzy match
-  };
+  useEffect(() => {
+    if (isHydrated) return;
+    if (!originOptions.length && !destOptions.length) return;
 
-  // Find best (typically Market City, otherwise closest) city in each group
-  const findBestCity = (cities) => {
-    if (!cities || cities.length === 0) return null;
-    
-    // 1. Try to find the Market City match first
-    const marketCity = cities.find(c => {
-      if (!c.kma_name) return false;
-      const kmaName = normalizeCityName(c.kma_name);
-      const cityName = normalizeCityName(c.city);
-      return kmaName === cityName;
-    });
+    const savedOrigins = Array.isArray(lane?.saved_origin_cities)
+      ? lane.saved_origin_cities
+      : Array.isArray(lane?.saved_origins)
+        ? lane.saved_origins
+        : Array.isArray(lane?.origin_cities)
+          ? lane.origin_cities
+          : [];
+    const savedDestinations = Array.isArray(lane?.saved_dest_cities)
+      ? lane.saved_dest_cities
+      : Array.isArray(lane?.saved_dests)
+        ? lane.saved_dests
+        : Array.isArray(lane?.dest_cities)
+          ? lane.dest_cities
+          : [];
 
-    if (marketCity) return marketCity;
+    const hydratedOriginIds = Array.isArray(initialSelections?.origins) && initialSelections.origins.length > 0
+      ? initialSelections.origins
+      : hydrateSelectionIdsFromSavedCities(savedOrigins, originOptions);
+    const hydratedDestinationIds = Array.isArray(initialSelections?.destinations) && initialSelections.destinations.length > 0
+      ? initialSelections.destinations
+      : hydrateSelectionIdsFromSavedCities(savedDestinations, destOptions);
 
-    // 2. Fallback to closest city
-    return cities.reduce((best, city) => 
-      !best || city.distance < best.distance ? city : best
-    , null);
-  };
+    setSelectedOrigins(new Set(hydratedOriginIds));
+    setSelectedDestinations(new Set(hydratedDestinationIds));
+    setIsHydrated(true);
+  }, [isHydrated, lane, originOptions, destOptions, initialSelections]);
 
 
   const handleOriginToggle = (cityId) => {
@@ -101,14 +112,16 @@ export default function OptionsDisplay({ laneId, lane, originOptions = [], destO
   };
 
   const renderCityOption = (city, isBest, isOrigin, isSelected, onToggle) => {
-            const cityId = `${city.id}-${city.city}-${city.state}`;
+            const cityId = buildCityOptionId(city);
             
             return (
               <div 
                 key={cityId}
                 className={`flex items-center gap-2 p-2 rounded ${
-                  isSelected ? 'bg-blue-900/30 border border-blue-600' : 'bg-gray-800 border border-gray-700'
-                } hover:bg-gray-750 transition-colors cursor-pointer`}
+                  isSelected
+                    ? 'bg-blue-500/35 border border-blue-300/45'
+                    : 'bg-slate-900/42 border border-slate-300/35'
+                } hover:bg-slate-800/45 transition-colors cursor-pointer`}
                 onClick={() => onToggle(cityId)}
               >
                 <input
@@ -116,20 +129,20 @@ export default function OptionsDisplay({ laneId, lane, originOptions = [], destO
                   checked={isSelected}
                   onChange={() => onToggle(cityId)}
                   onClick={(e) => e.stopPropagation()}
-                  className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  className="w-4 h-4 rounded border-slate-300/45 bg-slate-900/45 text-blue-500 focus:ring-blue-400 cursor-pointer"
                 />
                 
                 <div className="flex-grow">
                   <div className="flex items-center gap-2">
-                    <span className={`font-medium ${isBest ? 'text-yellow-400 font-bold' : city.isManual ? 'text-green-400 font-semibold' : 'text-gray-100'}`}>
+                    <span className={`font-medium ${isBest ? 'text-amber-200 font-bold' : city.isManual ? 'text-emerald-200 font-semibold' : 'text-slate-100'}`}>
                       {isBest && '⭐ '} {city.isManual && '➕ '}
-                      {city.city}, {city.state}
+                      {city.city}, {getCityState(city)}
                     </span>
-                    <span className={`text-xs px-2 py-0.5 rounded ${isBest ? 'bg-yellow-900/30 text-yellow-200' : city.isManual ? 'bg-green-900/30 text-green-200' : 'bg-gray-700 text-gray-300'}`}>
+                    <span className={`text-xs px-2 py-0.5 rounded ${isBest ? 'bg-amber-500/35 text-amber-100 border border-amber-300/45' : city.isManual ? 'bg-emerald-500/35 text-emerald-100 border border-emerald-300/45' : 'bg-slate-900/42 text-slate-100 border border-slate-300/35'}`}>
                       {city.kma_code || 'UNK'}
                     </span>
                   </div>
-                  <div className="text-xs text-gray-400">
+                  <div className="text-xs text-slate-200">
                     {Math.round(city.distance)} miles from lane {isOrigin ? 'origin' : 'destination'}
                   </div>
                 </div>
@@ -171,12 +184,12 @@ export default function OptionsDisplay({ laneId, lane, originOptions = [], destO
 
     return (
       <div key={kmaCode} className="mb-4">
-        <div className="text-sm font-semibold text-gray-300 mb-2 px-2">
+        <div className="text-sm font-semibold text-slate-100 mb-2 px-2">
           {kmaDisplayName} ({cities.length} {cities.length === 1 ? 'city' : 'cities'})
         </div>
         <div className="space-y-1">
           {sortedCities.map(city => {
-            const cityId = `${city.id}-${city.city}-${city.state}`;
+            const cityId = buildCityOptionId(city);
             const isBest = bestCity && city.id === bestCity.id;
             const isSelected = isOrigin 
               ? selectedOrigins.has(cityId)
@@ -191,7 +204,7 @@ export default function OptionsDisplay({ laneId, lane, originOptions = [], destO
   };
 
   const handleSelectAllOrigins = () => {
-    const allOriginIds = originOptions.map(city => `${city.id}-${city.city}-${city.state}`);
+    const allOriginIds = originOptions.map((city) => buildCityOptionId(city));
     setSelectedOrigins(new Set(allOriginIds));
     if (onSelectionChange) {
       onSelectionChange({
@@ -214,7 +227,7 @@ export default function OptionsDisplay({ laneId, lane, originOptions = [], destO
   };
 
   const handleSelectAllDestinations = () => {
-    const allDestIds = destOptions.map(city => `${city.id}-${city.city}-${city.state}`);
+    const allDestIds = destOptions.map((city) => buildCityOptionId(city));
     setSelectedDestinations(new Set(allDestIds));
     if (onSelectionChange) {
       onSelectionChange({
@@ -237,25 +250,7 @@ export default function OptionsDisplay({ laneId, lane, originOptions = [], destO
   };
 
   const handleSmartSelect = () => {
-    // Select the best (closest) city from each KMA for both origins and destinations
-    const bestOriginIds = [];
-    const bestDestIds = [];
-    
-    // Get best origin from each KMA
-    Object.entries(originsByKMA).forEach(([kmaCode, cities]) => {
-      const bestCity = findBestCity(cities);
-      if (bestCity) {
-        bestOriginIds.push(`${bestCity.id}-${bestCity.city}-${bestCity.state}`);
-      }
-    });
-    
-    // Get best destination from each KMA
-    Object.entries(destsByKMA).forEach(([kmaCode, cities]) => {
-      const bestCity = findBestCity(cities);
-      if (bestCity) {
-        bestDestIds.push(`${bestCity.id}-${bestCity.city}-${bestCity.state}`);
-      }
-    });
+    const { originIds: bestOriginIds, destinationIds: bestDestIds } = buildSmartSelectionIds(originOptions, destOptions);
     
     setSelectedOrigins(new Set(bestOriginIds));
     setSelectedDestinations(new Set(bestDestIds));
@@ -271,8 +266,8 @@ export default function OptionsDisplay({ laneId, lane, originOptions = [], destO
 
   if (!originOptions.length && !destOptions.length) {
     return (
-      <div className="text-center text-gray-400 py-8">
-        No options generated yet. Click "Generate Options" to see available cities.
+      <div className="text-center text-slate-200 py-8">
+        No options generated yet. Click Generate Options to see available cities.
       </div>
     );
   }
@@ -340,34 +335,8 @@ export default function OptionsDisplay({ laneId, lane, originOptions = [], destO
     if (!hasSelections || !lane) return;
     
     try {
-      // Get selected city objects with all their data
-      const selectedOriginCities = Array.from(selectedOrigins).map(id => {
-        const city = originOptions.find(city => `${city.id}-${city.city}-${city.state}` === id);
-        return city ? {
-          id: city.id,
-          city: city.city,
-          state: city.state || city.state_or_province,
-          zip: city.zip,
-          kma_code: city.kma_code,
-          latitude: city.latitude,
-          longitude: city.longitude,
-          distance: city.distance
-        } : null;
-      }).filter(Boolean);
-      
-      const selectedDestCities = Array.from(selectedDestinations).map(id => {
-        const city = destOptions.find(city => `${city.id}-${city.city}-${city.state}` === id);
-        return city ? {
-          id: city.id,
-          city: city.city,
-          state: city.state || city.state_or_province,
-          zip: city.zip,
-          kma_code: city.kma_code,
-          latitude: city.latitude,
-          longitude: city.longitude,
-          distance: city.distance
-        } : null;
-      }).filter(Boolean);
+      const selectedOriginCities = mapSelectionIdsToSavedCities(Array.from(selectedOrigins), originOptions);
+      const selectedDestCities = mapSelectionIdsToSavedCities(Array.from(selectedDestinations), destOptions);
 
       // Save to database
       const response = await fetch('/api/save-city-selections', {
@@ -388,8 +357,16 @@ export default function OptionsDisplay({ laneId, lane, originOptions = [], destO
       }
 
       const result = await response.json();
-      
-      alert(`✅ Selections saved!\n\n${result.totalCombinations} lane combinations saved.\n\nView them in the Recap page.`);
+
+      if (typeof onSaveSuccess === 'function') {
+        onSaveSuccess(result?.lane || null, {
+          origins: Array.from(selectedOrigins),
+          destinations: Array.from(selectedDestinations),
+          totalCombinations: result?.totalCombinations || 0
+        });
+      } else {
+        alert(`✅ Selections saved!\n\n${result.totalCombinations} lane combinations saved.\n\nView them in the Recap page.`);
+      }
     } catch (error) {
       console.error('Error saving selections:', error);
       alert(`❌ Error saving selections: ${error.message}`);
@@ -399,20 +376,20 @@ export default function OptionsDisplay({ laneId, lane, originOptions = [], destO
   return (
     <div>
       {/* Smart Select Banner */}
-      <div className="mb-4 p-4 bg-gradient-to-r from-purple-900/30 to-blue-900/30 border border-purple-600/50 rounded-lg">
+      <div className="mb-4 p-4 bg-gradient-to-r from-violet-500/35 to-blue-500/35 border border-violet-300/45 rounded-lg shadow-[0_0_20px_rgba(99,102,241,0.2)]">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div className="flex-grow">
             <div className="flex items-center gap-2 mb-1">
               <span className="text-lg">⚡</span>
-              <h4 className="font-semibold text-purple-300">Smart Pairing</h4>
+              <h4 className="font-semibold text-violet-100">Smart Pairing</h4>
             </div>
-            <p className="text-sm text-gray-300">
+            <p className="text-sm text-slate-100">
               Auto-select the <strong>best city from each KMA</strong> (closest to lane endpoints) for maximum market coverage
             </p>
           </div>
           <button
             onClick={handleSmartSelect}
-            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded font-medium transition-colors whitespace-nowrap"
+            className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded font-medium transition-colors whitespace-nowrap border border-violet-300/45"
           >
             ⚡ Smart Select Best Cities
           </button>
@@ -421,25 +398,25 @@ export default function OptionsDisplay({ laneId, lane, originOptions = [], destO
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
         {/* Origin Cities Panel */}
-        <div className="bg-gray-900 border border-gray-700 rounded-lg p-4">
+        <div className="bg-slate-900/42 border border-slate-300/35 rounded-lg p-4">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-100">
+            <h3 className="text-lg font-semibold text-slate-100">
               Pickup Cities ({originOptions.length})
             </h3>
             <div className="flex items-center gap-2">
               <button
                 onClick={handleSelectAllOrigins}
-                className="text-xs px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded"
+                className="text-xs px-2 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded border border-blue-300/45"
               >
                 Select All
               </button>
               <button
                 onClick={handleClearAllOrigins}
-                className="text-xs px-2 py-1 bg-gray-600 hover:bg-gray-500 text-white rounded"
+                className="text-xs px-2 py-1 bg-slate-700/70 hover:bg-slate-600/80 text-slate-100 rounded border border-slate-300/35"
               >
                 Clear
               </button>
-              <div className="text-sm text-gray-400 ml-2">
+              <div className="text-sm text-slate-200 ml-2">
                 {selectedOrigins.size} selected
               </div>
             </div>
@@ -458,8 +435,10 @@ export default function OptionsDisplay({ laneId, lane, originOptions = [], destO
                if (onManualAdd) onManualAdd('origin', city);
                
                // Auto-select the newly added city
-               const state = city.state || city.state_or_province;
-               const cityId = `${city.id}-${city.city}-${state}`;
+               const cityId = buildCityOptionId({
+                 ...city,
+                 state: getCityState(city)
+               });
                
                setSelectedOrigins(prev => {
                  const newSelected = new Set(prev);
@@ -481,25 +460,25 @@ export default function OptionsDisplay({ laneId, lane, originOptions = [], destO
         </div>
 
         {/* Destination Cities Panel */}
-        <div className="bg-gray-900 border border-gray-700 rounded-lg p-4">
+        <div className="bg-slate-900/42 border border-slate-300/35 rounded-lg p-4">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-100">
+            <h3 className="text-lg font-semibold text-slate-100">
               Delivery Cities ({destOptions.length})
             </h3>
             <div className="flex items-center gap-2">
               <button
                 onClick={handleSelectAllDestinations}
-                className="text-xs px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded"
+                className="text-xs px-2 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded border border-blue-300/45"
               >
                 Select All
               </button>
               <button
                 onClick={handleClearAllDestinations}
-                className="text-xs px-2 py-1 bg-gray-600 hover:bg-gray-500 text-white rounded"
+                className="text-xs px-2 py-1 bg-slate-700/70 hover:bg-slate-600/80 text-slate-100 rounded border border-slate-300/35"
               >
                 Clear
               </button>
-              <div className="text-sm text-gray-400 ml-2">
+              <div className="text-sm text-slate-200 ml-2">
                 {selectedDestinations.size} selected
               </div>
             </div>
@@ -518,8 +497,10 @@ export default function OptionsDisplay({ laneId, lane, originOptions = [], destO
                if (onManualAdd) onManualAdd('dest', city);
                
                // Auto-select the newly added city
-               const state = city.state || city.state_or_province;
-               const cityId = `${city.id}-${city.city}-${state}`;
+               const cityId = buildCityOptionId({
+                 ...city,
+                 state: getCityState(city)
+               });
                
                setSelectedDestinations(prev => {
                  const newSelected = new Set(prev);
@@ -542,21 +523,21 @@ export default function OptionsDisplay({ laneId, lane, originOptions = [], destO
       </div>
 
       {/* Action Buttons */}
-      <div className="mt-6 p-4 bg-gray-800 border border-gray-700 rounded-lg">
+      <div className="mt-6 p-4 bg-slate-900/42 border border-slate-300/35 rounded-lg">
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-          <div className="text-sm text-gray-300">
+          <div className="text-sm text-slate-100">
             {hasSelections ? (
               <>
-                <span className="font-semibold text-green-400">{totalCombinations} lane combinations</span> will be created
-                <span className="text-gray-500 ml-2">
+                <span className="font-semibold text-emerald-200">{totalCombinations} lane combinations</span> will be created
+                <span className="text-slate-300 ml-2">
                   ({selectedOrigins.size} pickup × {selectedDestinations.size} delivery)
                 </span>
-                <div className="text-xs text-gray-400 mt-1">
+                <div className="text-xs text-slate-200 mt-1">
                   {Object.keys(originsByKMA).length} pickup KMAs · {Object.keys(destsByKMA).length} delivery KMAs available
                 </div>
               </>
             ) : (
-              <span className="text-gray-400">Select at least one pickup and one delivery city</span>
+              <span className="text-slate-200">Select at least one pickup and one delivery city</span>
             )}
           </div>
         </div>
@@ -567,11 +548,11 @@ export default function OptionsDisplay({ laneId, lane, originOptions = [], destO
             onClick={handleSaveSelections}
             className={`flex-1 min-w-[200px] px-4 py-2 rounded font-medium transition-colors ${
               hasSelections
-                ? 'bg-purple-600 hover:bg-purple-700 text-white'
-                : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                ? 'bg-violet-600 hover:bg-violet-500 text-white border border-violet-300/45'
+                : 'bg-slate-700/70 text-slate-400 cursor-not-allowed'
             }`}
           >
-            💾 Save Selections & Add to Recap
+            💾 {saveButtonLabel}
           </button>
           
           <button
@@ -579,8 +560,8 @@ export default function OptionsDisplay({ laneId, lane, originOptions = [], destO
             onClick={handleGenerateCsv}
             className={`flex-1 min-w-[180px] px-4 py-2 rounded font-medium transition-colors ${
               hasSelections
-                ? 'bg-green-600 hover:bg-green-700 text-white'
-                : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                ? 'bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-300/45'
+                : 'bg-slate-700/70 text-slate-400 cursor-not-allowed'
             }`}
           >
             📄 Generate DAT CSV
@@ -591,8 +572,8 @@ export default function OptionsDisplay({ laneId, lane, originOptions = [], destO
             onClick={handleGenerateRecap}
             className={`flex-1 min-w-[180px] px-4 py-2 rounded font-medium transition-colors ${
               hasSelections
-                ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                ? 'bg-blue-600 hover:bg-blue-500 text-white border border-blue-300/45'
+                : 'bg-slate-700/70 text-slate-400 cursor-not-allowed'
             }`}
           >
             📋 Export HTML Recap
