@@ -17,7 +17,7 @@ const MAX_TOTAL_JINA_CHARS = 60000;
 const MAX_RESEARCH_CONTEXT_CHARS = 70000;
 const MAX_CONTINUATIONS = 1;
 const MAX_FORMAT_REPAIRS = 1;
-const MAX_TAILORING_REGENERATIONS = 1;
+const MAX_TAILORING_REGENERATIONS = 2;
 
 const modelCache = {
   expiresAt: 0,
@@ -1183,7 +1183,8 @@ function buildRequestSpecificInstruction(latestUserMessage) {
     constraints.push(
       `The user already provided company and location: Company="${company}", Location="${location}".`,
       'Do not ask for company or location.',
-      `You must explicitly reference ${company} and ${location} in the response.`
+      `You must explicitly reference ${company} and ${location} in the response.`,
+      `Include the exact location string "${location}" at least once in each requested email body.`
     );
   }
 
@@ -1301,6 +1302,7 @@ function buildTailoringRegenerationInstruction(promptContext) {
     'If you cannot find facts, ask only one minimal clarification question and stop.',
     `Company: ${promptContext.companyName || '(not provided)'}`,
     `Location: ${promptContext.locationText || '(not provided)'}`,
+    `Use the exact location string "${promptContext.locationText || '(not provided)'}" at least once in each requested email body.`,
     'No subject lines unless requested. No markdown. No scheduling lines unless requested. Use clean, concise paragraph formatting with 2-5 sentences per body.'
   ].join(' ');
 }
