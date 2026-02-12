@@ -131,6 +131,72 @@ export default function Settings() {
     setTimeout(() => setMessage(null), 3000);
   };
 
+  const isMissingUpdatedAtColumnError = (error) => {
+    const message = String(error?.message || '');
+    return /column .*updated_at.* does not exist/i.test(message);
+  };
+
+  const createTeamForUser = async (row) => {
+    if (!supabase || !row?.id || row.id === user?.id) return;
+
+    const targetUserId = row.id;
+    const nextOrganizationId = row.id;
+    const existingTeamName = String(row.team_name || '').trim();
+    const derivedTeamName = existingTeamName || `${row.email || 'User'} Team`;
+
+    try {
+      setUpdatingUserId(targetUserId);
+      setUserAdminError(null);
+
+      setUsers((prev) => prev.map((userRow) => (
+        userRow.id === targetUserId
+          ? {
+            ...userRow,
+            organization_id: nextOrganizationId,
+            team_role: 'owner',
+            team_name: derivedTeamName
+          }
+          : userRow
+      )));
+
+      const payloadWithUpdatedAt = {
+        organization_id: nextOrganizationId,
+        team_role: 'owner',
+        team_name: derivedTeamName,
+        updated_at: new Date().toISOString()
+      };
+
+      let { error } = await supabase
+        .from('profiles')
+        .update(payloadWithUpdatedAt)
+        .eq('id', targetUserId);
+
+      if (error && isMissingUpdatedAtColumnError(error)) {
+        const retry = await supabase
+          .from('profiles')
+          .update({
+            organization_id: nextOrganizationId,
+            team_role: 'owner',
+            team_name: derivedTeamName
+          })
+          .eq('id', targetUserId);
+        error = retry.error;
+      }
+
+      if (error) throw error;
+
+      await Promise.all([fetchUsers(), fetchOrganizationOptions()]);
+      showMessage(`Team created for ${row.email || 'user'}`, 'success');
+    } catch (error) {
+      console.error('Failed to create team for user:', error);
+      showMessage(error.message || 'Failed to create team for user', 'error');
+      setUserAdminError(error.message || 'Failed to create team for user');
+      await Promise.all([fetchUsers(), fetchOrganizationOptions()]);
+    } finally {
+      setUpdatingUserId(null);
+    }
+  };
+
   const updateUserStatus = async (targetUserId, nextStatus) => {
     if (!supabase || !targetUserId || targetUserId === user?.id) return;
 
@@ -660,6 +726,8 @@ export default function Settings() {
                     {users.map((row) => {
                       const isCurrentUser = row.id === user?.id;
                       const isUpdating = updatingUserId === row.id;
+                      const isUnassigned = !String(row.organization_id || '').trim();
+                      const canCreateTeam = !isCurrentUser && isUnassigned;
                       return (
                         <tr key={row.id} className="hover:bg-gray-800/40">
                           <td className="px-4 py-3 text-sm text-gray-100">
@@ -703,6 +771,15 @@ export default function Settings() {
                                   </option>
                                 ))}
                               </select>
+                              {canCreateTeam && (
+                                <button
+                                  onClick={() => createTeamForUser(row)}
+                                  disabled={isUpdating}
+                                  className="px-3 py-1 rounded border border-blue-700 text-blue-300 hover:text-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  Create Team
+                                </button>
+                              )}
                               {isCurrentUser && (
                                 <span className="text-xs text-gray-500">Current user</span>
                               )}
