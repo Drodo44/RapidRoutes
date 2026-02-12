@@ -611,8 +611,8 @@ export default function SalesResources() {
   async function handleSendMessage(event) {
     event.preventDefault();
 
-    const nextUserMessage = draftMessage.trim();
-    if (!nextUserMessage || isSending) return;
+    const nextUserMessage = draftMessage;
+    if (!nextUserMessage.trim() || isSending) return;
 
     const nextConversation = [...messages, { role: 'user', content: nextUserMessage }];
     setMessages(nextConversation);
@@ -624,7 +624,7 @@ export default function SalesResources() {
       const response = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: nextConversation })
+        body: JSON.stringify({ message: nextUserMessage })
       });
 
       const payload = await response.json().catch(() => ({}));
