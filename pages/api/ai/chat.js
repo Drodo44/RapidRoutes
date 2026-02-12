@@ -1315,6 +1315,7 @@ export default async function handler(req, res) {
   const startedAt = Date.now();
   const requestId = createRequestId();
   const streamingEnabled = false;
+  const debugTelemetryRequested = req.headers['x-debug-telemetry'] === '1' || req.query?.debugTelemetry === '1';
 
   let clientAborted = false;
   let clientClosedBeforeResponse = false;
@@ -1738,7 +1739,7 @@ export default async function handler(req, res) {
     responseByteLength = Buffer.byteLength(assistantMessage, 'utf8');
 
     const endedAt = Date.now();
-    logTelemetry({
+    const successTelemetry = {
       requestId,
       startedAt: new Date(startedAt).toISOString(),
       endedAt: new Date(endedAt).toISOString(),
@@ -1771,13 +1772,18 @@ export default async function handler(req, res) {
       jinaExtractsCount,
       requestedBodyCount,
       finalBodyCount
-    });
+    };
+    logTelemetry(successTelemetry);
+
+    if (debugTelemetryRequested) {
+      return res.status(200).json({ reply: assistantMessage, telemetry: successTelemetry });
+    }
 
     return res.status(200).json({ reply: assistantMessage });
   } catch (error) {
     const endedAt = Date.now();
 
-    logTelemetry({
+    const errorTelemetry = {
       requestId,
       startedAt: new Date(startedAt).toISOString(),
       endedAt: new Date(endedAt).toISOString(),
@@ -1811,7 +1817,8 @@ export default async function handler(req, res) {
       requestedBodyCount,
       finalBodyCount,
       errorMessage: error?.message || String(error)
-    });
+    };
+    logTelemetry(errorTelemetry);
 
     if (error?.endpoint === GEMINI_MODELS_ENDPOINT) {
       const message = error?.message || 'Unable to auto-discover Gemini models.';
@@ -1825,6 +1832,9 @@ export default async function handler(req, res) {
     const message = status === 502
       ? error?.message || 'AI service returned an invalid response format.'
       : 'Failed to process AI chat request.';
+    if (debugTelemetryRequested) {
+      return res.status(status).json({ error: message, telemetry: errorTelemetry });
+    }
     return res.status(status).json({ error: message });
   }
 }
