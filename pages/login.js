@@ -1,18 +1,41 @@
 // pages/login.js - Premium Design System from Mockup
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from '../contexts/AuthContext';
 import supabase from '../utils/supabaseClient';
 import Head from 'next/head';
+import { authUnavailableReason, isAuthUnreachable } from '../lib/authReachability';
+
+const LOGIN_TIMEOUT_MS = 8000;
+const AUTH_UNAVAILABLE_MESSAGE = 'Auth service unreachable. Check Supabase Auth Site URL / Redirect URLs for rapid-routes.vercel.app or Supabase outage.';
+
+function withTimeout(promise, timeoutMs, timeoutMessage) {
+  let timeoutId;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
+    }),
+  ]).finally(() => {
+    clearTimeout(timeoutId);
+  });
+}
 
 export default function LoginPage() {
   const router = useRouter();
-  const { isAuthenticated, loading } = useAuth();
+  const {
+    isAuthenticated,
+    loading,
+    authUnavailable,
+    authUnavailableReason: authUnavailableReasonState,
+    markAuthUnavailable,
+  } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const authProbeStartedRef = useRef(false);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -21,29 +44,82 @@ export default function LoginPage() {
     }
   }, [loading, isAuthenticated, router]);
 
+  useEffect(() => {
+    if (loading || isAuthenticated || authUnavailable || authProbeStartedRef.current) {
+      return;
+    }
+
+    authProbeStartedRef.current = true;
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!supabaseUrl) {
+      return;
+    }
+
+    let active = true;
+    const probeAuth = async () => {
+      try {
+        await withTimeout(
+          fetch(`${supabaseUrl}/auth/v1/settings`, { method: 'GET' }),
+          LOGIN_TIMEOUT_MS,
+          'SESSION_TIMEOUT'
+        );
+      } catch (probeError) {
+        if (!active) return;
+        if (!isAuthUnreachable(probeError) && probeError?.message !== 'SESSION_TIMEOUT') {
+          return;
+        }
+        const reason = authUnavailableReason(probeError);
+        markAuthUnavailable(reason);
+        setError(`${AUTH_UNAVAILABLE_MESSAGE} (${reason})`);
+      }
+    };
+
+    probeAuth();
+    return () => {
+      active = false;
+    };
+  }, [loading, isAuthenticated, authUnavailable, markAuthUnavailable]);
+
   async function handleLogin(e) {
     e.preventDefault();
     setError('');
     setBusy(true);
 
     try {
+      if (authUnavailable) {
+        setError(`${AUTH_UNAVAILABLE_MESSAGE}${authUnavailableReasonState ? ` (${authUnavailableReasonState})` : ''}`);
+        return;
+      }
+
       if (!supabase) {
         setError('Authentication service is not configured. Please contact support.');
         return;
       }
 
-      const { data, error: authError } = await supabase.auth.signInWithPassword({
+      const { error: authError } = await withTimeout(supabase.auth.signInWithPassword({
         email,
         password,
-      });
+      }), LOGIN_TIMEOUT_MS, 'SESSION_TIMEOUT');
 
       if (authError) {
+        if (isAuthUnreachable(authError)) {
+          const reason = authUnavailableReason(authError);
+          markAuthUnavailable(reason);
+          setError(`${AUTH_UNAVAILABLE_MESSAGE} (${reason})`);
+          return;
+        }
         setError(authError.message);
         return;
       }
 
       router.push('/dashboard');
     } catch (err) {
+      if (isAuthUnreachable(err) || err?.message === 'SESSION_TIMEOUT') {
+        const reason = authUnavailableReason(err);
+        markAuthUnavailable(reason);
+        setError(`${AUTH_UNAVAILABLE_MESSAGE} (${reason})`);
+        return;
+      }
       setError(err.message || 'An unexpected error occurred');
     } finally {
       setBusy(false);
@@ -98,6 +174,12 @@ export default function LoginPage() {
           {error && (
             <div className="error-message">
               {error}
+            </div>
+          )}
+
+          {authUnavailable && !error && (
+            <div className="error-message">
+              {`${AUTH_UNAVAILABLE_MESSAGE}${authUnavailableReasonState ? ` (${authUnavailableReasonState})` : ''}`}
             </div>
           )}
 

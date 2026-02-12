@@ -1,92 +1,21 @@
 // pages/index.js - RapidRoutes Home
-// Redirects authenticated users to premium dashboard
-import { useEffect, useRef, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/router';
-import supabase from '../utils/supabaseClient';
-
-const ROOT_BOOT_TIMEOUT_MS = 8000;
-
-function withTimeout(promise, timeoutMs, timeoutMessage) {
-  let timeoutId;
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => {
-      timeoutId = setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
-    }),
-  ]).finally(() => {
-    clearTimeout(timeoutId);
-  });
-}
+import { useAuth } from '../contexts/AuthContext';
 
 export default function IndexPage() {
   const router = useRouter();
-  const bootStartRef = useRef(Date.now());
-  const [bootError, setBootError] = useState(null);
+  const { loading, session, authUnavailable, authUnavailableReason } = useAuth();
 
   useEffect(() => {
-    let mounted = true;
-    bootStartRef.current = Date.now();
+    if (loading || authUnavailable) return;
+    const target = session ? '/dashboard' : '/login';
+    router.replace(target).catch((error) => {
+      console.error('[boot] root redirect failed', error);
+    });
+  }, [loading, session, authUnavailable, router]);
 
-    const logBoot = (step, extra = {}) => {
-      console.log('[boot]', {
-        step,
-        elapsedMs: Date.now() - bootStartRef.current,
-        pathname: '/',
-        ...extra,
-      });
-    };
-
-    const checkAuthAndRedirect = async () => {
-      try {
-        logBoot('boot:start');
-        logBoot('boot:supabaseClientReady', { ready: !!supabase });
-
-        if (!supabase) {
-          if (mounted) {
-            logBoot('boot:routeDecision', { decision: 'redirect:/login', reason: 'no-supabase' });
-            router.replace('/login').catch(() => {});
-          }
-          return;
-        }
-
-        logBoot('boot:getSession:start');
-        const { data: { session } } = await withTimeout(
-          supabase.auth.getSession(),
-          ROOT_BOOT_TIMEOUT_MS,
-          'SESSION_TIMEOUT'
-        );
-        logBoot('boot:getSession:done', { hasSession: !!session });
-
-        if (!mounted) return;
-
-        const target = session ? '/dashboard' : '/login';
-        logBoot('boot:routeDecision', { decision: `redirect:${target}`, hasSession: !!session });
-        await router.replace(target);
-        logBoot('boot:done', { loading: false, hasSession: !!session });
-      } catch (error) {
-        const reason = error?.message || 'UNKNOWN_BOOT_ERROR';
-        logBoot('boot:getSession:error', { error: reason });
-
-        if (!mounted) return;
-
-        try {
-          logBoot('boot:routeDecision', { decision: 'redirect:/login', reason });
-          await router.replace('/login');
-          logBoot('boot:done', { loading: false, hasSession: false, fallback: true });
-        } catch {
-          setBootError('Unable to load app. Please retry.');
-          logBoot('boot:done', { loading: false, hasSession: false, fallback: false });
-        }
-      }
-    };
-
-    checkAuthAndRedirect();
-    return () => {
-      mounted = false;
-    };
-  }, [router]);
-
-  if (bootError) {
+  if (authUnavailable) {
     return (
       <div style={{
         minHeight: '100vh',
@@ -95,15 +24,34 @@ export default function IndexPage() {
         justifyContent: 'center',
         background: 'var(--bg, #000)',
       }}>
-        <div style={{ textAlign: 'center' }}>
+        <div style={{ textAlign: 'center', maxWidth: '520px', padding: '0 16px' }}>
           <div style={{
-            fontSize: '15px',
+            fontSize: '18px',
+            color: 'var(--text-primary)',
+            fontFamily: 'Inter, sans-serif',
+            marginBottom: '8px',
+            fontWeight: 600,
+          }}>
+            Auth service unreachable
+          </div>
+          <div style={{
+            fontSize: '14px',
             color: 'var(--text-secondary, #A3A3A3)',
             fontFamily: 'Inter, sans-serif',
-            marginBottom: '12px',
+            marginBottom: '14px',
           }}>
-            {bootError}
+            Check Supabase Auth Site URL / Redirect URLs for rapid-routes.vercel.app or Supabase outage.
           </div>
+          {authUnavailableReason && (
+            <div style={{
+              fontSize: '12px',
+              color: 'var(--text-secondary, #A3A3A3)',
+              fontFamily: 'Inter, sans-serif',
+              marginBottom: '14px',
+            }}>
+              Reason: {authUnavailableReason}
+            </div>
+          )}
           <button
             type="button"
             onClick={() => window.location.reload()}
@@ -123,7 +71,6 @@ export default function IndexPage() {
     );
   }
 
-  // Show loading while redirecting
   return (
     <div style={{
       minHeight: '100vh',

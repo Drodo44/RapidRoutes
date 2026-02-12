@@ -1,6 +1,7 @@
 // utils/supabaseClient.js
 // Re-export from the main singleton module
 import { getBrowserSupabase } from '../lib/supabaseClient.js';
+import { setBrowserSupabaseAuthAutoRefresh } from '../lib/supabaseClient.js';
 
 // Browser client (for client-side code)
 export const supabase = typeof window !== 'undefined'
@@ -12,4 +13,5 @@ export const supabase = typeof window !== 'undefined'
 // import supabaseAdmin from '@/lib/supabaseAdmin';
 
 export { getBrowserSupabase };
+export { setBrowserSupabaseAuthAutoRefresh };
 export default supabase;

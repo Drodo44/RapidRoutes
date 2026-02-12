@@ -21,7 +21,7 @@ function AppContent({ Component, pageProps }) {
   const router = useRouter();
   const [routeLoading, setRouteLoading] = useState(false);
   const [bootError, setBootError] = useState(null);
-  const { loading, isAuthenticated, session } = useAuth();
+  const { loading, isAuthenticated, session, authUnavailable, authUnavailableReason } = useAuth();
   const redirectGuardRef = useRef({ path: null, atMs: 0, count: 0 });
   const bootStartRef = useRef(Date.now());
 
@@ -59,6 +59,16 @@ function AppContent({ Component, pageProps }) {
 
   // Global auth redirect for protected routes
   useEffect(() => {
+    if (authUnavailable) {
+      setRouteLoading(false);
+      setBootError(null);
+      logBoot('boot:routeDecision', {
+        decision: 'auth-unavailable-stop-redirects',
+        reason: authUnavailableReason,
+      });
+      return;
+    }
+
     if (!loading && !PUBLIC_ROUTES.has(router.pathname)) {
       if (!isAuthenticated) {
         const nowMs = Date.now();
@@ -107,13 +117,18 @@ function AppContent({ Component, pageProps }) {
         isAuthenticated,
       });
     }
-  }, [loading, isAuthenticated, router, router.pathname, logBoot]);
+  }, [loading, isAuthenticated, router, router.pathname, logBoot, authUnavailable, authUnavailableReason]);
 
   useEffect(() => {
-    if (!loading) {
-      logBoot('boot:done', { loading: false, routeLoading, bootError: !!bootError });
+    if (!loading || authUnavailable) {
+      logBoot('boot:done', {
+        loading: false,
+        routeLoading,
+        bootError: !!bootError,
+        authUnavailable,
+      });
     }
-  }, [loading, routeLoading, bootError, router.pathname, logBoot]);
+  }, [loading, routeLoading, bootError, router.pathname, logBoot, authUnavailable]);
 
   // Handle route changes
   useEffect(() => {
@@ -170,7 +185,42 @@ function AppContent({ Component, pageProps }) {
           </div>
         )}
 
-        {loading ? (
+        {authUnavailable ? (
+          <div style={{
+            minHeight: '100vh',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <div style={{ textAlign: 'center', maxWidth: '520px', padding: '0 16px' }}>
+              <div style={{ fontSize: '18px', color: 'var(--text-primary)', marginBottom: '8px', fontWeight: 600 }}>
+                Auth service unreachable
+              </div>
+              <div style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '14px' }}>
+                Check Supabase Auth Site URL / Redirect URLs for rapid-routes.vercel.app or Supabase outage.
+              </div>
+              {authUnavailableReason && (
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '14px' }}>
+                  Reason: {authUnavailableReason}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                style={{
+                  border: '1px solid var(--border)',
+                  borderRadius: '8px',
+                  padding: '8px 14px',
+                  background: 'var(--bg-secondary)',
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer',
+                }}
+              >
+                Reload
+              </button>
+            </div>
+          </div>
+        ) : loading ? (
           <div style={{
             minHeight: '100vh',
             display: 'flex',
