@@ -10,12 +10,14 @@ const GEMINI_TIMEOUT_MS = 35000;
 const RESEARCH_BUDGET_MS = 12000;
 
 const MAX_SERPER_RESULTS = 5;
+const MAX_SERPER_QUERIES = 3;
 const MAX_JINA_LINKS = 3;
 const MAX_JINA_CHARS_PER_PAGE = 20000;
 const MAX_TOTAL_JINA_CHARS = 60000;
 const MAX_RESEARCH_CONTEXT_CHARS = 70000;
 const MAX_CONTINUATIONS = 1;
 const MAX_FORMAT_REPAIRS = 1;
+const MAX_TAILORING_REGENERATIONS = 1;
 
 const modelCache = {
   expiresAt: 0,
@@ -38,11 +40,163 @@ const NUMBER_WORDS = {
   twelve: 12
 };
 
+const COMPANY_SUFFIXES = [
+  'inc',
+  'incorporated',
+  'corp',
+  'corporation',
+  'co',
+  'company',
+  'llc',
+  'ltd',
+  'limited',
+  'plc',
+  'group',
+  'holdings',
+  'international'
+];
+
+const LOW_SIGNAL_HOST_PATTERNS = [
+  'zoominfo',
+  'dnb.com',
+  'signalhire',
+  'rocketreach',
+  'contactout',
+  'theorg',
+  'opencorporates',
+  'buzzfile'
+];
+
+const TRUSTED_HOST_PATTERNS = [
+  'sec.gov',
+  'wikipedia.org',
+  'reuters.com',
+  'bloomberg.com',
+  'yahoo.com',
+  'investor',
+  'newsroom'
+];
+
+const INDUSTRY_OPERATION_TERMS = [
+  'wood',
+  'timber',
+  'lumber',
+  'plywood',
+  'osb',
+  'engineered wood',
+  'mill',
+  'sawmill',
+  'facility',
+  'manufacturing',
+  'operations',
+  'distribution',
+  'supply chain',
+  'panel',
+  'forest',
+  'fiber',
+  'capacity',
+  'production'
+];
+
+const OPERATIONAL_PAIN_TERMS = [
+  'delay',
+  'downtime',
+  'backlog',
+  'bottleneck',
+  'inefficiency',
+  'complexity',
+  'drag',
+  'uncertainty',
+  'lead time',
+  'capacity',
+  'volatility',
+  'margin',
+  'cost',
+  'inventory',
+  'service levels',
+  'on-time',
+  'throughput',
+  'utilization',
+  'reliability',
+  'disruption',
+  'compliance',
+  'tariff',
+  'labor'
+];
+
+const BANNED_GENERIC_PHRASES = [
+  'through tql',
+  "north america's largest",
+  'private fleet of 2,600+ trailers',
+  'private fleet of 2600+ trailers',
+  'i have an opening at',
+  'north america largest freight brokerage'
+];
+
+const STATE_NAME_BY_ABBREV = {
+  AL: 'alabama',
+  AK: 'alaska',
+  AZ: 'arizona',
+  AR: 'arkansas',
+  CA: 'california',
+  CO: 'colorado',
+  CT: 'connecticut',
+  DE: 'delaware',
+  FL: 'florida',
+  GA: 'georgia',
+  HI: 'hawaii',
+  ID: 'idaho',
+  IL: 'illinois',
+  IN: 'indiana',
+  IA: 'iowa',
+  KS: 'kansas',
+  KY: 'kentucky',
+  LA: 'louisiana',
+  ME: 'maine',
+  MD: 'maryland',
+  MA: 'massachusetts',
+  MI: 'michigan',
+  MN: 'minnesota',
+  MS: 'mississippi',
+  MO: 'missouri',
+  MT: 'montana',
+  NE: 'nebraska',
+  NV: 'nevada',
+  NH: 'new hampshire',
+  NJ: 'new jersey',
+  NM: 'new mexico',
+  NY: 'new york',
+  NC: 'north carolina',
+  ND: 'north dakota',
+  OH: 'ohio',
+  OK: 'oklahoma',
+  OR: 'oregon',
+  PA: 'pennsylvania',
+  RI: 'rhode island',
+  SC: 'south carolina',
+  SD: 'south dakota',
+  TN: 'tennessee',
+  TX: 'texas',
+  UT: 'utah',
+  VT: 'vermont',
+  VA: 'virginia',
+  WA: 'washington',
+  WV: 'west virginia',
+  WI: 'wisconsin',
+  WY: 'wyoming',
+  DC: 'district of columbia'
+};
+
 const BASE_SYSTEM_INSTRUCTION = [
   'Follow the user instructions exactly.',
   'When the user requests an exact count or strict output shape, comply exactly.',
   'Use REFERENCE MATERIAL silently for factual grounding.',
   'Do not mention research, sources, scraping, Serper, Jina, or reference material unless the user explicitly asks for sources or links.',
+  'If the user already provides company and location, do not ask for them again.',
+  'Use provided company and location details directly in the copy when present.',
+  'Avoid generic brokerage boilerplate or canned superlatives.',
+  'Do not include scheduling lines unless the user explicitly asks for scheduling.',
+  'Write in tight paragraph style with no headers; keep line breaks clean and intentional.',
   'Do not add extra sections, labels, preambles, headings, bullets, numbering, separators, or commentary unless the user asks for them.',
   'Ask follow-up questions only if required inputs are truly missing to complete the exact request, then stop.'
 ].join(' ');
@@ -66,6 +220,198 @@ function normalizeHttpLink(link) {
   if (!trimmed) return '';
   if (/^https?:\/\//i.test(trimmed)) return trimmed;
   return `https://${trimmed}`;
+}
+
+function normalizeForMatch(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function extractCompanyFromMessage(message) {
+  const input = String(message || '');
+  if (!input.trim()) return '';
+
+  const explicitMatch = input.match(/\bcompany\s*:\s*([^\n]+)/i);
+  if (explicitMatch?.[1]) {
+    return explicitMatch[1].replace(/[\r\t]/g, ' ').trim();
+  }
+
+  const fallback = extractLikelyCompanyOrDomain(input);
+  if (!fallback) return '';
+  if (fallback.includes('.')) return fallback;
+  return fallback;
+}
+
+function extractLocationFromMessage(message) {
+  const input = String(message || '');
+  if (!input.trim()) return '';
+
+  const explicitLocation = input.match(/\b(?:city|location)\s*:\s*([^\n]+)/i);
+  if (explicitLocation?.[1]) {
+    return explicitLocation[1].replace(/[\r\t]/g, ' ').trim();
+  }
+
+  const cityStateMatch = input.match(/\b([A-Za-z][A-Za-z.'\-\s]{1,50},\s*[A-Z]{2})\b/);
+  if (cityStateMatch?.[1]) {
+    return cityStateMatch[1].trim();
+  }
+
+  return '';
+}
+
+function parseCityState(locationText) {
+  const location = String(locationText || '').trim();
+  if (!location) {
+    return { city: '', stateAbbrev: '', stateName: '' };
+  }
+
+  const match = location.match(/^([^,]+),\s*([A-Z]{2})$/i);
+  if (match) {
+    const stateAbbrev = match[2].toUpperCase();
+    return {
+      city: match[1].trim(),
+      stateAbbrev,
+      stateName: STATE_NAME_BY_ABBREV[stateAbbrev] || ''
+    };
+  }
+
+  return { city: location, stateAbbrev: '', stateName: '' };
+}
+
+function extractPromptContext(messages) {
+  const userMessages = messages
+    .filter((message) => message.role === 'user')
+    .map((message) => message.content)
+    .filter(Boolean);
+
+  const combined = userMessages.join('\n');
+  const latest = userMessages[userMessages.length - 1] || '';
+
+  const companyName = extractCompanyFromMessage(latest) || extractCompanyFromMessage(combined);
+  const locationText = extractLocationFromMessage(latest) || extractLocationFromMessage(combined);
+  const cityState = parseCityState(locationText);
+
+  return {
+    companyName: companyName.trim(),
+    locationText: locationText.trim(),
+    city: cityState.city,
+    stateAbbrev: cityState.stateAbbrev,
+    stateName: cityState.stateName,
+    hasCompany: Boolean(companyName.trim()),
+    hasLocation: Boolean(locationText.trim())
+  };
+}
+
+function buildCompanyAliases(companyName) {
+  const normalized = normalizeForMatch(companyName);
+  if (!normalized) return [];
+
+  const tokens = normalized
+    .split(' ')
+    .filter(Boolean)
+    .filter((token) => !COMPANY_SUFFIXES.includes(token));
+
+  if (tokens.length === 0) return [];
+
+  const aliases = new Set();
+  aliases.add(tokens.join(' '));
+  aliases.add(tokens.slice(0, 2).join(' '));
+  aliases.add(tokens[0]);
+
+  return Array.from(aliases).filter((alias) => alias.length >= 3);
+}
+
+function extractIndustryHintFromPrompt(message) {
+  const normalized = normalizeForMatch(message);
+  const match = INDUSTRY_OPERATION_TERMS.find((term) => normalized.includes(term));
+  return match || 'operations products';
+}
+
+function buildSerperQueries(messages, promptContext) {
+  const userTurns = messages
+    .filter((message) => message.role === 'user')
+    .map((message) => message.content)
+    .filter(Boolean);
+
+  const lastUserRaw = userTurns[userTurns.length - 1] || '';
+  const priorUserRaw = userTurns.slice(0, -1).slice(-2).join(' ');
+  const company = promptContext.companyName;
+  const location = promptContext.locationText;
+  const industryHint = extractIndustryHintFromPrompt(`${lastUserRaw} ${priorUserRaw}`);
+
+  const queries = [];
+
+  if (company && location) {
+    queries.push(`${company} ${location} business operations products`);
+    queries.push(`${company} ${location} facility`);
+    queries.push(`${company} ${industryHint} North America`);
+  } else if (company) {
+    queries.push(`${company} business operations products`);
+    queries.push(`${company} facility locations`);
+    queries.push(`${company} recent news`);
+  } else {
+    const cleanedLast = cleanForSearch(lastUserRaw);
+    const cleanedPrior = cleanForSearch(priorUserRaw);
+    const target = takeFirstWords(cleanedLast || lastUserRaw, 16);
+    const supporting = takeFirstWords(cleanedPrior || priorUserRaw, 10);
+    const fallback = [target, supporting].filter(Boolean).join(' ').trim();
+    if (fallback) {
+      queries.push(`${fallback} company overview products services location recent news`);
+    }
+  }
+
+  return [...new Set(queries.map((query) => query.replace(/\s+/g, ' ').trim()).filter(Boolean))]
+    .slice(0, MAX_SERPER_QUERIES);
+}
+
+function getHostname(link) {
+  try {
+    return new URL(normalizeHttpLink(link)).hostname.toLowerCase();
+  } catch (_error) {
+    return '';
+  }
+}
+
+function scoreSerperResult(result, promptContext) {
+  const hostname = getHostname(result.link);
+  const text = normalizeForMatch(`${result.title} ${result.snippet}`);
+  let score = 0;
+
+  if (!hostname) {
+    score -= 10;
+  }
+
+  if (LOW_SIGNAL_HOST_PATTERNS.some((pattern) => hostname.includes(pattern))) {
+    score -= 6;
+  }
+
+  if (TRUSTED_HOST_PATTERNS.some((pattern) => hostname.includes(pattern))) {
+    score += 4;
+  }
+
+  if (promptContext.companyName) {
+    const companyToken = normalizeForMatch(promptContext.companyName).split(' ')[0] || '';
+    if (companyToken && (hostname.includes(companyToken) || text.includes(companyToken))) {
+      score += 6;
+    }
+  }
+
+  if (promptContext.city && text.includes(normalizeForMatch(promptContext.city))) {
+    score += 3;
+  }
+
+  if (promptContext.stateAbbrev && text.includes(promptContext.stateAbbrev.toLowerCase())) {
+    score += 2;
+  }
+
+  if (INDUSTRY_OPERATION_TERMS.some((term) => text.includes(term))) {
+    score += 2;
+  }
+
+  return score;
 }
 
 function parseAssistantText(payload) {
@@ -194,7 +540,7 @@ function extractLikelyCompanyOrDomain(message) {
     if (!match?.[1]) continue;
 
     const candidate = String(match[1])
-      .replace(/["“”]/g, '')
+      .replace(/["\u201C\u201D]/g, '')
       .replace(/\s+/g, ' ')
       .trim();
 
@@ -296,38 +642,217 @@ function validateEmailBodyOutput(output, requestedBodyCount) {
   return { ok: true, reason: '', bodyCount: bodies.length };
 }
 
-function buildSerperQuery(messages) {
-  const userTurns = messages
-    .filter((message) => message.role === 'user')
-    .map((message) => message.content)
-    .filter(Boolean);
-
-  const lastUserRaw = userTurns[userTurns.length - 1] || '';
-  const priorUserRaw = userTurns.slice(0, -1).slice(-2).join(' ');
-
-  const lastUser = cleanForSearch(lastUserRaw);
-  const priorUser = cleanForSearch(priorUserRaw);
-
-  const target = extractLikelyCompanyOrDomain(lastUser)
-    || extractLikelyCompanyOrDomain(priorUser)
-    || takeFirstWords(lastUser || lastUserRaw, 16);
-
-  const supportingContext = takeFirstWords(priorUser || priorUserRaw, 10);
-
-  const baseQuery = [target, supportingContext].filter(Boolean).join(' ').trim();
-  if (!baseQuery) return '';
-
-  return `${baseQuery} company overview products services location recent news`;
+function userAskedForSubjects(latestUserMessage) {
+  return /\bsubject\b/i.test(String(latestUserMessage || ''));
 }
 
-function normalizeSerperResults(payload) {
+function userAskedForBullets(latestUserMessage) {
+  return /\b(bullet|bulleted|list|numbered)\b/i.test(String(latestUserMessage || ''));
+}
+
+function userAskedForScheduling(latestUserMessage) {
+  return /\b(schedule|scheduling|calendar|meeting|call|time to chat|availability)\b/i.test(
+    String(latestUserMessage || '')
+  );
+}
+
+function containsBulletFormatting(output) {
+  return /^\s*(?:[-*]|\d+[.)])\s+/m.test(String(output || ''));
+}
+
+function containsSchedulingLine(output) {
+  return /\b(i have an opening at|available (?:this|next)|book (?:a )?call|schedule (?:a )?call|calendar|15[-\s]?minute|30[-\s]?minute)\b/i
+    .test(String(output || ''));
+}
+
+function containsMarkdownStyling(output) {
+  const text = String(output || '');
+  return /(^|\s)(\*\*|__)[^*_]+(\*\*|__)(\s|$)/.test(text)
+    || /(^|\s)\*[^*\n]+\*(\s|$)/.test(text)
+    || /(^|\s)_[^_\n]+_(\s|$)/.test(text)
+    || /(^|\n)\s*#{1,6}\s+/.test(text)
+    || /^(\s*\*{3,}\s*)$/m.test(text);
+}
+
+function buildSourceCorpus(serperResults, pageExtracts) {
+  const snippets = serperResults.map((item) => `${item.title} ${item.snippet}`);
+  const extracts = pageExtracts.map((item) => item.extract);
+  return normalizeForMatch([...snippets, ...extracts].join(' '));
+}
+
+function isMinimalClarificationRequest(output) {
+  const text = String(output || '').trim();
+  if (!text || text.length > 260) return false;
+  if ((text.match(/\?/g) || []).length !== 1) return false;
+  if (text.split('\n').filter((line) => line.trim()).length > 2) return false;
+  return /\b(please|could you|can you|share|confirm|provide|clarify|missing)\b/i.test(text);
+}
+
+function includesCompanyReference(output, companyName) {
+  const normalizedOutput = normalizeForMatch(output);
+  const aliases = buildCompanyAliases(companyName);
+  return aliases.some((alias) => normalizedOutput.includes(alias));
+}
+
+function includesLocationReference(output, promptContext) {
+  const normalizedOutput = normalizeForMatch(output);
+  const locationTokens = [
+    normalizeForMatch(promptContext.locationText),
+    normalizeForMatch(promptContext.city),
+    normalizeForMatch(promptContext.stateAbbrev),
+    normalizeForMatch(promptContext.stateName)
+  ].filter(Boolean);
+
+  return locationTokens.some((token) => normalizedOutput.includes(token));
+}
+
+function hasValidParagraphShape(output, requestedBodyCount) {
+  if (!requestedBodyCount) return true;
+
+  const bodies = splitEmailBodies(output);
+  if (bodies.length !== requestedBodyCount) return false;
+
+  return bodies.every((body) => {
+    const paragraphs = body.split(/\n\s*\n/).filter((segment) => segment.trim());
+    if (paragraphs.length > 2) return false;
+
+    const lines = body.split('\n').filter((line) => line.trim());
+    return lines.length <= 8;
+  });
+}
+
+function evaluateTailoringGate({
+  latestUserMessage,
+  assistantMessage,
+  promptContext,
+  serperResults,
+  pageExtracts,
+  requestedBodyCount
+}) {
+  const requiresTailoring = promptContext.hasCompany && promptContext.hasLocation;
+  const reasons = [];
+  const normalizedOutput = normalizeForMatch(assistantMessage);
+
+  if (!requiresTailoring) {
+    return {
+      pass: true,
+      reasons,
+      requiresTailoring,
+      matchedSourceSignalCount: 0,
+      hasOperationalPainSignal: false
+    };
+  }
+
+  if (!includesCompanyReference(assistantMessage, promptContext.companyName)) {
+    reasons.push('missing_company_reference');
+  }
+
+  if (!includesLocationReference(assistantMessage, promptContext)) {
+    reasons.push('missing_location_reference');
+  }
+
+  const sourceCorpus = buildSourceCorpus(serperResults, pageExtracts);
+  const sourceBackedTerms = INDUSTRY_OPERATION_TERMS
+    .filter((term) => sourceCorpus.includes(normalizeForMatch(term)));
+  const matchedSourceTerms = sourceBackedTerms
+    .filter((term) => normalizedOutput.includes(normalizeForMatch(term)));
+  const hasOperationalPainSignal = OPERATIONAL_PAIN_TERMS
+    .some((term) => normalizedOutput.includes(normalizeForMatch(term)));
+
+  if (matchedSourceTerms.length === 0) {
+    reasons.push('missing_source_backed_context_signal');
+  }
+
+  if (!hasOperationalPainSignal) {
+    reasons.push('missing_operational_pain_signal');
+  }
+
+  if ((matchedSourceTerms.length + (hasOperationalPainSignal ? 1 : 0)) < 2) {
+    reasons.push('insufficient_company_context_signals');
+  }
+
+  const bannedPhraseMatch = BANNED_GENERIC_PHRASES.find(
+    (phrase) => normalizedOutput.includes(normalizeForMatch(phrase))
+  );
+  if (bannedPhraseMatch) {
+    reasons.push(`banned_phrase:${bannedPhraseMatch}`);
+  }
+
+  if (!userAskedForSubjects(latestUserMessage) && /^subject\s*:/im.test(assistantMessage)) {
+    reasons.push('subject_not_allowed');
+  }
+
+  if (!userAskedForBullets(latestUserMessage) && containsBulletFormatting(assistantMessage)) {
+    reasons.push('bullets_not_allowed');
+  }
+
+  if (!userAskedForScheduling(latestUserMessage) && containsSchedulingLine(assistantMessage)) {
+    reasons.push('scheduling_line_not_allowed');
+  }
+
+  if (containsMarkdownStyling(assistantMessage)) {
+    reasons.push('markdown_not_allowed');
+  }
+
+  if (!hasValidParagraphShape(assistantMessage, requestedBodyCount)) {
+    reasons.push('invalid_paragraph_shape');
+  }
+
+  const hasResearchSignals = sourceBackedTerms.length > 0 || pageExtracts.length > 0 || serperResults.length > 0;
+  if (!hasResearchSignals && isMinimalClarificationRequest(assistantMessage)) {
+    return {
+      pass: true,
+      reasons: [],
+      requiresTailoring,
+      matchedSourceSignalCount: matchedSourceTerms.length,
+      hasOperationalPainSignal
+    };
+  }
+
+  return {
+    pass: reasons.length === 0,
+    reasons,
+    requiresTailoring,
+    matchedSourceSignalCount: matchedSourceTerms.length,
+    hasOperationalPainSignal
+  };
+}
+
+function normalizeSerperResults(payload, query) {
   const organicResults = Array.isArray(payload?.organic) ? payload.organic : [];
 
   return organicResults.slice(0, MAX_SERPER_RESULTS).map((item) => ({
     title: typeof item?.title === 'string' ? item.title.trim() : '',
     link: normalizeHttpLink(item?.link || ''),
-    snippet: typeof item?.snippet === 'string' ? item.snippet.trim() : ''
-  })).filter((item) => item.link);
+    snippet: typeof item?.snippet === 'string' ? item.snippet.trim() : '',
+    hostname: getHostname(item?.link || ''),
+    query
+  })).filter((item) => item.link && item.hostname);
+}
+
+function chooseSerperResults(candidates, promptContext) {
+  const dedupedByHostname = new Map();
+
+  candidates.forEach((candidate) => {
+    const score = scoreSerperResult(candidate, promptContext);
+    const existing = dedupedByHostname.get(candidate.hostname);
+
+    if (!existing || score > existing.score) {
+      dedupedByHostname.set(candidate.hostname, { ...candidate, score });
+    }
+  });
+
+  return Array.from(dedupedByHostname.values())
+    .sort((a, b) => b.score - a.score)
+    .slice(0, MAX_SERPER_RESULTS)
+    .map((item) => ({
+      title: item.title,
+      link: item.link,
+      snippet: item.snippet,
+      hostname: item.hostname,
+      score: item.score,
+      query: item.query
+    }));
 }
 
 function remainingBudgetMs(deadlineMs) {
@@ -352,8 +877,8 @@ async function fetchWithTimeout(url, options, timeoutMs) {
   }
 }
 
-async function fetchSerperResults(query, serperApiKey, deadlineMs) {
-  if (!query) {
+async function fetchSerperResults(queries, serperApiKey, deadlineMs, promptContext) {
+  if (!Array.isArray(queries) || queries.length === 0) {
     return { results: [], notes: ['Serper query was empty.'] };
   }
 
@@ -361,43 +886,56 @@ async function fetchSerperResults(query, serperApiKey, deadlineMs) {
     return { results: [], notes: ['SERPER_API_KEY missing; search was skipped.'] };
   }
 
-  const timeoutMs = Math.min(SERPER_TIMEOUT_MS, remainingBudgetMs(deadlineMs));
-  if (timeoutMs <= 0) {
-    return { results: [], notes: ['Research time budget exhausted before Serper search.'] };
-  }
+  const notes = [];
+  const allCandidates = [];
 
-  try {
-    const response = await fetchWithTimeout(
-      SERPER_ENDPOINT,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-KEY': serperApiKey
-        },
-        body: JSON.stringify({ q: query, num: MAX_SERPER_RESULTS })
-      },
-      timeoutMs
-    );
-
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      const upstreamError =
-        typeof payload?.message === 'string' && payload.message.trim()
-          ? payload.message.trim()
-          : `Serper request failed with status ${response.status}.`;
-      console.error('[ai/chat] Serper upstream error:', response.status, upstreamError);
-      return { results: [], notes: [upstreamError] };
+  for (const query of queries.slice(0, MAX_SERPER_QUERIES)) {
+    const timeoutMs = Math.min(SERPER_TIMEOUT_MS, remainingBudgetMs(deadlineMs));
+    if (timeoutMs <= 0) {
+      notes.push('Research time budget exhausted before Serper search.');
+      break;
     }
 
-    return { results: normalizeSerperResults(payload), notes: [] };
-  } catch (error) {
-    const message = error?.name === 'AbortError'
-      ? 'Serper request timed out.'
-      : 'Serper request failed.';
-    console.error('[ai/chat] Serper request error:', error?.message || error);
-    return { results: [], notes: [message] };
+    try {
+      const response = await fetchWithTimeout(
+        SERPER_ENDPOINT,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-KEY': serperApiKey
+          },
+          body: JSON.stringify({ q: query, num: MAX_SERPER_RESULTS })
+        },
+        timeoutMs
+      );
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const upstreamError =
+          typeof payload?.message === 'string' && payload.message.trim()
+            ? payload.message.trim()
+            : `Serper request failed with status ${response.status}.`;
+        notes.push(`Serper failed for "${query}": ${upstreamError}`);
+        continue;
+      }
+
+      allCandidates.push(...normalizeSerperResults(payload, query));
+    } catch (error) {
+      const message = error?.name === 'AbortError'
+        ? `Serper request timed out for "${query}".`
+        : `Serper request failed for "${query}".`;
+      console.error('[ai/chat] Serper request error:', error?.message || error);
+      notes.push(message);
+    }
   }
+
+  const results = chooseSerperResults(allCandidates, promptContext);
+  if (results.length === 0 && notes.length === 0) {
+    notes.push('Serper returned no results.');
+  }
+
+  return { results, notes };
 }
 
 async function fetchSingleJinaExtract(link, jinaApiKey, maxChars, timeoutMs) {
@@ -472,14 +1010,14 @@ async function fetchJinaExtracts(links, jinaApiKey, deadlineMs) {
   return { extracts, notes };
 }
 
-function buildResearchContext({ query, serperResults, pageExtracts, notes }) {
+function buildResearchContext({ queries, serperResults, pageExtracts, notes }) {
   const sourceByUrl = new Map(
     serperResults.map((item) => [item.link, item])
   );
 
   const lines = [
     'REFERENCE MATERIAL (DO NOT MENTION):',
-    `Research Query: ${query || '(none)'}`,
+    `Research Queries: ${(Array.isArray(queries) && queries.length > 0) ? queries.join(' | ') : '(none)'}`,
     '',
     'Source List (Top Search Results):'
   ];
@@ -491,6 +1029,9 @@ function buildResearchContext({ query, serperResults, pageExtracts, notes }) {
       lines.push(`[${index + 1}] ${result.title || '(no title)'}`);
       lines.push(`URL: ${result.link || '(no link)'}`);
       lines.push(`Snippet: ${result.snippet || '(no snippet)'}`);
+      if (result.query) {
+        lines.push(`Matched Query: ${result.query}`);
+      }
       lines.push('');
     });
   }
@@ -705,6 +1246,17 @@ function buildFormatRepairInstruction(requestedBodyCount, reason) {
   ].join(' ');
 }
 
+function buildTailoringRegenerationInstruction(promptContext) {
+  return [
+    'You failed to tailor to the provided company/location. Regenerate from scratch.',
+    'You MUST (a) reference company and location, (b) use at least two factual signals from reference material, (c) avoid generic brokerage claims, (d) obey format rules.',
+    'If you cannot find facts, ask only one minimal clarification question and stop.',
+    `Company: ${promptContext.companyName || '(not provided)'}`,
+    `Location: ${promptContext.locationText || '(not provided)'}`,
+    'No subject lines unless requested. No markdown. No scheduling lines unless requested. Use clean, concise paragraph formatting.'
+  ].join(' ');
+}
+
 function logTelemetry(telemetry) {
   console.log('[ai/chat][telemetry]', JSON.stringify(telemetry));
 }
@@ -749,11 +1301,21 @@ export default async function handler(req, res) {
   let formatRepairUsed = false;
   let formatRepairReason = '';
   let formatRepairFinishReason = '';
+  let tailoringGatePass = true;
+  let tailoringGateReasons = [];
+  let regenerationAttempted = false;
+  let regenerationFinishReason = '';
+  let matchedSourceSignalCount = 0;
+  let hasOperationalPainSignal = false;
   let query = '';
+  let serperQueries = [];
   let serperResultsCount = 0;
   let jinaExtractsCount = 0;
   let requestedBodyCount = null;
   let finalBodyCount = 0;
+  let hasCompany = false;
+  let hasLocation = false;
+  let researchUsedChars = 0;
 
   try {
     const normalizedMessages = normalizeIncomingMessages(req.body);
@@ -762,14 +1324,19 @@ export default async function handler(req, res) {
     }
 
     const latestUserMessage = normalizedMessages[normalizedMessages.length - 1]?.content || '';
+    const promptContext = extractPromptContext(normalizedMessages);
+    hasCompany = promptContext.hasCompany;
+    hasLocation = promptContext.hasLocation;
 
     const researchDeadline = Date.now() + RESEARCH_BUDGET_MS;
 
-    query = buildSerperQuery(normalizedMessages);
+    serperQueries = buildSerperQueries(normalizedMessages, promptContext);
+    query = serperQueries.join(' | ');
     const { results: serperResults, notes: serperNotes } = await fetchSerperResults(
-      query,
+      serperQueries,
       process.env.SERPER_API_KEY,
-      researchDeadline
+      researchDeadline,
+      promptContext
     );
     serperResultsCount = serperResults.length;
 
@@ -782,11 +1349,12 @@ export default async function handler(req, res) {
     jinaExtractsCount = pageExtracts.length;
 
     const researchContext = buildResearchContext({
-      query,
+      queries: serperQueries,
       serperResults,
       pageExtracts,
       notes: [...serperNotes, ...jinaNotes]
     });
+    researchUsedChars = researchContext.length;
 
     const contents = toGeminiContents(normalizedMessages);
     const overrideModel = normalizeModelName(process.env.GEMINI_MODEL);
@@ -946,6 +1514,177 @@ export default async function handler(req, res) {
       finalBodyCount = countBodies(assistantMessage);
     }
 
+    let tailoringResult = evaluateTailoringGate({
+      latestUserMessage,
+      assistantMessage,
+      promptContext,
+      serperResults,
+      pageExtracts,
+      requestedBodyCount
+    });
+
+    tailoringGatePass = tailoringResult.pass;
+    tailoringGateReasons = tailoringResult.reasons;
+    matchedSourceSignalCount = tailoringResult.matchedSourceSignalCount;
+    hasOperationalPainSignal = tailoringResult.hasOperationalPainSignal;
+
+    if (!tailoringResult.pass && tailoringResult.requiresTailoring) {
+      for (let attempt = 0; attempt < MAX_TAILORING_REGENERATIONS; attempt += 1) {
+        regenerationAttempted = true;
+        const regenerationInstruction = buildTailoringRegenerationInstruction(promptContext);
+
+        const regenerationResult = await generateWithGeminiModel({
+          apiKey: geminiApiKey,
+          model: selectedModel,
+          contents,
+          researchContext,
+          latestUserMessage,
+          extraSystemInstruction: regenerationInstruction
+        });
+
+        if (!regenerationResult.ok) {
+          break;
+        }
+
+        regenerationFinishReason = extractFinishReason(regenerationResult.payload);
+        finishReason = regenerationFinishReason || finishReason;
+        usageSummary = mergeUsage(usageSummary, extractUsage(regenerationResult.payload));
+
+        const regeneratedMessage = parseAssistantText(regenerationResult.payload);
+        if (!regeneratedMessage) {
+          break;
+        }
+
+        assistantMessage = regeneratedMessage;
+
+        if (shouldContinueForTruncation({
+          requestedBodyCount,
+          assistantMessage,
+          finishReason,
+          attempt: 0
+        })) {
+          const producedBodies = countBodies(assistantMessage);
+          const remainingBodies = Math.max(0, requestedBodyCount - producedBodies);
+
+          if (remainingBodies > 0) {
+            continuationUsed = true;
+
+            const continuationPrompt = buildContinuationPrompt(remainingBodies);
+            const continuationContents = [
+              ...contents,
+              { role: 'model', parts: [{ text: assistantMessage }] },
+              { role: 'user', parts: [{ text: continuationPrompt }] }
+            ];
+
+            const continuationResult = await generateWithGeminiModel({
+              apiKey: geminiApiKey,
+              model: selectedModel,
+              contents: continuationContents,
+              researchContext,
+              latestUserMessage: continuationPrompt,
+              extraSystemInstruction: regenerationInstruction
+            });
+
+            if (continuationResult.ok) {
+              continuationFinishReason = extractFinishReason(continuationResult.payload);
+              usageSummary = mergeUsage(usageSummary, extractUsage(continuationResult.payload));
+
+              const continuationText = parseAssistantText(continuationResult.payload);
+              if (continuationText) {
+                assistantMessage = `${assistantMessage.trim()}\n\n${continuationText.trim()}`;
+              }
+            }
+          }
+        }
+
+        if (requestedBodyCount) {
+          let validation = validateEmailBodyOutput(assistantMessage, requestedBodyCount);
+          finalBodyCount = validation.bodyCount;
+
+          if (!validation.ok) {
+            formatRepairReason = validation.reason;
+
+            for (let repairAttempt = 0; repairAttempt < MAX_FORMAT_REPAIRS; repairAttempt += 1) {
+              formatRepairUsed = true;
+              const formatRepairInstruction = buildFormatRepairInstruction(
+                requestedBodyCount,
+                validation.reason
+              );
+
+              const repairResult = await generateWithGeminiModel({
+                apiKey: geminiApiKey,
+                model: selectedModel,
+                contents,
+                researchContext,
+                latestUserMessage,
+                extraSystemInstruction: `${regenerationInstruction} ${formatRepairInstruction}`
+              });
+
+              if (!repairResult.ok) {
+                break;
+              }
+
+              formatRepairFinishReason = extractFinishReason(repairResult.payload);
+              usageSummary = mergeUsage(usageSummary, extractUsage(repairResult.payload));
+
+              const repairedMessage = parseAssistantText(repairResult.payload);
+              if (!repairedMessage) {
+                break;
+              }
+
+              const repairedValidation = validateEmailBodyOutput(repairedMessage, requestedBodyCount);
+              validation = repairedValidation;
+              finalBodyCount = repairedValidation.bodyCount;
+
+              if (repairedValidation.ok) {
+                assistantMessage = repairedMessage;
+                formatRepairReason = '';
+                break;
+              }
+
+              formatRepairReason = repairedValidation.reason;
+            }
+
+            if (!validation.ok) {
+              const formatError = new Error(
+                `AI response failed strict email-body formatting: ${validation.reason}`
+              );
+              formatError.status = 502;
+              throw formatError;
+            }
+          }
+        } else {
+          finalBodyCount = countBodies(assistantMessage);
+        }
+
+        tailoringResult = evaluateTailoringGate({
+          latestUserMessage,
+          assistantMessage,
+          promptContext,
+          serperResults,
+          pageExtracts,
+          requestedBodyCount
+        });
+
+        tailoringGatePass = tailoringResult.pass;
+        tailoringGateReasons = tailoringResult.reasons;
+        matchedSourceSignalCount = tailoringResult.matchedSourceSignalCount;
+        hasOperationalPainSignal = tailoringResult.hasOperationalPainSignal;
+
+        if (tailoringResult.pass) {
+          break;
+        }
+      }
+
+      if (!tailoringGatePass) {
+        const tailoringError = new Error(
+          `AI response failed tailoring gate: ${tailoringGateReasons.join(', ') || 'unspecified_failure'}`
+        );
+        tailoringError.status = 502;
+        throw tailoringError;
+      }
+    }
+
     responseByteLength = Buffer.byteLength(assistantMessage, 'utf8');
 
     const endedAt = Date.now();
@@ -962,6 +1701,15 @@ export default async function handler(req, res) {
       formatRepairUsed,
       formatRepairReason: formatRepairReason || null,
       formatRepairFinishReason: formatRepairFinishReason || null,
+      tailoringGatePass,
+      tailoringGateReasons,
+      regenerationAttempted,
+      regenerationFinishReason: regenerationFinishReason || null,
+      hasCompany,
+      hasLocation,
+      researchUsedChars,
+      matchedSourceSignalCount,
+      hasOperationalPainSignal,
       promptTokenCount: usageSummary.promptTokenCount,
       outputTokenCount: usageSummary.outputTokenCount,
       totalTokenCount: usageSummary.totalTokenCount,
@@ -992,6 +1740,15 @@ export default async function handler(req, res) {
       formatRepairUsed,
       formatRepairReason: formatRepairReason || null,
       formatRepairFinishReason: formatRepairFinishReason || null,
+      tailoringGatePass,
+      tailoringGateReasons,
+      regenerationAttempted,
+      regenerationFinishReason: regenerationFinishReason || null,
+      hasCompany,
+      hasLocation,
+      researchUsedChars,
+      matchedSourceSignalCount,
+      hasOperationalPainSignal,
       promptTokenCount: usageSummary.promptTokenCount,
       outputTokenCount: usageSummary.outputTokenCount,
       totalTokenCount: usageSummary.totalTokenCount,
