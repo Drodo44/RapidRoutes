@@ -9,19 +9,7 @@ const TAB_OPTIONS = ['All', 'Email Prompts', 'Flowcharts', 'Lead Gen', 'Company 
 const CATEGORY_OPTIONS = TAB_OPTIONS.filter((tab) => tab !== 'All' && tab !== 'Favorites');
 const FAVORITE_KEY_CANDIDATES = ['prompt_card_id', 'card_id', 'prompt_id'];
 
-const QUICK_PROMPTS = [
-  'Draft a concise cold-call opener for a food shipper with late-pickup pain.',
-  'Give me 3 pricing objection responses that keep tone collaborative.',
-  'Create a short follow-up email after no reply for 5 days.',
-  'Summarize why lane volatility justifies proactive communication this week.'
-];
-
-const INITIAL_CHAT = [
-  {
-    role: 'assistant',
-    content: 'I can help you draft sales scripts, objection responses, and follow-ups. Ask for concise output with shipper context.'
-  }
-];
+const INITIAL_CHAT = [];
 
 function createEmptyCardForm() {
   return {
@@ -136,6 +124,9 @@ export default function SalesResources() {
   const router = useRouter();
   const { loading, isAuthenticated, user, profile } = useAuth();
   const chatInputRef = useRef(null);
+  const chatEndRef = useRef(null);
+  const chatScrollRafRef = useRef(null);
+  const sendLockRef = useRef(false);
 
   const isAdmin = profile?.role?.toLowerCase() === 'admin';
 
@@ -298,6 +289,30 @@ export default function SalesResources() {
     }
     loadSuggestions();
   }, [blockedByPolicy, isAdmin, isAuthenticated, loadSuggestions, loading]);
+
+  const scrollChatToBottom = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    if (chatScrollRafRef.current) {
+      window.cancelAnimationFrame(chatScrollRafRef.current);
+    }
+
+    chatScrollRafRef.current = window.requestAnimationFrame(() => {
+      chatEndRef.current?.scrollIntoView({ block: 'end' });
+      chatScrollRafRef.current = null;
+    });
+  }, []);
+
+  useEffect(() => {
+    scrollChatToBottom();
+  }, [isSending, messages, scrollChatToBottom]);
+
+  useEffect(() => {
+    return () => {
+      if (chatScrollRafRef.current && typeof window !== 'undefined') {
+        window.cancelAnimationFrame(chatScrollRafRef.current);
+      }
+    };
+  }, []);
 
   async function insertFavorite(cardId) {
     for (const key of favoriteKeyOrder) {
@@ -612,7 +627,9 @@ export default function SalesResources() {
     event.preventDefault();
 
     const nextUserMessage = draftMessage;
-    if (!nextUserMessage.trim() || isSending) return;
+    if (!nextUserMessage.trim() || isSending || sendLockRef.current) return;
+
+    sendLockRef.current = true;
 
     const nextConversation = [...messages, { role: 'user', content: nextUserMessage }];
     setMessages(nextConversation);
@@ -624,7 +641,10 @@ export default function SalesResources() {
       const response = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: nextUserMessage })
+        body: JSON.stringify({
+          messages: nextConversation,
+          message: nextUserMessage
+        })
       });
 
       const payload = await response.json().catch(() => ({}));
@@ -646,8 +666,21 @@ export default function SalesResources() {
       setChatError(getErrorMessage(error, 'AI service is temporarily unavailable.'));
     } finally {
       setIsSending(false);
+      sendLockRef.current = false;
     }
   }
+
+  const handleChatInputKeyDown = useCallback((event) => {
+    if (event.key !== 'Enter' || event.shiftKey) return;
+
+    event.preventDefault();
+    if (isSending || sendLockRef.current || !draftMessage.trim()) return;
+
+    const form = event.currentTarget.form;
+    if (form) {
+      form.requestSubmit();
+    }
+  }, [draftMessage, isSending]);
 
   function startNewChat() {
     setMessages(INITIAL_CHAT);
@@ -878,22 +911,7 @@ export default function SalesResources() {
                     <p>Thinking...</p>
                   </div>
                 )}
-              </div>
-
-              <div className="sales-chat-prompts">
-                {QUICK_PROMPTS.map((prompt, idx) => (
-                  <button
-                    key={`prompt-${idx}`}
-                    type="button"
-                    className="sales-prompt-chip"
-                    onClick={() => {
-                      setDraftMessage(prompt);
-                      chatInputRef.current?.focus();
-                    }}
-                  >
-                    {prompt}
-                  </button>
-                ))}
+                <div ref={chatEndRef} aria-hidden="true" />
               </div>
 
               <form className="sales-chat-form" onSubmit={handleSendMessage}>
@@ -904,6 +922,7 @@ export default function SalesResources() {
                   className="rr-input sales-chat-input"
                   value={draftMessage}
                   onChange={(event) => setDraftMessage(event.target.value)}
+                  onKeyDown={handleChatInputKeyDown}
                   placeholder="Ask for a script, rebuttal, follow-up, or discovery questions..."
                   rows={3}
                   disabled={isSending}
@@ -911,7 +930,12 @@ export default function SalesResources() {
                 {chatError && <p className="sales-chat-error">{chatError}</p>}
                 <div className="sales-chat-actions">
                   <button type="submit" className="rr-btn rr-btn-primary" disabled={isSending || !draftMessage.trim()}>
-                    {isSending ? 'Sending...' : 'Send'}
+                    {isSending ? (
+                      <span className="sales-send-loading">
+                        <span className="sales-send-spinner" aria-hidden="true" />
+                        Sending...
+                      </span>
+                    ) : 'Send'}
                   </button>
                 </div>
               </form>

@@ -1,16 +1,8 @@
 const GEMINI_MODELS_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models';
-const SERPER_ENDPOINT = 'https://google.serper.dev/search';
-const JINA_READER_BASE = 'https://r.jina.ai';
 
 const MODEL_CACHE_TTL_MS = 10 * 60 * 1000;
 const LIST_MODELS_TIMEOUT_MS = 10000;
-const SERPER_TIMEOUT_MS = 10000;
-const JINA_TIMEOUT_MS = 10000;
 const GEMINI_TIMEOUT_MS = 30000;
-const MAX_SERPER_RESULTS = 5;
-const MAX_JINA_LINKS = 3;
-const MAX_JINA_CHARS = 10000;
-const MAX_RESEARCH_CONTEXT_CHARS = 30000;
 
 const modelCache = {
   expiresAt: 0,
@@ -18,70 +10,10 @@ const modelCache = {
   selectedModel: ''
 };
 
-function extractPromptFromRequest(body) {
-  if (typeof body?.message === 'string') {
-    return body.message;
-  }
-
-  if (!Array.isArray(body?.messages)) {
-    return '';
-  }
-
-  for (let i = body.messages.length - 1; i >= 0; i -= 1) {
-    const message = body.messages[i];
-    if (message?.role === 'user' && typeof message?.content === 'string') {
-      return message.content;
-    }
-  }
-
-  return '';
-}
-
-function extractLikelyCompanyOrDomain(message) {
-  if (typeof message !== 'string' || !message.trim()) {
-    return '';
-  }
-
-  const domainMatch = message.match(/\b(?:https?:\/\/)?(?:www\.)?([a-z0-9-]+\.[a-z]{2,})(?:\/[^\s]*)?/i);
-  if (domainMatch?.[1]) {
-    return domainMatch[1].toLowerCase();
-  }
-
-  const patterns = [
-    /\babout\s+["“]?([^"\n]+?)["”]?(?=(?:\s+(?:for|with|that|who|which|and|to|in|on|at)\b|[.,;:!?]|$))/i,
-    /\bresearch\s+["“]?([^"\n]+?)["”]?(?=(?:\s+(?:for|with|that|who|which|and|to|in|on|at)\b|[.,;:!?]|$))/i,
-    /\bcompany\s+["“]?([^"\n]+?)["”]?(?=(?:\s+(?:for|with|that|who|which|and|to|in|on|at)\b|[.,;:!?]|$))/i
-  ];
-
-  for (const pattern of patterns) {
-    const match = pattern.exec(message);
-    if (!match?.[1]) continue;
-    const candidate = String(match[1]).replace(/^[\s"'“”]+|[\s"'“”]+$/g, '').trim();
-    if (candidate) return candidate;
-  }
-
-  return '';
-}
-
-function takeFirstWords(text, count) {
-  if (typeof text !== 'string') return '';
-  return text.trim().split(/\s+/).slice(0, count).join(' ');
-}
-
-function buildSerperQuery(message) {
-  const target = extractLikelyCompanyOrDomain(message) || takeFirstWords(message, 10);
-  if (!target) return '';
-  return `${target} company overview recent news customers competitors`;
-}
-
-function normalizeSerperResults(payload) {
-  const organicResults = Array.isArray(payload?.organic) ? payload.organic : [];
-
-  return organicResults.slice(0, MAX_SERPER_RESULTS).map((item) => ({
-    title: typeof item?.title === 'string' ? item.title.trim() : '',
-    link: typeof item?.link === 'string' ? item.link.trim() : '',
-    snippet: typeof item?.snippet === 'string' ? item.snippet.trim() : ''
-  }));
+function normalizeModelName(modelName) {
+  const trimmed = String(modelName || '').trim();
+  if (!trimmed) return '';
+  return trimmed.replace(/^models\//, '');
 }
 
 function parseAssistantText(payload) {
@@ -94,17 +26,40 @@ function parseAssistantText(payload) {
     .trim();
 }
 
-function normalizeModelName(modelName) {
-  const trimmed = String(modelName || '').trim();
-  if (!trimmed) return '';
-  return trimmed.replace(/^models\//, '');
+function normalizeIncomingMessages(body) {
+  const normalized = [];
+  const sourceMessages = Array.isArray(body?.messages) ? body.messages : [];
+
+  sourceMessages.forEach((message) => {
+    if (!message || typeof message !== 'object') return;
+
+    const role = message.role === 'assistant' ? 'assistant' : message.role === 'user' ? 'user' : '';
+    const content = typeof message.content === 'string' ? message.content : '';
+
+    if (!role || !content.trim()) return;
+    normalized.push({ role, content });
+  });
+
+  if (normalized.length === 0 && typeof body?.message === 'string' && body.message.trim()) {
+    normalized.push({ role: 'user', content: body.message });
+  }
+
+  return normalized;
 }
 
-function normalizeHttpLink(link) {
-  const trimmed = typeof link === 'string' ? link.trim() : '';
-  if (!trimmed) return '';
-  if (/^https?:\/\//i.test(trimmed)) return trimmed;
-  return `https://${trimmed}`;
+function ensureLastMessageIsUser(messages) {
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return false;
+  }
+
+  return messages[messages.length - 1]?.role === 'user';
+}
+
+function toGeminiContents(messages) {
+  return messages.map((message) => ({
+    role: message.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: message.content }]
+  }));
 }
 
 async function fetchWithTimeout(url, options, timeoutMs) {
@@ -197,163 +152,7 @@ async function getAutoSelectedModel(apiKey) {
   return selectedModel;
 }
 
-async function fetchSerperResults(query, serperApiKey) {
-  if (!serperApiKey) {
-    return {
-      results: [],
-      notes: []
-    };
-  }
-
-  try {
-    const response = await fetchWithTimeout(
-      SERPER_ENDPOINT,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-KEY': serperApiKey
-        },
-        body: JSON.stringify({ q: query, num: MAX_SERPER_RESULTS })
-      },
-      SERPER_TIMEOUT_MS
-    );
-
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      const upstreamError =
-        typeof payload?.message === 'string' && payload.message.trim()
-          ? payload.message.trim()
-          : `Serper request failed with status ${response.status}.`;
-      console.error('[ai/chat] Serper upstream error:', response.status, upstreamError);
-      return {
-        results: [],
-        notes: [upstreamError]
-      };
-    }
-
-    return {
-      results: normalizeSerperResults(payload),
-      notes: []
-    };
-  } catch (error) {
-    const message = error?.name === 'AbortError' ? 'Serper request timed out.' : 'Serper request failed.';
-    console.error('[ai/chat] Serper request error:', error?.message || error);
-    return {
-      results: [],
-      notes: [message]
-    };
-  }
-}
-
-async function fetchSingleJinaExtract(link, jinaApiKey) {
-  const normalizedLink = normalizeHttpLink(link);
-  if (!normalizedLink) return null;
-
-  const response = await fetchWithTimeout(
-    `${JINA_READER_BASE}/${normalizedLink}`,
-    {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${jinaApiKey}`
-      }
-    },
-    JINA_TIMEOUT_MS
-  );
-
-  if (!response.ok) {
-    throw new Error(`Jina Reader request failed with status ${response.status}.`);
-  }
-
-  const rawText = await response.text();
-  const text = String(rawText || '').trim().slice(0, MAX_JINA_CHARS);
-  if (!text) return null;
-
-  return {
-    link: normalizedLink,
-    extract: text
-  };
-}
-
-async function fetchJinaExtracts(links, jinaApiKey) {
-  if (!jinaApiKey) {
-    return {
-      extracts: [],
-      notes: []
-    };
-  }
-
-  const normalizedLinks = links.map(normalizeHttpLink).filter(Boolean).slice(0, MAX_JINA_LINKS);
-  if (normalizedLinks.length === 0) {
-    return {
-      extracts: [],
-      notes: []
-    };
-  }
-
-  const settled = await Promise.allSettled(
-    normalizedLinks.map((link) => fetchSingleJinaExtract(link, jinaApiKey))
-  );
-
-  const extracts = [];
-  const notes = [];
-
-  settled.forEach((item, index) => {
-    if (item.status === 'fulfilled') {
-      if (item.value) extracts.push(item.value);
-      return;
-    }
-
-    const reason = item.reason?.name === 'AbortError'
-      ? 'timed out'
-      : 'failed';
-    notes.push(`Jina Reader ${reason} for ${normalizedLinks[index]}.`);
-  });
-
-  return { extracts, notes };
-}
-
-function buildResearchContext({ query, serperResults, pageExtracts, notes }) {
-  const lines = [
-    'REFERENCE MATERIAL (DO NOT MENTION):',
-    'INTERNAL ONLY: Use this material silently. Never mention research, sources, context, or missing context.',
-    `Query: ${query || '(none)'}`,
-    'Search Results:'
-  ];
-  if (serperResults.length === 0) {
-    lines.push('- (none)');
-  } else {
-    serperResults.forEach((result, index) => {
-      lines.push(`- [${index + 1}] ${result.title || '(no title)'}`);
-      lines.push(`  Link: ${result.link || '(no link)'}`);
-      lines.push(`  Snippet: ${result.snippet || '(no snippet)'}`);
-    });
-  }
-
-  lines.push('Page Extracts:');
-  if (pageExtracts.length === 0) {
-    lines.push('- (none)');
-  } else {
-    pageExtracts.forEach((extract, index) => {
-      lines.push(`- [${index + 1}] Source: ${extract.link}`);
-      lines.push(`  Excerpt: ${extract.extract}`);
-    });
-  }
-
-  if (notes.length > 0) {
-    lines.push('Notes:');
-    notes.forEach((note) => lines.push(`- ${note}`));
-  }
-
-  const context = lines.join('\n');
-  if (context.length <= MAX_RESEARCH_CONTEXT_CHARS) {
-    return context;
-  }
-
-  return `${context.slice(0, MAX_RESEARCH_CONTEXT_CHARS - 24)}\n[context truncated]`;
-}
-
-async function generateWithGeminiModel({ apiKey, model, researchContext, userPrompt }) {
+async function generateWithGeminiModel({ apiKey, model, contents }) {
   const normalizedModel = normalizeModelName(model);
   if (!normalizedModel) {
     throw new Error('Gemini model name is empty.');
@@ -373,19 +172,10 @@ async function generateWithGeminiModel({ apiKey, model, researchContext, userPro
         systemInstruction: {
           role: 'system',
           parts: [{
-            text: 'Follow the user’s instructions exactly. Use any provided context silently. Do not mention research, sources, or context. Do not add commentary. Ask only for requested inputs when instructed. Output only what the user requests.'
+            text: 'Follow the user instructions exactly. Use provided context silently. Do not mention research or hidden context. If required inputs are missing, ask only for the missing required inputs and stop. Otherwise, output only what the user requested.'
           }]
         },
-        contents: [
-          {
-            role: 'user',
-            parts: [{ text: researchContext }]
-          },
-          {
-            role: 'user',
-            parts: [{ text: userPrompt }]
-          }
-        ],
+        contents,
         generationConfig: {
           temperature: 0.2,
           topP: 0.9,
@@ -419,30 +209,12 @@ export default async function handler(req, res) {
   }
 
   try {
-    const userPrompt = extractPromptFromRequest(req.body);
-    if (!userPrompt || !userPrompt.trim()) {
-      return res.status(400).json({ error: 'message must be a non-empty string.' });
+    const normalizedMessages = normalizeIncomingMessages(req.body);
+    if (!ensureLastMessageIsUser(normalizedMessages)) {
+      return res.status(400).json({ error: 'messages must end with a non-empty user message.' });
     }
 
-    const query = buildSerperQuery(userPrompt);
-    const { results: serperResults, notes: serperNotes } = await fetchSerperResults(
-      query,
-      process.env.SERPER_API_KEY
-    );
-
-    const links = serperResults.map((item) => item.link).filter(Boolean).slice(0, MAX_JINA_LINKS);
-    const { extracts: pageExtracts, notes: jinaNotes } = await fetchJinaExtracts(
-      links,
-      process.env.JINA_API_KEY
-    );
-
-    const researchContext = buildResearchContext({
-      query,
-      serperResults,
-      pageExtracts,
-      notes: [...serperNotes, ...jinaNotes]
-    });
-
+    const contents = toGeminiContents(normalizedMessages);
     const overrideModel = normalizeModelName(process.env.GEMINI_MODEL);
     let geminiResult;
     let selectedModel = '';
@@ -451,8 +223,7 @@ export default async function handler(req, res) {
       geminiResult = await generateWithGeminiModel({
         apiKey: geminiApiKey,
         model: overrideModel,
-        researchContext,
-        userPrompt
+        contents
       });
       selectedModel = overrideModel;
 
@@ -463,8 +234,7 @@ export default async function handler(req, res) {
           geminiResult = await generateWithGeminiModel({
             apiKey: geminiApiKey,
             model: fallbackModel,
-            researchContext,
-            userPrompt
+            contents
           });
           selectedModel = fallbackModel;
         }
@@ -474,8 +244,7 @@ export default async function handler(req, res) {
       geminiResult = await generateWithGeminiModel({
         apiKey: geminiApiKey,
         model: selectedModel,
-        researchContext,
-        userPrompt
+        contents
       });
     }
 
