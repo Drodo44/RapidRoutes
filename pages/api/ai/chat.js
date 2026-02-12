@@ -1146,9 +1146,24 @@ async function getAutoSelectedModel(apiKey) {
 
 function buildRequestSpecificInstruction(latestUserMessage) {
   const requestedBodies = extractRequestedEmailBodyCount(latestUserMessage);
-  if (!requestedBodies) return '';
+  const company = extractCompanyFromMessage(latestUserMessage);
+  const location = extractLocationFromMessage(latestUserMessage);
+  const constraints = [];
+
+  if (company && location) {
+    constraints.push(
+      `The user already provided company and location: Company="${company}", Location="${location}".`,
+      'Do not ask for company or location.',
+      `You must explicitly reference ${company} and ${location} in the response.`
+    );
+  }
+
+  if (!requestedBodies) {
+    return constraints.join(' ');
+  }
 
   return [
+    ...constraints,
     `This request requires exactly ${requestedBodies} email bodies.`,
     'Output only the email body text, with no subject lines.',
     'Return plain text only.',
