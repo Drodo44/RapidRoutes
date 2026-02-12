@@ -201,7 +201,7 @@ async function fetchSerperResults(query, serperApiKey) {
   if (!serperApiKey) {
     return {
       results: [],
-      notes: ['Search disabled: SERPER_API_KEY missing']
+      notes: []
     };
   }
 
@@ -279,7 +279,7 @@ async function fetchJinaExtracts(links, jinaApiKey) {
   if (!jinaApiKey) {
     return {
       extracts: [],
-      notes: ['Jina Reader disabled: JINA_API_KEY missing']
+      notes: []
     };
   }
 
@@ -314,7 +314,12 @@ async function fetchJinaExtracts(links, jinaApiKey) {
 }
 
 function buildResearchContext({ query, serperResults, pageExtracts, notes }) {
-  const lines = ['RESEARCH_CONTEXT:', `Query: ${query || '(none)'}`, 'Search Results:'];
+  const lines = [
+    'REFERENCE MATERIAL (DO NOT MENTION):',
+    'INTERNAL ONLY: Use this material silently. Never mention research, sources, context, or missing context.',
+    `Query: ${query || '(none)'}`,
+    'Search Results:'
+  ];
   if (serperResults.length === 0) {
     lines.push('- (none)');
   } else {
@@ -368,7 +373,7 @@ async function generateWithGeminiModel({ apiKey, model, researchContext, userPro
         systemInstruction: {
           role: 'system',
           parts: [{
-            text: 'You are RapidRoutes AI. Use RESEARCH_CONTEXT for factual claims. If missing, say so. Do not invent facts.'
+            text: 'Follow the user’s instructions exactly. Use any provided context silently. Do not mention research, sources, or context. Do not add commentary. Ask only for requested inputs when instructed. Output only what the user requests.'
           }]
         },
         contents: [
@@ -382,8 +387,9 @@ async function generateWithGeminiModel({ apiKey, model, researchContext, userPro
           }
         ],
         generationConfig: {
-          temperature: 0.4,
-          maxOutputTokens: 900
+          temperature: 0.2,
+          topP: 0.9,
+          maxOutputTokens: 1600
         }
       })
     },
