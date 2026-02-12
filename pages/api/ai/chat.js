@@ -26,6 +26,32 @@ function parseAssistantText(payload) {
     .trim();
 }
 
+function sanitizeOutputOnlyEmailBodies(userPrompt, assistantMessage) {
+  const prompt = String(userPrompt || '');
+  const reply = String(assistantMessage || '');
+  const requestsOnlyBodies = /output\s+only/i.test(prompt) && /email\s+bod(?:y|ies)/i.test(prompt);
+
+  if (!requestsOnlyBodies || !reply.trim()) {
+    return reply.trim();
+  }
+
+  const cleaned = reply
+    .split('\n')
+    .filter((line) => {
+      const text = line.trim();
+      if (!text) return true;
+      if (/^\*{0,2}\s*(option|email body|company overview)\b/i.test(text)) return false;
+      if (/^\*{3,}\s*$/.test(text)) return false;
+      if (/^[-_=]{3,}\s*$/.test(text)) return false;
+      return true;
+    })
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
+  return cleaned || reply.trim();
+}
+
 function normalizeIncomingMessages(body) {
   const normalized = [];
   const sourceMessages = Array.isArray(body?.messages) ? body.messages : [];
@@ -263,7 +289,10 @@ export default async function handler(req, res) {
       return res.status(502).json({ error: 'AI response was empty. Please try again.' });
     }
 
-    return res.status(200).json({ reply: assistantMessage });
+    const latestUserMessage = normalizedMessages[normalizedMessages.length - 1]?.content || '';
+    const sanitizedReply = sanitizeOutputOnlyEmailBodies(latestUserMessage, assistantMessage);
+
+    return res.status(200).json({ reply: sanitizedReply });
   } catch (error) {
     if (error?.endpoint === GEMINI_MODELS_ENDPOINT) {
       const message = error?.message || 'Unable to auto-discover Gemini models.';
