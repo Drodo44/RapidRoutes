@@ -19,72 +19,336 @@ import { useAuth } from '../contexts/AuthContext';
 import { generateOptions } from '../components/post-options/OptionsGenerator';
 import { buildSmartSelectionIds, mapSelectionIdsToSavedCities } from '../lib/citySelection';
 
+function toDateInputValue(value) {
+  if (!value) return '';
+  const raw = String(value);
+  const isoDateMatch = raw.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (isoDateMatch) return isoDateMatch[1];
+
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return '';
+
+  const year = parsed.getUTCFullYear();
+  const month = String(parsed.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(parsed.getUTCDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function formatCityState(city, state) {
+  if (!city && !state) return '';
+  if (!state) return String(city || '').trim();
+  return `${String(city || '').trim()}, ${String(state || '').trim()}`;
+}
+
+function splitCityState(cityStateValue) {
+  const value = String(cityStateValue || '').trim();
+  if (!value) return { city: '', state: '' };
+  const lastComma = value.lastIndexOf(',');
+  if (lastComma === -1) return { city: value, state: '' };
+  return {
+    city: value.slice(0, lastComma).trim(),
+    state: value.slice(lastComma + 1).trim()
+  };
+}
+
+function toNumberOrNull(value) {
+  if (value === '' || value === null || value === undefined) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function buildEditLaneForm(lane) {
+  if (!lane) return null;
+
+  return {
+    id: lane.id,
+    origin: formatCityState(lane.origin_city, lane.origin_state),
+    originZip: lane.origin_zip5 || lane.origin_zip || '',
+    originLatitude: lane.origin_latitude ?? null,
+    originLongitude: lane.origin_longitude ?? null,
+    dest: formatCityState(lane.dest_city || lane.destination_city, lane.dest_state || lane.destination_state),
+    destZip: lane.dest_zip5 || lane.dest_zip || '',
+    destLatitude: lane.dest_latitude ?? null,
+    destLongitude: lane.dest_longitude ?? null,
+    equipment: lane.equipment_code || '',
+    pickupEarliest: toDateInputValue(lane.pickup_earliest),
+    pickupLatest: toDateInputValue(lane.pickup_latest),
+    randomizeWeight: !!lane.randomize_weight,
+    weight: lane.weight_lbs ?? '',
+    weightMin: lane.weight_min ?? '',
+    weightMax: lane.weight_max ?? '',
+    randomizeRate: !!lane.randomize_rate,
+    rate: lane.rate ?? '',
+    rateMin: lane.rate_min ?? '',
+    rateMax: lane.rate_max ?? '',
+    commodity: lane.commodity || '',
+    comment: lane.comment || '',
+    lengthFt: lane.length_ft ?? 48,
+    fullPartial: lane.full_partial === 'partial' ? 'partial' : 'full'
+  };
+}
+
 // --- Edit Lane Modal Component (Inline) ---
 function EditLaneModal({ lane, isOpen, onClose, onSave }) {
-  // Local state for edit form - just the basics for now
-  const [localLane, setLocalLane] = useState(lane ? { ...lane } : {});
+  const [localLane, setLocalLane] = useState(() => buildEditLaneForm(lane));
 
   useEffect(() => {
     if (lane) {
-      setLocalLane({ ...lane });
+      setLocalLane(buildEditLaneForm(lane));
     }
   }, [lane]);
 
-  if (!isOpen || !lane) return null;
+  if (!isOpen || !lane || !localLane) return null;
 
   const handleChange = (field, value) => {
     setLocalLane(prev => ({ ...prev, [field]: value }));
   };
 
+  const handleOriginChange = (value) => {
+    setLocalLane((prev) => ({
+      ...prev,
+      origin: value,
+      originLatitude: null,
+      originLongitude: null
+    }));
+  };
+
+  const handleDestChange = (value) => {
+    setLocalLane((prev) => ({
+      ...prev,
+      dest: value,
+      destLatitude: null,
+      destLongitude: null
+    }));
+  };
+
+  const handleOriginPick = (selected) => {
+    setLocalLane((prev) => ({
+      ...prev,
+      origin: formatCityState(selected?.city, selected?.state),
+      originZip: selected?.zip || prev.originZip || '',
+      originLatitude: selected?.latitude ?? prev.originLatitude ?? null,
+      originLongitude: selected?.longitude ?? prev.originLongitude ?? null
+    }));
+  };
+
+  const handleDestPick = (selected) => {
+    setLocalLane((prev) => ({
+      ...prev,
+      dest: formatCityState(selected?.city, selected?.state),
+      destZip: selected?.zip || prev.destZip || '',
+      destLatitude: selected?.latitude ?? prev.destLatitude ?? null,
+      destLongitude: selected?.longitude ?? prev.destLongitude ?? null
+    }));
+  };
+
   return (
-    <div className="lanes-modal-backdrop">
-      <div className="lanes-modal-card rr-card-elevated">
-        <div className="card-header flex justify-between items-center">
-          <h3>Edit Lane</h3>
-          <button type="button" onClick={onClose} className="text-secondary hover:text-white" aria-label="Close edit lane modal">✕</button>
-        </div>
-        <div className="card-body">
-          <div className="grid grid-2 gap-4 mb-4">
-            <div>
-              <label className="form-label">Pickup Earliest</label>
-              <input
-                type="date" className="form-input"
-                value={localLane.pickup_earliest?.split('T')[0] || ''}
-                onChange={e => handleChange('pickup_earliest', e.target.value)}
+    <div className="lanes-modal-backdrop" role="dialog" aria-modal="true" aria-label="Edit lane">
+      <div className="lanes-modal-card rr-card-elevated lanes-edit-modal-card">
+        <form onSubmit={(event) => {
+          event.preventDefault();
+          onSave(localLane);
+        }}>
+          <div className="card-header flex justify-between items-center">
+            <h3>Edit Lane</h3>
+            <button type="button" onClick={onClose} className="text-secondary hover:text-white" aria-label="Close edit lane modal">✕</button>
+          </div>
+          <div className="card-body lanes-edit-form">
+            <div className="lanes-edit-route-grid">
+              <div className="lanes-field">
+                <label className="form-label section-header">Origin</label>
+                <GoogleCityAutocomplete
+                  value={localLane.origin}
+                  onChange={handleOriginChange}
+                  onPick={handleOriginPick}
+                  placeholder="Origin city, ST"
+                  className="w-full"
+                  inputClassName="rr-input lanes-input lanes-city-modal-input"
+                />
+                <span className="lanes-edit-city-meta">{localLane.originZip ? `ZIP ${localLane.originZip}` : 'Search by city/state'}</span>
+              </div>
+              <div className="lanes-field">
+                <label className="form-label section-header">Destination</label>
+                <GoogleCityAutocomplete
+                  value={localLane.dest}
+                  onChange={handleDestChange}
+                  onPick={handleDestPick}
+                  placeholder="Destination city, ST"
+                  className="w-full"
+                  inputClassName="rr-input lanes-input lanes-city-modal-input"
+                />
+                <span className="lanes-edit-city-meta">{localLane.destZip ? `ZIP ${localLane.destZip}` : 'Search by city/state'}</span>
+              </div>
+            </div>
+
+            <div className="lanes-edit-details-grid">
+              <div className="lanes-field">
+                <label className="form-label section-header">Equipment</label>
+                <div className="lanes-input-shell">
+                  <EquipmentPicker
+                    label=""
+                    code={localLane.equipment}
+                    onChange={(value) => handleChange('equipment', value)}
+                    inputClassName="rr-input lanes-input"
+                  />
+                </div>
+              </div>
+
+              <div className="lanes-field">
+                <label className="form-label section-header">Pickup Date</label>
+                <input
+                  type="date"
+                  className="rr-input lanes-input"
+                  value={localLane.pickupEarliest}
+                  onChange={(e) => handleChange('pickupEarliest', e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="lanes-field">
+                <label className="form-label section-header">Latest Pickup Date</label>
+                <input
+                  type="date"
+                  className="rr-input lanes-input"
+                  value={localLane.pickupLatest}
+                  onChange={(e) => handleChange('pickupLatest', e.target.value)}
+                />
+              </div>
+
+              <div className="lanes-field">
+                <label className="form-label section-header">Length (ft)</label>
+                <input
+                  type="number"
+                  className="rr-input lanes-input"
+                  value={localLane.lengthFt}
+                  min="1"
+                  onChange={(e) => handleChange('lengthFt', e.target.value)}
+                />
+              </div>
+
+              <div className="lanes-field">
+                <label className="form-label section-header">Full / Partial</label>
+                <select
+                  className="rr-input lanes-input"
+                  value={localLane.fullPartial}
+                  onChange={(e) => handleChange('fullPartial', e.target.value)}
+                >
+                  <option value="full">Full</option>
+                  <option value="partial">Partial</option>
+                </select>
+              </div>
+
+              <div className="lanes-field">
+                <label className="form-label section-header">Commodity (Lane/CSV)</label>
+                <input
+                  type="text"
+                  className="rr-input lanes-input"
+                  value={localLane.commodity}
+                  onChange={(e) => handleChange('commodity', e.target.value)}
+                  placeholder="General Freight"
+                />
+              </div>
+            </div>
+
+            <div className="lanes-field">
+              <label className="form-label section-header">Lane Comment (CSV)</label>
+              <textarea
+                className="rr-input lanes-textarea"
+                rows={2}
+                value={localLane.comment}
+                onChange={(e) => handleChange('comment', e.target.value)}
+                placeholder="Optional CSV/comment field for this lane..."
               />
             </div>
-            <div>
-              <label className="form-label">Pickup Latest</label>
-              <input
-                type="date" className="form-input"
-                value={localLane.pickup_latest?.split('T')[0] || ''}
-                onChange={e => handleChange('pickup_latest', e.target.value)}
-              />
+
+            <div className="lanes-edit-financial-grid">
+              <div className="lanes-financial-field">
+                <div className="lanes-financial-label-row">
+                  <label className="form-label">Weight (lbs)</label>
+                  <label className="lanes-randomize-toggle">
+                    <input
+                      type="checkbox"
+                      checked={localLane.randomizeWeight}
+                      onChange={(e) => handleChange('randomizeWeight', e.target.checked)}
+                    />
+                    <span>Randomize</span>
+                  </label>
+                </div>
+                {localLane.randomizeWeight ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    <input
+                      type="number"
+                      className="rr-input lanes-input lanes-mono-input"
+                      value={localLane.weightMin}
+                      onChange={(e) => handleChange('weightMin', e.target.value)}
+                      placeholder="Min"
+                    />
+                    <input
+                      type="number"
+                      className="rr-input lanes-input lanes-mono-input"
+                      value={localLane.weightMax}
+                      onChange={(e) => handleChange('weightMax', e.target.value)}
+                      placeholder="Max"
+                    />
+                  </div>
+                ) : (
+                  <input
+                    type="number"
+                    className="rr-input lanes-input lanes-mono-input"
+                    value={localLane.weight}
+                    onChange={(e) => handleChange('weight', e.target.value)}
+                    placeholder="40000"
+                  />
+                )}
+              </div>
+
+              <div className="lanes-financial-field">
+                <div className="lanes-financial-label-row">
+                  <label className="form-label">Rate</label>
+                  <label className="lanes-randomize-toggle">
+                    <input
+                      type="checkbox"
+                      checked={localLane.randomizeRate}
+                      onChange={(e) => handleChange('randomizeRate', e.target.checked)}
+                    />
+                    <span>Randomize</span>
+                  </label>
+                </div>
+                {localLane.randomizeRate ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    <input
+                      type="number"
+                      className="rr-input lanes-input lanes-mono-input"
+                      value={localLane.rateMin}
+                      onChange={(e) => handleChange('rateMin', e.target.value)}
+                      placeholder="Min"
+                    />
+                    <input
+                      type="number"
+                      className="rr-input lanes-input lanes-mono-input"
+                      value={localLane.rateMax}
+                      onChange={(e) => handleChange('rateMax', e.target.value)}
+                      placeholder="Max"
+                    />
+                  </div>
+                ) : (
+                  <input
+                    type="number"
+                    className="rr-input lanes-input lanes-mono-input"
+                    value={localLane.rate}
+                    onChange={(e) => handleChange('rate', e.target.value)}
+                    placeholder="0.00"
+                  />
+                )}
+              </div>
+            </div>
+
+            <div className="flex gap-2 justify-end mt-4">
+              <button type="button" onClick={onClose} className="rr-btn btn-outline">Cancel</button>
+              <button type="submit" className="rr-btn rr-btn-primary">Save Changes</button>
             </div>
           </div>
-          <div className="grid grid-2 gap-4 mb-4">
-            <div>
-              <label className="form-label">Weight</label>
-              <input
-                type="number" className="form-input"
-                value={localLane.weight_lbs || ''}
-                onChange={e => handleChange('weight_lbs', e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="form-label">Rate</label>
-              <input
-                type="number" className="form-input"
-                value={localLane.rate || ''}
-                onChange={e => handleChange('rate', e.target.value)}
-              />
-            </div>
-          </div>
-          <div className="flex gap-2 justify-end mt-6">
-            <button type="button" onClick={onClose} className="rr-btn btn-outline">Cancel</button>
-            <button type="button" onClick={() => onSave(localLane)} className="rr-btn rr-btn-primary">Save Changes</button>
-          </div>
-        </div>
+        </form>
       </div>
     </div>
   );
@@ -182,6 +446,15 @@ export default function LanesPage() {
   // Edit State
   const [editingLane, setEditingLane] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
+
+  // Bulk Date Change State
+  const [showBulkDateModal, setShowBulkDateModal] = useState(false);
+  const [bulkSelectedLaneIds, setBulkSelectedLaneIds] = useState([]);
+  const [bulkPickupDate, setBulkPickupDate] = useState('');
+  const [bulkSetLatestForMissing, setBulkSetLatestForMissing] = useState(false);
+  const [bulkLatestForMissing, setBulkLatestForMissing] = useState('');
+  const [bulkDateBusy, setBulkDateBusy] = useState(false);
+
   const [cityModalTarget, setCityModalTarget] = useState(null);
 
   // Admin view toggle (My Lanes vs All)
@@ -500,17 +773,179 @@ export default function LanesPage() {
     }
   }
 
+  function openBulkDateModal() {
+    setBulkSelectedLaneIds([]);
+    setBulkPickupDate('');
+    setBulkSetLatestForMissing(false);
+    setBulkLatestForMissing('');
+    setShowBulkDateModal(true);
+  }
+
+  function closeBulkDateModal() {
+    if (bulkDateBusy) return;
+    setShowBulkDateModal(false);
+  }
+
+  function toggleBulkLaneSelection(laneId) {
+    setBulkSelectedLaneIds((prev) => (
+      prev.includes(laneId)
+        ? prev.filter((id) => id !== laneId)
+        : [...prev, laneId]
+    ));
+  }
+
+  function selectAllBulkLanes() {
+    setBulkSelectedLaneIds(current.map((lane) => lane.id));
+  }
+
+  function clearBulkLaneSelection() {
+    setBulkSelectedLaneIds([]);
+  }
+
+  async function applyBulkDateChange() {
+    if (!bulkPickupDate) {
+      toast.error('Pickup date required');
+      return;
+    }
+    if (bulkSelectedLaneIds.length === 0) {
+      toast.error('Select at least one lane');
+      return;
+    }
+    if (bulkSetLatestForMissing && !bulkLatestForMissing) {
+      toast.error('Latest pickup date is required when enabled');
+      return;
+    }
+
+    setBulkDateBusy(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Authentication required');
+      }
+
+      const response = await fetch('/api/lanes/bulk-date-update', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          laneIds: bulkSelectedLaneIds,
+          pickup_earliest: bulkPickupDate,
+          set_latest_for_missing: bulkSetLatestForMissing,
+          latest_for_missing: bulkSetLatestForMissing ? bulkLatestForMissing : null
+        })
+      });
+
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(result?.error || 'Failed to update lane dates');
+      }
+
+      const updatedCount = Number(result?.updatedCount) || bulkSelectedLaneIds.length;
+      toast.success(`Updated dates for ${updatedCount} lanes`);
+      setShowBulkDateModal(false);
+      setBulkSelectedLaneIds([]);
+      setBulkPickupDate('');
+      setBulkSetLatestForMissing(false);
+      setBulkLatestForMissing('');
+      await loadLists();
+    } catch (error) {
+      toast.error(error.message || 'Failed to update lane dates');
+    } finally {
+      setBulkDateBusy(false);
+    }
+  }
+
   async function handleSaveEdit(updatedLane) {
+    const originParts = splitCityState(updatedLane.origin);
+    const destinationParts = splitCityState(updatedLane.dest);
+    if (!originParts.city || !originParts.state || !destinationParts.city || !destinationParts.state) {
+      toast.error('Origin and Destination required');
+      return;
+    }
+    if (!updatedLane.equipment) {
+      toast.error('Equipment required');
+      return;
+    }
+    if (!updatedLane.pickupEarliest) {
+      toast.error('Pickup date required');
+      return;
+    }
+
+    const weightLbs = updatedLane.randomizeWeight ? null : toNumberOrNull(updatedLane.weight);
+    const weightMin = updatedLane.randomizeWeight ? toNumberOrNull(updatedLane.weightMin) : null;
+    const weightMax = updatedLane.randomizeWeight ? toNumberOrNull(updatedLane.weightMax) : null;
+    const rateValue = updatedLane.randomizeRate ? null : toNumberOrNull(updatedLane.rate);
+    const rateMin = updatedLane.randomizeRate ? toNumberOrNull(updatedLane.rateMin) : null;
+    const rateMax = updatedLane.randomizeRate ? toNumberOrNull(updatedLane.rateMax) : null;
+    const lengthFtValue = toNumberOrNull(updatedLane.lengthFt);
+
+    if (!updatedLane.randomizeWeight && weightLbs !== null && weightLbs <= 0) {
+      toast.error('Weight must be greater than 0');
+      return;
+    }
+    if (updatedLane.randomizeWeight && (weightMin !== null || weightMax !== null)) {
+      if (weightMin === null || weightMax === null || weightMin <= 0 || weightMax <= 0 || weightMin > weightMax) {
+        toast.error('Enter a valid weight range');
+        return;
+      }
+    }
+    if (!updatedLane.randomizeRate && rateValue !== null && rateValue < 0) {
+      toast.error('Rate must be 0 or greater');
+      return;
+    }
+    if (updatedLane.randomizeRate && (rateMin !== null || rateMax !== null)) {
+      if (rateMin === null || rateMax === null || rateMin < 0 || rateMax < 0 || rateMin > rateMax) {
+        toast.error('Enter a valid rate range');
+        return;
+      }
+    }
+    if (lengthFtValue !== null && lengthFtValue <= 0) {
+      toast.error('Length must be greater than 0');
+      return;
+    }
+
     setBusy(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Authentication required');
+      }
 
-      // Prepare update payload
+      const normalizedOriginZip = updatedLane.originZip ? String(updatedLane.originZip).trim().slice(0, 5) : null;
+      const normalizedDestZip = updatedLane.destZip ? String(updatedLane.destZip).trim().slice(0, 5) : null;
+
       const payload = {
-        pickup_earliest: updatedLane.pickup_earliest,
-        pickup_latest: updatedLane.pickup_latest,
-        weight_lbs: updatedLane.weight_lbs,
-        rate: updatedLane.rate
+        origin_city: originParts.city,
+        origin_state: originParts.state,
+        origin_zip5: normalizedOriginZip,
+        origin_zip: normalizedOriginZip ? normalizedOriginZip.slice(0, 3) : null,
+        origin_latitude: updatedLane.originLatitude ?? null,
+        origin_longitude: updatedLane.originLongitude ?? null,
+
+        dest_city: destinationParts.city,
+        dest_state: destinationParts.state,
+        dest_zip5: normalizedDestZip,
+        dest_zip: normalizedDestZip ? normalizedDestZip.slice(0, 3) : null,
+        dest_latitude: updatedLane.destLatitude ?? null,
+        dest_longitude: updatedLane.destLongitude ?? null,
+
+        equipment_code: String(updatedLane.equipment || '').toUpperCase(),
+        pickup_earliest: updatedLane.pickupEarliest,
+        pickup_latest: updatedLane.pickupLatest || null,
+        weight_lbs: weightLbs,
+        weight_min: weightMin,
+        weight_max: weightMax,
+        randomize_weight: !!updatedLane.randomizeWeight,
+        rate: rateValue,
+        rate_min: rateMin,
+        rate_max: rateMax,
+        randomize_rate: !!updatedLane.randomizeRate,
+        commodity: updatedLane.commodity || null,
+        comment: updatedLane.comment || null,
+        full_partial: updatedLane.fullPartial === 'partial' ? 'partial' : 'full',
+        length_ft: lengthFtValue
       };
 
       const response = await fetch(`/api/lanes/${updatedLane.id}`, {
@@ -522,7 +957,8 @@ export default function LanesPage() {
         body: JSON.stringify(payload)
       });
 
-      if (!response.ok) throw new Error('Update failed');
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result?.error || 'Update failed');
 
       toast.success('Lane updated');
       setShowEditModal(false);
@@ -916,6 +1352,16 @@ export default function LanesPage() {
                 Current Lanes
                 <span className="lanes-list-count">{current.length}</span>
               </button>
+              <div className="lanes-list-actions">
+                <button
+                  type="button"
+                  onClick={openBulkDateModal}
+                  className="rr-btn btn-outline lanes-date-change-btn"
+                  disabled={current.length === 0 || bulkDateBusy}
+                >
+                  Change Lane Date
+                </button>
+              </div>
             </div>
 
             <div className="lanes-list-grid">
@@ -974,11 +1420,111 @@ export default function LanesPage() {
             />
           )}
 
+          {showBulkDateModal && (
+            <div className="lanes-modal-backdrop" role="dialog" aria-modal="true" aria-label="Bulk change lane date">
+              <div className="lanes-modal-card rr-card-elevated lanes-bulk-date-modal-card">
+                <div className="card-header flex justify-between items-center">
+                  <div>
+                    <h3>Change Lane Date</h3>
+                    <p className="text-secondary text-xs mt-1">Update pickup dates for selected visible lanes in one submit.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={closeBulkDateModal}
+                    className="text-secondary hover:text-white"
+                    aria-label="Close bulk date modal"
+                    disabled={bulkDateBusy}
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="card-body">
+                  <p className="lanes-bulk-helper">
+                    Lanes with an existing latest pickup date keep their original date span automatically.
+                  </p>
+
+                  <div className="lanes-bulk-controls">
+                    <span className="text-sm text-secondary">{bulkSelectedLaneIds.length} selected</span>
+                    <div className="flex gap-2">
+                      <button type="button" className="rr-btn btn-outline" onClick={selectAllBulkLanes} disabled={current.length === 0 || bulkDateBusy}>Select All</button>
+                      <button type="button" className="rr-btn btn-outline" onClick={clearBulkLaneSelection} disabled={bulkDateBusy}>Clear</button>
+                    </div>
+                  </div>
+
+                  <div className="lanes-bulk-list">
+                    {current.map((lane) => {
+                      const laneDateLabel = lane.pickup_latest && lane.pickup_latest !== lane.pickup_earliest
+                        ? `${toDateInputValue(lane.pickup_earliest)} → ${toDateInputValue(lane.pickup_latest)}`
+                        : toDateInputValue(lane.pickup_earliest) || 'No pickup date';
+
+                      return (
+                        <label key={lane.id} className="lanes-bulk-lane-row">
+                          <input
+                            type="checkbox"
+                            checked={bulkSelectedLaneIds.includes(lane.id)}
+                            onChange={() => toggleBulkLaneSelection(lane.id)}
+                            disabled={bulkDateBusy}
+                          />
+                          <span className="lanes-bulk-lane-main">
+                            <span className="lanes-bulk-lane-route">
+                              {lane.origin_city}, {lane.origin_state} → {lane.dest_city || lane.destination_city}, {lane.dest_state || lane.destination_state}
+                            </span>
+                            <span className="lanes-bulk-lane-meta">{laneDateLabel}</span>
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+
+                  <div className="lanes-bulk-date-grid">
+                    <div className="lanes-field">
+                      <label className="form-label section-header">New Pickup Date</label>
+                      <input
+                        type="date"
+                        className="rr-input lanes-input"
+                        value={bulkPickupDate}
+                        onChange={(e) => setBulkPickupDate(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="lanes-field">
+                      <label className="lanes-randomize-toggle lanes-inline-toggle">
+                        <input
+                          type="checkbox"
+                          checked={bulkSetLatestForMissing}
+                          onChange={(e) => setBulkSetLatestForMissing(e.target.checked)}
+                          disabled={bulkDateBusy}
+                        />
+                        <span>Set latest pickup date for lanes with none</span>
+                      </label>
+                      {bulkSetLatestForMissing && (
+                        <input
+                          type="date"
+                          className="rr-input lanes-input"
+                          value={bulkLatestForMissing}
+                          onChange={(e) => setBulkLatestForMissing(e.target.value)}
+                          required
+                        />
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-2 mt-6">
+                    <button type="button" onClick={closeBulkDateModal} className="rr-btn btn-outline" disabled={bulkDateBusy}>Cancel</button>
+                    <button type="button" onClick={applyBulkDateChange} className="rr-btn rr-btn-primary" disabled={bulkDateBusy}>
+                      {bulkDateBusy ? 'Applying...' : 'Apply to Selected Lanes'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {showEditModal && editingLane && (
             <EditLaneModal
               lane={editingLane}
               isOpen={showEditModal}
-              onClose={() => setShowEditModal(false)}
+              onClose={() => { setShowEditModal(false); setEditingLane(null); }}
               onSave={handleSaveEdit}
             />
           )}
