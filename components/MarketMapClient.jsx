@@ -1,5 +1,4 @@
 import Image from 'next/image';
-import 'leaflet/dist/leaflet.css';
 
 const MarketMapClient = ({ imageUrl = null }) => {
   if (!imageUrl) {
@@ -43,9 +42,13 @@ const MarketMapClient = ({ imageUrl = null }) => {
         unoptimized
         sizes="100vw"
         style={{
-          objectFit: 'contain',
-          objectPosition: 'center center',
-          filter: 'drop-shadow(0 14px 30px rgba(2,6,23,0.35))'
+          // Keep DAT as source-of-truth while giving it a better visual fit in our UI.
+          // "cover" prevents the tiny/letterboxed look that varies week-to-week.
+          objectFit: 'cover',
+          // Slight downward bias centers the CONUS heat areas in most DAT uploads.
+          objectPosition: 'center 56%',
+          transform: 'scale(1.03)',
+          filter: 'saturate(1.06) contrast(1.04) drop-shadow(0 14px 30px rgba(2,6,23,0.35))'
         }}
       />
     </div>
