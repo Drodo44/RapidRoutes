@@ -261,30 +261,57 @@ function useMarketData() {
   });
 
   useEffect(() => {
-    // This would fetch from settings/storage where admin uploaded heatmaps
+    let cancelled = false;
+
+    const resolveImageUrl = (row) => {
+      if (!row) return null;
+      if (row.image_url) return row.image_url;
+      if (!row.filename) return null;
+      const { data } = supabase.storage.from('dat_maps').getPublicUrl(row.filename);
+      return data?.publicUrl || null;
+    };
+
     const fetchHeatmaps = async () => {
       if (!supabase) return;
+
       try {
         const { data, error } = await supabase
-          .from('market_data')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(1);
+          .from('dat_map_images')
+          .select('equipment_type, image_url, filename, uploaded_at, created_at')
+          .in('equipment_type', ['dry-van', 'reefer', 'flatbed'])
+          .order('uploaded_at', { ascending: false });
 
-        if (data && data.length > 0) {
+        if (error) throw error;
+
+        const latestByEquipment = {};
+        for (const row of data || []) {
+          if (!row?.equipment_type || latestByEquipment[row.equipment_type]) continue;
+          latestByEquipment[row.equipment_type] = row;
+        }
+
+        const rows = Object.values(latestByEquipment);
+        const lastUpdated = rows
+          .map((row) => row.uploaded_at || row.created_at)
+          .filter(Boolean)
+          .sort((a, b) => new Date(b) - new Date(a))[0] || null;
+
+        if (!cancelled) {
           setHeatmaps({
-            dryvan: data[0].dryvan_heatmap_url,
-            reefer: data[0].reefer_heatmap_url,
-            flatbed: data[0].flatbed_heatmap_url,
-            lastUpdated: data[0].created_at
+            dryvan: resolveImageUrl(latestByEquipment['dry-van']),
+            reefer: resolveImageUrl(latestByEquipment.reefer),
+            flatbed: resolveImageUrl(latestByEquipment.flatbed),
+            lastUpdated,
           });
         }
       } catch (error) {
-        console.error('Error fetching market data:', error);
+        console.error('Error fetching market heatmaps:', error);
       }
     };
 
     fetchHeatmaps();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return heatmaps;
