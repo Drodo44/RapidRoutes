@@ -108,26 +108,21 @@ export default async function handler(req, res) {
     if (dbError?.code === '42P10') {
       console.warn('⚠️ Upsert failed due to missing unique constraint. Falling back to update/insert flow.');
 
-      const { data: existing, error: existingError } = await supabaseAdmin
+      // First try an update by equipment type (works even without unique constraints).
+      const { data: updatedData, error: updateError } = await supabaseAdmin
         .from('dat_map_images')
-        .select('id')
+        .update(payload)
         .eq('equipment_type', equipment)
-        .order('uploaded_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .select();
 
-      if (existingError) {
-        dbError = existingError;
-      } else if (existing?.id) {
-        const { data: updatedData, error: updateError } = await supabaseAdmin
-          .from('dat_map_images')
-          .update(payload)
-          .eq('id', existing.id)
-          .select();
-
-        dbData = updatedData;
+      if (updateError) {
+        dbData = null;
         dbError = updateError;
+      } else if ((updatedData || []).length > 0) {
+        dbData = updatedData;
+        dbError = null;
       } else {
+        // No rows to update, insert a new one.
         const { data: insertedData, error: insertError } = await supabaseAdmin
           .from('dat_map_images')
           .insert(payload)
