@@ -13,7 +13,7 @@ const CONUS_BOUNDS = [
 const DAT_UI_TRIM = {
   left: 0.02,
   right: 0.02,
-  top: 0.06,
+  top: 0.12,
   bottom: 0.04
 };
 
@@ -138,6 +138,12 @@ function boxBlurIntensity(source, width, height, radius = 2) {
   return out;
 }
 
+function percentile(sorted, q) {
+  if (!sorted.length) return 0;
+  const idx = Math.max(0, Math.min(sorted.length - 1, Math.floor((sorted.length - 1) * q)));
+  return sorted[idx];
+}
+
 const MarketMapClient = ({ imageUrl = null }) => {
   const [isMounted, setIsMounted] = useState(false);
   const [overlayUrl, setOverlayUrl] = useState(null);
@@ -226,17 +232,32 @@ const MarketMapClient = ({ imageUrl = null }) => {
           }
 
           const closedMask = applyMorphologicalClose(mask, width, height);
-          const blurredIntensity = boxBlurIntensity(intensityMap, width, height, 3);
+          const blurredIntensity = boxBlurIntensity(intensityMap, width, height, 4);
+          const blurredMask = boxBlurIntensity(closedMask, width, height, 3);
+
+          const activeIntensities = [];
+          for (let i = 0; i < blurredIntensity.length; i += 1) {
+            if (blurredMask[i] > 0.08) {
+              activeIntensities.push(blurredIntensity[i]);
+            }
+          }
+
+          activeIntensities.sort((a, b) => a - b);
+          const p10 = percentile(activeIntensities, 0.1);
+          const p95 = percentile(activeIntensities, 0.95);
+          const spread = Math.max(0.08, p95 - p10);
 
           for (let i = 0; i < data.length; i += 4) {
             const idx = i / 4;
-            if (closedMask[idx]) {
-              const intensity = Math.max(0, Math.min(1, blurredIntensity[idx]));
-              const [r, g, b] = getGradientColor(intensity);
+            const maskStrength = Math.max(0, Math.min(1, blurredMask[idx]));
+            if (maskStrength > 0.035) {
+              const normalized = (blurredIntensity[idx] - p10) / spread;
+              const intensity = Math.max(0.06, Math.min(1, normalized));
+              const [r, g, b] = getGradientColor(Math.pow(intensity, 0.92));
               data[i] = r;
               data[i + 1] = g;
               data[i + 2] = b;
-              data[i + 3] = Math.min(255, Math.round(70 + intensity * 165));
+              data[i + 3] = Math.min(255, Math.round(40 + (maskStrength * 120) + (intensity * 95)));
             } else {
               data[i + 3] = 0;
             }
