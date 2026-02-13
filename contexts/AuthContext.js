@@ -39,6 +39,17 @@ export function AuthProvider({ children }) {
   const subscriptionRef = useRef(null);
   const bootLoggerRef = useRef(() => {});
 
+  const unsubscribeAuthListener = useCallback(() => {
+    if (!subscriptionRef.current) return;
+    try {
+      subscriptionRef.current.unsubscribe();
+    } catch (error) {
+      console.error('[auth] failed to unsubscribe auth listener', error);
+    } finally {
+      subscriptionRef.current = null;
+    }
+  }, []);
+
   const markAuthUnavailable = useCallback((reasonInput) => {
     const reason = reasonInput || 'AUTH_UNREACHABLE';
 
@@ -63,14 +74,7 @@ export function AuthProvider({ children }) {
       console.error('[auth] failed to stop auto refresh', error);
     }
 
-    if (subscriptionRef.current) {
-      try {
-        subscriptionRef.current.unsubscribe();
-      } catch (error) {
-        console.error('[auth] failed to unsubscribe auth listener', error);
-      }
-      subscriptionRef.current = null;
-    }
+    unsubscribeAuthListener();
 
     if (mountedRef.current) {
       setSession(null);
@@ -81,7 +85,7 @@ export function AuthProvider({ children }) {
 
     bootLoggerRef.current('boot:routeDecision', { decision: 'auth-unavailable', reason });
     bootLoggerRef.current('boot:done', { loading: false, authUnavailable: true });
-  }, []);
+  }, [unsubscribeAuthListener]);
 
   useEffect(() => {
     pathnameRef.current = router.pathname;
@@ -147,6 +151,8 @@ export function AuthProvider({ children }) {
       logBoot('boot:done', { loading: false, reason: 'no-supabase-client' });
       return () => {
         mountedRef.current = false;
+        bootStartedRef.current = false;
+        unsubscribeAuthListener();
       };
     }
 
@@ -319,12 +325,10 @@ export function AuthProvider({ children }) {
 
     return () => {
       mountedRef.current = false;
-      if (subscriptionRef.current) {
-        subscriptionRef.current.unsubscribe();
-        subscriptionRef.current = null;
-      }
+      bootStartedRef.current = false;
+      unsubscribeAuthListener();
     };
-  }, [markAuthUnavailable]);
+  }, [markAuthUnavailable, unsubscribeAuthListener]);
 
   // Logout function
   const signOut = async () => {
