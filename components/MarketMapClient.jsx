@@ -2,7 +2,7 @@ import { MapContainer, TileLayer } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
-import { isDatHeatPixel } from '../lib/datHeatmapExtraction';
+import { colorToIntensity, isDatHeatPixel } from '../lib/datHeatmapExtraction';
 
 const HEATMAP_CACHE_VERSION = 'v3';
 const CONUS_BOUNDS = [
@@ -70,6 +70,74 @@ function applyMorphologicalClose(mask, width, height) {
   return closed;
 }
 
+function lerp(a, b, t) {
+  return a + (b - a) * t;
+}
+
+function getGradientColor(t) {
+  const stops = [
+    { p: 0.0, c: [37, 99, 235] },   // blue
+    { p: 0.28, c: [34, 211, 238] }, // cyan
+    { p: 0.5, c: [74, 222, 128] },  // green
+    { p: 0.72, c: [250, 204, 21] }, // yellow
+    { p: 0.88, c: [251, 146, 60] }, // orange
+    { p: 1.0, c: [239, 68, 68] }    // red
+  ];
+
+  const clamped = Math.max(0, Math.min(1, t));
+  for (let i = 0; i < stops.length - 1; i += 1) {
+    const left = stops[i];
+    const right = stops[i + 1];
+    if (clamped >= left.p && clamped <= right.p) {
+      const localT = (clamped - left.p) / Math.max(0.0001, right.p - left.p);
+      return [
+        Math.round(lerp(left.c[0], right.c[0], localT)),
+        Math.round(lerp(left.c[1], right.c[1], localT)),
+        Math.round(lerp(left.c[2], right.c[2], localT))
+      ];
+    }
+  }
+
+  return stops[stops.length - 1].c;
+}
+
+function boxBlurIntensity(source, width, height, radius = 2) {
+  const temp = new Float32Array(source.length);
+  const out = new Float32Array(source.length);
+
+  // Horizontal
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      let sum = 0;
+      let count = 0;
+      for (let k = -radius; k <= radius; k += 1) {
+        const nx = x + k;
+        if (nx < 0 || nx >= width) continue;
+        sum += source[y * width + nx];
+        count += 1;
+      }
+      temp[y * width + x] = sum / Math.max(1, count);
+    }
+  }
+
+  // Vertical
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      let sum = 0;
+      let count = 0;
+      for (let k = -radius; k <= radius; k += 1) {
+        const ny = y + k;
+        if (ny < 0 || ny >= height) continue;
+        sum += temp[ny * width + x];
+        count += 1;
+      }
+      out[y * width + x] = sum / Math.max(1, count);
+    }
+  }
+
+  return out;
+}
+
 const MarketMapClient = ({ imageUrl = null }) => {
   const [isMounted, setIsMounted] = useState(false);
   const [overlayUrl, setOverlayUrl] = useState(null);
@@ -116,6 +184,7 @@ const MarketMapClient = ({ imageUrl = null }) => {
           const width = canvas.width;
           const height = canvas.height;
           const mask = new Uint8Array(width * height);
+          const intensityMap = new Float32Array(width * height);
 
           const xMin = Math.floor(width * DAT_UI_TRIM.left);
           const xMax = Math.ceil(width * (1 - DAT_UI_TRIM.right));
@@ -148,18 +217,26 @@ const MarketMapClient = ({ imageUrl = null }) => {
 
             if (isDatHeatPixel(r, g, b, a)) {
               accepted += 1;
-              mask[i / 4] = 1;
+              const idx = i / 4;
+              mask[idx] = 1;
+              intensityMap[idx] = colorToIntensity(r, g, b);
             } else {
               rejected += 1;
             }
           }
 
           const closedMask = applyMorphologicalClose(mask, width, height);
+          const blurredIntensity = boxBlurIntensity(intensityMap, width, height, 3);
 
           for (let i = 0; i < data.length; i += 4) {
             const idx = i / 4;
             if (closedMask[idx]) {
-              data[i + 3] = Math.min(255, Math.round(data[i + 3] * 0.86));
+              const intensity = Math.max(0, Math.min(1, blurredIntensity[idx]));
+              const [r, g, b] = getGradientColor(intensity);
+              data[i] = r;
+              data[i + 1] = g;
+              data[i + 2] = b;
+              data[i + 3] = Math.min(255, Math.round(70 + intensity * 165));
             } else {
               data[i + 3] = 0;
             }
