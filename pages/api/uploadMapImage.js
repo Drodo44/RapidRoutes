@@ -21,6 +21,11 @@ export default async function handler(req, res) {
   let supabaseAdmin;
   try {
     supabaseAdmin = (await import('@/lib/supabaseAdmin')).default;
+    if (!supabaseAdmin) {
+      return res.status(500).json({
+        error: 'Server storage is not configured. Missing Supabase admin credentials.'
+      });
+    }
     // Parse form (formidable uses OS temp dir which IS writable)
     const form = formidable({
       maxFileSize: 10 * 1024 * 1024, // 10MB
@@ -83,18 +88,55 @@ export default async function handler(req, res) {
       filename: filename
     });
     
-    const { data: dbData, error: dbError } = await supabaseAdmin
+    const payload = {
+      equipment_type: equipment,
+      image_url: publicUrl,
+      filename: filename,
+      file_size: file.size,
+      mime_type: file.mimetype,
+      uploaded_at: new Date().toISOString()
+    };
+
+    let { data: dbData, error: dbError } = await supabaseAdmin
       .from('dat_map_images')
-      .upsert({
-        equipment_type: equipment,
-        image_url: publicUrl,
-        filename: filename,
-        file_size: file.size,
-        mime_type: file.mimetype,
-        uploaded_at: new Date().toISOString()
-      }, {
+      .upsert(payload, {
         onConflict: 'equipment_type'
       });
+
+    // Fallback for deployments where equipment_type does not yet have a unique index
+    // and Postgres returns 42P10 for ON CONFLICT.
+    if (dbError?.code === '42P10') {
+      console.warn('⚠️ Upsert failed due to missing unique constraint. Falling back to update/insert flow.');
+
+      const { data: existing, error: existingError } = await supabaseAdmin
+        .from('dat_map_images')
+        .select('id')
+        .eq('equipment_type', equipment)
+        .order('uploaded_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (existingError) {
+        dbError = existingError;
+      } else if (existing?.id) {
+        const { data: updatedData, error: updateError } = await supabaseAdmin
+          .from('dat_map_images')
+          .update(payload)
+          .eq('id', existing.id)
+          .select();
+
+        dbData = updatedData;
+        dbError = updateError;
+      } else {
+        const { data: insertedData, error: insertError } = await supabaseAdmin
+          .from('dat_map_images')
+          .insert(payload)
+          .select();
+
+        dbData = insertedData;
+        dbError = insertError;
+      }
+    }
 
     if (dbError) {
       console.error('❌ Database save failed:', dbError);
