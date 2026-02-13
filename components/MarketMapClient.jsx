@@ -75,6 +75,7 @@ const MarketMapClient = ({ imageUrl = null }) => {
                         extracted,
                         gridSize,
                         distribution,
+                        extractionStats,
                         bounds
                     } = extractHeatmapPoints(ctx, canvas.width, canvas.height);
 
@@ -82,6 +83,7 @@ const MarketMapClient = ({ imageUrl = null }) => {
                         imageDimensions: { width: canvas.width, height: canvas.height },
                         gridSize,
                         totalPointsExtracted: extracted.length,
+                        extractionStats,
                         samplePoints: extracted.slice(0, 10),
                         intensityDistribution: distribution,
                         observedBounds: bounds
