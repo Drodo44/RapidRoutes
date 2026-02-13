@@ -10,6 +10,66 @@ const CONUS_BOUNDS = [
   [49.5, -66]
 ];
 
+const DAT_UI_TRIM = {
+  left: 0.02,
+  right: 0.02,
+  top: 0.06,
+  bottom: 0.04
+};
+
+function applyMorphologicalClose(mask, width, height) {
+  const dilated = new Uint8Array(mask.length);
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const idx = y * width + x;
+      let on = 0;
+      for (let oy = -1; oy <= 1 && !on; oy += 1) {
+        const ny = y + oy;
+        if (ny < 0 || ny >= height) continue;
+        for (let ox = -1; ox <= 1; ox += 1) {
+          const nx = x + ox;
+          if (nx < 0 || nx >= width) continue;
+          if (mask[ny * width + nx]) {
+            on = 1;
+            break;
+          }
+        }
+      }
+      dilated[idx] = on;
+    }
+  }
+
+  const closed = new Uint8Array(mask.length);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const idx = y * width + x;
+      let keep = 1;
+      for (let oy = -1; oy <= 1 && keep; oy += 1) {
+        const ny = y + oy;
+        if (ny < 0 || ny >= height) {
+          keep = 0;
+          break;
+        }
+        for (let ox = -1; ox <= 1; ox += 1) {
+          const nx = x + ox;
+          if (nx < 0 || nx >= width) {
+            keep = 0;
+            break;
+          }
+          if (!dilated[ny * width + nx]) {
+            keep = 0;
+            break;
+          }
+        }
+      }
+      closed[idx] = keep;
+    }
+  }
+
+  return closed;
+}
+
 const MarketMapClient = ({ imageUrl = null }) => {
   const [isMounted, setIsMounted] = useState(false);
   const [overlayUrl, setOverlayUrl] = useState(null);
@@ -53,21 +113,54 @@ const MarketMapClient = ({ imageUrl = null }) => {
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
           const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
           const data = imageData.data;
+          const width = canvas.width;
+          const height = canvas.height;
+          const mask = new Uint8Array(width * height);
+
+          const xMin = Math.floor(width * DAT_UI_TRIM.left);
+          const xMax = Math.ceil(width * (1 - DAT_UI_TRIM.right));
+          const yMin = Math.floor(height * DAT_UI_TRIM.top);
+          const yMax = Math.ceil(height * (1 - DAT_UI_TRIM.bottom));
 
           let accepted = 0;
           let rejected = 0;
 
           for (let i = 0; i < data.length; i += 4) {
+            const px = (i / 4) % width;
+            const py = Math.floor((i / 4) / width);
             const r = data[i];
             const g = data[i + 1];
             const b = data[i + 2];
             const a = data[i + 3];
 
+            // Trim screenshot framing artifacts near edges.
+            if (px < xMin || px >= xMax || py < yMin || py >= yMax) {
+              rejected += 1;
+              continue;
+            }
+
+            // Remove DAT title ribbon that sits over the map in uploaded screenshots.
+            const isTopRibbonBlue = py < Math.floor(height * 0.17) && b > 130 && r < 80 && g < 170;
+            if (isTopRibbonBlue) {
+              rejected += 1;
+              continue;
+            }
+
             if (isDatHeatPixel(r, g, b, a)) {
               accepted += 1;
-              data[i + 3] = Math.min(255, Math.round(a * 0.9));
+              mask[i / 4] = 1;
             } else {
               rejected += 1;
+            }
+          }
+
+          const closedMask = applyMorphologicalClose(mask, width, height);
+
+          for (let i = 0; i < data.length; i += 4) {
+            const idx = i / 4;
+            if (closedMask[idx]) {
+              data[i + 3] = Math.min(255, Math.round(data[i + 3] * 0.86));
+            } else {
               data[i + 3] = 0;
             }
           }

@@ -429,11 +429,11 @@
 }
 
 .heatmap-map-frame .leaflet-container {
-    filter: saturate(1.2) brightness(1.05);
+    filter: saturate(1.08) brightness(1.02);
 }
 
 .heatmap-map-frame .leaflet-overlay-pane {
-    filter: saturate(1.34) brightness(1.14);
+    filter: saturate(1.08) brightness(1.04);
 }
 
 .heatmap-grid-overlay {
@@ -444,7 +444,7 @@
         linear-gradient(to right, rgba(226, 232, 240, 0.1) 1px, transparent 1px),
         linear-gradient(to bottom, rgba(226, 232, 240, 0.1) 1px, transparent 1px);
     background-size: 48px 48px;
-    opacity: 0.16;
+    opacity: 0.08;
     mix-blend-mode: screen;
 }
 
