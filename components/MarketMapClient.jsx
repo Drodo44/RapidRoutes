@@ -1,92 +1,60 @@
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
 
-function detectCropBounds(imageData, width, height) {
+function isDatHeatColor(r, g, b, a) {
+  if (a < 20) return false;
+
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const saturation = max === 0 ? 0 : (max - min) / max;
+
+  const blueBand = b > 105 && g > 80 && r < 120;
+  const greenBand = g > 125 && b < 180 && r < 170;
+  const yellowBand = r > 170 && g > 150 && b < 120;
+  const orangeRedBand = r > 185 && g > 70 && g < 180 && b < 120;
+
+  return saturation > 0.28 && (blueBand || greenBand || yellowBand || orangeRedBand);
+}
+
+function detectHeatFocusCrop(imageData, width, height) {
   const data = imageData.data;
+  let minX = width;
+  let maxX = -1;
+  let minY = height;
+  let maxY = -1;
+  let hits = 0;
 
-  const cornerSamples = [
-    [2, 2],
-    [width - 3, 2],
-    [2, height - 3],
-    [width - 3, height - 3]
-  ];
-
-  let rSum = 0;
-  let gSum = 0;
-  let bSum = 0;
-
-  cornerSamples.forEach(([x, y]) => {
-    const idx = (y * width + x) * 4;
-    rSum += data[idx];
-    gSum += data[idx + 1];
-    bSum += data[idx + 2];
-  });
-
-  const bgR = rSum / cornerSamples.length;
-  const bgG = gSum / cornerSamples.length;
-  const bgB = bSum / cornerSamples.length;
-
-  const colorDistance = (idx) => {
-    const dr = data[idx] - bgR;
-    const dg = data[idx + 1] - bgG;
-    const db = data[idx + 2] - bgB;
-    return Math.sqrt((dr * dr) + (dg * dg) + (db * db));
-  };
-
-  const rowHasContent = (y) => {
-    let hits = 0;
-    for (let x = 0; x < width; x += 1) {
+  const stride = 2;
+  for (let y = 0; y < height; y += stride) {
+    for (let x = 0; x < width; x += stride) {
       const idx = (y * width + x) * 4;
+      const r = data[idx];
+      const g = data[idx + 1];
+      const b = data[idx + 2];
       const a = data[idx + 3];
-      if (a < 20) continue;
-      if (colorDistance(idx) > 28) {
-        hits += 1;
-        if (hits >= Math.max(8, Math.floor(width * 0.01))) return true;
-      }
+
+      if (!isDatHeatColor(r, g, b, a)) continue;
+
+      hits += 1;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
     }
-    return false;
-  };
+  }
 
-  const colHasContent = (x) => {
-    let hits = 0;
-    for (let y = 0; y < height; y += 1) {
-      const idx = (y * width + x) * 4;
-      const a = data[idx + 3];
-      if (a < 20) continue;
-      if (colorDistance(idx) > 28) {
-        hits += 1;
-        if (hits >= Math.max(8, Math.floor(height * 0.01))) return true;
-      }
-    }
-    return false;
-  };
-
-  let top = 0;
-  while (top < height - 1 && !rowHasContent(top)) top += 1;
-
-  let bottom = height - 1;
-  while (bottom > top && !rowHasContent(bottom)) bottom -= 1;
-
-  let left = 0;
-  while (left < width - 1 && !colHasContent(left)) left += 1;
-
-  let right = width - 1;
-  while (right > left && !colHasContent(right)) right -= 1;
-
-  const minWidth = Math.floor(width * 0.55);
-  const minHeight = Math.floor(height * 0.55);
-  const foundWidth = right - left + 1;
-  const foundHeight = bottom - top + 1;
-
-  if (foundWidth < minWidth || foundHeight < minHeight) {
+  if (hits < 300 || maxX <= minX || maxY <= minY) {
     return { x: 0, y: 0, width, height };
   }
 
-  const padX = Math.round(foundWidth * 0.02);
-  const padY = Math.round(foundHeight * 0.03);
+  const foundWidth = maxX - minX + 1;
+  const foundHeight = maxY - minY + 1;
 
-  const x = Math.max(0, left - padX);
-  const y = Math.max(0, top - padY);
+  const padX = Math.round(foundWidth * 0.22);
+  const padY = Math.round(foundHeight * 0.26);
+
+  const x = Math.max(0, minX - padX);
+  const y = Math.max(0, minY - padY);
   const w = Math.min(width - x, foundWidth + (padX * 2));
   const h = Math.min(height - y, foundHeight + (padY * 2));
 
@@ -123,7 +91,7 @@ const MarketMapClient = ({ imageUrl = null }) => {
 
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const crop = detectCropBounds(imageData, canvas.width, canvas.height);
+        const crop = detectHeatFocusCrop(imageData, canvas.width, canvas.height);
 
         if (crop.x === 0 && crop.y === 0 && crop.width === canvas.width && crop.height === canvas.height) {
           if (!cancelled) setDisplayUrl(imageUrl);
@@ -152,8 +120,7 @@ const MarketMapClient = ({ imageUrl = null }) => {
           crop.height
         );
 
-        const trimmedUrl = out.toDataURL('image/png');
-        if (!cancelled) setDisplayUrl(trimmedUrl);
+        if (!cancelled) setDisplayUrl(out.toDataURL('image/png'));
       } catch (error) {
         if (!cancelled) setDisplayUrl(imageUrl);
       }
@@ -206,6 +173,21 @@ const MarketMapClient = ({ imageUrl = null }) => {
     >
       <Image
         src={displayUrl}
+        alt="DAT market map background"
+        fill
+        unoptimized
+        sizes="100vw"
+        aria-hidden="true"
+        style={{
+          objectFit: 'cover',
+          objectPosition: 'center center',
+          transform: 'scale(1.08)',
+          filter: 'blur(16px) brightness(0.45) saturate(1.2)'
+        }}
+      />
+
+      <Image
+        src={displayUrl}
         alt="DAT market heat map"
         fill
         unoptimized
@@ -213,7 +195,7 @@ const MarketMapClient = ({ imageUrl = null }) => {
         style={{
           objectFit: 'contain',
           objectPosition: 'center center',
-          filter: 'saturate(1.04) contrast(1.03) drop-shadow(0 14px 30px rgba(2,6,23,0.35))'
+          filter: 'saturate(1.08) contrast(1.04) drop-shadow(0 14px 30px rgba(2,6,23,0.35))'
         }}
       />
     </div>
